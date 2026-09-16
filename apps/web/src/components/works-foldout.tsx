@@ -162,7 +162,7 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
                   alt={workCaption(w)}
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                 />
-                <p className="mt-3 font-sans text-ui font-medium leading-snug text-ink group-hover:text-accent">
+                <p className="mt-3 font-sans text-ui font-medium leading-snug text-ink transition-colors duration-150 group-hover:text-accent">
                   {w.artist ?? workCaption(w)}
                 </p>
                 {w.status ? (

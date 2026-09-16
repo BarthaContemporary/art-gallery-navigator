@@ -1,6 +1,6 @@
 # 007 — Remove the duplicated motion rules in globals.css
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: fd8969b
 - **Severity**: LOW
 - **Category**: Cohesion & tokens

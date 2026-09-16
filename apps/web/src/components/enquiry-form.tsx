@@ -80,17 +80,16 @@ export function EnquiryForm({
     }
   }
 
-  if (status === "done") {
-    return (
-      <p className="font-sans text-ui text-ink" role="status">
-        Thank you — your message has been sent. We&rsquo;ll reply by email.
-      </p>
-    );
-  }
-
   const gridCols = columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
+  const done = status === "done";
 
+  // On success the form folds closed while the thank-you line folds open,
+  // on the same curves as every drawer, instead of the box snapping.
   return (
+    <div>
+    <div className="fold" data-open={!done} aria-hidden={done} inert={done}>
+      <div>
+        <div className="fold-body">
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       {heading ? (
       <p className="flex items-baseline gap-2 font-sans text-[12.5px] font-semibold text-ink">
@@ -170,5 +169,18 @@ export function EnquiryForm({
         </p>
       ) : null}
     </form>
+        </div>
+      </div>
+    </div>
+    <div className="fold" data-open={done} aria-hidden={!done}>
+      <div>
+        <div className="fold-body">
+          <p className="font-sans text-ui text-ink" role="status">
+            {done ? <>Thank you — your message has been sent. We&rsquo;ll reply by email.</> : null}
+          </p>
+        </div>
+      </div>
+    </div>
+    </div>
   );
 }

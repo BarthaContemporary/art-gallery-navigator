@@ -7,12 +7,12 @@ Audit of the fold-out panel (`apps/web/src/components/works-foldout.tsx`, `.fold
 | 001 | Strong ease-out token for the fold, content reveal, tile rule transition | HIGH | DONE |
 | 002 | Move the panel between tiles without collapsing and reopening | HIGH | DONE |
 | 003 | Keep the enquiry form mounted while its fold closes | MEDIUM | DONE |
-| 004 | Faster, interruptible page turns in the publication reader | MEDIUM | TODO |
-| 005 | Lighter backdrop blur on the two full-screen layers | MEDIUM | TODO |
-| 006 | Fold from form to thank-you line instead of snapping | MEDIUM | TODO |
-| 007 | Remove the duplicated motion rules in globals.css | LOW | TODO |
-| 008 | Consent drawer on the site's drawer curve | LOW | TODO |
-| 009 | One hover transition for captions and orange links | LOW | TODO |
+| 004 | Faster, interruptible page turns in the publication reader | MEDIUM | DONE |
+| 005 | Lighter backdrop blur on the two full-screen layers | MEDIUM | DONE |
+| 006 | Fold from form to thank-you line instead of snapping | MEDIUM | DONE |
+| 007 | Remove the duplicated motion rules in globals.css | LOW | DONE |
+| 008 | Consent drawer on the site's drawer curve | LOW | DONE |
+| 009 | One hover transition for captions and orange links | LOW | DONE |
 
 ## Order
 

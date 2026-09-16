@@ -1,6 +1,6 @@
 # 006 — Fold from form to thank-you line instead of snapping
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: fd8969b
 - **Severity**: MEDIUM
 - **Category**: Physicality

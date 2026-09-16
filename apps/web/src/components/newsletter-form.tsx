@@ -37,15 +37,13 @@ export function NewsletterForm() {
     }
   }
 
-  if (status === "done") {
-    return (
-      <p className="mt-4 font-sans text-ui" role="status">
-        Thank you — you&rsquo;re on the list.
-      </p>
-    );
-  }
+  const done = status === "done";
 
   return (
+    <div>
+    <div className="fold" data-open={!done} aria-hidden={done} inert={done}>
+      <div>
+        <div className="fold-body">
     <form onSubmit={onSubmit} className="mt-3 flex flex-col gap-2" noValidate={false}>
       <label className="sr-only" htmlFor="nl-name">
         Name
@@ -95,5 +93,18 @@ export function NewsletterForm() {
         </p>
       ) : null}
     </form>
+        </div>
+      </div>
+    </div>
+    <div className="fold" data-open={done} aria-hidden={!done}>
+      <div>
+        <div className="fold-body">
+          <p className="mt-4 font-sans text-ui" role="status">
+            {done ? <>Thank you — you&rsquo;re on the list.</> : null}
+          </p>
+        </div>
+      </div>
+    </div>
+    </div>
   );
 }

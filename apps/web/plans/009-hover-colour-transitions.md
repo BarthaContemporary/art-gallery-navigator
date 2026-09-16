@@ -1,6 +1,6 @@
 # 009 — One hover transition for captions and orange links
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: fd8969b
 - **Severity**: LOW
 - **Category**: Cohesion

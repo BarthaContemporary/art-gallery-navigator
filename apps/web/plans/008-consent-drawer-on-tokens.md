@@ -1,6 +1,6 @@
 # 008 — Consent drawer on the site's drawer curve
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: fd8969b
 - **Severity**: LOW
 - **Category**: Cohesion & tokens

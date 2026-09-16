@@ -1,6 +1,6 @@
 # 005 — Lighter backdrop blur on the two full-screen layers
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: fd8969b
 - **Severity**: MEDIUM
 - **Category**: Performance

@@ -169,11 +169,10 @@ export function AppointmentForm() {
         <div aria-hidden={!open}>
           <div className="fold-body pt-3 pb-2">
             {mounted ? (
-              status === "done" ? (
-                <p className="font-sans text-ui text-ink" role="status">
-                  Thank you — we&rsquo;ll confirm {chosen ?? "your appointment"} by email, with a calendar invitation.
-                </p>
-              ) : (
+              <>
+              <div className="fold" data-open={status !== "done"} aria-hidden={status === "done"} inert={status === "done"}>
+                <div>
+                  <div className="fold-body">
                 <form onSubmit={onSubmit} className="flex max-w-[480px] flex-col gap-4">
                   <div>
                     <p className="label mb-2">Suggest a date and time</p>
@@ -229,7 +228,21 @@ export function AppointmentForm() {
                     </p>
                   ) : null}
                 </form>
-              )
+                  </div>
+                </div>
+              </div>
+              <div className="fold" data-open={status === "done"} aria-hidden={status !== "done"}>
+                <div>
+                  <div className="fold-body">
+                    <p className="font-sans text-ui text-ink" role="status">
+                      {status === "done" ? (
+                        <>Thank you — we&rsquo;ll confirm {chosen ?? "your appointment"} by email, with a calendar invitation.</>
+                      ) : null}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              </>
             ) : null}
           </div>
         </div>

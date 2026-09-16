@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { imageDimensions, imageUrl, type SanityImage } from "@/lib/sanity";
 
-const FLIP_MS = 650;
+const FLIP_MS = 420;
 
 /**
  * Embedded page-flip reader (handoff 2f). Each Sanity spread is one
@@ -15,6 +15,7 @@ const FLIP_MS = 650;
 export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; title: string }) {
   const [index, setIndex] = useState(0);
   const [turn, setTurn] = useState<{ from: number; dir: 1 | -1 } | null>(null);
+  const turnRef = useRef<{ from: number; dir: 1 | -1 } | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const touchX = useRef<number | null>(null);
@@ -26,7 +27,8 @@ export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; tit
         const next = i + dir;
         if (next < 0 || next >= count) return i;
         const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        if (!reduce) setTurn({ from: i, dir });
+        // One turn at a time: a press mid-turn jumps, it does not restart.
+        if (!reduce && !turnRef.current) setTurn({ from: i, dir });
         return next;
       });
     },
@@ -34,6 +36,7 @@ export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; tit
   );
 
   useEffect(() => {
+    turnRef.current = turn;
     if (!turn) return;
     const t = setTimeout(() => setTurn(null), FLIP_MS);
     return () => clearTimeout(t);
@@ -91,7 +94,7 @@ export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; tit
       ref={wrap}
       className={
         fullscreen
-          ? "lightbox fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white/55 p-6 backdrop-blur-2xl md:p-10"
+          ? "lightbox fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white/55 p-6 backdrop-blur-xl md:p-10"
           : "outline-none"
       }
       aria-roledescription="page reader"
@@ -140,7 +143,7 @@ export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; tit
             {/* the half that stays put fades as the page lifts */}
             <div
               className="reader-half absolute inset-y-0"
-              style={{ [turn.dir === 1 ? "left" : "right"]: 0, width: "50%", animation: `reader-fade ${FLIP_MS}ms ease-in forwards` }}
+              style={{ [turn.dir === 1 ? "left" : "right"]: 0, width: "50%", animation: `reader-fade ${FLIP_MS}ms var(--ease-out) forwards` }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={spreadSrc(outgoing) ?? ""} alt="" className="absolute inset-y-0 h-full w-[200%] max-w-none object-contain" style={{ [turn.dir === 1 ? "left" : "right"]: 0 }} draggable={false} />

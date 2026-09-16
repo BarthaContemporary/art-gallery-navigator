@@ -173,7 +173,7 @@ export function Lightbox({
       role="dialog"
       aria-modal="true"
       aria-label={alt}
-      className={`lightbox fixed inset-0 z-[60] bg-white/55 backdrop-blur-2xl ${closing ? "lightbox-closing" : ""}`}
+      className={`lightbox fixed inset-0 z-[60] bg-white/55 backdrop-blur-xl ${closing ? "lightbox-closing" : ""}`}
       onClick={(e) => {
         if (e.target === e.currentTarget && !suppressClick.current) close();
         suppressClick.current = false;

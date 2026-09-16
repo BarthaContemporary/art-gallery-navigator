@@ -70,7 +70,7 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
                       alt={a.name ?? "Artist"}
                       sizes="(min-width: 640px) 17vw, 33vw"
                     />
-                    <p className="mt-3 font-sans text-small font-medium leading-snug text-ink group-hover:text-accent">
+                    <p className="mt-3 font-sans text-small font-medium leading-snug text-ink transition-colors duration-150 group-hover:text-accent">
                       {a.name}
                       {a.nameNative ? <span className="ml-2 font-normal text-light">{a.nameNative}</span> : null}
                     </p>

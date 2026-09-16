@@ -1,6 +1,6 @@
 # 004 — Faster, interruptible page turns in the publication reader
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: fd8969b
 - **Severity**: MEDIUM
 - **Category**: Easing & duration / Interruptibility

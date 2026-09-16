@@ -319,6 +319,7 @@
     padding: 0;
     cursor: pointer;
     text-align: left;
+    transition: color 160ms ease;
   }
   .link-accent:hover {
     color: var(--accent-deep);
@@ -520,53 +521,6 @@
     opacity: 1;
     transition: opacity 320ms var(--ease-out) 140ms;
   }
-  /* Content swap inside an already-open panel: slides in from the side of
-     the tile that was clicked. */
-  .panel-swap {
-    animation: panel-swap 260ms var(--ease-out);
-  }
-  @keyframes panel-swap {
-    from {
-      opacity: 0;
-      transform: translateX(var(--swap-x, 0));
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
-  /* Full-screen photograph over the blurred page. */
-  .lightbox {
-    animation: lightbox-in 240ms var(--ease-out);
-  }
-  .lightbox-img {
-    animation: lightbox-img 360ms var(--ease-drawer);
-    max-width: none;
-  }
-  .lightbox-closing {
-    animation: lightbox-out 220ms var(--ease-out) forwards;
-  }
-  @keyframes lightbox-out {
-    to {
-      opacity: 0;
-    }
-  }
-  @keyframes lightbox-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-  @keyframes lightbox-img {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
   @media (prefers-reduced-motion: reduce) {
     .panel-swap {
       animation-name: lightbox-in;
@@ -592,8 +546,8 @@
   opacity: 0;
   transform: translateY(100%);
   transition:
-    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 320ms var(--ease-out),
+    transform 480ms var(--ease-drawer);
 }
 .jvb-consent[data-visible="true"] {
   opacity: 1;
