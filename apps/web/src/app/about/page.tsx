@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { getSiteSettings, pageBySlugQuery, sanityFetch, RATIO, type SitePage } from "@/lib/sanity";
+import Image from "next/image";
+import { getSiteSettings, imageDimensions, imageUrl, pageBySlugQuery, sanityFetch, type SitePage } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 import { PortableText } from "@/components/portable-text";
-import { RatioImage } from "@/components/ratio-image";
 import { InlineEnquiry } from "@/components/inline-enquiry";
 
 export const metadata: Metadata = {
@@ -11,8 +11,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * About (handoff 2g): full-width 16:9 gallery photo; statement headline and
- * paragraphs on the left; Visit (with the inline appointment request),
+ * About (handoff 2g, adjusted): the gallery photo sits above the statement at
+ * its own proportions rather than as a full-width header; statement headline
+ * and paragraphs on the left; Visit (with the inline appointment request),
  * Contact and Press on the right. The footer's contact details live here
  * too, because the infinite-scroll pages make the footer hard to reach.
  */
@@ -30,23 +31,25 @@ export default async function AboutPage() {
   const press = (settings?.pressLinks ?? []).filter((l) => l?.url && l?.title);
   const phoneHref = settings?.phone ? `tel:${settings.phone.replace(/[^\d+]/g, "")}` : null;
 
+  const photoSrc = imageUrl(settings?.galleryPhoto, { width: 1400 });
+  const photoDims = imageDimensions(settings?.galleryPhoto);
+
   return (
     <article>
-      {settings?.galleryPhoto?.asset ? (
-        <RatioImage
-          image={settings.galleryPhoto}
-          ratio={RATIO.hero}
-          width={1920}
-          alt={settings.galleryPhoto.caption ?? `${galleryName} gallery`}
-          sizes="100vw"
-          priority
-          lazy={false}
-        />
-      ) : null}
-
       <div className="page pt-10 pb-20 md:pt-12">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:gap-16">
-          <section className="max-w-[560px]">
+          <section className="max-w-[640px]">
+            {photoSrc && photoDims ? (
+              <Image
+                src={photoSrc}
+                alt={settings?.galleryPhoto?.caption ?? `${galleryName} gallery`}
+                width={photoDims.width}
+                height={photoDims.height}
+                sizes="(min-width: 768px) 640px, 100vw"
+                priority
+                className="mb-8 h-auto w-full bg-field"
+              />
+            ) : null}
             {headline ? <h1 className="t-title">{headline}</h1> : <h1 className="t-title">{galleryName}</h1>}
             <div className="mt-5">
               {statement ? (
