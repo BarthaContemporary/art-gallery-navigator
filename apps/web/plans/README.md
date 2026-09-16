@@ -7,12 +7,25 @@ Audit of the fold-out panel (`apps/web/src/components/works-foldout.tsx`, `.fold
 | 001 | Strong ease-out token for the fold, content reveal, tile rule transition | HIGH | DONE |
 | 002 | Move the panel between tiles without collapsing and reopening | HIGH | DONE |
 | 003 | Keep the enquiry form mounted while its fold closes | MEDIUM | DONE |
+| 004 | Faster, interruptible page turns in the publication reader | MEDIUM | TODO |
+| 005 | Lighter backdrop blur on the two full-screen layers | MEDIUM | TODO |
+| 006 | Fold from form to thank-you line instead of snapping | MEDIUM | TODO |
+| 007 | Remove the duplicated motion rules in globals.css | LOW | TODO |
+| 008 | Consent drawer on the site's drawer curve | LOW | TODO |
+| 009 | One hover transition for captions and orange links | LOW | TODO |
 
 ## Order
 
-1. **001** first — it introduces `--ease-out` and the `fold-body` class the other two rely on.
-2. **002** next (uses `--ease-out` and `fold-body`).
-3. **003** last (independent of 002, but touches the same file; run after to avoid merge friction).
+Round one (done): 001 → 002 → 003.
+
+Round two, audit at fd8969b:
+
+1. **007** first — it deletes duplicate rules in `globals.css`; doing it before 008 and 009 keeps their line references honest.
+2. **004** and **005** next, independent of each other and of the rest.
+3. **006** — touches three form components; run after 004/005 so a review sees one concern per diff.
+4. **008** and **009** last, cosmetic and independent.
+
+Not planned (recorded as missed opportunities, additive): fade-and-stagger for rows revealed by infinite scroll; a filling active marker on the hero slideshow; a directional crossfade when the booking calendar changes month.
 
 ## Accepted as-is
 
