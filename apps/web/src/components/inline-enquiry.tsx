@@ -19,7 +19,8 @@ export function InlineEnquiry({
   kind: "publication" | "appointment";
   subject: string;
   defaultMessage: string;
-  heading: string;
+  /** Kept for callers; the toggle carries the label in both states. */
+  heading?: string;
   columns?: 2 | 3;
 }) {
   const [open, setOpen] = useState(false);
@@ -31,6 +32,14 @@ export function InlineEnquiry({
   };
   return (
     <div>
+      <button
+        type="button"
+        className="link-accent min-h-[44px]"
+        onClick={() => (open ? setOpen(false) : show())}
+        aria-expanded={open}
+      >
+        {label} {open ? "↑" : "↓"}
+      </button>
       <div
         className="fold"
         data-open={open}
@@ -39,25 +48,13 @@ export function InlineEnquiry({
         }}
       >
         <div aria-hidden={!open}>
-          <div className="fold-body pb-2">
+          <div className="fold-body pt-3 pb-2">
             {mounted ? (
-              <EnquiryForm
-                kind={kind}
-                subject={subject}
-                defaultMessage={defaultMessage}
-                heading={heading}
-                onCollapse={() => setOpen(false)}
-                columns={columns}
-              />
+              <EnquiryForm kind={kind} subject={subject} defaultMessage={defaultMessage} columns={columns} />
             ) : null}
           </div>
         </div>
       </div>
-      {!open ? (
-        <button type="button" className="link-accent min-h-[44px]" onClick={show} aria-expanded={false}>
-          {label} ↓
-        </button>
-      ) : null}
     </div>
   );
 }

@@ -151,6 +151,14 @@ export function AppointmentForm() {
 
   return (
     <div>
+      <button
+        type="button"
+        className="link-accent min-h-[44px]"
+        onClick={() => (open ? setOpen(false) : show())}
+        aria-expanded={open}
+      >
+        Book an appointment {open ? "↑" : "↓"}
+      </button>
       <div
         className="fold"
         data-open={open}
@@ -159,7 +167,7 @@ export function AppointmentForm() {
         }}
       >
         <div aria-hidden={!open}>
-          <div className="fold-body pb-2">
+          <div className="fold-body pt-3 pb-2">
             {mounted ? (
               status === "done" ? (
                 <p className="font-sans text-ui text-ink" role="status">
@@ -167,18 +175,6 @@ export function AppointmentForm() {
                 </p>
               ) : (
                 <form onSubmit={onSubmit} className="flex max-w-[480px] flex-col gap-4">
-                  <p className="flex items-baseline gap-2 font-sans text-[12.5px] font-semibold text-ink">
-                    Book an appointment
-                    <button
-                      type="button"
-                      onClick={() => setOpen(false)}
-                      aria-label="Collapse the appointment form"
-                      className="font-normal text-light hover:text-ink"
-                    >
-                      ↑
-                    </button>
-                  </p>
-
                   <div>
                     <p className="label mb-2">Suggest a date and time</p>
                     <Calendar value={date} onChange={setDate} />
@@ -238,11 +234,6 @@ export function AppointmentForm() {
           </div>
         </div>
       </div>
-      {!open ? (
-        <button type="button" className="link-accent min-h-[44px]" onClick={show} aria-expanded={false}>
-          Book an appointment ↓
-        </button>
-      ) : null}
     </div>
   );
 }

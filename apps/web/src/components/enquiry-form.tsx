@@ -22,8 +22,9 @@ export function EnquiryForm({
   subject: string;
   pieceId?: string | null;
   defaultMessage: string;
-  heading: string;
-  /** Rendered as "↑" next to the heading when provided. */
+  /** Optional heading line; the inline toggles now carry the label themselves. */
+  heading?: string;
+  /** Rendered as "↑" next to the heading when both are provided. */
   onCollapse?: () => void;
   columns?: 2 | 3;
 }) {
@@ -79,6 +80,7 @@ export function EnquiryForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
+      {heading ? (
       <p className="flex items-baseline gap-2 font-sans text-[12.5px] font-semibold text-ink">
         {heading}
         {onCollapse ? (
@@ -92,6 +94,7 @@ export function EnquiryForm({
           </button>
         ) : null}
       </p>
+      ) : null}
       <div className={`grid grid-cols-1 gap-2 ${gridCols}`}>
         <label className="sr-only" htmlFor={`${kind}-name`}>Name</label>
         <input id={`${kind}-name`} name="name" required autoComplete="name" placeholder="Name" className="field field-sm" />

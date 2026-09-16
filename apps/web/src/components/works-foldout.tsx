@@ -326,6 +326,14 @@ function WorkPanel({
         ) : null}
 
         <div className="mt-4">
+          <button
+            type="button"
+            className="link-accent min-h-[44px]"
+            onClick={() => onEnquiry(!enquiryOpen)}
+            aria-expanded={enquiryOpen}
+          >
+            Enquire {enquiryOpen ? "↑" : "↓"}
+          </button>
           <div
             className="fold"
             data-open={enquiryOpen}
@@ -334,25 +342,18 @@ function WorkPanel({
             }}
           >
             <div aria-hidden={!enquiryOpen}>
-              <div className="fold-body max-w-[640px] pb-2">
+              <div className="fold-body max-w-[640px] pt-3 pb-2">
                 {enquiryMounted ? (
                   <EnquiryForm
                     kind="work"
                     subject={workSubject(work)}
                     pieceId={work.pieceId}
                     defaultMessage={`I'm interested in ${workSubject(work)}`}
-                    heading="Enquire about this work"
-                    onCollapse={() => onEnquiry(false)}
                   />
                 ) : null}
               </div>
             </div>
           </div>
-          {!enquiryOpen ? (
-            <button type="button" className="link-accent min-h-[44px]" onClick={() => onEnquiry(true)} aria-expanded={false}>
-              Enquire ↓
-            </button>
-          ) : null}
         </div>
       </div>
     </div>
