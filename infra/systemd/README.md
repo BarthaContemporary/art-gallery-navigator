@@ -15,7 +15,7 @@ stale unnoticed). With timers:
 |------|----------|-----|
 | `jvb-backup-db.timer`      | daily 02:30 UTC       | `backup.sh db` (Postgres dump) |
 | `jvb-backup-webdav.timer`  | daily 03:00 UTC       | `backup.sh webdav-sync` |
-| `jvb-backup-storage.timer` | weekly Sun 03:30 UTC  | `backup.sh storage-sync` (optional) |
+| `jvb-backup-storage.timer` | weekly Sun 03:30 UTC  | `backup.sh storage-sync` (enabled 2026-09-16; the replica bucket had been empty until then) |
 
 The `db` job still writes to the `backup_runs` table and pings healthchecks.io,
 so the studio dashboard's Backups panel is unchanged.

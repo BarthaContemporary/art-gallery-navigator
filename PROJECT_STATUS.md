@@ -18,6 +18,19 @@ vars are referenced by name only.
   exposed through Kong) with the `service_role` key as `apikey` + Bearer. This
   is how migrations 16/17 and the data backfill were applied.
 
+## Server disk (2026-09-16)
+
+- `/` (240 GB) was at 94% because the WebDAV drive's `Dropbox/` folder holds a
+  192 GB archive copied from the old Dropbox; the photographs live in object
+  storage and are not the cause. 28 GB of half-downloaded films (`*.part`)
+  were deleted on the server (delete on the server, never from a synced Mac —
+  a Mac-side delete lands in Syncthing's 365-day version store instead).
+  Now ~82%. Still open: personal films under `Dropbox/transfer desktop`, and
+  moving cold `fairs`/`images` years to a versioned `jvb-archive` bucket with
+  `rclone move` (commands in the session notes). Reboot pending for kernel
+  updates — check the gocryptfs mount and `docker compose ps` afterwards.
+- Weekly object-storage replica timer installed and first run verified.
+
 ## Done
 - All 17 migrations applied to prod (incl. `…16_newsletter_designer`,
   `…17_sanity_sync_state`); bootstrap ledger reconciled.
