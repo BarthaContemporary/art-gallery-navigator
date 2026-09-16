@@ -82,6 +82,7 @@ export default async function PublicationPage({ params }: { params: Promise<{ sl
             subject={title}
             defaultMessage={`I would like to order a copy of ${title}.`}
             heading="Enquire to order"
+            withAddress
           />
         ) : (
           <InlineEnquiry

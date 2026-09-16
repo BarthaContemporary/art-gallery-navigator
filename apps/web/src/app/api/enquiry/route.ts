@@ -18,6 +18,16 @@ const schema = z.object({
   email: z.string().trim().email("Please enter a valid email address").max(320),
   phone: z.string().trim().max(50).optional(),
   message: z.string().trim().min(1, "Please write a short message").max(3000),
+  /** Postal address for orders that will be sent by mail. */
+  address: z
+    .object({
+      line1: z.string().trim().min(1, "Please enter your address").max(200),
+      line2: z.string().trim().max(200).optional(),
+      city: z.string().trim().min(1, "Please enter your city").max(120),
+      postcode: z.string().trim().min(1, "Please enter your postcode").max(40),
+      country: z.string().trim().min(1, "Please enter your country").max(120),
+    })
+    .optional(),
   mailingList: z.boolean().optional(),
   /** Explicit agreement to be contacted about the enquiry (privacy policy and terms). */
   consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to be contacted" }) }),
@@ -64,6 +74,13 @@ export async function POST(req: NextRequest) {
   const [firstName, ...rest] = payload.name.split(/\s+/);
   const now = new Date().toISOString();
   const label = KIND_LABEL[payload.kind];
+  const addr = payload.address;
+  const addressText = addr
+    ? [addr.line1, addr.line2, addr.city, addr.postcode, addr.country].filter(Boolean).join(", ")
+    : null;
+  const addressColumns = addr
+    ? { address_line1: addr.line1, address_line2: addr.line2 ?? null, city: addr.city, postcode: addr.postcode, country: addr.country }
+    : {};
 
   try {
     const supabase = createServiceClient();
@@ -84,6 +101,8 @@ export async function POST(req: NextRequest) {
           .eq("id", existing.id);
       }
       if (payload.phone) await supabase.from("crm_contacts").update({ phone: payload.phone }).eq("id", existing.id).is("phone", null);
+      // A posted order is the freshest address we have for the contact.
+      if (addr) await supabase.from("crm_contacts").update(addressColumns).eq("id", existing.id);
     } else {
       const { data: created, error } = await supabase
         .from("crm_contacts")
@@ -92,6 +111,7 @@ export async function POST(req: NextRequest) {
           last_name: rest.join(" ") || null,
           email,
           phone: payload.phone || null,
+          ...addressColumns,
           marketing_consent: Boolean(payload.mailingList),
           consent_date: payload.mailingList ? now : null,
           consent_source: payload.mailingList ? "website_enquiry" : null,
@@ -107,7 +127,7 @@ export async function POST(req: NextRequest) {
       contact_id: contactId,
       piece_id: payload.pieceId ?? null,
       channel: "website",
-      message: `${label}${payload.subject ? ` — ${payload.subject}` : ""}\n\n${payload.message}\n\nFrom: ${payload.name} <${email}>${payload.phone ? ` · ${payload.phone}` : ""}\nAgreed to be contacted (privacy policy and terms) on ${now.slice(0, 10)} via the website form.`,
+      message: `${label}${payload.subject ? ` — ${payload.subject}` : ""}\n\n${payload.message}\n\nFrom: ${payload.name} <${email}>${payload.phone ? ` · ${payload.phone}` : ""}${addressText ? `\nPost to: ${addressText}` : ""}\nAgreed to be contacted (privacy policy and terms) on ${now.slice(0, 10)} via the website form.`,
     });
     if (enquiryError) throw enquiryError;
   } catch (err) {
@@ -137,6 +157,7 @@ export async function POST(req: NextRequest) {
           `From: ${payload.name}`,
           `Email: ${email}`,
           payload.phone ? `Phone: ${payload.phone}` : null,
+          addressText ? `Post to: ${addressText}` : null,
           payload.mailingList ? "Asked to join the mailing list." : null,
         ]
           .filter((l) => l !== null)

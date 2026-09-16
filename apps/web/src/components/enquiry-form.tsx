@@ -17,6 +17,7 @@ export function EnquiryForm({
   heading,
   onCollapse,
   columns = 2,
+  withAddress = false,
 }: {
   kind: "work" | "publication" | "appointment";
   subject: string;
@@ -27,6 +28,8 @@ export function EnquiryForm({
   /** Rendered as "↑" next to the heading when both are provided. */
   onCollapse?: () => void;
   columns?: 2 | 3;
+  /** Collect a postal address (orders that will be posted). */
+  withAddress?: boolean;
 }) {
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +56,15 @@ export function EnquiryForm({
           email: String(data.get("email") ?? ""),
           phone: String(data.get("phone") ?? "") || undefined,
           message: String(data.get("message") ?? ""),
+          address: withAddress
+            ? {
+                line1: String(data.get("address1") ?? ""),
+                line2: String(data.get("address2") ?? "") || undefined,
+                city: String(data.get("city") ?? ""),
+                postcode: String(data.get("postcode") ?? ""),
+                country: String(data.get("country") ?? ""),
+              }
+            : undefined,
           mailingList: data.get("mailingList") === "on",
           consent: data.get("consent") === "on",
           turnstileToken: turnstileToken || undefined,
@@ -113,6 +125,21 @@ export function EnquiryForm({
         />
         <input name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
       </div>
+      {withAddress ? (
+        <div className={`grid grid-cols-1 gap-2 ${gridCols}`}>
+          <p className="label sm:col-span-full">Postal address</p>
+          <label className="sr-only" htmlFor={`${kind}-address1`}>Address</label>
+          <input id={`${kind}-address1`} name="address1" required autoComplete="address-line1" placeholder="Address" className="field field-sm sm:col-span-full" />
+          <label className="sr-only" htmlFor={`${kind}-address2`}>Address line 2 (optional)</label>
+          <input id={`${kind}-address2`} name="address2" autoComplete="address-line2" placeholder="Address line 2 (optional)" className="field field-sm sm:col-span-full" />
+          <label className="sr-only" htmlFor={`${kind}-city`}>City</label>
+          <input id={`${kind}-city`} name="city" required autoComplete="address-level2" placeholder="City" className="field field-sm" />
+          <label className="sr-only" htmlFor={`${kind}-postcode`}>Postcode</label>
+          <input id={`${kind}-postcode`} name="postcode" required autoComplete="postal-code" placeholder="Postcode" className="field field-sm" />
+          <label className="sr-only" htmlFor={`${kind}-country`}>Country</label>
+          <input id={`${kind}-country`} name="country" required autoComplete="country-name" placeholder="Country" className="field field-sm sm:col-span-full" />
+        </div>
+      ) : null}
       <label className="flex min-h-[44px] items-start gap-2 py-1 font-sans text-small leading-snug text-meta">
         <input type="checkbox" name="consent" required className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--ink)]" />
         <span>

@@ -14,6 +14,7 @@ export function InlineEnquiry({
   defaultMessage,
   heading,
   columns = 2,
+  withAddress = false,
 }: {
   label: string;
   kind: "publication" | "appointment";
@@ -22,6 +23,7 @@ export function InlineEnquiry({
   /** Kept for callers; the toggle carries the label in both states. */
   heading?: string;
   columns?: 2 | 3;
+  withAddress?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   // The form stays mounted while the fold closes, so the box never shrinks empty.
@@ -50,7 +52,7 @@ export function InlineEnquiry({
         <div aria-hidden={!open}>
           <div className="fold-body pt-3 pb-2">
             {mounted ? (
-              <EnquiryForm kind={kind} subject={subject} defaultMessage={defaultMessage} columns={columns} />
+              <EnquiryForm kind={kind} subject={subject} defaultMessage={defaultMessage} columns={columns} withAddress={withAddress} />
             ) : null}
           </div>
         </div>
