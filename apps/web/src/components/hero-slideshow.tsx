@@ -110,7 +110,7 @@ export function HeroSlideshow({
       {caption ? (
         <div className="pointer-events-none absolute bottom-0 left-0 z-[2] max-w-[min(520px,92%)] bg-white/85 px-5 py-4 backdrop-blur-[2px] md:bottom-6 md:left-6 md:px-7 md:py-6">
           <p className="eyebrow">{active.eyebrow}</p>
-          <h2 className="mt-1.5 font-sans text-[22px] font-light leading-tight text-ink md:text-[30px]">
+          <h2 className="mt-1.5 font-sans text-[18px] font-light leading-tight text-ink md:text-[26px]">
             {active.href ? (
               <Link href={active.href} className="pointer-events-auto hover:text-accent">
                 {active.title}

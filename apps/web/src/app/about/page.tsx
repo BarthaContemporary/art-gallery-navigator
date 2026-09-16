@@ -24,7 +24,10 @@ export default async function AboutPage() {
   ]);
 
   const galleryName = settings?.galleryName ?? fallbackGalleryName;
-  const statement = settings?.statement?.length ? settings.statement : page?.body?.length ? page.body : null;
+  // The old About page carried its photograph inside the body; the site
+  // settings photo replaces it, so image blocks are dropped from the fallback.
+  const fallbackBody = (page?.body ?? []).filter((b) => b._type !== "image");
+  const statement = settings?.statement?.length ? settings.statement : fallbackBody.length ? fallbackBody : null;
   const headline = settings?.statementHeadline ?? page?.title ?? null;
   const addressLines = (settings?.address ?? "St James's, London").split(/\n/).map((l) => l.trim()).filter(Boolean);
   const visitNote = settings?.visitNote ?? settings?.openingHours ?? "By appointment only";
@@ -39,6 +42,7 @@ export default async function AboutPage() {
       <div className="page pt-10 pb-20 md:pt-12">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:gap-16">
           <section className="max-w-[640px]">
+            {headline ? <h1 className="t-title">{headline}</h1> : <h1 className="t-title">{galleryName}</h1>}
             {photoSrc && photoDims ? (
               <Image
                 src={photoSrc}
@@ -47,10 +51,9 @@ export default async function AboutPage() {
                 height={photoDims.height}
                 sizes="(min-width: 768px) 640px, 100vw"
                 priority
-                className="mb-8 h-auto w-full bg-field"
+                className="mt-6 h-auto w-full bg-field"
               />
             ) : null}
-            {headline ? <h1 className="t-title">{headline}</h1> : <h1 className="t-title">{galleryName}</h1>}
             <div className="mt-5">
               {statement ? (
                 <PortableText value={statement} />
