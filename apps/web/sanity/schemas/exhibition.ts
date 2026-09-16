@@ -29,6 +29,55 @@ const exhibition = {
     { name: "startDate", title: "Start date", type: "date" },
     { name: "endDate", title: "End date", type: "date" },
     {
+      name: "datePrecision",
+      title: "Show dates as",
+      type: "string",
+      initialValue: "day",
+      options: {
+        list: [
+          { title: "Exact dates (3 March – 12 April 2026)", value: "day" },
+          { title: "Month and year (March – April 2026)", value: "month" },
+        ],
+        layout: "radio",
+      },
+      description: "With month and year, pick any day in the month above; only the month is shown.",
+    },
+    {
+      name: "privateViews",
+      title: "Private views and openings",
+      type: "array",
+      description: "Listed under the dates, e.g. a private view by invitation. Each has its own time.",
+      of: [
+        {
+          type: "object",
+          name: "privateView",
+          fields: [
+            { name: "label", title: "Label", type: "string", initialValue: "Private view" },
+            { name: "start", title: "Start", type: "datetime", options: { timeStep: 15 } },
+            { name: "end", title: "End", type: "datetime", options: { timeStep: 15 } },
+            {
+              name: "access",
+              title: "Access",
+              type: "string",
+              initialValue: "invitation",
+              options: {
+                list: [
+                  { title: "By invitation only", value: "invitation" },
+                  { title: "RSVP", value: "rsvp" },
+                  { title: "Open to all", value: "open" },
+                ],
+                layout: "radio",
+              },
+            },
+            { name: "note", title: "Note", type: "string", description: "Optional, e.g. the address if different." },
+          ],
+          preview: {
+            select: { title: "label", subtitle: "start" },
+          },
+        },
+      ],
+    },
+    {
       name: "isArtFair",
       title: "Art-fair presentation",
       type: "boolean",

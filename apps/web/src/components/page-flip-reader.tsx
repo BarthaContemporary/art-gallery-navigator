@@ -133,7 +133,7 @@ export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; tit
             →
           </button>
         </div>
-        <span className="font-sans text-meta text-meta" aria-live="polite">
+        <span className="font-sans text-small text-meta" aria-live="polite">
           {index + 1} / {count}
         </span>
         {canFullscreen ? (

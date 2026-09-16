@@ -173,6 +173,15 @@ export interface Seo {
   ogImage?: SanityImage | null;
 }
 
+export interface PrivateView {
+  _key: string;
+  label: string | null;
+  start: string | null;
+  end: string | null;
+  access: "invitation" | "rsvp" | "open" | null;
+  note: string | null;
+}
+
 export interface Exhibition {
   _id: string;
   title: string | null;
@@ -181,6 +190,8 @@ export interface Exhibition {
   venue: string | null;
   startDate: string | null;
   endDate: string | null;
+  datePrecision: "day" | "month" | null;
+  privateViews: PrivateView[] | null;
   isArtFair: boolean | null;
   fairName: string | null;
   stand: string | null;
@@ -241,6 +252,8 @@ export interface ExhibitionListItem {
   venue: string | null;
   startDate: string | null;
   endDate: string | null;
+  datePrecision: "day" | "month" | null;
+  privateViews: PrivateView[] | null;
   isArtFair: boolean | null;
   fairName: string | null;
   coverImage: SanityImage | null;
@@ -428,6 +441,8 @@ const exhibitionListFields = /* groq */ `{
   venue,
   startDate,
   endDate,
+  datePrecision,
+  privateViews[]{ _key, label, start, end, access, note },
   isArtFair,
   fairName,
   coverImage{ asset, caption, hotspot },
@@ -470,6 +485,8 @@ export const exhibitionBySlugQuery = groq`*[_type == "exhibition" && slug.curren
   venue,
   startDate,
   endDate,
+  datePrecision,
+  privateViews[]{ _key, label, start, end, access, note },
   isArtFair,
   fairName,
   stand,

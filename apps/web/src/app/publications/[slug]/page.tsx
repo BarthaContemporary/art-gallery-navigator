@@ -58,10 +58,10 @@ export default async function PublicationPage({ params }: { params: Promise<{ sl
       </div>
       <div>
         <h1 className="t-section">{title}</h1>
-        {meta ? <p className="mt-1.5 font-sans text-meta text-meta">{meta}</p> : null}
+        {meta ? <p className="mt-1.5 font-sans text-small text-meta">{meta}</p> : null}
         <p className="mt-1.5 font-sans text-ui text-ink">{availabilityLabel(p.availability) === "available" ? "Available" : "Out of print"}</p>
         {p.relatedExhibition?.slug ? (
-          <p className="mt-1.5 font-sans text-meta text-meta">
+          <p className="mt-1.5 font-sans text-small text-meta">
             Published for{" "}
             <Link href={`/events/${p.relatedExhibition.slug}`} className="text-ink hover:text-accent">
               {p.relatedExhibition.title}

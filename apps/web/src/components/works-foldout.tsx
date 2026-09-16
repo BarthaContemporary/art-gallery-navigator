@@ -129,7 +129,7 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
       {label ? (
         <div className="flex items-baseline justify-between">
           <h2 className="t-section">{label}</h2>
-          <span className="font-sans text-meta text-meta">
+          <span className="font-sans text-small text-meta">
             {works.length} {works.length === 1 ? "work" : "works"}
           </span>
         </div>
@@ -162,7 +162,7 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
                   {w.artist ?? workCaption(w)}
                 </p>
                 {w.status ? (
-                  <p className="mt-0.5 font-sans text-meta text-meta">{w.status === "sold" ? "Sold" : "Available"}</p>
+                  <p className="mt-0.5 font-sans text-small text-meta">{w.status === "sold" ? "Sold" : "Available"}</p>
                 ) : null}
               </button>
             </li>,
@@ -302,16 +302,16 @@ function WorkPanel({
           </button>
         </div>
         {work.artist ? <p className="mt-2 font-sans text-body text-ink">{caption}</p> : null}
-        {work.origin ? <p className="font-sans text-meta text-meta">{work.origin}</p> : null}
-        {work.medium ? <p className="font-sans text-meta text-meta">{work.medium}</p> : null}
-        {work.dimensions ? <p className="font-sans text-meta text-meta">{work.dimensions}</p> : null}
+        {work.origin ? <p className="font-sans text-small text-meta">{work.origin}</p> : null}
+        {work.medium ? <p className="font-sans text-small text-meta">{work.medium}</p> : null}
+        {work.dimensions ? <p className="font-sans text-small text-meta">{work.dimensions}</p> : null}
         {work.description ? (
           <p className="mt-3 max-w-[560px] font-sans text-body text-body">{work.description}</p>
         ) : null}
         {more.length > 0 ? (
           <ReadMore className="mt-1">
             {more.map((line) => (
-              <p key={line} className="max-w-[560px] font-sans text-meta text-body">
+              <p key={line} className="max-w-[560px] font-sans text-small text-body">
                 {line}
               </p>
             ))}

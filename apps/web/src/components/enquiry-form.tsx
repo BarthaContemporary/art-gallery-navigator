@@ -79,7 +79,7 @@ export function EnquiryForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
-      <p className="flex items-baseline gap-2 font-sans text-[13px] font-semibold text-ink">
+      <p className="flex items-baseline gap-2 font-sans text-[12.5px] font-semibold text-ink">
         {heading}
         {onCollapse ? (
           <button
@@ -94,11 +94,11 @@ export function EnquiryForm({
       </p>
       <div className={`grid grid-cols-1 gap-2 ${gridCols}`}>
         <label className="sr-only" htmlFor={`${kind}-name`}>Name</label>
-        <input id={`${kind}-name`} name="name" required autoComplete="name" placeholder="Name" className="field" />
+        <input id={`${kind}-name`} name="name" required autoComplete="name" placeholder="Name" className="field field-sm" />
         <label className="sr-only" htmlFor={`${kind}-email`}>Email</label>
-        <input id={`${kind}-email`} name="email" type="email" required autoComplete="email" placeholder="Email" className="field" />
+        <input id={`${kind}-email`} name="email" type="email" required autoComplete="email" placeholder="Email" className="field field-sm" />
         <label className="sr-only" htmlFor={`${kind}-phone`}>Phone (optional)</label>
-        <input id={`${kind}-phone`} name="phone" type="tel" autoComplete="tel" placeholder="Phone (optional)" className="field" />
+        <input id={`${kind}-phone`} name="phone" type="tel" autoComplete="tel" placeholder="Phone (optional)" className="field field-sm" />
         <label className="sr-only" htmlFor={`${kind}-message`}>Message</label>
         <textarea
           id={`${kind}-message`}
@@ -106,11 +106,11 @@ export function EnquiryForm({
           required
           rows={3}
           defaultValue={defaultMessage}
-          className="field sm:col-span-full"
+          className="field field-sm sm:col-span-full"
         />
         <input name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
       </div>
-      <label className="flex min-h-[44px] items-start gap-2 py-1 font-sans text-meta leading-snug text-meta">
+      <label className="flex min-h-[44px] items-start gap-2 py-1 font-sans text-small leading-snug text-meta">
         <input type="checkbox" name="consent" required className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--ink)]" />
         <span>
           I agree to be contacted about this enquiry and accept the{" "}
@@ -125,17 +125,17 @@ export function EnquiryForm({
         </span>
       </label>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="inline-flex min-h-[44px] items-center gap-2 font-sans text-meta text-meta">
+        <label className="inline-flex min-h-[44px] items-center gap-2 font-sans text-small text-meta">
           <input type="checkbox" name="mailingList" className="h-4 w-4 accent-[var(--ink)]" />
           Add me to the mailing list
         </label>
-        <button type="submit" className="btn btn-dark" disabled={status === "sending"}>
+        <button type="submit" className="btn btn-dark min-h-[38px] px-5 text-small" disabled={status === "sending"}>
           {status === "sending" ? "Sending…" : "Send"}
         </button>
       </div>
       <TurnstileWidget onToken={setTurnstileToken} />
       {error ? (
-        <p className="font-sans text-meta text-accent-deep" role="alert">
+        <p className="font-sans text-small text-accent-deep" role="alert">
           {error}
         </p>
       ) : null}

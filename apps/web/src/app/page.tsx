@@ -38,7 +38,7 @@ export default async function HomePage() {
       image: e.hero ?? e.coverImage,
       eyebrow: eventEyebrow(e),
       title: e.title ?? "Untitled",
-      meta: [eventDates(e.startDate, e.endDate), e.isArtFair && e.venue ? e.venue : null].filter(Boolean).join(" · ") || null,
+      meta: [eventDates(e.startDate, e.endDate, e.datePrecision), e.isArtFair && e.venue ? e.venue : null].filter(Boolean).join(" · ") || null,
       href: `/events/${e.slug}`,
     }));
 
@@ -49,7 +49,7 @@ export default async function HomePage() {
       <section className="page mt-12 pb-20 md:mt-16">
         <div className="flex items-baseline justify-between">
           <h2 className="t-section">Recent exhibitions</h2>
-          <span className="font-sans text-meta text-meta">
+          <span className="font-sans text-small text-meta">
             {past.length} {past.length === 1 ? "event" : "events"}
           </span>
         </div>

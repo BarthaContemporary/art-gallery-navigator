@@ -17,7 +17,7 @@ export default async function PublicationsPage() {
     <div className="page pt-10 pb-20 md:pt-12">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <h1 className="t-title">Publications</h1>
-        <span className="font-sans text-meta text-meta">
+        <span className="font-sans text-small text-meta">
           {publications.length} {publications.length === 1 ? "title" : "titles"}
         </span>
       </div>

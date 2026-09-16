@@ -10,7 +10,7 @@ import {
   type Exhibition,
 } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName } from "@/lib/site";
-import { eventDates, eventEyebrow, eventPlace } from "@/lib/events";
+import { ACCESS_LABEL, eventDates, eventEyebrow, eventPlace, privateViewWhen } from "@/lib/events";
 import { catalogueToGrid, workToGrid, type GridWork } from "@/lib/grid-work";
 import { JsonLd } from "@/components/json-ld";
 import { PortableText } from "@/components/portable-text";
@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const ev = await getEvent(slug);
   if (!ev) return { title: "Event not found" };
-  const dates = eventDates(ev.startDate, ev.endDate);
+  const dates = eventDates(ev.startDate, ev.endDate, ev.datePrecision);
   const title = ev.seo?.title ?? ev.title ?? "Event";
   const description = ev.seo?.description ?? ([ev.subtitle, eventPlace(ev), dates].filter(Boolean).join(" · ") || undefined);
   const ogImage = imageUrl(ev.seo?.ogImage, { width: 1200 }) ?? imageUrl(ev.heroImages?.[0] ?? ev.coverImage, { width: 1200 });
@@ -58,7 +58,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   if (!ev) notFound();
 
   const galleryName = settings?.galleryName ?? fallbackGalleryName;
-  const dates = eventDates(ev.startDate, ev.endDate);
+  const dates = eventDates(ev.startDate, ev.endDate, ev.datePrecision);
+  const privateViews = (ev.privateViews ?? []).filter((v) => v?.start);
   const heroImages = (ev.heroImages ?? []).filter((i) => i?.asset);
   const slides: Slide[] = (heroImages.length ? heroImages : ev.coverImage?.asset ? [ev.coverImage] : []).map((img, i) => ({
     key: img._key ?? String(i),
@@ -102,7 +103,20 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           <h1 className="t-title mt-2">{ev.title}</h1>
           {ev.subtitle ? <p className="mt-2 font-sans text-body text-body">{ev.subtitle}</p> : null}
           {dates || ev.stand ? (
-            <p className="mt-2 font-sans text-meta text-meta">{[dates, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join(" · ")}</p>
+            <p className="mt-2 font-sans text-small text-meta">{[dates, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join(" · ")}</p>
+          ) : null}
+          {privateViews.length > 0 ? (
+            <ul className="mt-2 flex flex-col gap-1 font-sans text-small text-meta">
+              {privateViews.map((v) => (
+                <li key={v._key}>
+                  <span className="text-ink">{v.label ?? "Private view"}</span>
+                  {" · "}
+                  {privateViewWhen(v.start, v.end)}
+                  {v.access ? ` · ${ACCESS_LABEL[v.access]}` : null}
+                  {v.note ? ` · ${v.note}` : null}
+                </li>
+              ))}
+            </ul>
           ) : null}
           {ev.intro && ev.intro.length > 0 ? (
             <div className="prose-event mt-5">

@@ -78,7 +78,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
             {a.name}
             {a.nameNative ? <span className="ml-3 text-light">{a.nameNative}</span> : null}
           </h1>
-          {meta ? <p className="mt-2 font-sans text-meta text-meta">{meta}</p> : null}
+          {meta ? <p className="mt-2 font-sans text-small text-meta">{meta}</p> : null}
           {bioShort.length > 0 ? (
             <div className="mt-5 flex flex-col gap-4 font-sans text-body text-body">
               {bioShort.map((p, i) => (
@@ -88,7 +88,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
           ) : null}
           {bioLong.length > 0 ? (
             <ReadMore className="mt-1">
-              <div className="flex flex-col gap-3 font-sans text-meta text-body">
+              <div className="flex flex-col gap-3 font-sans text-small text-body">
                 {bioLong.map((p, i) => (
                   <p key={i}>{p}</p>
                 ))}

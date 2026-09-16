@@ -21,7 +21,7 @@ export function PublicationTile({ publication, priority = false }: { publication
         priority={priority}
       />
       <h3 className="mt-2.5 font-sans text-ui font-medium leading-snug text-ink group-hover:text-accent">{publication.title}</h3>
-      <p className="mt-0.5 font-sans text-meta text-meta">{meta}</p>
+      <p className="mt-0.5 font-sans text-small text-meta">{meta}</p>
     </Link>
   );
 }

@@ -216,7 +216,7 @@ export function SearchOverlay() {
             className="w-full min-w-0 bg-transparent font-sans text-[26px] font-light leading-tight text-ink caret-accent placeholder:text-light focus:outline-none md:text-[34px]"
           />
           {trimmed ? (
-            <span className="shrink-0 font-sans text-meta text-meta" aria-live="polite">
+            <span className="shrink-0 font-sans text-small text-meta" aria-live="polite">
               {loading ? "…" : `${total} result${total === 1 ? "" : "s"}`}
             </span>
           ) : null}
@@ -270,7 +270,7 @@ export function SearchOverlay() {
                               <Highlight text={h.text} query={trimmed} />
                             </span>
                             {h.meta ? (
-                              <span className="shrink-0 font-sans text-meta text-meta">{h.meta}</span>
+                              <span className="shrink-0 font-sans text-small text-meta">{h.meta}</span>
                             ) : null}
                           </Link>
                         </li>
@@ -278,7 +278,7 @@ export function SearchOverlay() {
                     })}
                   </ul>
                   {g.total > g.hits.length ? (
-                    <p className="mt-2 font-sans text-meta text-meta">
+                    <p className="mt-2 font-sans text-small text-meta">
                       and {g.total - g.hits.length} more — narrow the search
                     </p>
                   ) : null}

@@ -34,6 +34,15 @@ export function Lightbox({
   const pinch = useRef<{ dist: number; scale: number; mid: Pt; pos: Pt } | null>(null);
   const drag = useRef<{ start: Pt; pos: Pt; moved: boolean } | null>(null);
   const lastTap = useRef(0);
+  // A drag that ends over the ground must not count as a "click to close".
+  const suppressClick = useRef(false);
+  const [closing, setClosing] = useState(false);
+
+  /** Fade the layer out, then hand back to the parent. */
+  const close = useCallback(() => {
+    setClosing(true);
+    window.setTimeout(onClose, 220);
+  }, [onClose]);
 
   // Fit-to-screen size of the photograph, so zoom maths stay in one space.
   const fit = useCallback(() => {
@@ -81,7 +90,7 @@ export function Lightbox({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        close();
       }
       if (e.key === "+" || e.key === "=") zoomAt(scale * 1.25, { x: 0, y: 0 });
       if (e.key === "-") zoomAt(scale / 1.25, { x: 0, y: 0 });
@@ -91,7 +100,7 @@ export function Lightbox({
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose, scale, zoomAt]);
+  }, [close, scale, zoomAt]);
 
   const onWheel = (e: React.WheelEvent) => {
     // The page behind is scroll-locked, so no preventDefault is needed here.
@@ -142,6 +151,7 @@ export function Lightbox({
     if (pointers.current.size === 0) {
       setDragging(false);
       const wasTap = drag.current && !drag.current.moved;
+      suppressClick.current = !wasTap;
       drag.current = null;
       if (wasTap) {
         const now = Date.now();
@@ -163,20 +173,21 @@ export function Lightbox({
       role="dialog"
       aria-modal="true"
       aria-label={alt}
-      className="lightbox fixed inset-0 z-[60] bg-white/55 backdrop-blur-2xl"
+      className={`lightbox fixed inset-0 z-[60] bg-white/55 backdrop-blur-2xl ${closing ? "lightbox-closing" : ""}`}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !suppressClick.current) close();
+        suppressClick.current = false;
       }}
     >
       <button
         type="button"
-        onClick={onClose}
+        onClick={close}
         aria-label="Close"
         className="fixed top-4 right-4 z-10 inline-flex min-h-[44px] min-w-[44px] items-center justify-center font-sans text-[22px] leading-none text-ink hover:text-accent"
       >
         ✕
       </button>
-      <div className="fixed bottom-4 left-1/2 z-10 -translate-x-1/2 font-sans text-meta text-meta">
+      <div className="fixed bottom-4 left-1/2 z-10 -translate-x-1/2 font-sans text-small text-meta">
         {scale > 1.02 ? `${Math.round(scale * 100)}%` : "Scroll or pinch to zoom · double-click for 2.5×"}
       </div>
       <div
@@ -188,7 +199,8 @@ export function Lightbox({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
+          if (e.target === e.currentTarget && !suppressClick.current) close();
+          suppressClick.current = false;
         }}
       >
         <Image

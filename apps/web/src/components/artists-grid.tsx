@@ -59,7 +59,7 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
         groups.map((g) => (
           <section key={g.key} className="mt-8">
             {g.label ? <h2 className="label mb-4">{g.label}</h2> : null}
-            <ul className="tiles">
+            <ul className="tiles-6">
               {g.items.map((a) => (
                 <li key={a._id}>
                   <Link href={`/artists/${a.slug}`} className="group block">
@@ -68,13 +68,13 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
                       ratio={RATIO.portrait}
                       width={700}
                       alt={a.name ?? "Artist"}
-                      sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                      sizes="(min-width: 640px) 17vw, 33vw"
                     />
-                    <p className="mt-2.5 font-sans text-ui font-medium leading-snug text-ink group-hover:text-accent">
+                    <p className="mt-2 font-sans text-small font-medium leading-snug text-ink group-hover:text-accent">
                       {a.name}
                       {a.nameNative ? <span className="ml-2 font-normal text-light">{a.nameNative}</span> : null}
                     </p>
-                    {a.lifeDates ? <p className="mt-0.5 font-sans text-meta text-meta">{a.lifeDates}</p> : null}
+                    {a.lifeDates ? <p className="mt-0.5 font-sans text-[12px] text-meta">{a.lifeDates}</p> : null}
                   </Link>
                 </li>
               ))}

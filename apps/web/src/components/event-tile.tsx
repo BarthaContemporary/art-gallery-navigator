@@ -24,7 +24,7 @@ export function EventTile({ event, priority = false }: { event: ExhibitionListIt
       <h3 className="mt-2.5 font-sans text-ui font-medium leading-snug text-ink group-hover:text-accent">
         {event.title}
       </h3>
-      {sub ? <p className="mt-0.5 font-sans text-meta text-meta">{sub}</p> : null}
+      {sub ? <p className="mt-0.5 font-sans text-small text-meta">{sub}</p> : null}
     </Link>
   );
 }
