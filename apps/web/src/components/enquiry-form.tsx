@@ -53,6 +53,7 @@ export function EnquiryForm({
           phone: String(data.get("phone") ?? "") || undefined,
           message: String(data.get("message") ?? ""),
           mailingList: data.get("mailingList") === "on",
+          consent: data.get("consent") === "on",
           turnstileToken: turnstileToken || undefined,
           website: String(data.get("website") ?? ""),
         }),
@@ -109,6 +110,20 @@ export function EnquiryForm({
         />
         <input name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
       </div>
+      <label className="flex min-h-[44px] items-start gap-2 py-1 font-sans text-meta leading-snug text-meta">
+        <input type="checkbox" name="consent" required className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--ink)]" />
+        <span>
+          I agree to be contacted about this enquiry and accept the{" "}
+          <a href="/privacy" className="underline hover:text-ink">
+            privacy policy
+          </a>{" "}
+          and{" "}
+          <a href="/terms" className="underline hover:text-ink">
+            terms
+          </a>
+          .
+        </span>
+      </label>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="inline-flex min-h-[44px] items-center gap-2 font-sans text-meta text-meta">
           <input type="checkbox" name="mailingList" className="h-4 w-4 accent-[var(--ink)]" />

@@ -39,7 +39,7 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
       <div className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between md:gap-8">
         <Link
           href="/"
-          className="font-sans text-[17px] font-medium leading-none text-accent hover:text-accent-deep md:text-[18px]"
+          className="font-sans text-[19px] font-bold leading-none text-accent hover:text-accent-deep md:text-[20px]"
         >
           {galleryName}
         </Link>

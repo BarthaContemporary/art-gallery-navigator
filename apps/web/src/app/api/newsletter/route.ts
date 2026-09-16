@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   name: z.string().trim().min(1, "Please enter your name").max(200),
   email: z.string().trim().email("Please enter a valid email address").max(320),
+  consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to receive the newsletter" }) }),
   website: z.string().optional(), // honeypot
 });
 

@@ -19,6 +19,8 @@ const schema = z.object({
   phone: z.string().trim().max(50).optional(),
   message: z.string().trim().min(1, "Please write a short message").max(3000),
   mailingList: z.boolean().optional(),
+  /** Explicit agreement to be contacted about the enquiry (privacy policy and terms). */
+  consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to be contacted" }) }),
   turnstileToken: z.string().optional(),
   website: z.string().optional(), // honeypot
 });
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
       contact_id: contactId,
       piece_id: payload.pieceId ?? null,
       channel: "website",
-      message: `${label}${payload.subject ? ` — ${payload.subject}` : ""}\n\n${payload.message}\n\nFrom: ${payload.name} <${email}>${payload.phone ? ` · ${payload.phone}` : ""}`,
+      message: `${label}${payload.subject ? ` — ${payload.subject}` : ""}\n\n${payload.message}\n\nFrom: ${payload.name} <${email}>${payload.phone ? ` · ${payload.phone}` : ""}\nAgreed to be contacted (privacy policy and terms) on ${now.slice(0, 10)} via the website form.`,
     });
     if (enquiryError) throw enquiryError;
   } catch (err) {

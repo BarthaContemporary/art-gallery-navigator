@@ -24,6 +24,7 @@ export function NewsletterForm() {
         body: JSON.stringify({
           name: String(data.get("name") ?? ""),
           email: String(data.get("email") ?? ""),
+          consent: data.get("consent") === "on",
           website: String(data.get("website") ?? ""),
         }),
       });
@@ -71,10 +72,20 @@ export function NewsletterForm() {
       />
       {/* Honeypot — hidden from people, filled by bots. */}
       <input name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
+      <label className="flex min-h-[44px] items-start gap-2 py-1 font-sans text-[13px] leading-snug text-white/90">
+        <input type="checkbox" name="consent" required className="mt-0.5 h-4 w-4 shrink-0 accent-white" />
+        <span>
+          I agree to receive the gallery&rsquo;s newsletter by email and have read the{" "}
+          <a href="/privacy" className="underline hover:text-white">
+            privacy policy
+          </a>
+          . Unsubscribe at any time.
+        </span>
+      </label>
       <button
         type="submit"
         disabled={status === "sending"}
-        className="min-h-[44px] bg-white px-4 font-sans text-ui font-semibold text-accent-deep hover:bg-white/90 disabled:opacity-70"
+        className="min-h-[44px] bg-white px-4 font-sans text-ui font-semibold text-accent hover:bg-white/90 disabled:opacity-70"
       >
         {status === "sending" ? "Signing up…" : "Sign up"}
       </button>

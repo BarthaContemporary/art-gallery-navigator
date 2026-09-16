@@ -188,7 +188,7 @@ export function SearchOverlay() {
     >
       <div className="page pt-6 pb-16 md:pt-7">
         <div className="flex items-baseline justify-between">
-          <span className="font-sans text-[17px] font-medium leading-none text-accent md:text-[18px]">
+          <span className="font-sans text-[19px] font-bold leading-none text-accent md:text-[20px]">
             Joost van den Bergh
           </span>
           <button

@@ -357,9 +357,10 @@
     outline: none;
   }
 
-  /* Fold-out panel: the height opens with a long settling tail and closes
-     briskly; the content inside arrives a beat later — image first, then
-     the text — and leaves before the box shrinks so nothing is chopped. */
+  /* Fold-out panel as a drawer: the content is pinned to the bottom of the
+     opening track, so as the track grows the whole panel slides down from
+     under the tile row, and slides back up behind it on close. Opens with a
+     long settling tail, closes briskly. */
   .fold {
     display: grid;
     grid-template-rows: 0fr;
@@ -368,47 +369,25 @@
   .fold[data-open="true"] {
     grid-template-rows: 1fr;
     transition: grid-template-rows var(--fold-ms) var(--ease-drawer);
+    /* A panel that mounts already open still slides out, instead of
+       appearing at full height. */
+    @starting-style {
+      grid-template-rows: 0fr;
+    }
   }
   .fold > * {
     overflow: hidden;
     min-height: 0;
+    display: grid;
+    align-content: end;
   }
   .fold-body {
-    opacity: 0;
-    transform: translateY(10px);
-    transition:
-      opacity 120ms var(--ease-out),
-      transform 120ms var(--ease-out);
+    opacity: 0.6;
+    transition: opacity var(--fold-close-ms) var(--ease-out);
   }
   .fold[data-open="true"] .fold-body {
     opacity: 1;
-    transform: none;
-    transition:
-      opacity 320ms var(--ease-out) 70ms,
-      transform 480ms var(--ease-drawer) 70ms;
-  }
-  .panel-image {
-    transform: scale(0.985);
-    transform-origin: top left;
-    transition: transform 120ms var(--ease-out);
-  }
-  .fold[data-open="true"] .panel-image {
-    transform: none;
-    transition: transform 560ms var(--ease-drawer) 70ms;
-  }
-  .panel-text {
-    opacity: 0;
-    transform: translateY(8px);
-    transition:
-      opacity 120ms var(--ease-out),
-      transform 120ms var(--ease-out);
-  }
-  .fold[data-open="true"] .panel-text {
-    opacity: 1;
-    transform: none;
-    transition:
-      opacity 300ms var(--ease-out) 160ms,
-      transform 420ms var(--ease-drawer) 160ms;
+    transition: opacity var(--fold-ms) var(--ease-drawer);
   }
   /* Content swap inside an already-open panel: slides in from the side of
      the tile that was clicked. */
@@ -425,12 +404,13 @@
       transform: none;
     }
   }
-  /* Full-screen photograph: fades up from the panel image. */
+  /* Full-screen photograph over the blurred page. */
   .lightbox {
     animation: lightbox-in 240ms var(--ease-out);
   }
   .lightbox-img {
     animation: lightbox-img 360ms var(--ease-drawer);
+    max-width: none;
   }
   @keyframes lightbox-in {
     from {
@@ -442,19 +422,62 @@
   }
   @keyframes lightbox-img {
     from {
-      transform: scale(0.96);
+      opacity: 0;
     }
     to {
+      opacity: 1;
+    }
+  }
+  /* Inside the drawer the content moves as one piece; only the text column
+     fades in a beat after the image. */
+  .panel-text {
+    opacity: 0;
+    transition: opacity 120ms var(--ease-out);
+  }
+  .fold[data-open="true"] .panel-text {
+    opacity: 1;
+    transition: opacity 320ms var(--ease-out) 140ms;
+  }
+  /* Content swap inside an already-open panel: slides in from the side of
+     the tile that was clicked. */
+  .panel-swap {
+    animation: panel-swap 260ms var(--ease-out);
+  }
+  @keyframes panel-swap {
+    from {
+      opacity: 0;
+      transform: translateX(var(--swap-x, 0));
+    }
+    to {
+      opacity: 1;
       transform: none;
     }
   }
-  @media (prefers-reduced-motion: reduce) {
-    .fold-body,
-    .panel-text,
-    .panel-image,
-    .lightbox-img {
-      transform: none; /* opacity feedback stays, movement goes */
+  /* Full-screen photograph over the blurred page. */
+  .lightbox {
+    animation: lightbox-in 240ms var(--ease-out);
+  }
+  .lightbox-img {
+    animation: lightbox-img 360ms var(--ease-drawer);
+    max-width: none;
+  }
+  @keyframes lightbox-in {
+    from {
+      opacity: 0;
     }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes lightbox-img {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
     .panel-swap {
       animation-name: lightbox-in;
     }

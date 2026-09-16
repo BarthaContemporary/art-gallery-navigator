@@ -14,7 +14,7 @@ function InstagramIcon() {
 }
 
 /**
- * Footer per handoff 2a: darker orange, white text, two columns — identity
+ * Footer per handoff 2a, in the logo orange (client change), white text, two columns — identity
  * and contact on the left, newsletter on the right. The footer's top edge is
  * the only dividing line on the site. A small legal line is the one addition:
  * the privacy, terms and cookie pages must stay reachable from every page.
@@ -34,10 +34,10 @@ export function SiteFooter({
   const visitNote = settings?.visitNote ?? settings?.openingHours ?? "By appointment only";
 
   return (
-    <footer className="mt-[var(--section)] bg-accent-deep text-white">
+    <footer className="mt-[var(--section)] bg-accent text-white">
       <div className="page grid grid-cols-1 gap-10 py-14 md:grid-cols-[1.2fr_1fr] md:gap-16 md:py-16">
         <div className="font-sans text-ui leading-[1.75]">
-          <p className="mb-3 text-[17px] font-medium leading-none md:text-[18px]">{galleryName}</p>
+          <p className="mb-3 text-[19px] font-bold leading-none md:text-[20px]">{galleryName}</p>
           {addressLines.map((line) => (
             <p key={line}>{line}</p>
           ))}
