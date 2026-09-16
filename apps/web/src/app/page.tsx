@@ -48,7 +48,7 @@ export default async function HomePage() {
 
       <section className="page mt-14 pb-24 md:mt-20">
         <div className="flex items-baseline justify-between">
-          <h2 className="t-section">Recent exhibitions</h2>
+          <h2 className="t-section">Previous events</h2>
           <span className="font-sans text-small text-meta">
             {past.length} {past.length === 1 ? "event" : "events"}
           </span>

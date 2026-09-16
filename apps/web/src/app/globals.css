@@ -95,8 +95,10 @@
   --text-ui: 14.5px;
   --text-ui--line-height: 1.45;
 
-  --text-body: 16px;
-  --text-body--line-height: 1.7;
+  /* "copy" not "body": a size utility named text-body collides with the
+     text-body colour utility. Running text takes this from the body element. */
+  --text-copy: 16px;
+  --text-copy--line-height: 1.85;
 
   --text-lead: 19px;
   --text-lead--line-height: 1.55;
@@ -108,9 +110,10 @@
   --text-h2: 26px;
   --text-h2--line-height: 1.25;
 
-  --text-title: clamp(26px, 3.4vw, 40px);
-  --text-title--line-height: 1.12;
-  --text-title--letter-spacing: -0.015em;
+  /* One heading size across the site: page titles match section headings. */
+  --text-title: 22px;
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.005em;
 
   --text-h1: clamp(30px, 3.4vw, 44px);
   --text-h1--line-height: 1.12;
@@ -130,6 +133,8 @@
     background: var(--page);
     color: var(--body);
     font-family: var(--font-sans);
+    font-size: var(--text-copy);
+    line-height: var(--text-copy--line-height);
     font-weight: 400;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -291,8 +296,8 @@
   .t-title {
     font-weight: 300;
     font-size: var(--text-title);
-    line-height: 1.12;
-    letter-spacing: -0.015em;
+    line-height: 1.25;
+    letter-spacing: -0.005em;
     color: var(--ink);
   }
   .t-section {
