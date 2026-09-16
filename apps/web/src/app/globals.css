@@ -216,6 +216,13 @@
     }
   }
 
+  /* Calendar days: the selected day fills orange; the change is a blink. */
+  .cal-day {
+    transition:
+      background-color 140ms ease,
+      color 140ms ease;
+  }
+
   /* Orange eyebrow: 600, uppercase, wide tracking. */
   .eyebrow {
     font-family: var(--font-sans);

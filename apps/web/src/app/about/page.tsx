@@ -3,7 +3,7 @@ import Image from "next/image";
 import { getSiteSettings, imageDimensions, imageUrl, pageBySlugQuery, sanityFetch, type SitePage } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 import { PortableText } from "@/components/portable-text";
-import { InlineEnquiry } from "@/components/inline-enquiry";
+import { AppointmentForm } from "@/components/appointment-form";
 
 export const metadata: Metadata = {
   title: "About",
@@ -40,9 +40,10 @@ export default async function AboutPage() {
   return (
     <article>
       <div className="page pt-10 pb-20 md:pt-12">
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:gap-16">
+        {/* The heading sits above both columns so Visit aligns with the photo's top edge. */}
+        {headline ? <h1 className="t-title">{headline}</h1> : <h1 className="t-title">{galleryName}</h1>}
+        <div className="mt-6 grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:gap-16">
           <section className="max-w-[640px]">
-            {headline ? <h1 className="t-title">{headline}</h1> : <h1 className="t-title">{galleryName}</h1>}
             {photoSrc && photoDims ? (
               <Image
                 src={photoSrc}
@@ -51,7 +52,7 @@ export default async function AboutPage() {
                 height={photoDims.height}
                 sizes="(min-width: 768px) 640px, 100vw"
                 priority
-                className="mt-6 h-auto w-full bg-field"
+                className="h-auto w-full bg-field"
               />
             ) : null}
             <div className="mt-5">
@@ -84,13 +85,7 @@ export default async function AboutPage() {
                 <span className="mt-2 block text-meta">{visitNote}</span>
               </address>
               <div className="mt-3">
-                <InlineEnquiry
-                  label="Request an appointment"
-                  kind="appointment"
-                  subject="Gallery visit"
-                  defaultMessage="I would like to visit the gallery. Suggested dates and times:"
-                  heading="Request an appointment"
-                />
+                <AppointmentForm />
               </div>
             </section>
 

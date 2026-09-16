@@ -25,6 +25,8 @@ const bookingSchema = z.object({
   email: z.string().trim().email().max(320),
   phone: z.string().trim().max(50).optional(),
   notes: z.string().trim().max(2000).optional(),
+  /** Explicit agreement to be contacted (privacy policy and terms). */
+  consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to be contacted" }) }),
   turnstileToken: z.string().optional(),
 });
 
