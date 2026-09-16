@@ -10,7 +10,7 @@ import { TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
  * requested and emails both sides a calendar invitation.
  */
 
-const TIMES = ["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"];
+const TIMES = ["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"];
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const MONTH = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" });
 const LONG = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
@@ -39,14 +39,14 @@ function Calendar({ value, onChange }: { value: string | null; onChange: (ymd: s
   const atCurrentMonth = view.getFullYear() === today.getFullYear() && view.getMonth() === today.getMonth();
 
   return (
-    <div className="max-w-[320px] select-none">
+    <div className="max-w-[340px] select-none bg-form px-3 pt-1 pb-2">
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))}
           disabled={atCurrentMonth}
           aria-label="Previous month"
-          className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center text-ink hover:text-accent disabled:text-field"
+          className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center text-ink hover:text-accent disabled:text-light/50"
         >
           ←
         </button>
@@ -83,7 +83,7 @@ function Calendar({ value, onChange }: { value: string | null; onChange: (ymd: s
               aria-pressed={selected}
               aria-label={LONG.format(d)}
               className={`cal-day mx-auto my-0.5 flex h-9 w-9 items-center justify-center font-sans text-small ${
-                selected ? "bg-accent text-white" : disabled ? "text-field" : "text-ink hover:bg-field"
+                selected ? "bg-accent text-white" : disabled ? "text-light/60" : "text-ink hover:bg-form-hover"
               } ${isToday && !selected ? "underline decoration-accent underline-offset-4" : ""}`}
             >
               {d.getDate()}
@@ -185,7 +185,7 @@ export function AppointmentForm() {
                           type="button"
                           onClick={() => setTime(t)}
                           aria-pressed={time === t}
-                          className={`min-h-[34px] px-2.5 font-sans text-small ${time === t ? "bg-accent text-white" : "bg-field text-ink hover:bg-[#e2ded6]"}`}
+                          className={`min-h-[34px] px-2.5 font-sans text-small ${time === t ? "bg-accent text-white" : "bg-form text-ink hover:bg-form-hover"}`}
                         >
                           {t}
                         </button>

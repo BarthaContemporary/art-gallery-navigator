@@ -33,9 +33,11 @@ function loadTurnstile(): Promise<void> {
 }
 
 /**
- * Cloudflare Turnstile challenge. Calls `onToken` with the solved token (and
- * with "" when it expires/errors). Renders nothing until a site key is
- * configured, so the forms keep working in environments without Turnstile set.
+ * Cloudflare Turnstile challenge, invisible in the normal case: with
+ * `appearance: "interaction-only"` the check runs silently and the widget
+ * only draws itself when a visitor genuinely has to interact. Calls `onToken`
+ * with the solved token (and with "" when it expires/errors). Renders nothing
+ * until a site key is configured, so the forms keep working without Turnstile.
  */
 export function TurnstileWidget({
   onToken,
@@ -58,6 +60,9 @@ export function TurnstileWidget({
         if (cancelled || !hostRef.current || !window.turnstile) return;
         widgetId.current = window.turnstile.render(hostRef.current, {
           sitekey: SITE_KEY,
+          appearance: "interaction-only",
+          size: "flexible",
+          theme: "light",
           callback: (token: string) => cb.current(token),
           "expired-callback": () => cb.current(""),
           "error-callback": () => cb.current(""),
