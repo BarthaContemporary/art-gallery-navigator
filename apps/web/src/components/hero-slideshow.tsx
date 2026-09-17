@@ -34,6 +34,14 @@ export function HeroSlideshow({
 }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduceMotion(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
   const touchX = useRef<number | null>(null);
   const count = slides.length;
 
@@ -134,9 +142,17 @@ export function HeroSlideshow({
                 aria-current={i === index}
                 className="flex h-6 items-center px-0.5"
               >
-                <span
-                  className={`block h-[2px] w-6 transition-colors md:w-8 ${i === index ? "bg-accent" : "bg-white/70"}`}
-                />
+                <span className={`relative block h-[2px] w-6 overflow-hidden md:w-8 ${i === index && (count < 2 || reduceMotion) ? "bg-accent" : "bg-white/70"}`}>
+                  {i === index && count > 1 && !reduceMotion ? (
+                    // The fill crosses the bar in exactly one interval, restarting per slide.
+                    <span
+                      key={index}
+                      className="marker-fill absolute inset-0 bg-accent"
+                      data-paused={paused}
+                      style={{ "--slide-ms": `${INTERVAL_MS}ms` } as React.CSSProperties}
+                    />
+                  ) : null}
+                </span>
               </button>
             </li>
           ))}

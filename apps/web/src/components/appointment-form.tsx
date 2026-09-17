@@ -25,6 +25,12 @@ function Calendar({ value, onChange }: { value: string | null; onChange: (ymd: s
     return new Date(t.getFullYear(), t.getMonth(), t.getDate());
   }, []);
   const [view, setView] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  // Direction of the last month change, so the grid slides in from that side.
+  const [dir, setDir] = useState<1 | -1>(1);
+  const shift = (by: 1 | -1) => {
+    setDir(by);
+    setView(new Date(view.getFullYear(), view.getMonth() + by, 1));
+  };
 
   const cells = useMemo(() => {
     const first = new Date(view.getFullYear(), view.getMonth(), 1);
@@ -43,7 +49,7 @@ function Calendar({ value, onChange }: { value: string | null; onChange: (ymd: s
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))}
+          onClick={() => shift(-1)}
           disabled={atCurrentMonth}
           aria-label="Previous month"
           className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center text-ink hover:text-accent disabled:text-light/50"
@@ -53,14 +59,20 @@ function Calendar({ value, onChange }: { value: string | null; onChange: (ymd: s
         <span className="font-sans text-ui text-ink">{MONTH.format(view)}</span>
         <button
           type="button"
-          onClick={() => setView(new Date(view.getFullYear(), view.getMonth() + 1, 1))}
+          onClick={() => shift(1)}
           aria-label="Next month"
           className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center text-ink hover:text-accent"
         >
           →
         </button>
       </div>
-      <div className="mt-1 grid grid-cols-7 text-center" role="grid" aria-label="Choose a date">
+      <div
+        key={`${view.getFullYear()}-${view.getMonth()}`}
+        className="panel-swap mt-1 grid grid-cols-7 text-center"
+        style={{ "--swap-x": `${dir * 12}px` } as React.CSSProperties}
+        role="grid"
+        aria-label="Choose a date"
+      >
         {WEEKDAYS.map((w, i) => (
           <span key={i} className="label py-1 text-[11px]" aria-hidden>
             {w}

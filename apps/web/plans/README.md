@@ -13,6 +13,9 @@ Audit of the fold-out panel (`apps/web/src/components/works-foldout.tsx`, `.fold
 | 007 | Remove the duplicated motion rules in globals.css | LOW | DONE |
 | 008 | Consent drawer on the site's drawer curve | LOW | DONE |
 | 009 | One hover transition for captions and orange links | LOW | DONE |
+| 010 | Fade and stagger rows revealed by infinite scroll | LOW (additive) | DONE |
+| 011 | Active slideshow marker fills across the interval | LOW (additive) | DONE |
+| 012 | Directional crossfade when the booking calendar changes month | LOW (additive) | DONE |
 
 ## Order
 
@@ -25,7 +28,7 @@ Round two, audit at fd8969b:
 3. **006** — touches three form components; run after 004/005 so a review sees one concern per diff.
 4. **008** and **009** last, cosmetic and independent.
 
-Not planned (recorded as missed opportunities, additive): fade-and-stagger for rows revealed by infinite scroll; a filling active marker on the hero slideshow; a directional crossfade when the booking calendar changes month.
+Round three: the three missed opportunities from the audit, planned and executed as 010–012.
 
 ## Accepted as-is
 
