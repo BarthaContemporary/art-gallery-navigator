@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { cleanNumberPaste } from "@/lib/amount";
 import { useEditFinancials } from "@/components/edit-financials-context";
 
 const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
@@ -91,7 +92,7 @@ export function ImportVatFields({
       {importType === "import_vat_paid" ? (
         <label className={`${label} mt-2`}>
           Import VAT paid £
-          <input type="number" step="0.01" min="0" value={importVat} onChange={(e) => setImportVat(e.target.value)} className={field} />
+          <input type="number" onPaste={cleanNumberPaste} step="0.01" min="0" value={importVat} onChange={(e) => setImportVat(e.target.value)} className={field} />
           <span className="mt-1 block text-[10px] text-ink-soft">
             Margin scheme: added to costs. Standard / zero-rated: reclaimable — noted in the stock book.
           </span>

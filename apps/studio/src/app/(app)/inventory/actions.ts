@@ -5,11 +5,10 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSupabase, requireSession, canSeeFinancials, hasRole } from "@/lib/supabase";
 import { resolvePiece, LEDGER_TABLE, type Ledger } from "@/lib/piece-store";
+import { parseAmount } from "@/lib/amount";
 
-const num = z.preprocess(
-  (v) => (v === "" || v == null ? null : Number(v)),
-  z.number().nullable(),
-);
+// Accepts "1,200" and "£1,200.50" as well as plain numbers (see lib/amount).
+const num = z.preprocess((v) => parseAmount(v), z.number().nullable());
 
 const jsonStringArray = z.preprocess(
   (v) => {

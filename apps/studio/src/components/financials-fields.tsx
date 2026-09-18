@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { cleanNumberPaste } from "@/lib/amount";
 import { useEditFinancials } from "@/components/edit-financials-context";
 import { consignmentSplit } from "@/lib/consignment";
 
@@ -203,7 +204,7 @@ export function FinancialsFields({
         </label>
         <label className={label}>
           Purchase cost
-          <input type="number" step="0.01" name="purchase_cost" value={purchaseCost} onChange={(e) => setPurchaseCost(e.target.value)} className={field} />
+          <input type="number" onPaste={cleanNumberPaste} step="0.01" name="purchase_cost" value={purchaseCost} onChange={(e) => setPurchaseCost(e.target.value)} className={field} />
         </label>
         <label className={label}>
           Currency
@@ -214,7 +215,7 @@ export function FinancialsFields({
         <label className={label}>
           Cost £
           <input
-            type="number"
+            type="number" onPaste={cleanNumberPaste}
             step="0.01"
             name="purchase_cost_gbp"
             value={costGbp}
@@ -229,21 +230,21 @@ export function FinancialsFields({
 
         <label className={label}>
           Restoration £
-          <input type="number" step="0.01" name="restoration_cost_gbp" value={restorationGbp} onChange={(e) => setRestorationGbp(e.target.value)} className={field} />
+          <input type="number" onPaste={cleanNumberPaste} step="0.01" name="restoration_cost_gbp" value={restorationGbp} onChange={(e) => setRestorationGbp(e.target.value)} className={field} />
         </label>
         <label className={label}>
           <span className="inline-flex items-center gap-1">
             Other costs £
             {importVatCost > 0 ? <ImportVatIcon title={`Includes import VAT of ${gbp(importVatCost)} added to costs (margin scheme)`} /> : null}
           </span>
-          <input type="number" step="0.01" name="other_costs_gbp" value={otherGbp} onChange={(e) => setOtherGbp(e.target.value)} className={field} />
+          <input type="number" onPaste={cleanNumberPaste} step="0.01" name="other_costs_gbp" value={otherGbp} onChange={(e) => setOtherGbp(e.target.value)} className={field} />
           {importVatCost > 0 ? (
             <span className="mt-1 block text-[10.5px] text-oranje">+ import VAT {gbp(importVatCost)}</span>
           ) : null}
         </label>
         <label className={`${label} sm:col-span-2`}>
           Marked price £
-          <input type="number" step="1" name="marked_price_gbp" defaultValue={d("marked_price_gbp")} className={field} />
+          <input type="number" onPaste={cleanNumberPaste} step="1" name="marked_price_gbp" defaultValue={d("marked_price_gbp")} className={field} />
         </label>
 
         {/* Sale */}
@@ -253,7 +254,7 @@ export function FinancialsFields({
         </label>
         <label className={label}>
           {thirdParty ? "Net sold price" : "Sold price"}
-          <input type="number" step="0.01" name="sold_price" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} className={field} />
+          <input type="number" onPaste={cleanNumberPaste} step="0.01" name="sold_price" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} className={field} />
         </label>
         <label className={label}>
           Sell currency
@@ -264,7 +265,7 @@ export function FinancialsFields({
         <label className={label}>
           {thirdParty ? "Net sold £" : "Sold £"}
           <input
-            type="number"
+            type="number" onPaste={cleanNumberPaste}
             step="0.01"
             name="sold_price_gbp"
             value={soldGbp}

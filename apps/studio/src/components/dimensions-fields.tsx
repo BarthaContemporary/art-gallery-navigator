@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { cleanNumberPaste } from "@/lib/amount";
 import { cmToInchesFraction, gramsToPounds } from "@/lib/measure";
 
 const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
@@ -60,7 +61,7 @@ export function DimensionsFields({
     <>
       <input
         name={k}
-        type="number"
+        type="number" onPaste={cleanNumberPaste}
         step="0.1"
         value={vals[k]}
         onChange={(e) => set(k, e.target.value)}

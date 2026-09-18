@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { cleanNumberPaste } from "@/lib/amount";
 import { useEditFinancials } from "@/components/edit-financials-context";
 import { consignmentSplit } from "@/lib/consignment";
 
@@ -235,7 +236,7 @@ export function ConsignmentPanel({
         <label className={label}>
           Share / commission (%)
           <input
-            type="number"
+            type="number" onPaste={cleanNumberPaste}
             step="0.01"
             min="0.01"
             max="99.99"

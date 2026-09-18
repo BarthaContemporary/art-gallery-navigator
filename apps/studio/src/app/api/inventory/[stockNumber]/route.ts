@@ -1,3 +1,4 @@
+import { parseAmount } from "@/lib/amount";
 import { NextResponse } from "next/server";
 import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
@@ -127,10 +128,8 @@ export async function PATCH(
     const t = v == null ? "" : String(v).trim();
     return t || null;
   };
-  const numv = (k: string) => {
-    const t = String(fd.get(k) ?? "").trim();
-    return t === "" ? null : Number(t);
-  };
+  // Accepts "1,200" and "£1,200.50" as well as plain numbers (see lib/amount).
+  const numv = (k: string) => parseAmount(fd.get(k));
 
   const statusVal = String(fd.get("status") ?? "in_stock");
   const jsonList = (k: string): string[] => {
