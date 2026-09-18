@@ -1,3 +1,4 @@
+import { parseAmount } from "@/lib/amount";
 import { NextResponse } from "next/server";
 import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
@@ -27,7 +28,7 @@ export async function PATCH(
   const rawType = String(fd.get("import_type") ?? "").trim();
   const importType = IMPORT_TYPES.has(rawType) ? rawType : null;
   const vatRaw = String(fd.get("import_vat_gbp") ?? "").trim();
-  const importVat = importType === "import_vat_paid" && vatRaw !== "" ? Number(vatRaw) : null;
+  const importVat = importType === "import_vat_paid" && vatRaw !== "" ? parseAmount(vatRaw) : null;
   if (importVat !== null && (!Number.isFinite(importVat) || importVat < 0)) {
     return NextResponse.json({ error: "Import VAT must be a positive amount." }, { status: 400 });
   }

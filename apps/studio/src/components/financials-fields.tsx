@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { cleanNumberPaste } from "@/lib/amount";
+import { parseAmount } from "@/lib/amount";
+import { AmountInput } from "@/components/amount-input";
 import { useEditFinancials } from "@/components/edit-financials-context";
 import { consignmentSplit } from "@/lib/consignment";
 
@@ -72,10 +73,7 @@ export function FinancialsFields({
   const thirdParty = saleHandled === "no";
   const importType = ctx?.importType ?? "";
   const importVatGbp = ctx?.importVatGbp ?? 0;
-  const numOf = (s: string) => {
-    const n = Number(s);
-    return Number.isFinite(n) ? n : 0;
-  };
+  const numOf = (s: string) => parseAmount(s) ?? 0;
 
   // Purchase side — the £ figure is entered by hand, except when the purchase
   // was made in GBP: then Cost £ just mirrors the purchase cost.
@@ -107,8 +105,8 @@ export function FinancialsFields({
 
   useEffect(() => {
     let cancelled = false;
-    const amount = Number(soldPrice);
-    if (!soldPrice || Number.isNaN(amount)) {
+    const amount = parseAmount(soldPrice);
+    if (!soldPrice || amount === null) {
       setSoldGbp("");
       setSoldNote(null);
       setAutoConverted(true);
@@ -174,7 +172,7 @@ export function FinancialsFields({
   // next to Net of VAT £). The purchase cost still drives the margin-scheme VAT
   // but is ignored in the shared pool; restoration / other / import VAT are
   // carried by J.v.d.B. out of its own share.
-  const sharePctNum = ctx && ctx.sharePct.trim() !== "" ? Number(ctx.sharePct) : NaN;
+  const sharePctNum = ctx && ctx.sharePct.trim() !== "" ? (parseAmount(ctx.sharePct) ?? NaN) : NaN;
   const onConsignment = Number.isFinite(sharePctNum) && sharePctNum > 0 && sharePctNum < 100;
   const jvbSplit = onConsignment
     ? consignmentSplit({
@@ -204,7 +202,7 @@ export function FinancialsFields({
         </label>
         <label className={label}>
           Purchase cost
-          <input type="number" onPaste={cleanNumberPaste} step="0.01" name="purchase_cost" value={purchaseCost} onChange={(e) => setPurchaseCost(e.target.value)} className={field} />
+          <AmountInput name="purchase_cost" value={purchaseCost} onChange={(e) => setPurchaseCost(e.target.value)} className={field} />
         </label>
         <label className={label}>
           Currency
@@ -214,9 +212,7 @@ export function FinancialsFields({
         </label>
         <label className={label}>
           Cost £
-          <input
-            type="number" onPaste={cleanNumberPaste}
-            step="0.01"
+          <AmountInput
             name="purchase_cost_gbp"
             value={costGbp}
             readOnly={purchaseIsGbp}
@@ -230,21 +226,21 @@ export function FinancialsFields({
 
         <label className={label}>
           Restoration £
-          <input type="number" onPaste={cleanNumberPaste} step="0.01" name="restoration_cost_gbp" value={restorationGbp} onChange={(e) => setRestorationGbp(e.target.value)} className={field} />
+          <AmountInput name="restoration_cost_gbp" value={restorationGbp} onChange={(e) => setRestorationGbp(e.target.value)} className={field} />
         </label>
         <label className={label}>
           <span className="inline-flex items-center gap-1">
             Other costs £
             {importVatCost > 0 ? <ImportVatIcon title={`Includes import VAT of ${gbp(importVatCost)} added to costs (margin scheme)`} /> : null}
           </span>
-          <input type="number" onPaste={cleanNumberPaste} step="0.01" name="other_costs_gbp" value={otherGbp} onChange={(e) => setOtherGbp(e.target.value)} className={field} />
+          <AmountInput name="other_costs_gbp" value={otherGbp} onChange={(e) => setOtherGbp(e.target.value)} className={field} />
           {importVatCost > 0 ? (
             <span className="mt-1 block text-[10.5px] text-oranje">+ import VAT {gbp(importVatCost)}</span>
           ) : null}
         </label>
         <label className={`${label} sm:col-span-2`}>
           Marked price £
-          <input type="number" onPaste={cleanNumberPaste} step="1" name="marked_price_gbp" defaultValue={d("marked_price_gbp")} className={field} />
+          <AmountInput decimals={0} name="marked_price_gbp" defaultValue={d("marked_price_gbp")} className={field} />
         </label>
 
         {/* Sale */}
@@ -254,7 +250,7 @@ export function FinancialsFields({
         </label>
         <label className={label}>
           {thirdParty ? "Net sold price" : "Sold price"}
-          <input type="number" onPaste={cleanNumberPaste} step="0.01" name="sold_price" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} className={field} />
+          <AmountInput name="sold_price" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} className={field} />
         </label>
         <label className={label}>
           Sell currency
@@ -264,9 +260,7 @@ export function FinancialsFields({
         </label>
         <label className={label}>
           {thirdParty ? "Net sold £" : "Sold £"}
-          <input
-            type="number" onPaste={cleanNumberPaste}
-            step="0.01"
+          <AmountInput
             name="sold_price_gbp"
             value={soldGbp}
             readOnly={autoConverted}
