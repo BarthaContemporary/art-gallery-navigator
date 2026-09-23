@@ -15,7 +15,7 @@ export default async function MakersPage({
   const supabase = await getSupabase();
   let query = supabase
     .from("makers")
-    .select("id, display_name, native_name, life_dates, region, school_or_workshop")
+    .select("id, display_name, native_name, life_dates, region, school_or_workshop, web_visible")
     .order("display_name");
   if (q) {
     const like = `%${q}%`;
@@ -77,6 +77,10 @@ export default async function MakersPage({
           {(makers ?? []).length} maker{(makers ?? []).length === 1 ? "" : "s"} matching “{q}”.
         </p>
       ) : null}
+      <p className="mt-2 text-[12px] text-ink-soft">
+        {(makers ?? []).filter((m) => m.web_visible).length} of {(makers ?? []).length} have an artist page on the
+        website. A maker also appears there automatically while one of their works is on the website.
+      </p>
 
       <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">
         <table className="w-full min-w-[560px] bg-cell text-left">
@@ -87,6 +91,7 @@ export default async function MakersPage({
               <th className="px-4 py-2.5 font-medium">Dates</th>
               <th className="px-4 py-2.5 font-medium">Region</th>
               <th className="px-4 py-2.5 font-medium">School / workshop</th>
+              <th className="px-4 py-2.5 font-medium">Website</th>
               <th className="px-4 py-2.5 text-right font-medium">Actions</th>
             </tr>
           </thead>
@@ -96,7 +101,7 @@ export default async function MakersPage({
             ))}
             {(makers ?? []).length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-[13px] text-ink-soft">
+                <td colSpan={7} className="px-4 py-6 text-center text-[13px] text-ink-soft">
                   {q ? "No makers match your search." : "No makers yet."}
                 </td>
               </tr>

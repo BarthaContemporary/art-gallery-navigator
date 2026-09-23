@@ -20,16 +20,23 @@ export const maxDuration = 60;
 const BATCH = 12;
 /** Images pushed per work: enough for the fold-out panel, not the archive. */
 const IMAGES_PER_WORK = 8;
+/** How long a database wake-up waits for the rest of a burst of edits. */
+const SETTLE_MS = 4000;
+/** Keep draining batches this long per invocation (maxDuration is 60 s). */
+const TIME_BUDGET_MS = 42_000;
 
 /**
- * Supabase → Sanity sync (one way). Called by pg_net on outbox insert and by
- * a Vercel cron (fallback drain). Pushes web-visible pieces as read-only
- * `work` documents with their display images, and makers as `artist`
- * documents; unpublishes pieces and makers that are no longer web-visible.
+ * Supabase → Sanity sync (one way). Woken by the database the moment an
+ * outbox row is written (pg_net trigger, migration 0074), by Admin → Resync,
+ * and by a Vercel cron as the fallback drain. Pushes web-visible pieces as
+ * read-only `work` documents with their display images, and makers as
+ * `artist` documents; unpublishes pieces and makers that are no longer
+ * web-visible.
  */
 export async function POST(request: Request) {
-  const secret = process.env.SYNC_SHARED_SECRET;
-  if (!secret || !safeEqual(request.headers.get("x-sync-secret"), secret)) {
+  const supabase = createServiceClient();
+  const presented = request.headers.get("x-sync-secret");
+  if (!(await isAuthorised(supabase, presented))) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const env = sanityEnv();
@@ -40,18 +47,61 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = createServiceClient();
-  const { data: outbox, error } = await supabase
-    .from("sync_outbox")
-    .select("id, entity_type, entity_id, op")
-    .is("processed_at", null)
-    .order("id")
-    .limit(BATCH);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
-  if (!outbox || outbox.length === 0) return Response.json({ processed: 0 });
+  // A database wake-up arrives on the first row of a burst (an autosave, a
+  // bulk resync); wait a beat so the whole burst is in the outbox, then drain
+  // it in batches until empty or the time budget is spent.
+  if (request.headers.get("x-sync-source") === "outbox") await sleep(SETTLE_MS);
 
-  const pieceIds = [...new Set(outbox.filter((o) => o.entity_type === "piece").map((o) => o.entity_id as string))];
-  const makerIds = [...new Set(outbox.filter((o) => o.entity_type === "maker").map((o) => o.entity_id as string))];
+  const started = Date.now();
+  const totals = { processed: 0, pieces: 0, makers: 0, runs: 0 };
+  while (Date.now() - started < TIME_BUDGET_MS) {
+    const r = await processBatch(supabase, env);
+    if (!r.ok) {
+      return Response.json({ error: "sanity mutate failed", detail: r.detail, ...totals }, { status: 502 });
+    }
+    if (r.processed === 0) break;
+    totals.processed += r.processed;
+    totals.pieces += r.pieces;
+    totals.makers += r.makers;
+    totals.runs += 1;
+  }
+  return Response.json(totals);
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Two secrets open this route: SYNC_SHARED_SECRET (cron, Admin → Resync) and
+ * the one the database presents from `sync_config` (the pg_net trigger). The
+ * database one lives only in the database, so no environment change is
+ * needed when the studio moves.
+ */
+async function isAuthorised(supabase: ReturnType<typeof createServiceClient>, presented: string | null) {
+  if (!presented) return false;
+  const envSecret = process.env.SYNC_SHARED_SECRET;
+  if (envSecret && safeEqual(presented, envSecret)) return true;
+  const { data } = await supabase.from("sync_config").select("secret").eq("id", 1).maybeSingle();
+  return !!data?.secret && safeEqual(presented, data.secret as string);
+}
+
+type BatchResult =
+  | { ok: true; processed: number; pieces: number; makers: number }
+  | { ok: false; detail: string };
+
+async function processBatch(
+  supabase: ReturnType<typeof createServiceClient>,
+  env: NonNullable<ReturnType<typeof sanityEnv>>,
+): Promise<BatchResult> {
+  // Claim rows (SKIP LOCKED) so an overlapping cron/webhook/resync run never
+  // pushes the same row twice; a claim lapses after two minutes if the run
+  // dies, and the next run picks the row up again.
+  const { data: outbox, error } = await supabase.rpc("claim_sync_outbox", { batch: BATCH });
+  if (error) return { ok: false, detail: error.message };
+  if (!outbox || outbox.length === 0) return { ok: true, processed: 0, pieces: 0, makers: 0 };
+
+  const rows = outbox as { id: number; entity_type: string; entity_id: string; op: string }[];
+  const pieceIds = [...new Set(rows.filter((o) => o.entity_type === "piece").map((o) => o.entity_id))];
+  const makerIds = [...new Set(rows.filter((o) => o.entity_type === "maker").map((o) => o.entity_id))];
 
   /* ---- pieces ---------------------------------------------------------- */
   type PieceRow = PieceDimensions & {
@@ -259,25 +309,25 @@ export async function POST(request: Request) {
   ];
 
   if (!result.ok) {
-    // Record the failure, leave the outbox unprocessed for the next run.
+    // Record the failure; the claim lapses and the next run retries the rows.
     await supabase.from("sanity_sync_state").upsert(
       stateRows.map((r) => ({ ...r, status: "error", error: result.detail })),
       { onConflict: "entity_type,entity_id" },
     );
-    return Response.json({ error: "sanity mutate failed", detail: result.detail }, { status: 502 });
+    return { ok: false, detail: result.detail };
   }
 
   const now = new Date().toISOString();
   await supabase
     .from("sync_outbox")
     .update({ processed_at: now })
-    .in("id", outbox.map((o) => o.id));
+    .in("id", rows.map((o) => o.id));
   await supabase.from("sanity_sync_state").upsert(
     stateRows.map((r) => ({ ...r, status: "ok", error: null, last_pushed_at: now })),
     { onConflict: "entity_type,entity_id" },
   );
 
-  return Response.json({ processed: outbox.length, pieces: pieceIds.length, makers: makerIds.length });
+  return { ok: true, processed: rows.length, pieces: pieceIds.length, makers: makerIds.length };
 }
 
 /** Vercel cron entry point — drains any outbox rows pg_net missed. */
