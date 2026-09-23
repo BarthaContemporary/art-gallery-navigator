@@ -32,6 +32,12 @@ vars are referenced by name only.
 - Weekly object-storage replica timer installed and first run verified.
 
 ## Done
+- Website sync is now immediate: an outbox insert fires a pg_net POST to the
+  studio's `/api/sync/sanity` (migration 0074; secret lives in `sync_config`,
+  no env change needed), bursts collapse into one call, rows are claimed with
+  SKIP LOCKED, and the 10-minute cron remains the fallback. Every maker has an
+  artist page unless switched off (0075; switch in the makers list and on the
+  profile page); a work appears only when "On website — yes" in its editor.
 - All 17 migrations applied to prod (incl. `…16_newsletter_designer`,
   `…17_sanity_sync_state`); bootstrap ledger reconciled.
 - Data backfill from the FileMaker import: **locations** (271 pieces + history),

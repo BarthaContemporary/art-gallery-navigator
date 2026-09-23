@@ -13,6 +13,10 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   until the schema cache reloads. Every migration must end with
   `notify pgrst, 'reload schema';` (or run it separately), or new
   tables/columns/functions return 404/500.
+- **Website sync**: DB triggers write `sync_outbox`; a pg_net trigger POSTs to the
+  studio `/api/sync/sanity` at once (secret in `sync_config`), cron drains every
+  10 min as fallback. Works publish only when `web_visible`; makers publish
+  unless `web_visible` is switched off.
 - Autosave forms PATCH `new FormData(formRef)` to an API route on input/change;
   new hidden fields must be parsed on the server route AND the `savePiece` action.
 
