@@ -79,7 +79,7 @@ export default async function MakersPage({
       ) : null}
       <p className="mt-2 text-[12px] text-ink-soft">
         {(makers ?? []).filter((m) => m.web_visible).length} of {(makers ?? []).length} have an artist page on the
-        website. A maker also appears there automatically while one of their works is on the website.
+        website — every maker does unless switched off here. Changes reach the site within a minute.
       </p>
 
       <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">

@@ -274,7 +274,7 @@ export function MakerProfileEditor({
             className="h-4 w-4 accent-[var(--oranje)]"
           />
           Artist page on the website
-          <span className="text-[11px] text-ink-soft">(makers with a work on the site always get one)</span>
+          <span className="text-[11px] text-ink-soft">(on for every maker — untick to hide this one)</span>
         </label>
       </div>
 

@@ -30,8 +30,8 @@ const TIME_BUDGET_MS = 42_000;
  * outbox row is written (pg_net trigger, migration 0074), by Admin → Resync,
  * and by a Vercel cron as the fallback drain. Pushes web-visible pieces as
  * read-only `work` documents with their display images, and makers as
- * `artist` documents; unpublishes pieces and makers that are no longer
- * web-visible.
+ * `artist` documents (every maker, unless switched off); unpublishes
+ * pieces and makers that are no longer web-visible.
  */
 export async function POST(request: Request) {
   const supabase = createServiceClient();
@@ -194,20 +194,8 @@ async function processBatch(
       .in("id", makerIds);
     for (const id of makerIds) makers.set(id, ((data ?? []).find((m) => m.id === id) as MakerRow | undefined) ?? null);
   }
-  // A maker is published when flagged, or when any of its works is on the site.
-  const makersWithLiveWork = new Set<string>();
-  if (makerIds.length > 0) {
-    for (const table of ["pieces", "external_pieces"] as const) {
-      const { data } = await supabase
-        .from(table)
-        .select("maker_id")
-        .in("maker_id", makerIds)
-        .eq("web_visible", true)
-        .is("deleted_at", null);
-      for (const r of data ?? []) if (r.maker_id) makersWithLiveWork.add(r.maker_id);
-    }
-  }
-  const makerPublished = (m: MakerRow | null) => !!m && (m.web_visible || makersWithLiveWork.has(m.id));
+  // Every maker has an artist page unless switched off in the studio.
+  const makerPublished = (m: MakerRow | null) => !!m && m.web_visible;
 
   /* ---- assets ---------------------------------------------------------- */
   const assetKeys = [
