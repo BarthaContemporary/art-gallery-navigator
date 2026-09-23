@@ -159,18 +159,21 @@ export function EditHeader({
           <button type="button" onClick={analyse} disabled={state === "loading"} className={btn}>
             {state === "loading" ? "Analysing…" : "Analyse image"}
           </button>
+          {/* The website switch — the only thing that puts a work on the site. */}
           <button
             type="button"
+            role="switch"
+            aria-checked={visible}
             onClick={toggleVisible}
-            className={`inline-flex items-center gap-2 ${btn}`}
-            title={visible ? "Visible on website" : "Not on the website"}
+            className={`inline-flex items-center gap-2 ${btn} ${visible ? "border-status-green/60" : ""}`}
+            title={visible ? "Shown on the website — click to take it off" : "Not on the website — click to publish it"}
           >
             <span
               aria-hidden
               className="inline-block h-2 w-2 rounded-full"
               style={{ background: visible ? "var(--jvb-status-green)" : "var(--jvb-danger)" }}
             />
-            On website
+            {visible ? "On website — yes" : "On website — no"}
           </button>
         </div>
       </div>
