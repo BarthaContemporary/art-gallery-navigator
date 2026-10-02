@@ -61,6 +61,6 @@ export const config = {
   // Exclude machine endpoints that authenticate themselves (sync via shared
   // secret, cron). Data-export APIs stay behind the session check.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|manifest.webmanifest|icons/|api/public|api/sync|api/cron).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|manifest.webmanifest|icons/|fonts/|api/public|api/sync|api/cron).*)",
   ],
 };
