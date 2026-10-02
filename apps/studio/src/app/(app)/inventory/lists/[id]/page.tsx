@@ -162,7 +162,12 @@ export default async function InventoryListDetail({
   // work shows the same image everywhere. This page used to pick purely by
   // sort_order and could therefore show a different shot than the inventory
   // list, which prefers the 'front' role.
-  const thumbByPiece = await loadThumbnails(supabase, items.map((p) => p.id));
+  // Also the excluded works and the add-search results, so every row that
+  // names a work shows its picture.
+  const thumbByPiece = await loadThumbnails(supabase, [
+    ...items.map((p) => p.id),
+    ...excludedItems.map((p) => p.id),
+  ]);
 
   // Human-readable rules summary for dynamic lists.
   let rulesSummary: string[] = [];
@@ -202,6 +207,7 @@ export default async function InventoryListDetail({
     const notInList = ((hits ?? []) as PieceLite[]).filter((p) => !existing.has(p.id));
     addMatches = notInList.length;
     results = notInList.slice(0, ADD_PAGE);
+    for (const [pid, url] of await loadThumbnails(supabase, results.map((p) => p.id))) thumbByPiece.set(pid, url);
   }
 
   async function addItem(formData: FormData) {
@@ -426,11 +432,14 @@ export default async function InventoryListDetail({
                   className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2"
                 >
                   <input type="hidden" name="piece_id" value={p.id} />
-                  <span className="text-[13px] text-ink-body">
-                    <span className="font-mono text-[12px] text-ink-muted">
-                      {p.stock_number ?? "—"}
-                    </span>{" "}
-                    {titleWithYear(p.title, p.year)}
+                  <span className="flex min-w-0 items-center gap-3 text-[13px] text-ink-body">
+                    <Thumb src={thumbByPiece.get(p.id)} />
+                    <span className="min-w-0 truncate">
+                      <span className="font-mono text-[12px] text-ink-muted">
+                        {p.stock_number ?? "—"}
+                      </span>{" "}
+                      {titleWithYear(p.title, p.year)}
+                    </span>
                   </span>
                   <button type="submit" className={btnGhost}>
                     Add
@@ -580,10 +589,13 @@ export default async function InventoryListDetail({
               >
                 <Link
                   href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
-                  className="min-w-0 truncate text-[13px] text-ink-muted hover:text-oranje"
+                  className="flex min-w-0 items-center gap-3 text-[13px] text-ink-muted hover:text-oranje"
                 >
-                  <span className="font-mono text-[12px]">{p.stock_number ?? "—"}</span>{" "}
-                  {titleWithYear(p.title, p.year)}
+                  <Thumb src={thumbByPiece.get(p.id)} />
+                  <span className="min-w-0 truncate">
+                    <span className="font-mono text-[12px]">{p.stock_number ?? "—"}</span>{" "}
+                    {titleWithYear(p.title, p.year)}
+                  </span>
                 </Link>
                 <form action={reinstateItem}>
                   <input type="hidden" name="piece_id" value={p.id} />
@@ -620,5 +632,15 @@ export default async function InventoryListDetail({
         </button>
       </form>
     </div>
+  );
+}
+
+/** The small square preview used in the list's side rows. */
+function Thumb({ src }: { src: string | undefined }) {
+  return src ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded object-cover" />
+  ) : (
+    <span aria-hidden className="jvb-hatch block h-10 w-10 shrink-0 rounded" />
   );
 }

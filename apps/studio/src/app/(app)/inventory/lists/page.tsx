@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { ReorderGrid } from "@/components/reorder-grid";
 import { persistOrder } from "@/lib/reorder";
+import { loadThumbnails } from "@/lib/thumbnails";
+import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
 
 export const metadata = { title: "Inventory lists" };
 
@@ -57,6 +59,29 @@ export default async function InventoryListsPage() {
       counts.set(l.id, count ?? 0);
     }),
   );
+
+  // A strip of the first few works in each list — the picture is how a
+  // dealer recognises a list, more than its name. Static lists in their
+  // hand-set order; live lists as their filters resolve today.
+  const PREVIEW = 4;
+  const previewIds = new Map<string, string[]>();
+  await Promise.all(
+    ((lists ?? []) as unknown as (ListLike & { is_dynamic: boolean | null })[]).map(async (l) => {
+      if (l.is_dynamic) {
+        previewIds.set(l.id, (await resolveListPieceIds(supabase, l)).slice(0, PREVIEW));
+        return;
+      }
+      const { data } = await supabase
+        .from("piece_list_items")
+        .select("piece_id")
+        .eq("list_id", l.id)
+        .eq("excluded", false)
+        .order("sort_order", { nullsFirst: true })
+        .limit(PREVIEW);
+      previewIds.set(l.id, ((data ?? []) as { piece_id: string }[]).map((r) => r.piece_id));
+    }),
+  );
+  const previewThumbs = await loadThumbnails(supabase, [...previewIds.values()].flat());
 
   async function addList(formData: FormData) {
     "use server";
@@ -118,6 +143,24 @@ export default async function InventoryListsPage() {
             l.id as string,
             <div key={l.id as string} className="h-full rounded-[11px] border border-line bg-cell p-4 pl-9">
             <a href={`/inventory/lists/${l.id}`} className="block">
+              {(previewIds.get(l.id as string) ?? []).length > 0 ? (
+                <div className="mb-3 flex gap-1.5">
+                  {(previewIds.get(l.id as string) ?? []).map((pid) =>
+                    previewThumbs.get(pid) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={pid}
+                        src={previewThumbs.get(pid)}
+                        alt=""
+                        loading="lazy"
+                        className="h-14 w-14 rounded-md object-cover"
+                      />
+                    ) : (
+                      <span key={pid} aria-hidden className="jvb-hatch block h-14 w-14 rounded-md" />
+                    ),
+                  )}
+                </div>
+              ) : null}
               <div className="flex items-center gap-2">
                 <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-oranje">
                   {l.name}
