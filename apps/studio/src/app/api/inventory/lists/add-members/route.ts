@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { addPiecesToList } from "@/lib/list-add";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,44 +24,9 @@ export async function POST(req: Request) {
   }
 
   const pieceIds = Array.isArray(body.pieceIds)
-    ? [...new Set(body.pieceIds.filter((x): x is string => typeof x === "string"))].slice(0, 2000)
+    ? body.pieceIds.filter((x): x is string => typeof x === "string")
     : [];
-  if (pieceIds.length === 0) {
-    return NextResponse.json({ error: "No items selected" }, { status: 400 });
-  }
-
-  let listId = String(body.listId ?? "").trim();
-  const name = String(body.name ?? "").trim().slice(0, 200);
-
-  if (!listId) {
-    if (!name) {
-      return NextResponse.json({ error: "Choose a list or enter a name" }, { status: 400 });
-    }
-    const { data: created, error } = await supabase
-      .from("piece_lists")
-      .insert({ name, is_dynamic: false, created_by: user.id })
-      .select("id")
-      .single();
-    if (error || !created) {
-      return NextResponse.json({ error: error?.message ?? "Could not create list" }, { status: 500 });
-    }
-    listId = created.id;
-  }
-
-  const { data: mx } = await supabase
-    .from("piece_list_items")
-    .select("sort_order")
-    .eq("list_id", listId)
-    .order("sort_order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  let sort = ((mx?.sort_order as number | undefined) ?? -1) + 1;
-
-  const rows = pieceIds.map((pid) => ({ list_id: listId, piece_id: pid, sort_order: sort++ }));
-  const { error: insErr } = await supabase
-    .from("piece_list_items")
-    .upsert(rows, { onConflict: "list_id,piece_id", ignoreDuplicates: true });
-  if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
-
-  return NextResponse.json({ ok: true, listId, added: rows.length });
+  const result = await addPiecesToList(supabase, user.id, { listId: body.listId, name: body.name, pieceIds });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ ok: true, listId: result.listId, added: result.added, skipped: result.skipped });
 }

@@ -253,6 +253,14 @@ export default async function PieceDetail({
   }
 
   const watching = Boolean(watchRes.data);
+  // Temporary flag (per user) — the record-page form of the overview's ⚑.
+  const { data: flagRow } = await supabase
+    .from("piece_flags")
+    .select("piece_id")
+    .eq("piece_id", piece.id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const flagged = Boolean(flagRow);
   const fin = financialsRes.data;
   const total = totalRes.count ?? 0;
   const position = total - (positionRes.count ?? 1) + 1;
@@ -446,6 +454,28 @@ export default async function PieceDetail({
     revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}`);
   }
 
+  async function toggleFlag() {
+    "use server";
+    const supabase = await getSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: existing } = await supabase
+      .from("piece_flags")
+      .select("piece_id")
+      .eq("piece_id", store.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (existing) {
+      await supabase.from("piece_flags").delete().eq("piece_id", store.id).eq("user_id", user.id);
+    } else {
+      await supabase.from("piece_flags").insert({ piece_id: store.id, user_id: user.id });
+    }
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}`);
+    revalidatePath("/inventory");
+  }
+
   const specs: [string, React.ReactNode][] = [
     ["Category", piece.category ? `${piece.category.code} · ${piece.category.name}` : "—"],
     ["Medium", piece.medium ?? "—"],
@@ -559,6 +589,20 @@ export default async function PieceDetail({
               }`}
             >
               {watching ? "★ Watching" : "☆ Watch"}
+            </button>
+          </form>
+          <form action={toggleFlag}>
+            <button
+              type="submit"
+              aria-pressed={flagged}
+              title={flagged ? "Flagged — click to remove the flag" : "Flag this work to come back to it from the inventory"}
+              className={`inline-flex min-h-11 items-center rounded-lg border px-3 py-[7px] text-[12.5px] font-medium transition-colors duration-150 md:min-h-0 ${
+                flagged
+                  ? "border-warn/60 bg-warn-soft text-warn"
+                  : "border-line-control bg-control text-ink-mid"
+              }`}
+            >
+              {flagged ? "⚑ Flagged" : "⚑ Flag"}
             </button>
           </form>
           <Link

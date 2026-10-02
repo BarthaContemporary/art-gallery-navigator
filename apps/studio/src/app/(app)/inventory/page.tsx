@@ -32,6 +32,8 @@ type Search = {
   /** "" / absent = JvdB stock only, "external" = the non-JvdB register, "all" = both. */
   ledger?: string;
   list?: string;
+  /** "1" = only the works the current user has flagged. */
+  flagged?: string;
   loan?: string;
   needs?: string;
   nopurchase?: string;
@@ -54,11 +56,14 @@ export default async function InventoryPage({
   const ascending = sp.dir === "asc";
   const supabase = await getSupabase();
 
-  const [{ data: categories }, { data: locations }, { data: pieceLists }] = await Promise.all([
+  const [{ data: categories }, { data: locations }, { data: pieceLists }, { data: flagRows }] = await Promise.all([
     supabase.from("categories").select("id, name").eq("is_active", true).order("sort_order").order("name"),
     supabase.from("locations").select("id, code, name").order("sort_order").order("code"),
     supabase.from("piece_lists").select("id, name").order("sort_order").order("name"),
+    // The current user's temporary flags (RLS scopes the table to them).
+    supabase.from("piece_flags").select("piece_id"),
   ]);
+  const flaggedIds = new Set(((flagRows ?? []) as { piece_id: string }[]).map((f) => f.piece_id));
 
   // When filtering by a list, resolve its member piece ids up front. Static
   // lists come from piece_list_items; dynamic (saved-view) lists have no rows
@@ -76,6 +81,13 @@ export default async function InventoryPage({
       // detail page, the Library and the offers picker.
       listMemberIds = new Set(await resolveListPieceIds(supabase, listRow as ListLike));
     }
+  }
+  // "Flagged only" narrows to the user's flags — on top of a list filter if
+  // one is active. An empty set is a real answer: nothing flagged, no rows.
+  if (sp.flagged) {
+    listMemberIds = listMemberIds
+      ? new Set([...flaggedIds].filter((id) => listMemberIds!.has(id)))
+      : new Set(flaggedIds);
   }
   const locNameById = new Map(
     ((locations ?? []) as { id: string; name: string | null; code: string }[]).map((l) => [
@@ -299,6 +311,19 @@ export default async function InventoryPage({
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-2">
+          <Link
+            href={
+              sp.flagged
+                ? qs({ ...sp, flagged: undefined, page: undefined }) || "/inventory"
+                : qs({ ...sp, flagged: "1", page: undefined })
+            }
+            title={sp.flagged ? "Show everything again" : "Show only the works you have flagged"}
+            className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
+              sp.flagged ? "border-warn text-warn" : "border-line-control bg-control text-ink-mid"
+            }`}
+          >
+            ⚑ Flagged{flaggedIds.size > 0 ? ` (${flaggedIds.size})` : ""}
+          </Link>
           {FLAG_FILTERS.map(([param, , label]) => (
             <Link
               key={param}
@@ -375,6 +400,7 @@ export default async function InventoryPage({
         if (fCat && catName) chips.push({ key: "category", label: not(fCat, catName) });
         if (fLoc && locName) chips.push({ key: "location", label: not(fLoc, locName) });
         if (sp.list && listName) chips.push({ key: "list", label: `List: ${listName}` });
+        if (sp.flagged) chips.push({ key: "flagged", label: "⚑ Flagged only" });
         if (chips.length === 0) return null;
         return (
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -464,8 +490,11 @@ export default async function InventoryPage({
                 status: r.status,
                 ledger: r.ledger,
                 needs_completion: Boolean(r.needs_completion),
+                flagged: flaggedIds.has(r.id),
               }),
             )}
+            flagTotal={flaggedIds.size}
+            showingFlagged={Boolean(sp.flagged)}
             thumbs={Object.fromEntries(thumbByPiece)}
             lists={(pieceLists ?? []).map((l) => ({ id: l.id, name: l.name }))}
             locations={(locations ?? []).map((l) => ({ id: l.id, name: l.name ?? l.code }))}

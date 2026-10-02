@@ -20,6 +20,8 @@ export type InventoryRow = {
   location_name: string | null;
   status: string;
   ledger?: "jvb" | "external";
+  /** Temporarily flagged by the current user (see piece_flags). */
+  flagged?: boolean;
 };
 
 type Col = {
@@ -35,6 +37,7 @@ type Col = {
 // match the SORTABLE map in the inventory page so header clicks re-sort server-side.
 const COLS: Col[] = [
   { key: "select", label: "", sortable: false, resizable: false, width: 40 },
+  { key: "flag", label: "", sortable: false, resizable: false, width: 36 },
   { key: "image", label: "", sortable: false, resizable: false, width: 56 },
   { key: "stock_number", label: "Stock", sortable: true, resizable: true, width: 130 },
   { key: "title", label: "Title", sortable: true, resizable: true, width: 300 },
@@ -56,11 +59,17 @@ export function InventoryTable({
   thumbs,
   lists = [],
   locations = [],
+  flagTotal = 0,
+  showingFlagged = false,
 }: {
   rows: InventoryRow[];
   thumbs: Record<string, string>;
   lists?: { id: string; name: string }[];
   locations?: { id: string; name: string }[];
+  /** How many works the user has flagged in total (all pages). */
+  flagTotal?: number;
+  /** Whether the list is currently narrowed to flagged works. */
+  showingFlagged?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -118,6 +127,47 @@ export function InventoryTable({
   }, [selected, startedAt]);
   const pageIds = rows.map((r) => r.id);
   const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+
+  // ---- temporary flags ----
+  // Flags live in the database per user (so they follow you across devices
+  // and pages); the table keeps a local mirror so a click highlights at once.
+  const flaggedOnPage = () => new Set(rows.filter((r) => r.flagged).map((r) => r.id));
+  const [flags, setFlags] = useState<Set<string>>(flaggedOnPage);
+  const [flagCount, setFlagCount] = useState(flagTotal);
+  useEffect(() => setFlags(flaggedOnPage()), [rows]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => setFlagCount(flagTotal), [flagTotal]);
+  const [flagError, setFlagError] = useState<string | null>(null);
+
+  async function setFlagged(ids: string[], flagged: boolean) {
+    const changing = ids.filter((id) => flags.has(id) !== flagged);
+    if (changing.length === 0) return;
+    const before = new Set(flags);
+    const beforeCount = flagCount;
+    setFlags((f) => {
+      const n = new Set(f);
+      changing.forEach((id) => (flagged ? n.add(id) : n.delete(id)));
+      return n;
+    });
+    // Off-page flags can't change here, so the total moves by exactly the
+    // on-page delta.
+    setFlagCount((c) => Math.max(0, c + (flagged ? changing.length : -changing.length)));
+    setFlagError(null);
+    try {
+      const res = await fetch("/api/inventory/flags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pieceIds: changing, flagged }),
+      });
+      if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Could not save flag");
+      // When viewing "flagged only", an unflagged row should drop out.
+      if (showingFlagged && !flagged) router.refresh();
+    } catch (e) {
+      setFlags(before);
+      setFlagCount(beforeCount);
+      setFlagError(e instanceof Error ? e.message : "Could not save flag");
+    }
+  }
+  const toggleFlag = (id: string) => void setFlagged([id], !flags.has(id));
   function toggleRow(id: string) {
     setSelected((s) => {
       const n = new Set(s);
@@ -276,6 +326,9 @@ export function InventoryTable({
       } else if (e.key === "x" && rows[activeRow]) {
         e.preventDefault();
         toggleRow(rows[activeRow]!.id);
+      } else if (e.key === "f" && rows[activeRow]) {
+        e.preventDefault();
+        toggleFlag(rows[activeRow]!.id);
       } else if (e.key === "Enter" && rows[activeRow]) {
         e.preventDefault();
         router.push(href(rows[activeRow]!));
@@ -284,7 +337,7 @@ export function InventoryTable({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, activeRow]);
+  }, [rows, activeRow, flags]);
   useEffect(() => {
     if (activeRow >= 0) {
       rowRefs.current[activeRow]?.scrollIntoView({ block: "nearest" });
@@ -305,6 +358,8 @@ export function InventoryTable({
             className="align-middle"
           />
         );
+      case "flag":
+        return <FlagButton flagged={flags.has(r.id)} stock={r.stock_number} onClick={() => toggleFlag(r.id)} />;
       case "image": {
         const thumb = thumbs[r.id];
         return (
@@ -374,12 +429,38 @@ export function InventoryTable({
 
   return (
     <div>
+      {flagCount > 0 || showingFlagged ? (
+        <FlagBar
+          count={flagCount}
+          lists={lists}
+          showingFlagged={showingFlagged}
+          flaggedOnPage={rows.filter((r) => flags.has(r.id)).length}
+          onSelectFlaggedOnPage={() =>
+            setSelected((s) => {
+              const n = new Set(s);
+              rows.forEach((r) => {
+                if (flags.has(r.id)) n.add(r.id);
+              });
+              return n;
+            })
+          }
+          onCleared={() => {
+            setFlags(new Set());
+            setFlagCount(0);
+            router.refresh();
+          }}
+        />
+      ) : null}
+      {flagError ? <p className="mb-2 text-[12px] text-danger">{flagError}</p> : null}
+
       {selected.size > 0 ? (
         <AddToListBar
           selectedIds={[...selected]}
           startedAt={startedAt}
           lists={lists}
           locations={locations}
+          flaggedCount={[...selected].filter((id) => flags.has(id)).length}
+          onFlag={(flagged) => void setFlagged([...selected], flagged)}
           onClear={() => setSelected(new Set())}
           onDone={() => {
             setSelected(new Set());
@@ -392,7 +473,7 @@ export function InventoryTable({
           which is desktop-only — hide them where the cards render. */}
       <div className="mb-1.5 hidden items-center justify-end gap-3 md:flex">
         <span className="mr-auto hidden font-mono text-[10.5px] text-ink-faint lg:inline">
-          j/k move · ⏎ open · x select
+          j/k move · ⏎ open · x select · f flag
         </span>
         <button
           type="button"
@@ -418,7 +499,12 @@ export function InventoryTable({
           the handles are unusable by touch. Same data, one column, tappable. */}
       <ul className="overflow-hidden rounded-[11px] border border-line md:hidden">
         {rows.map((r) => (
-          <li key={r.id} className="border-b border-line-soft last:border-0">
+          <li
+            key={r.id}
+            className={`border-b border-line-soft last:border-0 ${
+              flags.has(r.id) ? "bg-warn-soft/60 shadow-[inset_3px_0_0_var(--jvb-warn)]" : ""
+            }`}
+          >
             <div className="flex items-stretch">
               <label className="flex w-11 shrink-0 items-center justify-center border-r border-line-soft">
                 <span className="sr-only">Select {r.stock_number}</span>
@@ -468,6 +554,9 @@ export function InventoryTable({
                   </span>
                 </span>
               </Link>
+              <span className="flex w-11 shrink-0 items-center justify-center border-l border-line-soft">
+                <FlagButton flagged={flags.has(r.id)} stock={r.stock_number} onClick={() => toggleFlag(r.id)} large />
+              </span>
             </div>
           </li>
         ))}
@@ -559,8 +648,8 @@ export function InventoryTable({
                   rowRefs.current[i] = el;
                 }}
                 className={`border-b border-line-soft last:border-0 hover:bg-control ${
-                  i === activeRow ? "bg-oranje/10 ring-1 ring-inset ring-oranje/40" : ""
-                }`}
+                  flags.has(r.id) ? "bg-warn-soft/60 shadow-[inset_3px_0_0_var(--jvb-warn)]" : ""
+                } ${i === activeRow ? "bg-oranje/10 ring-1 ring-inset ring-oranje/40" : ""}`}
               >
                 {COLS.map((c) => (
                   <td
@@ -602,6 +691,8 @@ function AddToListBar({
   startedAt,
   lists,
   locations,
+  flaggedCount,
+  onFlag,
   onClear,
   onDone,
 }: {
@@ -609,6 +700,9 @@ function AddToListBar({
   startedAt: number | null;
   lists: { id: string; name: string }[];
   locations: { id: string; name: string }[];
+  /** How many of the selected works are currently flagged. */
+  flaggedCount: number;
+  onFlag: (flagged: boolean) => void;
   onClear: () => void;
   onDone: () => void;
 }) {
@@ -773,6 +867,24 @@ function AddToListBar({
         >
           {busy ? "Adding…" : "Add"}
         </button>
+        <span aria-hidden className="mx-1 hidden h-5 w-px bg-oranje/20 sm:inline-block" />
+        {/* Flag / unflag the whole selection — the group form of the row ⚑. */}
+        <button
+          type="button"
+          disabled={busy || flaggedCount === selectedIds.length}
+          onClick={() => onFlag(true)}
+          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid disabled:opacity-50"
+        >
+          ⚑ Flag
+        </button>
+        <button
+          type="button"
+          disabled={busy || flaggedCount === 0}
+          onClick={() => onFlag(false)}
+          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid disabled:opacity-50"
+        >
+          Unflag
+        </button>
         <button
           type="button"
           onClick={onClear}
@@ -875,6 +987,227 @@ function AddToListBar({
         </div>
       ) : null}
 
+      {error ? <p className="text-[12px] text-danger">{error}</p> : null}
+    </div>
+  );
+}
+
+/** The row flag: amber when set, faint until hovered otherwise. */
+function FlagButton({
+  flagged,
+  stock,
+  onClick,
+  large = false,
+}: {
+  flagged: boolean;
+  stock: string;
+  onClick: () => void;
+  large?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={flagged}
+      aria-label={flagged ? `Remove flag from ${stock}` : `Flag ${stock}`}
+      title={flagged ? "Flagged — click to remove" : "Flag this work (f)"}
+      onClick={onClick}
+      className={`inline-flex items-center justify-center rounded-md leading-none transition-colors duration-150 ${
+        large ? "h-11 w-11 text-[18px]" : "h-6 w-6 text-[14px]"
+      } ${flagged ? "text-warn" : "text-ink-faint hover:text-warn"}`}
+    >
+      ⚑
+    </button>
+  );
+}
+
+/**
+ * The flagged set, as a whole: how many, show only those, file them into a
+ * list (existing or new) and optionally clear the flags once filed.
+ */
+function FlagBar({
+  count,
+  lists,
+  showingFlagged,
+  flaggedOnPage,
+  onSelectFlaggedOnPage,
+  onCleared,
+}: {
+  count: number;
+  lists: { id: string; name: string }[];
+  showingFlagged: boolean;
+  flaggedOnPage: number;
+  onSelectFlaggedOnPage: () => void;
+  onCleared: () => void;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const [listId, setListId] = useState("");
+  const [newName, setNewName] = useState("");
+  const [clearAfter, setClearAfter] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<{ listId: string; added: number; skipped: number; name: string } | null>(null);
+
+  function toggleShowFlagged() {
+    const p = new URLSearchParams(params.toString());
+    if (showingFlagged) p.delete("flagged");
+    else p.set("flagged", "1");
+    p.delete("page");
+    const q = p.toString();
+    router.push(q ? `${pathname}?${q}` : pathname);
+  }
+
+  async function fileIntoList() {
+    if (!listId && !newName.trim()) {
+      setError("Pick a list or enter a new name.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/inventory/flags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "toList",
+          listId: listId || undefined,
+          name: listId ? undefined : newName.trim(),
+          clear: clearAfter,
+        }),
+      });
+      const json = (await res.json()) as { error?: string; listId?: string; added?: number; skipped?: number };
+      if (!res.ok || !json.listId) throw new Error(json.error ?? "Could not add to list");
+      setDone({
+        listId: json.listId,
+        added: json.added ?? 0,
+        skipped: json.skipped ?? 0,
+        name: listId ? lists.find((l) => l.id === listId)?.name ?? "the list" : newName.trim(),
+      });
+      setListId("");
+      setNewName("");
+      if (clearAfter) onCleared();
+      else router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add to list");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function clearAll() {
+    if (!confirm(`Remove all ${count} flag${count === 1 ? "" : "s"}? The works themselves are untouched.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/inventory/flags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear" }),
+      });
+      if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Could not clear flags");
+      setDone(null);
+      onCleared();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not clear flags");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const field =
+    "rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body";
+
+  return (
+    <div className="jvb-slide-enter mb-2 space-y-2 rounded-lg border border-warn/40 bg-warn-soft/40 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[12.5px] font-medium text-ink-body">
+          <span className="text-warn">⚑</span> {count} flagged
+          {flaggedOnPage > 0 && flaggedOnPage !== count ? (
+            <span className="font-normal text-ink-soft"> · {flaggedOnPage} on this page</span>
+          ) : null}
+        </span>
+        <button
+          type="button"
+          onClick={toggleShowFlagged}
+          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
+        >
+          {showingFlagged ? "Show all records" : "Show flagged only"}
+        </button>
+        {flaggedOnPage > 0 ? (
+          <button
+            type="button"
+            onClick={onSelectFlaggedOnPage}
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
+            title="Tick every flagged work on this page, for a bulk edit"
+          >
+            Select flagged on this page
+          </button>
+        ) : null}
+        <button
+          type="button"
+          disabled={busy || count === 0}
+          onClick={() => void clearAll()}
+          className="ml-auto text-[12px] text-ink-soft hover:text-ink-strong disabled:opacity-50"
+        >
+          Clear all flags
+        </button>
+      </div>
+
+      {count > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 border-t border-warn/20 pt-2">
+          <span className="text-[12px] text-ink-soft">File flagged works into</span>
+          <select value={listId} onChange={(e) => setListId(e.target.value)} className={field}>
+            <option value="">New list…</option>
+            {lists.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+          {!listId ? (
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="New list name"
+              className={`${field} w-52`}
+            />
+          ) : null}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void fileIntoList()}
+            className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg disabled:opacity-60"
+          >
+            {busy ? "Adding…" : `Add ${count} to list`}
+          </button>
+          <label className="flex items-center gap-1.5 text-[12px] text-ink-mid">
+            <input
+              type="checkbox"
+              checked={clearAfter}
+              onChange={(e) => setClearAfter(e.target.checked)}
+              className="h-3.5 w-3.5 accent-[var(--jvb-warn)]"
+            />
+            Clear the flags afterwards
+          </label>
+        </div>
+      ) : null}
+
+      {done ? (
+        <p className="text-[12px] text-ink-body">
+          Added {done.added} work{done.added === 1 ? "" : "s"} to{" "}
+          <Link href={`/inventory/lists/${done.listId}`} className="font-medium text-oranje hover:underline">
+            {done.name}
+          </Link>
+          {done.skipped > 0 ? (
+            <span className="text-ink-soft">
+              {" "}
+              · {done.skipped} non-JvdB work{done.skipped === 1 ? "" : "s"} skipped (lists hold JvdB stock only)
+            </span>
+          ) : null}
+          .
+        </p>
+      ) : null}
       {error ? <p className="text-[12px] text-danger">{error}</p> : null}
     </div>
   );
