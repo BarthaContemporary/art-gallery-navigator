@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Noto_Sans, Noto_Sans_JP } from "next/font/google";
 import { getSiteSettings } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName, siteUrl } from "@/lib/site";
 import { SiteHeader } from "@/components/site-header";
@@ -10,29 +9,17 @@ import { Plausible } from "@/components/plausible";
 import { ConsentProvider } from "@/components/consent-provider";
 import { ConsentDrawer } from "@/components/consent-drawer";
 import { MarketingScripts } from "@/components/marketing-scripts";
+import "./fonts.css";
 import "./globals.css";
 
 /*
  * One family: Noto Sans. 300 titles, 400 body/nav, 500 logo & names,
- * 600 small labels (handoff design tokens).
+ * 600 small labels (handoff design tokens). Japanese glyphs (artist names,
+ * titles) fall through to Noto Sans JP, the same design as the Latin. Both
+ * are self-hosted from /public/fonts (fonts.css, unicode-range slices):
+ * next/font/google fetched them from Google at build time and a changed
+ * Google response can fail the build.
  */
-const notoSans = Noto_Sans({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  style: ["normal"],
-  variable: "--font-noto-sans",
-  display: "swap",
-});
-
-/* Japanese glyphs (artist names, titles) fall through to Noto Sans JP, the
-   same design as the Latin, instead of whatever the visitor's system has. */
-const notoSansJP = Noto_Sans_JP({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-noto-sans-jp",
-  display: "swap",
-  preload: false,
-});
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
@@ -86,7 +73,10 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang="en" className={`${notoSans.variable} ${notoSansJP.variable}`}>
+    <html lang="en">
+      <head>
+        <link rel="preload" href="/fonts/noto-sans-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      </head>
       <body className="flex min-h-screen flex-col bg-page text-body">
         <JsonLd data={orgJsonLd} />
         {/* Everything that can track sits inside the consent provider, so no

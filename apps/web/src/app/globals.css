@@ -75,8 +75,8 @@
   --color-current: currentColor;
 
   /* one family; "serif" is an alias so untouched pages don't fall back */
-  --font-sans: var(--font-noto-sans), "Noto Sans", var(--font-noto-sans-jp), "Noto Sans JP", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-serif: var(--font-noto-sans), "Noto Sans", var(--font-noto-sans-jp), "Noto Sans JP", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Noto Sans", "Noto Sans JP", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: "Noto Sans", "Noto Sans JP", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   /* type scale — wireframe values scaled to the web */
   --text-eyebrow: 11.5px;

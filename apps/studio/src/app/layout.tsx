@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Newsreader, Noto_Sans } from "next/font/google";
+import "./fonts.css";
 import "./globals.css";
 
 /*
@@ -7,21 +7,10 @@ import "./globals.css";
  *   Sans = structure (UI, headings, labels, tables) — Noto Sans.
  *   Serif = voice (catalogue prose: descriptions, condition, provenance) —
  *   Newsreader, roman only. Numerals reuse the sans with tabular figures.
+ * Both are self-hosted from /public/fonts (see fonts.css). next/font/google
+ * fetched them from Google at build time, and a changed Google response
+ * took the production build down.
  */
-const sans = Noto_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--jvb-font-sans",
-  display: "swap",
-});
-
-const serif = Newsreader({
-  subsets: ["latin"],
-  weight: ["300", "400"],
-  style: ["normal"],
-  variable: "--jvb-font-serif",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: {
@@ -42,9 +31,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable}`} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <link rel="preload" href="/fonts/noto-sans-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </head>
       <body className="min-h-dvh antialiased">{children}</body>
     </html>
