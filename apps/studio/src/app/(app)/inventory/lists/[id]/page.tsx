@@ -187,11 +187,21 @@ export default async function InventoryListDetail({
   }
 
   // ---- Add search (static lists only) --------------------------------------
+  // Ranked search, minus works already in the list. Only the first page of
+  // matches is shown, and the page says so: a broad word like "bronze" matches
+  // a few hundred works, and once the first twenty had been added the rest
+  // looked as if they didn't exist.
+  const ADD_PAGE = 50;
   const addQ = (sp.add ?? "").trim();
   let results: PieceLite[] = [];
+  let addMatches = 0;
+  let hitsTotal: number | null = null;
   if (addQ && !isDynamic) {
     const { data: hits } = await supabase.rpc("pieces_search", { q: addQ });
-    results = ((hits ?? []) as PieceLite[]).filter((p) => !existing.has(p.id)).slice(0, 20);
+    hitsTotal = (hits ?? []).length;
+    const notInList = ((hits ?? []) as PieceLite[]).filter((p) => !existing.has(p.id));
+    addMatches = notInList.length;
+    results = notInList.slice(0, ADD_PAGE);
   }
 
   async function addItem(formData: FormData) {
@@ -208,6 +218,31 @@ export default async function InventoryListDetail({
       .maybeSingle();
     await db.from("piece_list_items").upsert(
       { list_id: id, piece_id: pieceId, sort_order: (mx?.sort_order ?? -1) + 1 },
+      { onConflict: "list_id,piece_id", ignoreDuplicates: true },
+    );
+    revalidatePath(`/inventory/lists/${id}`);
+  }
+
+  /** Add every work shown in the search results in one go. */
+  async function addShown(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const ids = String(formData.get("piece_ids") ?? "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .slice(0, 100);
+    if (ids.length === 0) return;
+    const { data: mx } = await db
+      .from("piece_list_items")
+      .select("sort_order")
+      .eq("list_id", id)
+      .order("sort_order", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    let sort = (mx?.sort_order ?? -1) + 1;
+    await db.from("piece_list_items").upsert(
+      ids.map((piece_id) => ({ list_id: id, piece_id, sort_order: sort++ })),
       { onConflict: "list_id,piece_id", ignoreDuplicates: true },
     );
     revalidatePath(`/inventory/lists/${id}`);
@@ -369,6 +404,21 @@ export default async function InventoryListDetail({
           </form>
           {addQ ? (
             <div className="mt-2 space-y-1">
+              {results.length > 0 ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+                  <p className="text-[12.5px] text-ink-muted">
+                    {addMatches > results.length
+                      ? `Showing the first ${results.length} of ${addMatches} matches not yet in the list — narrow the search to find a specific work (a stock number finds just that one).`
+                      : `${results.length} match${results.length === 1 ? "" : "es"} not yet in the list.`}
+                  </p>
+                  <form action={addShown}>
+                    <input type="hidden" name="piece_ids" value={results.map((p) => p.id).join(",")} />
+                    <button type="submit" className={btnGhost}>
+                      Add all {results.length} shown
+                    </button>
+                  </form>
+                </div>
+              ) : null}
               {results.map((p) => (
                 <form
                   key={p.id}
@@ -389,7 +439,9 @@ export default async function InventoryListDetail({
               ))}
               {results.length === 0 ? (
                 <p className="text-[12.5px] text-ink-muted">
-                  No matches (or already in the list).
+                  {addMatches === 0 && (hitsTotal ?? 0) > 0
+                    ? "Every match is already in the list."
+                    : "No matches — try a stock number, part of the title, or the maker."}
                 </p>
               ) : null}
             </div>
