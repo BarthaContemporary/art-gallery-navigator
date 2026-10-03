@@ -32,6 +32,15 @@ vars are referenced by name only.
 - Weekly object-storage replica timer installed and first run verified.
 
 ## Done
+- Data-protection pass (Oct 2026): security headers on both apps; double
+  opt-in newsletter with consent evidence; complaint/bounce suppression;
+  subject-access export + erasure with legal holds on the contact page;
+  Admin → Data protection (retention schedule enforced nightly, request and
+  breach registers, review queues); Privacy Notice, Terms, Accessibility and
+  footer trading disclosures (fill Site settings → legal fields, needs a
+  Studio deploy for the new fields); compliance pack in `docs/compliance`.
+  Owner actions in `docs/compliance/OWNER_CHECKLIST.md` — notably 181
+  emailable contacts without an evidenced marketing basis.
 - Website sync is now immediate: an outbox insert fires a pg_net POST to the
   studio's `/api/sync/sanity` (migration 0074; secret lives in `sync_config`,
   no env change needed), bursts collapse into one call, rows are claimed with

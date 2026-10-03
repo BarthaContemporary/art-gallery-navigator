@@ -19,6 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl("/terms"), changeFrequency: "yearly", priority: 0.2 },
     { url: absoluteUrl("/cookies"), changeFrequency: "yearly", priority: 0.2 },
     { url: absoluteUrl("/aml"), changeFrequency: "yearly", priority: 0.2 },
+    { url: absoluteUrl("/accessibility"), changeFrequency: "yearly", priority: 0.2 },
   ];
 
   const [exhibitionSlugs, publicationSlugs, artistSlugs] = await Promise.all([

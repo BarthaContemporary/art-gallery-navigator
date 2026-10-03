@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { Resend } from "resend";
 import { createServiceClient } from "@jvb/db/server";
+import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
 import { buildIcs } from "@/lib/ics";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
@@ -105,11 +106,18 @@ export async function POST(req: NextRequest) {
     // Find-or-create the CRM contact by email.
     const { data: existing } = await supabase
       .from("crm_contacts")
-      .select("id")
+      .select("id, consent_evidence")
       .ilike("email", payload.email)
       .maybeSingle();
 
+    const contactEv = consentEvidence(req, "booking");
     let contactId: string | null = (existing as { id: string } | null)?.id ?? null;
+    if (contactId) {
+      await supabase
+        .from("crm_contacts")
+        .update({ consent_evidence: mergeEvidence((existing as { consent_evidence: unknown }).consent_evidence, "contact", contactEv) })
+        .eq("id", contactId);
+    }
     if (!contactId) {
       const [firstName, ...rest] = payload.name.split(/\s+/);
       const { data: created, error: contactError } = await supabase
@@ -121,6 +129,7 @@ export async function POST(req: NextRequest) {
           phone: payload.phone ?? null,
           contact_type: "collector",
           consent_source: "website_booking",
+          consent_evidence: mergeEvidence(null, "contact", contactEv),
         })
         .select("id")
         .single();

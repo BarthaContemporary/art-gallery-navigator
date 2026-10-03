@@ -77,6 +77,22 @@ export function SiteFooter({
         </div>
       </div>
 
+      {/* Trading disclosures: Companies Act 2006 s.82 / E-Commerce Regulations
+          2002 reg. 6 — legal name, company number and registered office, VAT
+          number, trade memberships — on every page once set in site settings. */}
+      {settings?.legalName || settings?.companyNumber || settings?.vatNumber || settings?.tradeMemberships ? (
+        <p className="page pb-3 font-sans text-[11.5px] leading-[1.7] text-white/60">
+          {[
+            settings?.legalName,
+            settings?.companyNumber ? `Registered in England and Wales, company no. ${settings.companyNumber}` : null,
+            settings?.registeredOffice ? `Registered office: ${settings.registeredOffice.replace(/\r?\n/g, ", ")}` : null,
+            settings?.vatNumber ? `VAT no. ${settings.vatNumber}` : null,
+            settings?.tradeMemberships,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      ) : null}
       <div className="page flex flex-wrap items-center gap-x-5 gap-y-1 pb-10 font-sans text-[12px] text-white/70">
         <span>&copy; {new Date().getFullYear()} {galleryName}</span>
         <Link href="/privacy" className="hover:text-white">
@@ -90,6 +106,9 @@ export function SiteFooter({
         </Link>
         <Link href="/aml" className="hover:text-white">
           AML
+        </Link>
+        <Link href="/accessibility" className="hover:text-white">
+          Accessibility
         </Link>
         <span className="[&_button]:hover:text-white">
           <ConsentReopenLink />

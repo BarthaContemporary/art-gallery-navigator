@@ -332,6 +332,12 @@ export interface SiteSettings {
   featuredWorks: Work[] | null;
   /** Meta pixel ID, set in Sanity so it can go live without a deploy. */
   facebookPixelId: string | null;
+  legalName?: string | null;
+  companyNumber?: string | null;
+  registeredOffice?: string | null;
+  vatNumber?: string | null;
+  tradeMemberships?: string | null;
+  dpContactEmail?: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -364,6 +370,7 @@ const workFields = /* groq */ `{
 }`;
 
 export const siteSettingsQuery = groq`*[_type == "siteSettings"][0]{
+  legalName, companyNumber, registeredOffice, vatNumber, tradeMemberships, dpContactEmail,
   galleryName,
   tagline,
   aboutTeaser,

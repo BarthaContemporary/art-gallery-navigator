@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { Resend } from "resend";
 import { createServiceClient } from "@jvb/db/server";
+import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -88,17 +89,25 @@ export async function POST(req: NextRequest) {
     // Contact: match on email, create if new; consent only when ticked.
     const { data: existing } = await supabase
       .from("crm_contacts")
-      .select("id, marketing_consent")
+      .select("id, marketing_consent, consent_evidence")
       .ilike("email", email)
       .limit(1)
       .maybeSingle();
     let contactId = existing?.id ?? null;
+    // Evidence of what was agreed to: the contact tick always, the mailing
+    // list tick when given (UK GDPR Art. 7(1), PECR reg. 22).
+    const contactEv = consentEvidence(req, "enquiry");
+    const marketingEv = payload.mailingList ? consentEvidence(req, "enquiry_mailing_list") : null;
     if (existing) {
+      let evidence = mergeEvidence(existing.consent_evidence, "contact", contactEv);
       if (payload.mailingList && !existing.marketing_consent) {
+        evidence = mergeEvidence(evidence, "marketing", marketingEv!);
         await supabase
           .from("crm_contacts")
-          .update({ marketing_consent: true, consent_date: now, consent_source: "website_enquiry", unsubscribed_at: null })
+          .update({ marketing_consent: true, consent_date: now, consent_source: "website_enquiry", unsubscribed_at: null, consent_evidence: evidence })
           .eq("id", existing.id);
+      } else {
+        await supabase.from("crm_contacts").update({ consent_evidence: evidence }).eq("id", existing.id);
       }
       if (payload.phone) await supabase.from("crm_contacts").update({ phone: payload.phone }).eq("id", existing.id).is("phone", null);
       // A posted order is the freshest address we have for the contact.
@@ -115,6 +124,9 @@ export async function POST(req: NextRequest) {
           marketing_consent: Boolean(payload.mailingList),
           consent_date: payload.mailingList ? now : null,
           consent_source: payload.mailingList ? "website_enquiry" : null,
+          consent_evidence: marketingEv
+            ? mergeEvidence(mergeEvidence(null, "contact", contactEv), "marketing", marketingEv)
+            : mergeEvidence(null, "contact", contactEv),
           tags: ["website"],
         })
         .select("id")

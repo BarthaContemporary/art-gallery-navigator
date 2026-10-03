@@ -17,6 +17,11 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   studio `/api/sync/sanity` at once (secret in `sync_config`), cron drains every
   10 min as fallback. Works publish only when `web_visible`; makers publish
   unless `web_visible` is switched off.
+- **Personal data**: any new table or column holding personal data needs a row in
+  `retention_policies` (+ `apply_retention()`), coverage in `erase_contact()` and
+  `lib/contact-export.ts`, and a line in `docs/compliance/ROPA.md` and the
+  Privacy Notice. New third-party services go in `docs/compliance/PROCESSORS.md`
+  and the notice's "Who we share it with". No new tag outside the consent gate.
 - Autosave forms PATCH `new FormData(formRef)` to an API route on input/change;
   new hidden fields must be parsed on the server route AND the `savePiece` action.
 

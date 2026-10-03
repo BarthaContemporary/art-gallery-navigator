@@ -25,6 +25,30 @@ const siteSettings = {
       initialValue: "By appointment only",
     },
     { name: "instagram", title: "Instagram URL", type: "url" },
+    // Trading disclosures (Companies Act 2006 / E-Commerce Regulations 2002)
+    // and the data-protection contact. Shown in the footer small print and on
+    // the Privacy Notice.
+    {
+      name: "legalName",
+      title: "Legal / registered name",
+      type: "string",
+      description: "The name the business trades under in law, e.g. “Joost van den Bergh Ltd”.",
+    },
+    { name: "companyNumber", title: "Company number", type: "string", description: "Leave empty if not a company." },
+    { name: "registeredOffice", title: "Registered office address", type: "text", rows: 3 },
+    { name: "vatNumber", title: "VAT registration number", type: "string" },
+    {
+      name: "tradeMemberships",
+      title: "Trade associations",
+      type: "string",
+      description: "e.g. “Member of LAPADA and SLAD” — shown in the footer.",
+    },
+    {
+      name: "dpContactEmail",
+      title: "Data-protection contact email",
+      type: "string",
+      description: "Where privacy requests go; defaults to the gallery email.",
+    },
     {
       name: "galleryPhoto",
       title: "About page photo (16:9)",

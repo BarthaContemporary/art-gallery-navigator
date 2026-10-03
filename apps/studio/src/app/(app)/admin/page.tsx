@@ -48,7 +48,7 @@ async function changePassword(formData: FormData) {
   await requireSession();
   const next = String(formData.get("password") ?? "");
   const confirm = String(formData.get("confirm") ?? "");
-  if (next.length < 10) redirect("/admin?error=Password+must+be+at+least+10+characters");
+  if (next.length < 12) redirect("/admin?error=Password+must+be+at+least+12+characters");
   if (next !== confirm) redirect("/admin?error=Passwords+do+not+match");
   const supabase = await getSupabase();
   const { error } = await supabase.auth.updateUser({ password: next });
@@ -347,6 +347,9 @@ export default async function AdminPage({
             </a>
             <a href="/admin/duplicates" className="text-ink-mid hover:text-oranje">
               Duplicate contacts — review &amp; merge pairs found during the legacy import →
+            </a>
+            <a href="/admin/data-protection" className="text-ink-mid hover:text-oranje">
+              Data protection — retention, subject requests, breach register, review queues →
             </a>
           </div>
 

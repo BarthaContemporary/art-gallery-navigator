@@ -9,6 +9,7 @@ import { useState } from "react";
  */
 export function NewsletterForm() {
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const [already, setAlready] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -28,8 +29,9 @@ export function NewsletterForm() {
           website: String(data.get("website") ?? ""),
         }),
       });
-      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      const json = (await res.json().catch(() => ({}))) as { error?: string; status?: string };
       if (!res.ok) throw new Error(json.error ?? "Could not sign you up");
+      setAlready(json.status === "already");
       setStatus("done");
     } catch (err) {
       setStatus("error");
@@ -100,7 +102,11 @@ export function NewsletterForm() {
       <div>
         <div className="fold-body">
           <p className="mt-4 font-sans text-ui" role="status">
-            {done ? <>Thank you — you&rsquo;re on the list.</> : null}
+            {done
+              ? already
+                ? <>You&rsquo;re already on the list — thank you.</>
+                : <>Thank you — please check your inbox and confirm your subscription.</>
+              : null}
           </p>
         </div>
       </div>

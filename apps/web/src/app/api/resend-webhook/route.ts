@@ -17,8 +17,8 @@ export const runtime = "nodejs";
 
 type ResendEvent = {
   type?: string;
+  data?: { email_id?: string; bounce?: { type?: string }; created_at?: string } & Record<string, unknown>;
   created_at?: string;
-  data?: { email_id?: string; email?: string };
 };
 
 const FIELD_BY_TYPE: Record<string, "opened_at" | "clicked_at" | "bounced_at"> = {
@@ -56,6 +56,26 @@ export async function POST(req: NextRequest) {
     .eq("resend_email_id", emailId)
     .maybeSingle();
   const recipientId = (rec as { id: string } | null)?.id ?? null;
+
+  // A spam complaint is a withdrawal of consent (PECR reg. 22); a permanent
+  // bounce means the address is dead. Both stop further marketing to the
+  // contact, whichever campaign or offer the email belonged to.
+  if (type === "email.complained" || type === "email.bounced") {
+    const transient = type === "email.bounced" && /transient|soft/i.test(event.data?.bounce?.type ?? "");
+    if (!transient) {
+      const contactId = await contactForEmail(supabase, emailId, recipientId);
+      if (contactId) {
+        await supabase
+          .from("crm_contacts")
+          .update(
+            type === "email.complained"
+              ? { marketing_consent: false, unsubscribed_at: at, do_not_mail: true }
+              : { email_bounced_at: at, do_not_mail: true },
+          )
+          .eq("id", contactId);
+      }
+    }
+  }
 
   if (recipientId && field) {
     const patch: Record<string, unknown> = { [field]: at };
@@ -95,4 +115,18 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ ok: true });
+}
+
+/** The contact behind a Resend email id, via the campaign or offer recipient row. */
+async function contactForEmail(
+  supabase: ReturnType<typeof createServiceClient>,
+  emailId: string,
+  recipientId: string | null,
+): Promise<string | null> {
+  if (recipientId) {
+    const { data } = await supabase.from("crm_campaign_recipients").select("contact_id").eq("id", recipientId).maybeSingle();
+    if (data?.contact_id) return data.contact_id as string;
+  }
+  const { data } = await supabase.from("offer_recipients").select("contact_id").eq("resend_email_id", emailId).maybeSingle();
+  return (data?.contact_id as string | undefined) ?? null;
 }

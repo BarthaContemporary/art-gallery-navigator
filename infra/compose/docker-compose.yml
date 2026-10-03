@@ -146,6 +146,9 @@ services:
       # per-refresh rotation, one per swap, and are harmless). Five known
       # users on managed devices; the day-long grace is a cheap guard against
       # an invisible failure mode.
+      # ICO guidance: a meaningful minimum for staff passwords (passkeys are
+      # offered as the stronger factor from Admin).
+      GOTRUE_PASSWORD_MIN_LENGTH: "12"
       GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
       GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: "86400"
 

@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import {
   getSupabase,
   getSession,
   canSeeFinancials,
   createServiceClient,
+  hasRole,
 } from "@/lib/supabase";
 import { ContactEditor, type Purchase, type Consignment } from "@/components/contact-editor";
-import { DeleteContactButton } from "@/components/delete-contact-button";
+import { DataProtectionPanel } from "@/components/data-protection-panel";
 import { consignmentSplit } from "@/lib/consignment";
 import { loadPieceRows } from "@/lib/piece-store";
 
@@ -193,11 +195,45 @@ export default async function ContactProfile({
       ? (contact.custom_fields.aml_confirmed_date as string)
       : "";
 
-  async function deleteContact() {
+  // Right to erasure (Art. 17) with the legal holds the database knows about:
+  // erase_contact() hard-deletes when nothing must be kept and pseudonymises
+  // when AML or accounting records apply. Admin only, re-checked here because
+  // a Server Action is independently callable.
+  const { data: holdRows } = await svc.rpc("contact_legal_holds", { _contact: id });
+  const holds = (holdRows ?? []) as string[];
+  const isAdmin = hasRole(session?.roles ?? [], "admin");
+
+  async function eraseContact() {
     "use server";
-    const db = await getSupabase();
-    await db.from("crm_contacts").delete().eq("id", id);
-    redirect("/crm/contacts");
+    const s = await getSession();
+    if (!s || !hasRole(s.roles, "admin")) throw new Error("Forbidden");
+    const db = createServiceClient();
+    await db.from("dp_requests").update({ completed_at: new Date().toISOString(), outcome: "Erased" }).eq("contact_id", id).eq("kind", "erasure").is("completed_at", null);
+    const { data, error } = await db.rpc("erase_contact", { _contact: id });
+    if (error) throw new Error(error.message);
+    const mode = (data as { mode?: string } | null)?.mode;
+    if (mode === "deleted") redirect("/crm/contacts");
+    redirect(`/crm/contacts/${id}`);
+  }
+
+  async function logRequest(formData: FormData) {
+    "use server";
+    const s = await getSession();
+    if (!s || !hasRole(s.roles, "admin")) throw new Error("Forbidden");
+    const db = createServiceClient();
+    const received = String(formData.get("received_at") ?? "") || new Date().toISOString().slice(0, 10);
+    const due = new Date(received);
+    due.setMonth(due.getMonth() + 1);
+    await db.from("dp_requests").insert({
+      contact_id: id,
+      subject_name: name,
+      kind: String(formData.get("kind") ?? "other"),
+      channel: String(formData.get("channel") ?? "").trim() || null,
+      received_at: received,
+      due_at: due.toISOString().slice(0, 10),
+      created_by: s.user.id,
+    });
+    revalidatePath(`/crm/contacts/${id}`);
   }
 
   return (
@@ -249,10 +285,15 @@ export default async function ContactProfile({
         showPrices={showPrices}
       />
 
-      {/* danger */}
-      <div className="mt-6">
-        <DeleteContactButton action={deleteContact} />
-      </div>
+      {isAdmin ? (
+        <DataProtectionPanel
+          contactId={id}
+          holds={holds}
+          erased={Boolean((contact as { erased_at?: string | null }).erased_at)}
+          eraseAction={eraseContact}
+          logRequestAction={logRequest}
+        />
+      ) : null}
     </div>
   );
 }
