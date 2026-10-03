@@ -29,7 +29,7 @@ const KIND_LABEL: Record<string, string> = {
 export default async function DataProtectionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ran?: string; error?: string }>;
+  searchParams: Promise<{ ran?: string; notice?: string; error?: string }>;
 }) {
   const sp = await searchParams;
   const session = await getSession();
@@ -53,6 +53,14 @@ export default async function DataProtectionPage({
       // documented basis before the next campaign.
       svc.rpc("contacts_with_weak_marketing_basis"),
     ]);
+  const [{ data: lastRuns }, { count: attestedCount }, { data: attestedSample }] = await Promise.all([
+    svc.from("dp_retention_runs").select("ran_at, triggered_by, result").order("ran_at", { ascending: false }).limit(1),
+    svc.from("crm_contacts").select("id", { count: "exact", head: true }).eq("consent_evidence->marketing->>version", "legacy-import"),
+    svc.from("crm_contacts").select("consent_evidence").eq("consent_evidence->marketing->>version", "legacy-import").limit(1),
+  ]);
+  const lastRun = (lastRuns ?? [])[0] as { ran_at: string; triggered_by: string; result: Record<string, unknown> } | undefined;
+  const attestation = ((attestedSample ?? [])[0] as { consent_evidence?: { marketing?: { attested_by?: string; attested_at?: string } } } | undefined)
+    ?.consent_evidence?.marketing;
 
   async function updatePolicy(formData: FormData) {
     "use server";
@@ -65,10 +73,12 @@ export default async function DataProtectionPage({
 
   async function runRetention() {
     "use server";
-    await assertAdmin();
-    const { data, error } = await createServiceClient().rpc("apply_retention");
+    const s = await assertAdmin();
+    const db = createServiceClient();
+    const { data, error } = await db.rpc("apply_retention");
     if (error) redirect(`/admin/data-protection?error=${encodeURIComponent(error.message)}`);
-    redirect(`/admin/data-protection?ran=${encodeURIComponent(JSON.stringify(data))}`);
+    await db.from("dp_retention_runs").insert({ triggered_by: s.user.email ?? "admin", result: data });
+    redirect(`/admin/data-protection?ran=${encodeURIComponent(describeRun(data as Record<string, unknown>))}`);
   }
 
   /**
@@ -112,7 +122,7 @@ export default async function DataProtectionPage({
         })
         .eq("id", r.id);
     }
-    redirect(`/admin/data-protection?ran=${encodeURIComponent(`Legacy consent recorded on ${targets.length} contacts`)}`);
+    redirect(`/admin/data-protection?notice=${encodeURIComponent(`Recorded on ${targets.length} contact${targets.length === 1 ? "" : "s"}: consent given in the previous system, confirmed by ${s.user.email ?? "you"} today.`)}`);
   }
 
   async function addRequest(formData: FormData) {
@@ -178,9 +188,12 @@ export default async function DataProtectionPage({
       </p>
       {sp.error ? <p className="mt-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">{sp.error}</p> : null}
       {sp.ran ? (
-        <p className="mt-3 rounded-lg border border-line bg-band px-3 py-2 font-mono text-[11.5px] text-ink-body">
-          Retention run: {sp.ran}
+        <p className="mt-3 rounded-lg border border-status-green/40 bg-band px-3 py-2 text-[12.5px] text-ink-body">
+          Retention ran just now. {sp.ran}
         </p>
+      ) : null}
+      {sp.notice ? (
+        <p className="mt-3 rounded-lg border border-status-green/40 bg-band px-3 py-2 text-[12.5px] text-ink-body">{sp.notice}</p>
       ) : null}
 
       {/* ---- retention ---- */}
@@ -193,6 +206,11 @@ export default async function DataProtectionPage({
         </div>
         <p className="mt-1 text-[12px] text-ink-soft">
           Runs every night. “Purge” classes are deleted after the period; “review” classes are listed below for a person to decide. The Privacy Notice quotes these periods — change both together.
+        </p>
+        <p className="mt-1 text-[12px] text-ink-body">
+          {lastRun
+            ? `Last run ${new Date(lastRun.ran_at).toLocaleString("en-GB")} (${lastRun.triggered_by === "cron" ? "scheduled" : lastRun.triggered_by}): ${describeRun(lastRun.result)}`
+            : "Not run yet — the first scheduled run is tonight at 03:30 UTC."}
         </p>
         <table className="mt-3 w-full text-left text-[12.5px]">
           <thead>
@@ -263,6 +281,13 @@ export default async function DataProtectionPage({
           <p className="mt-1 text-[12px] text-ink-soft">
             Emailable contacts whose only consent record is the import note and who have never bought from the gallery. Send a re-permission email, or untick marketing consent.
           </p>
+          {attestedCount ? (
+            <p className="mt-2 rounded-lg border border-line-soft bg-band/60 px-2.5 py-1.5 text-[12px] text-ink-body">
+              ✓ Legacy consent recorded on {attestedCount} contacts
+              {attestation?.attested_by ? ` by ${attestation.attested_by}` : ""}
+              {attestation?.attested_at ? ` on ${new Date(attestation.attested_at).toLocaleDateString("en-GB")}` : ""}.
+            </p>
+          ) : null}
           {(weakBasis ?? []).length > 0 ? (
             <form action={attestLegacyConsent} className="mt-2">
               <button type="submit" className={btn} title="Records, under your login and today's date, that these contacts consented in the previous system">
@@ -374,4 +399,23 @@ export default async function DataProtectionPage({
       </section>
     </div>
   );
+}
+
+const RUN_LABEL: Record<string, string> = {
+  email_events: "email events",
+  offer_views: "offer page views",
+  campaign_recipients: "newsletter send records",
+  enquiries: "enquiries",
+  appointments: "appointments",
+  unconfirmed_signups: "unconfirmed sign-ups",
+  activity_log: "change-log entries",
+};
+
+/** "Deleted 12 enquiries and 3 appointments" / "Nothing was old enough to delete". */
+function describeRun(result: Record<string, unknown> | null | undefined): string {
+  const parts = Object.entries(result ?? {})
+    .filter(([k, v]) => k in RUN_LABEL && typeof v === "number" && v > 0)
+    .map(([k, v]) => `${v} ${RUN_LABEL[k]}`);
+  if (parts.length === 0) return "Nothing was old enough to delete.";
+  return `Deleted ${parts.join(", ")}.`;
 }

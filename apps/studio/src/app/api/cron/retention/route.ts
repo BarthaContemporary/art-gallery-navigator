@@ -18,7 +18,9 @@ export async function GET(request: Request) {
   if (!secret || !safeEqual(bearer, secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const { data, error } = await createServiceClient().rpc("apply_retention");
+  const db = createServiceClient();
+  const { data, error } = await db.rpc("apply_retention");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await db.from("dp_retention_runs").insert({ triggered_by: "cron", result: data });
   return NextResponse.json({ ok: true, result: data });
 }
