@@ -71,6 +71,50 @@ export default async function DataProtectionPage({
     redirect(`/admin/data-protection?ran=${encodeURIComponent(JSON.stringify(data))}`);
   }
 
+  /**
+   * The gallery attests that every contact imported from the previous system
+   * had given full marketing consent there. Records that attestation — with
+   * the attesting user and date — as the consent evidence on each imported
+   * contact that has none, so the basis is documented rather than implied.
+   */
+  async function attestLegacyConsent() {
+    "use server";
+    const s = await assertAdmin();
+    const svc2 = createServiceClient();
+    const { data: rows } = await svc2
+      .from("crm_contacts")
+      .select("id, consent_date, consent_source")
+      .eq("marketing_consent", true)
+      .is("erased_at", null)
+      .is("consent_evidence", null);
+    const targets = ((rows ?? []) as { id: string; consent_date: string | null; consent_source: string | null }[]).filter(
+      (r) => !r.consent_source || /^pre-existing/i.test(r.consent_source) || /import/i.test(r.consent_source),
+    );
+    const attestedAt = new Date().toISOString();
+    for (const r of targets) {
+      const at = r.consent_date ?? "2026-07-01T00:00:00.000Z";
+      await svc2
+        .from("crm_contacts")
+        .update({
+          consent_source: "Consent given in the previous system (FileMaker) and carried over at import, July 2026; confirmed by the gallery",
+          consent_date: at,
+          consent_evidence: {
+            marketing: {
+              version: "legacy-import",
+              form: "previous_system",
+              text: "Full marketing consent recorded in the previous gallery system before import",
+              at,
+              attested_by: s.user.email ?? s.user.id,
+              attested_at: attestedAt,
+              note: "The gallery confirms that every contact imported from the previous system had given full marketing consent there.",
+            },
+          },
+        })
+        .eq("id", r.id);
+    }
+    redirect(`/admin/data-protection?ran=${encodeURIComponent(`Legacy consent recorded on ${targets.length} contacts`)}`);
+  }
+
   async function addRequest(formData: FormData) {
     "use server";
     const s = await assertAdmin();
@@ -219,6 +263,13 @@ export default async function DataProtectionPage({
           <p className="mt-1 text-[12px] text-ink-soft">
             Emailable contacts whose only consent record is the import note and who have never bought from the gallery. Send a re-permission email, or untick marketing consent.
           </p>
+          {(weakBasis ?? []).length > 0 ? (
+            <form action={attestLegacyConsent} className="mt-2">
+              <button type="submit" className={btn} title="Records, under your login and today's date, that these contacts consented in the previous system">
+                Record: all imported contacts consented in the previous system
+              </button>
+            </form>
+          ) : null}
           <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-[12.5px]">
             {((weakBasis ?? []) as { id: string; first_name: string | null; last_name: string | null; email: string | null }[]).map((c) => (
               <li key={c.id}>

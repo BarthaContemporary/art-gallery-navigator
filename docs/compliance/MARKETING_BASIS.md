@@ -23,7 +23,15 @@ client consent, confirmed by the gallery". Of the 198 with an email address,
 neither consent nor the soft opt-in can be shown for them. They are listed in
 Admin → Data protection → "Marketing without evidenced basis".
 
-Options, in order of preference:
+**Gallery's position (3 October 2026):** every imported contact had given full
+marketing consent in the previous system. Record this with the button in
+Admin → Data protection → "Record: all imported contacts consented in the
+previous system"; it writes the attestation, the attesting user and the date
+into each contact's consent evidence. Keep the previous system's export (or any
+sign-up forms) with this pack as the underlying proof, since the attestation
+alone is the gallery's word.
+
+Alternatives, if that evidence cannot be produced for some contacts:
 
 1. **Re-permission campaign** (recommended): one email asking them to confirm
    they wish to keep receiving news, linking to the newsletter sign-up (double
