@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { artistBySlugQuery, artistSlugsQuery, sanityFetch, type Artist } from "@/lib/sanity";
 import { ARTISTS_UNDER_CONSTRUCTION, absoluteUrl } from "@/lib/site";
 import { UnderConstruction } from "@/components/under-construction";
-import { workToGrid, type GridWork } from "@/lib/grid-work";
+import { catalogueToGrid, workToGrid, type GridWork } from "@/lib/grid-work";
 import { ArtistPortrait, artistPicture } from "@/components/artist-portrait";
 import { ReadMore } from "@/components/read-more";
 import { WorksFoldout } from "@/components/works-foldout";
@@ -73,6 +73,16 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
   const works: GridWork[] = ARTISTS_UNDER_CONSTRUCTION
     ? []
     : (a.works ?? []).map(workToGrid).filter((w): w is GridWork => w !== null);
+  // Works from the old site's exhibition catalogues, one tile per entry; the
+  // same object can sit in two catalogues, so the key is per exhibition.
+  const seenEntry = new Set<string>();
+  const catalogueWorks: GridWork[] = ARTISTS_UNDER_CONSTRUCTION
+    ? []
+    : (a.catalogueWorks ?? []).flatMap((ex) =>
+        (ex.entries ?? [])
+          .filter((c) => c?._key && !seenEntry.has(c._key) && seenEntry.add(c._key))
+          .map((c) => catalogueToGrid(c)),
+      );
   const shownIn = (a.shownIn ?? []).filter((e) => e?.slug);
   const publications = (a.publications ?? []).filter((p) => p?.slug);
   // The biography opens with its first paragraph in view; the rest unfolds.
@@ -158,7 +168,15 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
         <section className="mt-16 md:mt-20">
           <WorksFoldout works={works} label="Works" tileLabel="work" />
         </section>
-      ) : !ARTISTS_UNDER_CONSTRUCTION && shownIn.length === 0 && publications.length === 0 ? (
+      ) : null}
+
+      {catalogueWorks.length > 0 ? (
+        <section className="mt-16 md:mt-20">
+          <WorksFoldout works={catalogueWorks} label="Works from past exhibitions" tileLabel="work" />
+        </section>
+      ) : null}
+
+      {works.length === 0 && catalogueWorks.length === 0 && !ARTISTS_UNDER_CONSTRUCTION && shownIn.length === 0 && publications.length === 0 ? (
         <p className="mt-16 max-w-[var(--measure)] font-sans text-small text-meta md:mt-20">
           Works by {a.name} appear here as they are published.
         </p>

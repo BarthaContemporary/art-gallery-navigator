@@ -283,6 +283,8 @@ export interface Artist {
   works?: Work[] | null;
   shownIn?: { title: string | null; slug: string | null; startDate?: string | null; endDate?: string | null }[] | null;
   publications?: { title: string | null; slug: string | null; publishedYear?: number | null }[] | null;
+  /** The artist's works in past exhibitions' catalogues (imported from the old site), newest show first. */
+  catalogueWorks?: { slug: string | null; title: string | null; entries: CatalogueEntry[] | null }[] | null;
 }
 
 /**
@@ -640,7 +642,13 @@ export const artistBySlugQuery = groq`*[_type == "artist" && slug.current == $sl
       && (count(works[@->artist._ref == ^.^.^._id]) > 0
         || count(workLists[]->works[defined(@->artist) && @->artist._ref == ^.^.^._id]) > 0
         || count(catalogue[artist._ref == ^.^.^._id || maker == ^.^.^.name]) > 0)]._id]
-    | order(coalesce(publishedYear, 0) desc){ title, "slug": slug.current, publishedYear }
+    | order(coalesce(publishedYear, 0) desc){ title, "slug": slug.current, publishedYear },
+  "catalogueWorks": *[_type == "exhibition" && !coalesce(hidden, false) && defined(slug.current)
+    && count(catalogue[(artist._ref == ^.^._id || maker == ^.^.name) && defined(image.asset)]) > 0]
+    | order(coalesce(endDate, startDate, "0000") desc, coalesce(sortOrder, 9999) asc){
+      "slug": slug.current, title,
+      "entries": catalogue[(artist._ref == ^.^._id || maker == ^.^.name) && defined(image.asset)]${catalogueFields}
+    }
 }`;
 
 export const artistSlugsQuery = groq`*[_type == "artist" && defined(slug.current) && !coalesce(hidden, false)].slug.current`;
