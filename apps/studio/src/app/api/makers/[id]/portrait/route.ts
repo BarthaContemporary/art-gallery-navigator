@@ -28,7 +28,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (paths.length) await svc.storage.from("maker-portraits").remove(paths);
   await svc
     .from("makers")
-    .update({ portrait_path: null, portrait_original_path: null })
+    .update({ portrait_path: null, portrait_original_path: null, portrait_focus: null })
     .eq("id", id);
   return NextResponse.json({ ok: true });
 }

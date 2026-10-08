@@ -57,13 +57,24 @@ export interface SanityImage {
   caption?: string | null;
   role?: string | null;
   alt?: string | null;
-  hotspot?: { x?: number; y?: number } | null;
+  hotspot?: { x?: number; y?: number; width?: number; height?: number } | null;
+  /** Studio crop as fractions trimmed from each edge. */
+  crop?: { top?: number; bottom?: number; left?: number; right?: number } | null;
 }
 
 /** Parse `image-{id}-{w}x{h}-{format}` asset refs into a CDN URL. */
 export function imageUrl(
   image: SanityImage | null | undefined,
-  opts: { width?: number; height?: number; quality?: number; fit?: "max" | "crop" } = {},
+  opts: {
+    width?: number;
+    height?: number;
+    quality?: number;
+    fit?: "max" | "crop";
+    /** -100 renders the image in black and white on the CDN. */
+    saturation?: number;
+    /** Keep only this part of the image (fractions trimmed from each edge) before fitting; overrides the Studio crop. */
+    crop?: { top?: number; bottom?: number; left?: number; right?: number } | null;
+  } = {},
 ): string | null {
   const ref = image?.asset?._ref;
   if (!ref) return null;
@@ -71,17 +82,25 @@ export function imageUrl(
   if (parts.length !== 4 || parts[0] !== "image") return null;
   const [, id, dims, format] = parts;
   const search = new URLSearchParams({ auto: "format" });
+  const rect = cropRect(dims ?? "", opts.crop === undefined ? image?.crop : opts.crop);
+  if (rect) search.set("rect", rect);
   if (opts.width) search.set("w", String(opts.width));
   if (opts.height) search.set("h", String(opts.height));
   search.set("q", String(opts.quality ?? 80));
+  if (typeof opts.saturation === "number") search.set("sat", String(opts.saturation));
   if (opts.fit === "crop") {
-    // Fixed-ratio crop honouring the Studio hotspot when one is set.
+    // Fixed-ratio crop honouring the Studio hotspot when one is set. The
+    // focal point is given relative to the whole image; the CDN reads it
+    // relative to `rect`, so it is re-based when a crop applies.
     search.set("fit", "crop");
     const hs = image?.hotspot;
     if (hs && typeof hs.x === "number" && typeof hs.y === "number") {
+      const within = rect ? rectFractions(rect, dims ?? "") : null;
+      const fx = within ? (hs.x - within.left) / within.width : hs.x;
+      const fy = within ? (hs.y - within.top) / within.height : hs.y;
       search.set("crop", "focalpoint");
-      search.set("fp-x", hs.x.toFixed(3));
-      search.set("fp-y", hs.y.toFixed(3));
+      search.set("fp-x", Math.min(1, Math.max(0, fx)).toFixed(3));
+      search.set("fp-y", Math.min(1, Math.max(0, fy)).toFixed(3));
     } else {
       search.set("crop", "center");
     }
@@ -89,6 +108,38 @@ export function imageUrl(
     search.set("fit", "max");
   }
   return `https://cdn.sanity.io/images/${projectId}/${dataset}/${id}-${dims}.${format}?${search.toString()}`;
+}
+
+/**
+ * The CDN's `rect` (left, top, width, height in source pixels) for a Studio
+ * crop, or null when nothing is trimmed. Hotspot fractions are relative to
+ * the whole image, which is how the CDN reads them alongside `rect`.
+ */
+function cropRect(dims: string, crop: SanityImage["crop"]): string | null {
+  if (!crop) return null;
+  const m = /^(\d+)x(\d+)$/.exec(dims);
+  if (!m) return null;
+  const W = Number(m[1]);
+  const H = Number(m[2]);
+  const f = (v: number | undefined) => Math.min(0.95, Math.max(0, v ?? 0));
+  const left = Math.round(f(crop.left) * W);
+  const top = Math.round(f(crop.top) * H);
+  const right = Math.round(f(crop.right) * W);
+  const bottom = Math.round(f(crop.bottom) * H);
+  const width = W - left - right;
+  const height = H - top - bottom;
+  if (width <= 0 || height <= 0 || (left === 0 && top === 0 && right === 0 && bottom === 0)) return null;
+  return `${left},${top},${width},${height}`;
+}
+
+/** A `rect` string back as fractions of the full image. */
+function rectFractions(rect: string, dims: string): { left: number; top: number; width: number; height: number } | null {
+  const m = /^(\d+)x(\d+)$/.exec(dims);
+  const [l, t, w, h] = rect.split(",").map(Number);
+  if (!m || [l, t, w, h].some((v) => !Number.isFinite(v))) return null;
+  const W = Number(m[1]);
+  const H = Number(m[2]);
+  return { left: l! / W, top: t! / H, width: w! / W, height: h! / H };
 }
 
 /** Ratio helpers for the fixed image formats. */
@@ -100,8 +151,9 @@ export function ratioUrl(
   image: SanityImage | null | undefined,
   ratio: number,
   width: number,
+  opts: { saturation?: number; crop?: SanityImage["crop"] } = {},
 ): string | null {
-  return imageUrl(image, { width, height: Math.round(width / ratio), fit: "crop" });
+  return imageUrl(image, { width, height: Math.round(width / ratio), fit: "crop", ...opts });
 }
 
 /** Intrinsic dimensions encoded in the asset _ref, for next/image. */
@@ -225,9 +277,12 @@ export interface Artist {
   bioShort: string | null;
   bioLong: string | null;
   portrait: SanityImage | null;
+  /** A published work with a picture, standing in for a missing portrait. */
+  placeholder?: { image: SanityImage | null; title: string | null; slug: string | null } | null;
+  worksCount?: number | null;
   works?: Work[] | null;
-  shownIn?: { title: string | null; slug: string | null }[] | null;
-  publications?: { title: string | null; slug: string | null }[] | null;
+  shownIn?: { title: string | null; slug: string | null; startDate?: string | null; endDate?: string | null }[] | null;
+  publications?: { title: string | null; slug: string | null; publishedYear?: number | null }[] | null;
 }
 
 /**
@@ -559,7 +614,10 @@ export const publicationSlugsQuery = groq`*[_type == "publication" && defined(sl
 /* Artists — synced from the inventory's makers. */
 const artistFields = /* groq */ `{
   _id, name, nameNative, "slug": slug.current, lifeDates, country, period, bioShort, bioLong,
-  portrait{ asset, caption, hotspot }
+  portrait{ asset, caption, hotspot, crop },
+  "placeholder": *[_type == "work" && references(^._id) && defined(images[0].asset) && defined(slug.current)]
+    | order(_createdAt desc)[0]{ "image": images[0]{ asset, hotspot, crop }, title, "slug": slug.current },
+  "worksCount": count(*[_type == "work" && references(^._id) && defined(slug.current)])
 }`;
 
 export const artistsQuery = groq`*[_type == "artist" && defined(slug.current) && !coalesce(hidden, false)]
@@ -572,13 +630,13 @@ export const artistBySlugQuery = groq`*[_type == "artist" && slug.current == $sl
     && (count(works[@->artist._ref == ^.^._id]) > 0
       || count(workLists[]->works[defined(@->artist) && @->artist._ref == ^.^._id]) > 0
       || count(catalogue[artist._ref == ^.^._id || maker == ^.^.name]) > 0)]
-    | order(coalesce(endDate, startDate, "0000") desc, coalesce(sortOrder, 9999) asc)${eventNeighbour},
+    | order(coalesce(endDate, startDate, "0000") desc, coalesce(sortOrder, 9999) asc){ title, "slug": slug.current, startDate, endDate },
   "publications": *[_type == "publication" && !coalesce(hidden, false) && defined(slug.current)
     && relatedExhibition->_id in *[_type == "exhibition"
       && (count(works[@->artist._ref == ^.^.^._id]) > 0
         || count(workLists[]->works[defined(@->artist) && @->artist._ref == ^.^.^._id]) > 0
         || count(catalogue[artist._ref == ^.^.^._id || maker == ^.^.^.name]) > 0)]._id]
-    | order(coalesce(publishedYear, 0) desc)${eventNeighbour}
+    | order(coalesce(publishedYear, 0) desc){ title, "slug": slug.current, publishedYear }
 }`;
 
 export const artistSlugsQuery = groq`*[_type == "artist" && defined(slug.current) && !coalesce(hidden, false)].slug.current`;

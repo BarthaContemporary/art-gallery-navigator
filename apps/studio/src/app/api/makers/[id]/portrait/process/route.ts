@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import sharp from "sharp";
 import convert from "heic-convert";
 import { getSession, createServiceClient } from "@/lib/supabase";
+import { detectPortraitFocus } from "@/lib/face/focus";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,9 +75,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
+  // Where the face is, so the website can centre its square on it. A
+  // detection failure must not lose the upload: the sync retries later.
+  const portrait_focus = await detectPortraitFocus(display).catch(() => null);
   await svc
     .from("makers")
-    .update({ portrait_path: displayPath, portrait_original_path: path })
+    .update({ portrait_path: displayPath, portrait_original_path: path, portrait_focus })
     .eq("id", id);
   const stale = [maker.portrait_path, maker.portrait_original_path].filter(
     (p): p is string => !!p && p !== displayPath && p !== path,

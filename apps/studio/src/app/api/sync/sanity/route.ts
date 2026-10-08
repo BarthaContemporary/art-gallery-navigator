@@ -3,6 +3,7 @@ import { safeEqual } from "@/lib/secret";
 import { resolvePieces } from "@/lib/piece-store";
 import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
 import { selectInChunks } from "@/lib/chunk";
+import { detectPortraitFocus, sanityFraming, type PortraitFocus } from "@/lib/face/focus";
 import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 import {
   artistDocId,
@@ -36,6 +37,19 @@ const TIME_BUDGET_MS = 42_000;
  * `artist` documents (every maker, unless switched off); unpublishes
  * pieces and makers that are no longer web-visible.
  */
+type Db = Parameters<typeof ensureImageAsset>[0];
+
+/** Download a storage object and find the face in it; null when either fails. */
+async function detectFocusInStorage(supabase: Db, bucket: string, path: string): Promise<PortraitFocus | null> {
+  try {
+    const { data: blob, error } = await supabase.storage.from(bucket).download(path);
+    if (error || !blob) return null;
+    return await detectPortraitFocus(Buffer.from(await blob.arrayBuffer()));
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   const supabase = createServiceClient();
   const presented = request.headers.get("x-sync-secret");
@@ -191,13 +205,14 @@ async function processBatch(
     biography: string | null;
     profile_html: string | null;
     portrait_path: string | null;
+    portrait_focus: PortraitFocus | null;
     web_visible: boolean;
   };
   const makers = new Map<string, MakerRow | null>();
   if (makerIds.length > 0) {
     const { data } = await supabase
       .from("makers")
-      .select("id, display_name, romanized_name, native_name, life_dates, region, school_or_workshop, biography, profile_html, portrait_path, web_visible")
+      .select("id, display_name, romanized_name, native_name, life_dates, region, school_or_workshop, biography, profile_html, portrait_path, portrait_focus, web_visible")
       .in("id", makerIds);
     for (const id of makerIds) makers.set(id, ((data ?? []).find((m) => m.id === id) as MakerRow | undefined) ?? null);
   }
@@ -228,6 +243,13 @@ async function processBatch(
     const portraitAsset = m!.portrait_path
       ? await ensureImageAsset(supabase, env, "maker-portraits", m!.portrait_path, assetCache)
       : null;
+    // Portraits uploaded before face detection existed get their focus here,
+    // once; the makers trigger then queues one more pass that finds it set.
+    let focus = m!.portrait_focus;
+    if (portraitAsset && m!.portrait_path && !focus) {
+      focus = await detectFocusInStorage(supabase, "maker-portraits", m!.portrait_path);
+      if (focus) await supabase.from("makers").update({ portrait_focus: focus }).eq("id", makerId);
+    }
     mutations.push({
       createOrReplace: {
         _id: artistDocId(makerId),
@@ -241,7 +263,9 @@ async function processBatch(
         period: m!.school_or_workshop,
         bioShort: m!.biography,
         bioLong: htmlToText(m!.profile_html),
-        portrait: portraitAsset ? { _type: "image", asset: { _type: "reference", _ref: portraitAsset } } : null,
+        portrait: portraitAsset
+          ? { _type: "image", asset: { _type: "reference", _ref: portraitAsset }, ...sanityFraming(focus) }
+          : null,
         hidden: false,
       },
     });
