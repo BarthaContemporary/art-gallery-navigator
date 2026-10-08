@@ -142,14 +142,14 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             {privateViews.length > 0 ? (
               <section aria-labelledby="private-views" className="mt-8 border-t border-hairline pt-5">
                 <h2 id="private-views" className="font-sans text-small font-medium text-ink">
-                  Private views and openings
+                  Private views and opening hours
                 </h2>
                 <ul className="mt-3 flex flex-col gap-3">
                   {privateViews.map((v) => (
                     <li key={v._key} className="font-sans text-small leading-[1.6]">
                       <p className="text-ink">
                         {v.label ?? "Private view"}
-                        {v.access ? <span className="text-meta"> · {ACCESS_LABEL[v.access]}</span> : null}
+                        {v.access && ACCESS_LABEL[v.access] ? <span className="text-meta"> · {ACCESS_LABEL[v.access]}</span> : null}
                       </p>
                       <p className="text-meta">{privateViewWhen(v.start, v.end)}</p>
                       {v.note ? <p className="text-meta">{v.note}</p> : null}

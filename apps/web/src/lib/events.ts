@@ -83,7 +83,8 @@ export function eventDates(
   return null;
 }
 
-export const ACCESS_LABEL = { invitation: "By invitation only", rsvp: "RSVP", open: "Open to all" } as const;
+/** What the page says after a private view's name; an open one says nothing. */
+export const ACCESS_LABEL = { invitation: "By invitation only", rsvp: "RSVP", open: null } as const;
 
 /** "Thursday 12 March, 6–8pm" for a private view; London time. */
 export function privateViewWhen(start: string | null, end: string | null): string | null {

@@ -70,12 +70,12 @@ export function catalogueToGrid(c: CatalogueEntry): GridWork {
   };
 }
 
-/** "Title | Code" — the caption's first line. */
+/** The work's title as shown on the site; the stock number never joins it. */
 export function workCaption(w: GridWork): string {
-  return [w.title, w.code].filter(Boolean).join(" | ") || "Untitled";
+  return w.title || "Untitled";
 }
 
-/** Subject line for an enquiry: "HARA Satoshi, Title | Code". */
+/** Subject line for an enquiry: "HARA Satoshi, Title | Code". The code identifies the piece for the gallery. */
 export function workSubject(w: GridWork): string {
-  return [w.artist, workCaption(w)].filter(Boolean).join(", ");
+  return [w.artist, [workCaption(w), w.code].filter(Boolean).join(" | ")].filter(Boolean).join(", ");
 }
