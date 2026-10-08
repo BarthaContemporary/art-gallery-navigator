@@ -197,6 +197,11 @@ export default async function AdminPage({
       }
       rows.unshift(...(data ?? []).map((r) => ({ entity_type: "maker", entity_id: r.id, op: "upsert" })));
     }
+    // Lists last: their references point at the works pushed above.
+    {
+      const { data } = await admin.from("piece_lists").select("id");
+      rows.push(...(data ?? []).map((r) => ({ entity_type: "list", entity_id: r.id, op: "upsert" })));
+    }
     for (let i = 0; i < rows.length; i += 500) {
       const { error } = await admin.from("sync_outbox").insert(rows.slice(i, i + 500));
       if (error) {
@@ -452,7 +457,7 @@ export default async function AdminPage({
                 Resync all web-visible works
               </button>
               <span className="text-[12px] text-ink-soft">
-                Re-sends every web-visible work (with images) and every maker to the website — use
+                Re-sends every web-visible work (with images), every maker and every list to the website — use
                 after pointing the site at a new Sanity dataset. Safe to repeat.
               </span>
             </form>

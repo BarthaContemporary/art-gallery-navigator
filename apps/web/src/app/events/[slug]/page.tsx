@@ -8,6 +8,7 @@ import {
   imageUrl,
   sanityFetch,
   type Exhibition,
+  type Work,
 } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName } from "@/lib/site";
 import { ACCESS_LABEL, eventDates, eventEyebrow, eventPlace, privateViewWhen } from "@/lib/events";
@@ -22,7 +23,7 @@ async function getEvent(slug: string): Promise<Exhibition | null> {
   return sanityFetch<Exhibition | null>({
     query: exhibitionBySlugQuery,
     params: { slug },
-    tags: ["exhibition", "work", "publication"],
+    tags: ["exhibition", "work", "workList", "publication"],
     fallback: null,
   });
 }
@@ -62,8 +63,19 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const privateViews = (ev.privateViews ?? []).filter((v) => v?.start);
   const heroImages = (ev.heroImages ?? []).filter((i) => i?.asset);
 
+  // Works chosen by hand first, then every web-visible work of the attached
+  // inventory lists (in list order), then the legacy catalogue — a work in
+  // both the hand-picked set and a list appears once.
+  const seenWork = new Set<string>();
+  const uniqueWorks = (list: Work[] | null | undefined) =>
+    (list ?? []).filter((w) => {
+      if (!w?._id || seenWork.has(w._id)) return false;
+      seenWork.add(w._id);
+      return true;
+    });
   const works: GridWork[] = [
-    ...(ev.works ?? []).map(workToGrid).filter((w): w is GridWork => w !== null),
+    ...uniqueWorks(ev.works).map(workToGrid).filter((w): w is GridWork => w !== null),
+    ...(ev.workLists ?? []).flatMap((l) => uniqueWorks(l?.works).map(workToGrid).filter((w): w is GridWork => w !== null)),
     ...(ev.catalogue ?? []).filter((c) => c?.image).map(catalogueToGrid),
   ];
 

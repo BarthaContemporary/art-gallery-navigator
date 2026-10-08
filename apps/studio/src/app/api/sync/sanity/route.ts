@@ -1,9 +1,12 @@
 import { createServiceClient } from "@jvb/db/server";
 import { safeEqual } from "@/lib/secret";
 import { resolvePieces } from "@/lib/piece-store";
+import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
+import { selectInChunks } from "@/lib/chunk";
 import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 import {
   artistDocId,
+  listDocId,
   ensureImageAsset,
   htmlToText,
   loadAssetCache,
@@ -53,7 +56,7 @@ export async function POST(request: Request) {
   if (request.headers.get("x-sync-source") === "outbox") await sleep(SETTLE_MS);
 
   const started = Date.now();
-  const totals = { processed: 0, pieces: 0, makers: 0, runs: 0 };
+  const totals = { processed: 0, pieces: 0, makers: 0, lists: 0, runs: 0 };
   while (Date.now() - started < TIME_BUDGET_MS) {
     const r = await processBatch(supabase, env);
     if (!r.ok) {
@@ -63,6 +66,7 @@ export async function POST(request: Request) {
     totals.processed += r.processed;
     totals.pieces += r.pieces;
     totals.makers += r.makers;
+    totals.lists += r.lists;
     totals.runs += 1;
   }
   return Response.json(totals);
@@ -85,7 +89,7 @@ async function isAuthorised(supabase: ReturnType<typeof createServiceClient>, pr
 }
 
 type BatchResult =
-  | { ok: true; processed: number; pieces: number; makers: number }
+  | { ok: true; processed: number; pieces: number; makers: number; lists: number }
   | { ok: false; detail: string };
 
 async function processBatch(
@@ -97,11 +101,12 @@ async function processBatch(
   // dies, and the next run picks the row up again.
   const { data: outbox, error } = await supabase.rpc("claim_sync_outbox", { batch: BATCH });
   if (error) return { ok: false, detail: error.message };
-  if (!outbox || outbox.length === 0) return { ok: true, processed: 0, pieces: 0, makers: 0 };
+  if (!outbox || outbox.length === 0) return { ok: true, processed: 0, pieces: 0, makers: 0, lists: 0 };
 
   const rows = outbox as { id: number; entity_type: string; entity_id: string; op: string }[];
   const pieceIds = [...new Set(rows.filter((o) => o.entity_type === "piece").map((o) => o.entity_id))];
   const makerIds = [...new Set(rows.filter((o) => o.entity_type === "maker").map((o) => o.entity_id))];
+  const listIds = [...new Set(rows.filter((o) => o.entity_type === "list").map((o) => o.entity_id))];
 
   /* ---- pieces ---------------------------------------------------------- */
   type PieceRow = PieceDimensions & {
@@ -290,10 +295,52 @@ async function processBatch(
     });
   }
 
+  /* ---- lists ------------------------------------------------------------ */
+  // An inventory list becomes a `workList` document holding references to its
+  // web-visible works, so an event can show a whole list. Membership is
+  // resolved here (live rules included) by the same resolver the studio uses.
+  for (const listId of listIds) {
+    const { data: list } = await supabase
+      .from("piece_lists")
+      .select("id, name, description, is_dynamic, filter_rules, updated_at")
+      .eq("id", listId)
+      .maybeSingle();
+    if (!list) {
+      mutations.push({ delete: { id: listDocId(listId) } });
+      continue;
+    }
+    const memberIds = await resolveListPieceIds(supabase, list as ListLike);
+    const visible = await selectInChunks<{ id: string }>(memberIds, (chunk) =>
+      supabase.from("vw_pieces_list").select("id").in("id", chunk).eq("web_visible", true),
+    );
+    const visibleSet = new Set(visible.map((r) => r.id));
+    const ordered = memberIds.filter((id) => visibleSet.has(id));
+    mutations.push({
+      createOrReplace: {
+        _id: listDocId(listId),
+        _type: "workList",
+        supabaseId: listId,
+        name: list.name,
+        description: list.description,
+        isDynamic: Boolean(list.is_dynamic),
+        workCount: ordered.length,
+        works: ordered.map((pid) => ({
+          _type: "reference",
+          _key: pid.replace(/-/g, "").slice(0, 12),
+          _ref: workDocId(pid),
+          // Weak: a work may be withdrawn from the site before the list is re-pushed.
+          _weak: true,
+        })),
+        updatedAt: list.updated_at,
+      },
+    });
+  }
+
   const result = await sanityMutate(env, mutations);
   const stateRows = [
     ...pieceIds.map((id) => ({ entity_type: "piece", entity_id: id, sanity_doc_id: workDocId(id) })),
     ...makerIds.map((id) => ({ entity_type: "maker", entity_id: id, sanity_doc_id: artistDocId(id) })),
+    ...listIds.map((id) => ({ entity_type: "list", entity_id: id, sanity_doc_id: listDocId(id) })),
   ];
 
   if (!result.ok) {
@@ -315,7 +362,7 @@ async function processBatch(
     { onConflict: "entity_type,entity_id" },
   );
 
-  return { ok: true, processed: rows.length, pieces: pieceIds.length, makers: makerIds.length };
+  return { ok: true, processed: rows.length, pieces: pieceIds.length, makers: makerIds.length, lists: listIds.length };
 }
 
 /** Vercel cron entry point — drains any outbox rows pg_net missed. */

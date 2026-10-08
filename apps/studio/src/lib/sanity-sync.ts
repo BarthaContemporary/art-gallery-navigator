@@ -111,3 +111,4 @@ export function htmlToText(html: string | null | undefined): string | null {
 
 export const artistDocId = (makerId: string) => `artist-${makerId}`;
 export const workDocId = (pieceId: string) => `work-${pieceId}`;
+export const listDocId = (listId: string) => `list-${listId}`;

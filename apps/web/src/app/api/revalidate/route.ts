@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       } catch {
         // no/invalid body — revalidate everything
       }
-      if (type) revalidateTag(type);
+      if (type) for (const t of tagsFor(type)) revalidateTag(t);
       else {
         for (const t of ["work", "artist", "exhibition", "publication", "collection", "page", "siteSettings", "journalPost"]) {
           revalidateTag(t);
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Every sanityFetch is tagged with its document type (and "sanity").
-    revalidateTag(body._type);
+    for (const t of tagsFor(body._type)) revalidateTag(t);
     // siteSettings/work references surface on most pages; nothing else needed —
     // per-type tags cover list + detail routes alike.
 
@@ -59,4 +59,13 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ message }, { status: 500 });
   }
+}
+
+/**
+ * A document type and the tags its change must refresh. A synced inventory
+ * list only matters through the events that reference it, which are cached
+ * under "exhibition".
+ */
+function tagsFor(type: string): string[] {
+  return type === "workList" ? ["workList", "exhibition"] : [type];
 }

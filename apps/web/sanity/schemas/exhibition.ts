@@ -154,6 +154,14 @@ const exhibition = {
       of: [{ type: "reference", to: [{ type: "work" }] }],
     },
     {
+      name: "workLists",
+      title: "Lists of works (from the inventory)",
+      type: "array",
+      description:
+        "Show every web-visible work in these inventory lists, after the works chosen above. A list that changes in the inventory updates here by itself.",
+      of: [{ type: "reference", to: [{ type: "workList" }] }],
+    },
+    {
       name: "catalogue",
       title: "Catalogue",
       type: "array",

@@ -27,6 +27,7 @@ const structure: StructureResolver = (S) =>
       S.divider(),
       S.documentTypeListItem("work").title("Works (from the inventory)"),
       S.documentTypeListItem("artist").title("Artists (from the inventory)"),
+      S.documentTypeListItem("workList").title("Lists (from the inventory)"),
       S.divider(),
       S.listItem()
         .title("Site settings")
