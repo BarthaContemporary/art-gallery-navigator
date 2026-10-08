@@ -103,10 +103,42 @@ export default async function InventoryListDetail({
       items.map((p) => p.id),
       "id, updated_at",
     );
+    // A bulk "put all on the website" also stamps updated_at, which would mark
+    // every work as handled. The change log says what actually changed, so a
+    // record whose only edits since it was added touched visibility (or the
+    // bookkeeping columns) keeps its unmarked state.
+    const BOOKKEEPING = new Set(["old", "new", "updated_at", "updated_by", "web_visible", "search_vector"]);
+    const realEdit = new Map<string, boolean>();
+    const earliestAdded = [...addedAt.values()].sort()[0];
+    if (earliestAdded && items.length > 0) {
+      const logRows = await selectInChunks<{ entity_id: string; created_at: string; changes: Record<string, unknown> | null }>(
+        items.map((p) => p.id),
+        (chunk) =>
+          supabase
+            .from("activity_log")
+            .select("entity_id, created_at, changes")
+            .in("entity_id", chunk)
+            .in("entity_type", ["pieces", "external_pieces", "piece_financials"])
+            .gt("created_at", earliestAdded),
+      );
+      for (const row of logRows) {
+        const added = addedAt.get(row.entity_id);
+        if (!added || new Date(row.created_at) <= new Date(added)) continue;
+        const keys = Object.keys(row.changes ?? {});
+        const substantive = keys.length === 0 || keys.some((k) => !BOOKKEEPING.has(k));
+        if (substantive) realEdit.set(row.entity_id, true);
+        else if (!realEdit.has(row.entity_id)) realEdit.set(row.entity_id, false);
+      }
+    }
     for (const p of items) {
       const added = addedAt.get(p.id);
       const updated = touched.get(p.id)?.updated_at;
-      if (added && updated && new Date(updated) > new Date(added)) editedSinceAdded.add(p.id);
+      if (!(added && updated && new Date(updated) > new Date(added))) continue;
+      // Logged edits decide; with no log entry (older than retention) fall
+      // back to the timestamp as before.
+      const logged = realEdit.get(p.id);
+      if (logged === false) continue;
+      editedSinceAdded.add(p.id);
     }
   }
   // Works pinned out of a live list: subtract from the display and show them
