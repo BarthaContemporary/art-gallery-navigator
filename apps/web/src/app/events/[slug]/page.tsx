@@ -8,7 +8,6 @@ import {
   imageUrl,
   sanityFetch,
   type Exhibition,
-  type SanityImage,
 } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName } from "@/lib/site";
 import { ACCESS_LABEL, eventDates, eventEyebrow, eventPlace, privateViewWhen } from "@/lib/events";
@@ -68,21 +67,18 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
     ...(ev.catalogue ?? []).filter((c) => c?.image).map(catalogueToGrid),
   ];
 
-  // The banner is a slow slideshow of the event's pictures: the hero images
-  // first, then the cover, then the works themselves, up to ten — so an event
-  // with a single installation shot still moves.
-  const seen = new Set<string>();
-  const banner: { key: string; image: SanityImage; title: string }[] = [];
-  const addImage = (img: SanityImage | null | undefined, key: string, title: string) => {
-    const ref = img?.asset?._ref ?? null;
-    if (!img?.asset || !ref || seen.has(ref) || banner.length >= 10) return;
-    seen.add(ref);
-    banner.push({ key, image: img, title });
-  };
-  heroImages.forEach((img, i) => addImage(img, img._key ?? `hero-${i}`, img.caption ?? ev.title ?? "Event"));
-  addImage(ev.coverImage, "cover", ev.coverImage?.caption ?? ev.title ?? "Event");
-  works.forEach((w) => addImage(w.image, `work-${w.id}`, [w.artist, w.title].filter(Boolean).join(", ") || ev.title || "Work"));
-  const slides: Slide[] = banner.map((b) => ({ key: b.key, image: b.image, eyebrow: "", title: b.title, meta: null, href: null }));
+  // The banner is a slow slideshow of the slides uploaded for the event in
+  // the Studio ("Slideshow images"); with none uploaded, the cover image sits
+  // still. Works are shown in the panel below, never in the banner.
+  const bannerImages = heroImages.length > 0 ? heroImages : ev.coverImage?.asset ? [ev.coverImage] : [];
+  const slides: Slide[] = bannerImages.map((img, i) => ({
+    key: img._key ?? `slide-${i}`,
+    image: img,
+    eyebrow: "",
+    title: img.caption ?? ev.title ?? "Event",
+    meta: null,
+    href: null,
+  }));
 
   // A catalogue that exists in Publications is linked there — its reader,
   // availability and ordering — rather than as a bare PDF.

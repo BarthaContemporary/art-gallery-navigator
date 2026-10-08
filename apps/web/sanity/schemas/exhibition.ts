@@ -103,7 +103,7 @@ const exhibition = {
       name: "heroImages",
       title: "Slideshow images (16:9)",
       type: "array",
-      description: "Top-of-page slideshow. Falls back to the cover image when empty.",
+      description: "The banner at the top of the event page. Upload as many slides as you like; they cycle slowly (nine seconds each). With none uploaded the cover image is shown, still.",
       of: [
         {
           type: "image",
