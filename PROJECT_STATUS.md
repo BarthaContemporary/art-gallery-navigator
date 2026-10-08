@@ -32,6 +32,13 @@ vars are referenced by name only.
 - Weekly object-storage replica timer installed and first run verified.
 
 ## Done
+- Imported catalogue entries linked to artists (8 October): of 1,224 entries,
+  355 were linked in one pass (artist names that sat in the title field,
+  solo-show works with no maker written, named makers missing from the
+  inventory), 130 makers created in the inventory with a note naming their
+  exhibitions, 24 entries left for a decision. Report with every list:
+  `docs/catalogue-artist-links-2026-10-08.md`. Artist pages show those
+  entries under "Works from past exhibitions".
 - Artist pages rebuilt and open again (`ARTISTS_UNDER_CONSTRUCTION` false): every
   portrait is black and white on the CDN and framed on the face. The
   studio detects the face (vendored pico cascade, `lib/face`) when a
