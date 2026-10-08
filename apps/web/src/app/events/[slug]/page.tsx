@@ -64,9 +64,10 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const privateViews = (ev.privateViews ?? []).filter((v) => v?.start);
   const heroImages = (ev.heroImages ?? []).filter((i) => i?.asset);
 
-  // Works chosen by hand first, then every web-visible work of the attached
-  // inventory lists (in list order), then the legacy catalogue — a work in
-  // both the hand-picked set and a list appears once.
+  // Every work the event can show, once each: those chosen by hand and every
+  // web-visible work of the attached inventory lists. This source order is
+  // only the final tie-break; `arrangeWorks` decides what the visitor sees.
+  // The legacy catalogue follows in its own Studio order.
   const seenWork = new Set<string>();
   const uniqueWorks = (list: Work[] | null | undefined) =>
     (list ?? []).filter((w) => {

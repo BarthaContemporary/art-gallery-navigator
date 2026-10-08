@@ -169,7 +169,7 @@ const exhibition = {
       title: "Order of works on the page",
       type: "array",
       description:
-        "Press “Collect works” to gather the hand-picked works and every list’s works here, then drag to arrange. Works not yet collected follow at the end in source order.",
+        "Press “Collect works” to gather the hand-picked works and every list’s works here (A to Z by artist), then drag to arrange. With no order here the page reads A to Z by artist; works added later and not yet collected follow the order, also A to Z. Catalogue entries keep their own order.",
       of: [{ type: "reference", to: [{ type: "work" }], weak: true }],
       components: { input: WorkOrderInput },
     },

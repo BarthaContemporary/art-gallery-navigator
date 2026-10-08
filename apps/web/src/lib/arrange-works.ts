@@ -1,9 +1,8 @@
 import type { Work } from "@/lib/sanity";
-
-const byName = new Intl.Collator("en", { sensitivity: "base", ignorePunctuation: true });
+import { compareByArtist } from "./artist-order";
 
 /** The artist name a work tile shows (see `workToGrid`). */
-const artistOf = (w: Work) => (w.artist?.name ?? w.maker ?? "").trim();
+const artistOf = (w: Work) => w.artist?.name ?? w.maker;
 
 /**
  * Order an event's works. The editor's arrangement (`workOrder`, work ids in
@@ -24,12 +23,8 @@ export function arrangeWorks(works: Work[], workOrder: string[] | null | undefin
         if (b.key === undefined) return -1;
         return a.key - b.key;
       }
-      const an = artistOf(a.w);
-      const bn = artistOf(b.w);
-      if (!an || !bn) return an ? -1 : bn ? 1 : a.i - b.i;
       return (
-        byName.compare(an, bn) ||
-        byName.compare(a.w.title?.trim() ?? "", b.w.title?.trim() ?? "") ||
+        compareByArtist({ artist: artistOf(a.w), title: a.w.title }, { artist: artistOf(b.w), title: b.w.title }) ||
         a.i - b.i
       );
     })

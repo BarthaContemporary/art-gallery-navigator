@@ -1,16 +1,18 @@
 import { useCallback, useState } from "react";
 import { Button, Card, Flex, Stack, Text } from "@sanity/ui";
 import { set, useClient, useFormValue, type ArrayOfObjectsInputProps } from "sanity";
+import { compareByArtist } from "../../src/lib/artist-order";
 
 type Ref = { _type: "reference"; _ref: string; _key: string; _weak?: boolean };
 
 /**
  * The order in which an event shows its works, across every source: the
  * works chosen by hand and every attached inventory list. "Collect works"
- * appends any work not yet in the order (hand-picked first, then each list in
- * list order); drag the rows to arrange them. Works no longer in any source
- * are dropped on the next collect. The site follows this order and appends
- * anything new that has not been collected yet.
+ * appends any work not yet in the order, A to Z by artist (then title), so a
+ * collect without dragging already matches what the page shows for works it
+ * has no order for; drag the rows to arrange them. Works no longer in any
+ * source are dropped on the next collect. The site follows this order and
+ * shows anything not yet collected after it, again A to Z by artist.
  */
 export function WorkOrderInput(props: ArrayOfObjectsInputProps) {
   const client = useClient({ apiVersion: "2026-07-01" });
@@ -42,7 +44,20 @@ export function WorkOrderInput(props: ArrayOfObjectsInputProps) {
 
       const kept = current.filter((r) => seen.has(r._ref));
       const keptIds = new Set(kept.map((r) => r._ref));
-      const added = sourceIds.filter((id) => !keptIds.has(id));
+      const addedIds = sourceIds.filter((id) => !keptIds.has(id));
+      // The new rows arrive A to Z by artist, the same rule the page applies
+      // to works it has no order for, so the Studio and the site agree.
+      const named: { _id: string; artist: string | null; title: string | null }[] = addedIds.length
+        ? await client.fetch(
+            `*[_type == "work" && _id in $ids]{ _id, "artist": coalesce(artist->name, maker), title }`,
+            { ids: addedIds },
+          )
+        : [];
+      const nameOf = new Map(named.map((n) => [n._id, n]));
+      const added = addedIds
+        .map((id, i) => ({ id, i, ...(nameOf.get(id) ?? { artist: null, title: null }) }))
+        .sort((a, b) => compareByArtist(a, b) || a.i - b.i)
+        .map((x) => x.id);
       const next: Ref[] = [
         ...kept,
         ...added.map((id) => ({ _type: "reference" as const, _ref: id, _key: id.replace(/^work-/, "").replace(/-/g, "").slice(0, 12), _weak: true })),
@@ -50,7 +65,7 @@ export function WorkOrderInput(props: ArrayOfObjectsInputProps) {
       props.onChange(set(next));
       const dropped = current.length - kept.length;
       setNote(
-        `${added.length} added${dropped ? `, ${dropped} removed (no longer in any source)` : ""}. ${next.length} in order.`,
+        `${added.length} added A to Z by artist${dropped ? `, ${dropped} removed (no longer in any source)` : ""}. ${next.length} in order.`,
       );
     } catch (e) {
       setNote(e instanceof Error ? e.message : "Could not collect works");

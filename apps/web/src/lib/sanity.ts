@@ -203,7 +203,7 @@ export interface Exhibition {
   works: Work[] | null;
   /** Inventory lists attached to the event; their web-visible works follow the chosen works. */
   workLists: { _id: string; name: string | null; works: Work[] | null }[] | null;
-  /** Editor-arranged order across every source; works not listed follow in source order. */
+  /** Editor-arranged order across every source; works not listed follow it A to Z by artist. */
   workOrder: string[] | null;
   catalogue: CatalogueEntry[] | null;
   seo: Seo | null;
