@@ -17,6 +17,9 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   studio `/api/sync/sanity` at once (secret in `sync_config`), cron drains every
   10 min as fallback. Works publish only when `web_visible`; makers publish
   unless `web_visible` is switched off.
+- **Artist pages**: `ARTISTS_UNDER_CONSTRUCTION` in `apps/web/src/lib/site.ts`
+  is the one switch that hides or restores the whole artist section; do not
+  add artist links that bypass it.
 - **Personal data**: any new table or column holding personal data needs a row in
   `retention_policies` (+ `apply_retention()`), coverage in `erase_contact()` and
   `lib/contact-export.ts`, and a line in `docs/compliance/ROPA.md` and the

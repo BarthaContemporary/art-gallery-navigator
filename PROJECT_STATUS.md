@@ -32,6 +32,14 @@ vars are referenced by name only.
 - Weekly object-storage replica timer installed and first run verified.
 
 ## Done
+- Artist pages locked behind `ARTISTS_UNDER_CONSTRUCTION` in
+  `apps/web/src/lib/site.ts` (overlay, nav disabled, links plain, out of
+  search/sitemap/llms, noindex) — flip to false to reopen everything. Event
+  banners are slow slideshows of the event's pictures; catalogue links prefer
+  the publication page. Inventory lists can be put on / taken off the website
+  in one click. Catalogue entries in Sanity are linked to inventory artists
+  (`apps/web/scripts/match-catalogue-artists.mjs`, re-runnable; 56 names had
+  no inventory maker and stay unlinked until a maker is created).
 - Data-protection pass (Oct 2026): security headers on both apps; double
   opt-in newsletter with consent evidence; complaint/bounce suppression;
   subject-access export + erasure with legal holds on the contact page;
