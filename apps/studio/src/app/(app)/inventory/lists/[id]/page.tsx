@@ -5,6 +5,9 @@ import { getSupabase } from "@/lib/supabase";
 import { StatusPill } from "@/components/status-pill";
 import { loadPieceSummaries, loadPieceRows } from "@/lib/piece-store";
 import { loadThumbnails } from "@/lib/thumbnails";
+import { PublishListButton } from "@/components/publish-list-button";
+import { resolvePieces, byTable } from "@/lib/piece-store";
+import { chunkIds, selectInChunks } from "@/lib/chunk";
 import { resolveListPieceIds, listExcludedIds, type ListLike } from "@/lib/list-members";
 import { titleWithYear } from "@jvb/db";
 import { applyFacet, facetMatches, parseFacet } from "@/lib/facet";
@@ -38,7 +41,7 @@ export default async function InventoryListDetail({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ add?: string }>;
+  searchParams: Promise<{ add?: string; notice?: string; error?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -61,45 +64,11 @@ export default async function InventoryListDetail({
   /** Works edited since they were added — the "already handled" marker. */
   const editedSinceAdded = new Set<string>();
   if (isDynamic) {
-    // Re-run the saved filters live so membership always reflects inventory.
-    const q = (rules.q ?? "").trim();
-    if (q) {
-      const { data: hits } = await supabase.rpc("pieces_search", { q });
-      let filtered = (hits ?? []) as Array<{
-        id: string;
-        status: string;
-        category_id: string | null;
-        location_id: string | null;
-        framed: boolean | null;
-      }>;
-      if (rules.status) filtered = filtered.filter((h) => facetMatches(rules.status, h.status));
-      if (rules.category) filtered = filtered.filter((h) => facetMatches(rules.category, h.category_id));
-      if (rules.location) filtered = filtered.filter((h) => facetMatches(rules.location, h.location_id));
-      if (rules.framed) filtered = filtered.filter((h) => h.framed === true);
-      const ids = filtered.slice(0, 500).map((h) => h.id);
-      if (ids.length > 0) {
-        const { data: viewRows } = await supabase
-          .from("vw_pieces_list")
-          .select("id, stock_number, title, medium, period, status, year")
-          .in("id", ids);
-        const byId = new Map(
-          ((viewRows ?? []) as PieceLite[]).map((r) => [r.id, r]),
-        );
-        items = ids.map((i) => byId.get(i)).filter((r): r is PieceLite => Boolean(r));
-      }
-    } else {
-      let query = supabase
-        .from("vw_pieces_list")
-        .select("id, stock_number, title, medium, period, status, year")
-        .order("stock_number", { ascending: false, nullsFirst: false })
-        .limit(500);
-      query = applyFacet(query, "status", rules.status);
-      query = applyFacet(query, "category_id", rules.category, { nullable: true });
-      query = applyFacet(query, "location_id", rules.location, { nullable: true });
-      if (rules.framed) query = query.eq("framed", true);
-      const { data } = await query;
-      items = (data ?? []) as PieceLite[];
-    }
+    // Re-run the saved filters through the shared resolver, so the page, the
+    // publish-all action, exports and offers all agree on the membership.
+    const ids = await resolveListPieceIds(supabase, list as ListLike);
+    const summaries = await loadPieceSummaries(supabase, ids);
+    items = ids.map((pid) => summaries.get(pid)).filter(Boolean) as unknown as PieceLite[];
   } else {
     const { data: itemRows } = await supabase
       .from("piece_list_items")
@@ -164,6 +133,17 @@ export default async function InventoryListDetail({
   // list, which prefers the 'front' role.
   // Also the excluded works and the add-search results, so every row that
   // names a work shows its picture.
+  // Which of these works are on the website, for the publish-all control.
+  const visibleRows = await selectInChunks<{ id: string; web_visible: boolean | null }>(
+    items.map((p) => p.id),
+    (chunk) => supabase.from("vw_pieces_list").select("id, web_visible").in("id", chunk),
+  );
+  // vw_pieces_list excludes soft-deleted works; a static list may still name
+  // one, so the page counts (and the publish control) follow the view.
+  const liveIds = new Set(visibleRows.map((r) => r.id));
+  items = items.filter((p) => liveIds.has(p.id));
+  const onWebsite = visibleRows.filter((r) => r.web_visible).length;
+
   const thumbByPiece = await loadThumbnails(supabase, [
     ...items.map((p) => p.id),
     ...excludedItems.map((p) => p.id),
@@ -320,6 +300,75 @@ export default async function InventoryListDetail({
     redirect(`/inventory/lists/${created.id}`);
   }
 
+  /**
+   * Put the whole list on the website, or take it off. Resolves the list
+   * afresh (live rules or static members minus exclusions), writes
+   * web_visible through the right register table, and the sync triggers push
+   * the change to the site within a minute (pg_net) — nothing else to do.
+   */
+  async function setListVisibility(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const {
+      data: { user },
+    } = await db.auth.getUser();
+    if (!user) redirect("/login");
+    const visible = formData.get("visible") === "on";
+    const { data: src } = await db
+      .from("piece_lists")
+      .select("id, is_dynamic, filter_rules")
+      .eq("id", id)
+      .maybeSingle();
+    if (!src) redirect(`/inventory/lists/${id}`);
+    const ids = await resolveListPieceIds(db, src as ListLike);
+    if (ids.length === 0) redirect(`/inventory/lists/${id}?error=${encodeURIComponent("The list is empty")}`);
+    const groups = byTable((await resolvePieces(db, ids)).values());
+    // Only rows in the other state are touched; the returned ids are the true
+    // count. RLS filters silently, so zero rows for a non-empty list means the
+    // signed-in role may not publish — say so rather than claim success.
+    let candidates = 0;
+    let changed = 0;
+    let failure: string | null = null;
+    for (const [table, tableIds] of Object.entries(groups) as [keyof typeof groups, string[]][]) {
+      if (tableIds.length === 0) continue;
+      const { data: before } = await db.from(table).select("id").in("id", tableIds).eq("web_visible", !visible);
+      candidates += (before ?? []).length;
+      for (const chunk of chunkIds(tableIds)) {
+        const { data, error } = await db
+          .from(table)
+          .update({ web_visible: visible, updated_by: user.id })
+          .eq("web_visible", !visible)
+          .in("id", chunk)
+          .select("id");
+        if (error) {
+          failure = error.message;
+          break;
+        }
+        changed += (data ?? []).length;
+      }
+      if (failure) break;
+    }
+    revalidatePath(`/inventory/lists/${id}`);
+    const pace = changed > 24 ? "over the next few minutes" : "within a minute";
+    if (failure) {
+      redirect(`/inventory/lists/${id}?error=${encodeURIComponent(`Stopped after ${changed} of ${candidates}: ${failure}`)}`);
+    }
+    if (candidates > 0 && changed === 0) {
+      redirect(`/inventory/lists/${id}?error=${encodeURIComponent("Nothing changed — your role may not publish works. Ask an admin.")}`);
+    }
+    redirect(
+      `/inventory/lists/${id}?notice=${encodeURIComponent(
+        changed === 0
+          ? visible
+            ? "Every work in this list was already on the website."
+            : "No work in this list was on the website."
+          : visible
+            ? `${changed} work${changed === 1 ? "" : "s"} switched to “On website — yes”. The site updates ${pace}.`
+            : `${changed} work${changed === 1 ? "" : "s"} taken off the website. The site updates ${pace}.`,
+      )}`,
+    );
+  }
+
   async function deleteList() {
     "use server";
     const db = await getSupabase();
@@ -332,6 +381,12 @@ export default async function InventoryListDetail({
       <Link href="/inventory/lists" className="text-[12.5px] text-ink-soft">
         ← All inventory lists
       </Link>
+      {sp.error ? (
+        <p className="mt-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">{sp.error}</p>
+      ) : null}
+      {sp.notice ? (
+        <p className="mt-3 rounded-lg border border-status-green/40 bg-band px-3 py-2 text-[12.5px] text-ink-body">{sp.notice}</p>
+      ) : null}
       <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -358,7 +413,10 @@ export default async function InventoryListDetail({
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
             {items.length} work{items.length === 1 ? "" : "s"}
+            {items.length > 0 ? ` · ${onWebsite} on the website` : ""}
           </p>
+          <PublishListButton action={setListVisibility} count={items.length} onCount={onWebsite} visible />
+          <PublishListButton action={setListVisibility} count={items.length} onCount={onWebsite} visible={false} />
           {/* Says what the dot means, and only appears once there is one. */}
           {editedSinceAdded.size > 0 ? (
             <p className="flex items-center gap-1.5 font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">

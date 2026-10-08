@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ratioUrl, type SanityImage } from "@/lib/sanity";
+import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 
 /**
  * Search — the only overlay on the site (handoff 2h). Opens from the header
@@ -31,7 +32,7 @@ type Group = { kind: Hit["kind"]; total: number; hits: Hit[] };
 
 const SCOPES: { key: string; label: string }[] = [
   { key: "all", label: "All" },
-  { key: "artist", label: "Artists" },
+  ...(ARTISTS_UNDER_CONSTRUCTION ? [] : [{ key: "artist", label: "Artists" }]),
   { key: "event", label: "Events" },
   { key: "work", label: "Works" },
   { key: "publication", label: "Publications" },

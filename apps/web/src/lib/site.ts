@@ -4,6 +4,16 @@ export const siteUrl = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001"
 ).replace(/\/$/, "");
 
+/**
+ * Artist pages are being rebuilt. While this is true the site hides every
+ * route into them: the nav item is shown but not clickable, /artists and
+ * /artists/[slug] render behind an "Under construction" overlay with noindex,
+ * maker names in work panels are plain text, artists drop out of search, the
+ * sitemap and llms.txt, and robots disallows the section. Flip to false to
+ * bring everything back in one go.
+ */
+export const ARTISTS_UNDER_CONSTRUCTION = true;
+
 /** Fallback until Sanity siteSettings is populated. */
 export const fallbackGalleryName = "Joost van den Bergh";
 

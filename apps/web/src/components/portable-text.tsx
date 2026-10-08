@@ -6,6 +6,7 @@ import {
   type SanityImage,
 } from "@/lib/sanity";
 import type { ReactNode } from "react";
+import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 
 /**
  * Minimal Portable Text renderer (no @portabletext/react dependency).
@@ -52,7 +53,7 @@ function renderSpan(span: Span, markDefs: MarkDef[], key: number): ReactNode {
       );
     } else {
       const def = markDefs.find((d) => d._key === mark);
-      if (def?._type === "link" && def.href) {
+      if (def?._type === "link" && def.href && !(ARTISTS_UNDER_CONSTRUCTION && /^\/artists(\/|$)/.test(def.href))) {
         node = (
           <a
             key={key}

@@ -9,6 +9,7 @@ import { ReadMore } from "./read-more";
 import { Lightbox } from "./lightbox";
 import { imageDimensions, imageUrl, RATIO } from "@/lib/sanity";
 import { workCaption, workSubject, type GridWork } from "@/lib/grid-work";
+import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 
 /**
  * Works grid with the fold-out details panel (handoff 2b / 2b2 / 2b3).
@@ -282,7 +283,7 @@ function WorkPanel({
           <p className="font-sans text-body font-medium leading-snug text-ink">
             {work.artist ? (
               <>
-                {work.artistSlug ? (
+                {work.artistSlug && !ARTISTS_UNDER_CONSTRUCTION ? (
                   <Link href={`/artists/${work.artistSlug}`} className="hover:text-accent">
                     {work.artist}
                   </Link>

@@ -26,11 +26,19 @@ export function HeroSlideshow({
   slides,
   priority = true,
   caption = true,
+  intervalMs = INTERVAL_MS,
+  fadeMs = 900,
+  label = "Current and forthcoming events",
 }: {
   slides: Slide[];
   priority?: boolean;
   /** Set false on event pages where the text block below carries the title. */
   caption?: boolean;
+  /** Time each slide holds; event banners use a slower pace than the home page. */
+  intervalMs?: number;
+  /** Crossfade length. */
+  fadeMs?: number;
+  label?: string;
 }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -53,9 +61,9 @@ export function HeroSlideshow({
   useEffect(() => {
     if (count < 2 || paused) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = setInterval(() => go(1), INTERVAL_MS);
+    const t = setInterval(() => go(1), intervalMs);
     return () => clearInterval(t);
-  }, [count, paused, go]);
+  }, [count, paused, go, intervalMs]);
 
   if (count === 0) return null;
   const active = slides[Math.min(index, count - 1)] ?? slides[0]!;
@@ -63,7 +71,7 @@ export function HeroSlideshow({
   return (
     <section
       aria-roledescription="carousel"
-      aria-label="Current and forthcoming events"
+      aria-label={label}
       className="relative w-full overflow-hidden bg-field"
       style={{ aspectRatio: String(RATIO.hero) }}
       onMouseEnter={() => setPaused(true)}
@@ -91,6 +99,7 @@ export function HeroSlideshow({
         <div
           key={s.key}
           className="slide"
+          style={{ transitionDuration: `${fadeMs}ms` }}
           data-active={i === index}
           aria-hidden={i !== index}
           role="group"
@@ -149,7 +158,7 @@ export function HeroSlideshow({
                       key={index}
                       className="marker-fill absolute inset-0 bg-accent"
                       data-paused={paused}
-                      style={{ "--slide-ms": `${INTERVAL_MS}ms` } as React.CSSProperties}
+                      style={{ "--slide-ms": `${intervalMs}ms` } as React.CSSProperties}
                     />
                   ) : null}
                 </span>

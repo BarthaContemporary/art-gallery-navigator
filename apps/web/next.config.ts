@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { ARTISTS_UNDER_CONSTRUCTION } from "./src/lib/site";
 
 /**
  * Every URL the old Squarespace site had, mapped to its new home. Generated
@@ -65,7 +66,8 @@ const nextConfig: NextConfig = {
       { source: "/contact", destination: "/about", permanent: true },
       // Sections retired with the redesign; works are reached through events and artists.
       { source: "/works", destination: "/", permanent: true },
-      { source: "/works/:slug", destination: "/artists", permanent: true },
+      // While the artist pages are being rebuilt, old work URLs go home instead.
+      { source: "/works/:slug", destination: ARTISTS_UNDER_CONSTRUCTION ? "/" : "/artists", permanent: !ARTISTS_UNDER_CONSTRUCTION },
       { source: "/collections", destination: "/", permanent: true },
       { source: "/collections/:slug", destination: "/", permanent: true },
       { source: "/journal", destination: "/", permanent: true },

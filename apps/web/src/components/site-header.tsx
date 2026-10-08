@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navLinks } from "@/lib/site";
 import { openSearch } from "@/components/search-overlay";
+import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 
 /** Outlined magnifier at the text's stroke weight — no circle, no box. */
 export function SearchIcon({ size = 20 }: { size?: number }) {
@@ -47,6 +48,21 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
           <ul className="flex flex-wrap items-center gap-x-1 gap-y-0 font-sans text-ui">
             {navLinks.map((link) => {
               const active = isActive(link.href);
+              if (link.href === "/artists" && ARTISTS_UNDER_CONSTRUCTION) {
+                // Shown, not clickable: the section is being rebuilt.
+                return (
+                  <li key={link.href}>
+                    <span
+                      aria-disabled="true"
+                      title="Under construction"
+                      className="inline-flex min-h-[44px] cursor-default items-center px-2 text-light md:px-3"
+                    >
+                      {link.label}
+                      <span className="sr-only"> (under construction)</span>
+                    </span>
+                  </li>
+                );
+              }
               return (
                 <li key={link.href}>
                   <Link

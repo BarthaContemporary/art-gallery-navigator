@@ -236,6 +236,8 @@ export interface CatalogueEntry {
   reference: string | null;
   title: string | null;
   maker: string | null;
+  /** Set by the matching script: the artist page this entry belongs to. */
+  artistSlug?: string | null;
   makerDates: string | null;
   medium: string | null;
   originAndDate: string | null;
@@ -475,6 +477,7 @@ const catalogueFields = /* groq */ `{
   reference,
   title,
   maker,
+  "artistSlug": artist->slug.current,
   makerDates,
   medium,
   originAndDate,
@@ -560,11 +563,11 @@ export const artistBySlugQuery = groq`*[_type == "artist" && slug.current == $sl
   ...${artistFields},
   "works": *[_type == "work" && references(^._id) && defined(slug.current)] | order(_createdAt desc)${workFields},
   "shownIn": *[_type == "exhibition" && !coalesce(hidden, false) && defined(slug.current)
-    && (count(works[@->artist._ref == ^.^._id]) > 0 || count(catalogue[maker == ^.^.name]) > 0)]
+    && (count(works[@->artist._ref == ^.^._id]) > 0 || count(catalogue[artist._ref == ^.^._id || maker == ^.^.name]) > 0)]
     | order(coalesce(endDate, startDate, "0000") desc, coalesce(sortOrder, 9999) asc)${eventNeighbour},
   "publications": *[_type == "publication" && !coalesce(hidden, false) && defined(slug.current)
     && relatedExhibition->_id in *[_type == "exhibition"
-      && (count(works[@->artist._ref == ^.^.^._id]) > 0 || count(catalogue[maker == ^.^.^.name]) > 0)]._id]
+      && (count(works[@->artist._ref == ^.^.^._id]) > 0 || count(catalogue[artist._ref == ^.^.^._id || maker == ^.^.^.name]) > 0)]._id]
     | order(coalesce(publishedYear, 0) desc)${eventNeighbour}
 }`;
 

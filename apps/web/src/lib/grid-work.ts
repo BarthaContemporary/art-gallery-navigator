@@ -55,7 +55,7 @@ export function catalogueToGrid(c: CatalogueEntry): GridWork {
     image: c.image,
     artist: c.maker,
     artistNative: null,
-    artistSlug: null,
+    artistSlug: c.artistSlug ?? null,
     artistDates: c.makerDates,
     title: c.title,
     code: c.reference,

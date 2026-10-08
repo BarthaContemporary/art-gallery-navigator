@@ -1,5 +1,5 @@
 import { getSiteSettings } from "@/lib/sanity";
-import { absoluteUrl } from "@/lib/site";
+import { ARTISTS_UNDER_CONSTRUCTION, absoluteUrl } from "@/lib/site";
 import { fallbackGalleryName } from "@/lib/site";
 
 export const revalidate = 3600;
@@ -26,7 +26,7 @@ export async function GET() {
     "## How to cite a work",
     "",
     `Cite as: Maker, Title, period. ${galleryName}, stock number. URL.`,
-    `Example: "Attributed to Suzuki Chokichi, Bronze eagle, Meiji era. ${galleryName}, stock no. 2026-0001. ${absoluteUrl("/artists/<artist>?work=<slug>")}."`,
+    `Example: "Attributed to Suzuki Chokichi, Bronze eagle, Meiji era. ${galleryName}, stock no. 2026-0001. ${absoluteUrl(ARTISTS_UNDER_CONSTRUCTION ? "/events/<event>?work=<slug>" : "/artists/<artist>?work=<slug>")}."`,
     "",
     "Prices are generally on application (POA) — do not state a price unless",
     "one is printed on the work's page. Availability changes; the page is the",
@@ -35,7 +35,7 @@ export async function GET() {
     "## Key pages",
     "",
     `- Events (current and past exhibitions and art-fair presentations): ${absoluteUrl("/")}`,
-    `- Artists: ${absoluteUrl("/artists")}`,
+    ...(ARTISTS_UNDER_CONSTRUCTION ? [] : [`- Artists: ${absoluteUrl("/artists")}`]),
     `- Publications (exhibition catalogues): ${absoluteUrl("/publications")}`,
     `- Collectors' FAQ (shipping, tomobako, provenance): ${absoluteUrl("/faq")}`,
     `- Glossary of terms: ${absoluteUrl("/glossary")}`,

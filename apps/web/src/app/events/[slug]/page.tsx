@@ -8,6 +8,7 @@ import {
   imageUrl,
   sanityFetch,
   type Exhibition,
+  type SanityImage,
 } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName } from "@/lib/site";
 import { ACCESS_LABEL, eventDates, eventEyebrow, eventPlace, privateViewWhen } from "@/lib/events";
@@ -61,21 +62,32 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const dates = eventDates(ev.startDate, ev.endDate, ev.datePrecision);
   const privateViews = (ev.privateViews ?? []).filter((v) => v?.start);
   const heroImages = (ev.heroImages ?? []).filter((i) => i?.asset);
-  const slides: Slide[] = (heroImages.length ? heroImages : ev.coverImage?.asset ? [ev.coverImage] : []).map((img, i) => ({
-    key: img._key ?? String(i),
-    image: img,
-    eyebrow: "",
-    title: img.caption ?? ev.title ?? "Event",
-    meta: null,
-    href: null,
-  }));
 
   const works: GridWork[] = [
     ...(ev.works ?? []).map(workToGrid).filter((w): w is GridWork => w !== null),
     ...(ev.catalogue ?? []).filter((c) => c?.image).map(catalogueToGrid),
   ];
 
-  const catalogueHref = ev.pdfUrl ?? (ev.relatedPublication?.slug ? `/publications/${ev.relatedPublication.slug}` : null);
+  // The banner is a slow slideshow of the event's pictures: the hero images
+  // first, then the cover, then the works themselves, up to ten — so an event
+  // with a single installation shot still moves.
+  const seen = new Set<string>();
+  const banner: { key: string; image: SanityImage; title: string }[] = [];
+  const addImage = (img: SanityImage | null | undefined, key: string, title: string) => {
+    const ref = img?.asset?._ref ?? null;
+    if (!img?.asset || !ref || seen.has(ref) || banner.length >= 10) return;
+    seen.add(ref);
+    banner.push({ key, image: img, title });
+  };
+  heroImages.forEach((img, i) => addImage(img, img._key ?? `hero-${i}`, img.caption ?? ev.title ?? "Event"));
+  addImage(ev.coverImage, "cover", ev.coverImage?.caption ?? ev.title ?? "Event");
+  works.forEach((w) => addImage(w.image, `work-${w.id}`, [w.artist, w.title].filter(Boolean).join(", ") || ev.title || "Work"));
+  const slides: Slide[] = banner.map((b) => ({ key: b.key, image: b.image, eyebrow: "", title: b.title, meta: null, href: null }));
+
+  // A catalogue that exists in Publications is linked there — its reader,
+  // availability and ordering — rather than as a bare PDF.
+  const publicationHref = ev.relatedPublication?.slug ? `/publications/${ev.relatedPublication.slug}` : null;
+  const catalogueHref = publicationHref ?? ev.pdfUrl ?? null;
   const pageUrl = absoluteUrl(`/events/${slug}`);
   const place = [ev.isArtFair ? ev.fairName : null, ev.venue, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join(" · ");
 
@@ -95,7 +107,9 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   return (
     <article>
       <JsonLd data={jsonLd} />
-      {slides.length > 0 ? <HeroSlideshow slides={slides} caption={false} /> : null}
+      {slides.length > 0 ? (
+        <HeroSlideshow slides={slides} caption={false} intervalMs={9000} fadeMs={1800} label={ev.title ?? "Event"} />
+      ) : null}
 
       <div className="page pt-12 pb-24 md:pt-16">
         <header className="max-w-[380px]">
@@ -132,14 +146,14 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           ) : null}
           {catalogueHref ? (
             <p className="mt-3">
-              {ev.pdfUrl ? (
-                <a href={ev.pdfUrl} target="_blank" rel="noopener noreferrer" className="link-accent inline-flex min-h-[44px] items-center">
+              {publicationHref ? (
+                <Link href={publicationHref} className="link-accent inline-flex min-h-[44px] items-center">
+                  {ev.relatedPublication?.title ? `Catalogue: ${ev.relatedPublication.title} →` : "Catalogue →"}
+                </Link>
+              ) : (
+                <a href={catalogueHref} target="_blank" rel="noopener noreferrer" className="link-accent inline-flex min-h-[44px] items-center">
                   Catalogue (PDF) ↓
                 </a>
-              ) : (
-                <Link href={catalogueHref} className="link-accent inline-flex min-h-[44px] items-center">
-                  Catalogue →
-                </Link>
               )}
             </p>
           ) : null}
@@ -162,10 +176,6 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           {ev.next?.slug ? (
             <Link href={`/events/${ev.next.slug}`} className="link-accent inline-flex min-h-[44px] items-center text-right">
               {ev.next.title} →
-            </Link>
-          ) : ev.relatedPublication?.slug ? (
-            <Link href={`/publications/${ev.relatedPublication.slug}`} className="link-accent inline-flex min-h-[44px] items-center">
-              Related catalogue →
             </Link>
           ) : (
             <Link href="/" className="link-accent inline-flex min-h-[44px] items-center">

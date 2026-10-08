@@ -26,6 +26,21 @@ const catalogueEntry = {
     { name: "title", title: "Title", type: "string" },
     { name: "maker", title: "Maker", type: "string" },
     {
+      name: "artist",
+      title: "Artist (from the inventory)",
+      type: "reference",
+      to: [{ type: "artist" }],
+      weak: true,
+      description: "Links this entry to the artist page. Set by the matching script from the maker name; correct by hand where the match is wrong.",
+    },
+    {
+      name: "makerAsImported",
+      title: "Maker as imported",
+      type: "string",
+      readOnly: true,
+      description: "The spelling carried over from the old site, kept when the maker was renamed to the inventory's spelling.",
+    },
+    {
       name: "makerDates",
       title: "Maker dates",
       type: "string",

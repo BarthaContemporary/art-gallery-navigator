@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { artistBySlugQuery, artistSlugsQuery, imageUrl, sanityFetch, RATIO, type Artist } from "@/lib/sanity";
-import { absoluteUrl } from "@/lib/site";
+import { ARTISTS_UNDER_CONSTRUCTION, absoluteUrl } from "@/lib/site";
+import { UnderConstruction } from "@/components/under-construction";
 import { workToGrid, type GridWork } from "@/lib/grid-work";
 import { RatioImage } from "@/components/ratio-image";
 import { ReadMore } from "@/components/read-more";
@@ -27,10 +28,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const a = await getArtist(slug);
   if (!a) return { title: "Artist not found" };
+  const robots = ARTISTS_UNDER_CONSTRUCTION ? { index: false, follow: false } : undefined;
   const title = [a.name, a.nameNative].filter(Boolean).join(" ");
   const description = a.bioShort?.slice(0, 200) ?? [a.lifeDates, a.country, a.period].filter(Boolean).join(" · ") ?? undefined;
   const ogImage = imageUrl(a.portrait, { width: 1200 });
   return {
+    robots,
     title,
     description,
     alternates: { canonical: absoluteUrl(`/artists/${slug}`) },
@@ -53,13 +56,17 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
   if (!a) notFound();
 
   const meta = [a.lifeDates, a.country, a.period].filter(Boolean).join(" · ");
-  const works: GridWork[] = (a.works ?? []).map(workToGrid).filter((w): w is GridWork => w !== null);
+  // While the pages are locked nothing interactive renders behind the overlay
+  // (a ?work= deep link would otherwise scroll to an inert panel).
+  const works: GridWork[] = ARTISTS_UNDER_CONSTRUCTION
+    ? []
+    : (a.works ?? []).map(workToGrid).filter((w): w is GridWork => w !== null);
   const shownIn = (a.shownIn ?? []).filter((e) => e?.slug);
   const publications = (a.publications ?? []).filter((p) => p?.slug);
   const bioShort = paragraphs(a.bioShort);
   const bioLong = paragraphs(a.bioLong);
 
-  return (
+  const article = (
     <article className="page pt-12 pb-24 md:pt-16">
       <JsonLd
         data={{
@@ -143,4 +150,5 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
       ) : null}
     </article>
   );
+  return ARTISTS_UNDER_CONSTRUCTION ? <UnderConstruction>{article}</UnderConstruction> : article;
 }

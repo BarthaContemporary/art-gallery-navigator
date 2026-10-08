@@ -1,4 +1,5 @@
 import groq from "groq";
+import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 import { sanityFetch, type SanityImage } from "@/lib/sanity";
 
 /**
@@ -81,7 +82,7 @@ export async function loadSearchIndex(): Promise<SearchHit[]> {
   const lc = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(" ").toLowerCase();
 
   for (const a of doc.artists) {
-    if (!a.slug) continue;
+    if (!a.slug || ARTISTS_UNDER_CONSTRUCTION) continue;
     hits.push({
       kind: "artist",
       id: a._id,
@@ -126,7 +127,7 @@ export async function loadSearchIndex(): Promise<SearchHit[]> {
     // there is nowhere to send the reader, so it stays out of the results.
     const href = w.eventSlug
       ? `/events/${w.eventSlug}?work=${encodeURIComponent(w.slug)}`
-      : w.artistSlug
+      : w.artistSlug && !ARTISTS_UNDER_CONSTRUCTION
         ? `/artists/${w.artistSlug}?work=${encodeURIComponent(w.slug)}`
         : null;
     if (!href) continue;

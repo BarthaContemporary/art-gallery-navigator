@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { RatioImage } from "./ratio-image";
 import { RATIO, type Artist } from "@/lib/sanity";
+import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 
 type Mode = "az" | "country" | "period";
 const MODES: { key: Mode; label: string }[] = [
@@ -62,7 +63,7 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
             <ul className="tiles-6">
               {g.items.map((a) => (
                 <li key={a._id}>
-                  <Link href={`/artists/${a.slug}`} className="group block">
+                  <Tile href={ARTISTS_UNDER_CONSTRUCTION ? null : `/artists/${a.slug}`}>
                     <RatioImage
                       image={a.portrait}
                       ratio={RATIO.portrait}
@@ -75,7 +76,7 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
                       {a.nameNative ? <span className="ml-2 font-normal text-light">{a.nameNative}</span> : null}
                     </p>
                     {a.lifeDates ? <p className="mt-1 font-sans text-[12px] text-meta">{a.lifeDates}</p> : null}
-                  </Link>
+                  </Tile>
                 </li>
               ))}
             </ul>
@@ -83,5 +84,16 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
         ))
       )}
     </div>
+  );
+}
+
+/** A tile is a link to the artist page — or, while the pages are rebuilt, a plain block. */
+function Tile({ href, children }: { href: string | null; children: React.ReactNode }) {
+  return href ? (
+    <Link href={href} className="group block">
+      {children}
+    </Link>
+  ) : (
+    <div className="block">{children}</div>
   );
 }
