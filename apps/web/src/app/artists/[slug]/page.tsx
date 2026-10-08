@@ -32,8 +32,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!a) return { title: "Artist not found" };
   const robots = ARTISTS_UNDER_CONSTRUCTION ? { index: false, follow: false } : undefined;
   const title = [a.name, a.nameNative].filter(Boolean).join(" ");
-  const description = a.bioShort?.slice(0, 200) ?? [formatLifeDates(a.lifeDates), a.country, a.period].filter(Boolean).join(", ") ?? undefined;
-  const ogImage = artistPicture(a, 1200)?.src;
+  const firstParagraph = paragraphs(a.bioShort)[0] ?? paragraphs(a.bioLong)[0];
+  const description = firstParagraph?.slice(0, 200) ?? [formatLifeDates(a.lifeDates), a.country, a.period].filter(Boolean).join(", ") ?? undefined;
+  const ogImage = artistPicture(a, 1200, { monochrome: true })?.src;
   return {
     robots,
     title,
@@ -61,7 +62,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
   const a = await getArtist(slug);
   if (!a) notFound();
 
-  const picture = artistPicture(a, 900);
+  const picture = artistPicture(a, 900, { monochrome: true });
   const facts = [
     { label: "Dates", value: formatLifeDates(a.lifeDates) },
     { label: "Country", value: a.country },
@@ -74,8 +75,10 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
     : (a.works ?? []).map(workToGrid).filter((w): w is GridWork => w !== null);
   const shownIn = (a.shownIn ?? []).filter((e) => e?.slug);
   const publications = (a.publications ?? []).filter((p) => p?.slug);
-  const bioShort = paragraphs(a.bioShort);
-  const bioLong = paragraphs(a.bioLong);
+  // The biography opens with its first paragraph in view; the rest unfolds.
+  const bio = [...paragraphs(a.bioShort), ...paragraphs(a.bioLong)];
+  const lead = bio.slice(0, 1);
+  const rest = bio.slice(1);
 
   const article = (
     <article className="page pt-12 pb-24 md:pt-16">
@@ -87,7 +90,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
           alternateName: a.nameNative ?? undefined,
           url: absoluteUrl(`/artists/${slug}`),
           image: picture?.kind === "portrait" ? picture.src : undefined,
-          description: a.bioShort ?? undefined,
+          description: lead[0] ?? undefined,
         }}
       />
 
@@ -102,6 +105,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
                 width={900}
                 sizes="(min-width: 1024px) 30vw, (min-width: 768px) 33vw, 240px"
                 priority
+                monochrome
                 decorative={picture.kind === "detail" && !!a.placeholder?.title}
               />
             </div>
@@ -132,17 +136,17 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
               ))}
             </dl>
           ) : null}
-          {bioShort.length > 0 ? (
+          {lead.length > 0 ? (
             <div className="mt-6 flex flex-col gap-5 font-sans text-body">
-              {bioShort.map((p, i) => (
+              {lead.map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
             </div>
           ) : null}
-          {bioLong.length > 0 ? (
-            <ReadMore className="mt-1" label={bioShort.length > 0 ? "Read more" : "Biography"}>
-              <div className="flex flex-col gap-3 font-sans text-small text-body">
-                {bioLong.map((p, i) => (
+          {rest.length > 0 ? (
+            <ReadMore className="mt-1">
+              <div className="flex flex-col gap-5 font-sans text-body">
+                {rest.map((p, i) => (
                   <p key={i}>{p}</p>
                 ))}
               </div>
@@ -153,7 +157,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
 
       {works.length > 0 ? (
         <section className="mt-16 md:mt-20">
-          <WorksFoldout works={works} label="Works" tileLabel="work" />
+          <WorksFoldout works={works} label="Works" tileLabel="work" monochrome />
         </section>
       ) : !ARTISTS_UNDER_CONSTRUCTION && shownIn.length === 0 && publications.length === 0 ? (
         <p className="mt-16 max-w-[var(--measure)] font-sans text-small text-meta md:mt-20">

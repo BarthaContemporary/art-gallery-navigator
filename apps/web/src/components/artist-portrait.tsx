@@ -17,6 +17,7 @@ export function ArtistPortrait({
   sizes,
   priority,
   decorative = false,
+  monochrome = false,
   className = "",
 }: {
   subject: Subject;
@@ -26,9 +27,11 @@ export function ArtistPortrait({
   priority?: boolean;
   /** True when the name sits beside the square in the same link or figure caption, so the image needs no text of its own. */
   decorative?: boolean;
+  /** A stand-in work detail in black and white as well (the artist page); portraits always are. */
+  monochrome?: boolean;
   className?: string;
 }) {
-  const picture = artistPicture(subject, width);
+  const picture = artistPicture(subject, width, { monochrome });
   return (
     <div className={`relative aspect-square w-full overflow-hidden bg-field ${className}`} style={{ containerType: "inline-size" }}>
       {picture ? (
@@ -61,8 +64,8 @@ export type ArtistPicture = {
   nativeSide: number | null;
 };
 
-/** The square for an artist (portraits black and white, work details in colour), or null when there is no picture to make one from. */
-export function artistPicture(subject: Subject, width: number): ArtistPicture | null {
+/** The square for an artist (portraits black and white, work details in colour unless `monochrome`), or null when there is no picture to make one from. */
+export function artistPicture(subject: Subject, width: number, opts: { monochrome?: boolean } = {}): ArtistPicture | null {
   const name = subject.name ?? "Artist";
   if (subject.portrait?.asset) {
     const framed = faceCrop(subject.portrait);
@@ -75,7 +78,7 @@ export function artistPicture(subject: Subject, width: number): ArtistPicture | 
   const work = subject.placeholder;
   if (work?.image?.asset) {
     const dims = imageDimensions(work.image);
-    const src = ratioUrl(work.image, 1, width, { crop: detailCrop(work.image) });
+    const src = ratioUrl(work.image, 1, width, { crop: detailCrop(work.image), saturation: opts.monochrome ? -100 : undefined });
     if (src) {
       return {
         src,

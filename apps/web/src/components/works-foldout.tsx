@@ -53,11 +53,14 @@ export function WorksFoldout({
   works,
   label = "Works",
   tileLabel = "artist",
+  monochrome = false,
 }: {
   works: GridWork[];
   label?: string | null;
   /** What the line under each tile says: the artist (default), or the work itself on the artist's own page. */
   tileLabel?: "artist" | "work";
+  /** Tiles and the open panel in black and white (the artist page); the lightbox keeps the colours. */
+  monochrome?: boolean;
 }) {
   const cols = useColumns();
   const [selected, setSelected] = useState<string | null>(null);
@@ -171,6 +174,7 @@ export function WorksFoldout({
                   width={800}
                   alt={workCaption(w)}
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                  saturation={monochrome ? -100 : undefined}
                 />
                 <p className="mt-3 font-sans text-ui font-medium leading-snug text-ink transition-colors duration-150 group-hover:text-accent">
                   {tileLabel === "work" ? workCaption(w) : (w.artist ?? workCaption(w))}
@@ -207,6 +211,7 @@ export function WorksFoldout({
                           enquiryOpen={enquiryOpen}
                           onEnquiry={setEnquiryOpen}
                           onClose={close}
+                          monochrome={monochrome}
                         />
                       </div>
                     </div>
@@ -227,6 +232,7 @@ function WorkPanel({
   enquiryOpen,
   onEnquiry,
   onClose,
+  monochrome = false,
 }: {
   work: GridWork;
   /** Columns of the tile grid above — the panel aligns to the same grid. */
@@ -234,6 +240,7 @@ function WorkPanel({
   enquiryOpen: boolean;
   onEnquiry: (open: boolean) => void;
   onClose: () => void;
+  monochrome?: boolean;
 }) {
   const caption = workCaption(work);
   // The enquiry form stays mounted while its fold closes (never an empty box).
@@ -245,7 +252,7 @@ function WorkPanel({
   const closeLightbox = useCallback(() => setLightbox(false), []);
   // The panel shows the whole photograph at its own ratio, two tiles wide,
   // on white — never cropped, never letterboxed on grey.
-  const large = imageUrl(work.image, { width: 1600 });
+  const large = imageUrl(work.image, { width: 1600, saturation: monochrome ? -100 : undefined });
   const dims = imageDimensions(work.image);
   const imageSpan = Math.min(2, cols);
   const textSpan = cols > 2 ? cols - 2 : cols;

@@ -16,6 +16,7 @@ export function RatioImage({
   priority,
   className = "",
   lazy = true,
+  saturation,
 }: {
   image: SanityImage | null | undefined;
   ratio: number;
@@ -26,8 +27,10 @@ export function RatioImage({
   priority?: boolean;
   className?: string;
   lazy?: boolean;
+  /** -100 for black and white, rendered by the CDN. */
+  saturation?: number;
 }) {
-  const src = ratioUrl(image, ratio, width);
+  const src = ratioUrl(image, ratio, width, saturation === undefined ? undefined : { saturation });
   return (
     <div
       className={`relative w-full overflow-hidden bg-field ${className}`}
