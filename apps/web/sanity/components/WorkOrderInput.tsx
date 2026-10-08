@@ -10,9 +10,11 @@ type Ref = { _type: "reference"; _ref: string; _key: string; _weak?: boolean };
  * works chosen by hand and every attached inventory list. "Collect works"
  * appends any work not yet in the order, A to Z by artist (then title), so a
  * collect without dragging already matches what the page shows for works it
- * has no order for; drag the rows to arrange them. Works no longer in any
- * source are dropped on the next collect. The site follows this order and
- * shows anything not yet collected after it, again A to Z by artist.
+ * has no order for; drag the rows to arrange them. "Sort all A to Z by
+ * artist" collects and then rewrites the whole order alphabetically, the way
+ * to undo an arrangement. Works no longer in any source are dropped on the
+ * next collect. The site follows this order and shows anything not yet
+ * collected after it, again A to Z by artist.
  */
 export function WorkOrderInput(props: ArrayOfObjectsInputProps) {
   const client = useClient({ apiVersion: "2026-07-01" });
@@ -22,7 +24,10 @@ export function WorkOrderInput(props: ArrayOfObjectsInputProps) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
-  const collect = useCallback(async () => {
+  // Gathers every work from the fields above. With `sortAll`, the whole order
+  // is rewritten A to Z by artist; otherwise only the newly collected works
+  // arrive A to Z and the rows already arranged keep their places.
+  const collect = useCallback(async (sortAll: boolean) => {
     setBusy(true);
     setNote(null);
     try {
@@ -58,12 +63,31 @@ export function WorkOrderInput(props: ArrayOfObjectsInputProps) {
         .map((id, i) => ({ id, i, ...(nameOf.get(id) ?? { artist: null, title: null }) }))
         .sort((a, b) => compareByArtist(a, b) || a.i - b.i)
         .map((x) => x.id);
-      const next: Ref[] = [
-        ...kept,
-        ...added.map((id) => ({ _type: "reference" as const, _ref: id, _key: id.replace(/^work-/, "").replace(/-/g, "").slice(0, 12), _weak: true })),
-      ];
-      props.onChange(set(next));
+      const toRef = (id: string): Ref => ({
+        _type: "reference",
+        _ref: id,
+        _key: id.replace(/^work-/, "").replace(/-/g, "").slice(0, 12),
+        _weak: true,
+      });
+      const next: Ref[] = [...kept, ...added.map(toRef)];
       const dropped = current.length - kept.length;
+      if (sortAll) {
+        const all: { _id: string; artist: string | null; title: string | null }[] = await client.fetch(
+          `*[_type == "work" && _id in $ids]{ _id, "artist": coalesce(artist->name, maker), title }`,
+          { ids: next.map((r) => r._ref) },
+        );
+        const info = new Map(all.map((n) => [n._id, n]));
+        const sorted = next
+          .map((r, i) => ({ r, i, ...(info.get(r._ref) ?? { artist: null, title: null }) }))
+          .sort((a, b) => compareByArtist(a, b) || a.i - b.i)
+          .map((x) => x.r);
+        props.onChange(set(sorted));
+        setNote(
+          `All ${sorted.length} works sorted A to Z by artist${added.length ? ` (${added.length} newly collected)` : ""}${dropped ? `, ${dropped} removed (no longer in any source)` : ""}.`,
+        );
+        return;
+      }
+      props.onChange(set(next));
       setNote(
         `${added.length} added A to Z by artist${dropped ? `, ${dropped} removed (no longer in any source)` : ""}. ${next.length} in order.`,
       );
@@ -78,7 +102,8 @@ export function WorkOrderInput(props: ArrayOfObjectsInputProps) {
     <Stack space={3}>
       <Card padding={3} radius={2} tone="transparent" border>
         <Flex align="center" gap={3} wrap="wrap">
-          <Button text={busy ? "Collecting…" : "Collect works from the fields above"} tone="primary" disabled={busy} onClick={collect} />
+          <Button text={busy ? "Working…" : "Collect works from the fields above"} tone="primary" disabled={busy} onClick={() => collect(false)} />
+          <Button text="Sort all A to Z by artist" mode="ghost" disabled={busy} onClick={() => collect(true)} />
           <Text size={1} muted>
             {works.length} chosen by hand · {lists.length} list{lists.length === 1 ? "" : "s"} · {current.length} in order
           </Text>
