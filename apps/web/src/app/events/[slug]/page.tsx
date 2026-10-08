@@ -12,6 +12,7 @@ import {
 } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName } from "@/lib/site";
 import { ACCESS_LABEL, eventDates, eventEyebrow, eventPlace, privateViewWhen } from "@/lib/events";
+import { arrangeWorks } from "@/lib/arrange-works";
 import { catalogueToGrid, workToGrid, type GridWork } from "@/lib/grid-work";
 import { JsonLd } from "@/components/json-ld";
 import { PortableText } from "@/components/portable-text";
@@ -77,12 +78,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
     ...uniqueWorks(ev.works),
     ...(ev.workLists ?? []).flatMap((l) => uniqueWorks(l?.works)),
   ];
-  // The editor's arrangement wins; anything not yet arranged follows in source order.
-  const rank = new Map((ev.workOrder ?? []).map((id, i) => [id, i]));
-  const arranged = sourceWorks
-    .map((w, i) => ({ w, key: rank.has(w._id) ? rank.get(w._id)! : rank.size + i }))
-    .sort((a, b) => a.key - b.key)
-    .map((x) => x.w);
+  // The editor's arrangement wins; the rest reads A to Z by artist.
+  const arranged = arrangeWorks(sourceWorks, ev.workOrder);
   const works: GridWork[] = [
     ...arranged.map(workToGrid).filter((w): w is GridWork => w !== null),
     ...(ev.catalogue ?? []).filter((c) => c?.image).map(catalogueToGrid),
