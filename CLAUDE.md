@@ -16,7 +16,8 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
 - **Website sync**: DB triggers write `sync_outbox`; a pg_net trigger POSTs to the
   studio `/api/sync/sanity` at once (secret in `sync_config`), cron drains every
   10 min as fallback. Works publish only when `web_visible`; makers publish
-  unless `web_visible` is switched off.
+  unless `web_visible` is switched off; inventory lists sync as `workList`
+  docs (web-visible members only) and events may reference them.
 - **Artist pages**: `ARTISTS_UNDER_CONSTRUCTION` in `apps/web/src/lib/site.ts`
   is the one switch that hides or restores the whole artist section; do not
   add artist links that bypass it.

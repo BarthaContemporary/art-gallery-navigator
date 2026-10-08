@@ -32,6 +32,10 @@ vars are referenced by name only.
 - Weekly object-storage replica timer installed and first run verified.
 
 ## Done
+- Events can show whole inventory lists: lists sync to Sanity as `workList`
+  documents (outbox + 0081 triggers; re-pushed on list/membership/visibility
+  changes); the event field "Lists of works (from the inventory)" needs the
+  next Studio deploy to appear. Event banners now use only uploaded slides.
 - Artist pages locked behind `ARTISTS_UNDER_CONSTRUCTION` in
   `apps/web/src/lib/site.ts` (overlay, nav disabled, links plain, out of
   search/sitemap/llms, noindex) — flip to false to reopen everything. Event
