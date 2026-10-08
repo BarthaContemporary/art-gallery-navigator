@@ -41,8 +41,8 @@ export function ArtistPortrait({
       ) : (
         <span
           aria-hidden
-          className="absolute bottom-[-0.06em] left-[6%] font-sans font-light leading-none text-light select-none"
-          style={{ fontSize: "58cqw" }}
+          className="absolute bottom-[-0.05em] left-[7%] font-sans font-light leading-none text-light opacity-70 select-none"
+          style={{ fontSize: "50cqw" }}
         >
           {initialOf(subject.name)}
         </span>

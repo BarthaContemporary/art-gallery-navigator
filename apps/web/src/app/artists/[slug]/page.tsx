@@ -91,7 +91,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
 
       <div className="grid grid-cols-1 gap-y-8 md:grid-cols-12 md:gap-x-10 lg:gap-x-14">
         {picture ? (
-          <figure className="w-full max-w-[240px] md:col-span-4 md:max-w-none lg:col-span-3">
+          <figure className="w-full max-w-[240px] md:col-span-4 md:max-w-none">
             <ArtistPortrait subject={a} width={900} sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 240px" priority />
             {picture.kind === "detail" && a.placeholder?.title ? (
               <figcaption className="mt-2 font-sans text-[12px] text-meta">Detail of {a.placeholder.title}</figcaption>
@@ -101,7 +101,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
           </figure>
         ) : null}
 
-        <header className={picture ? "max-w-[var(--measure)] md:col-span-8 lg:col-span-7 lg:col-start-5" : "max-w-[var(--measure)] md:col-span-9"}>
+        <header className={picture ? "max-w-[var(--measure)] md:col-span-8 lg:col-span-7 lg:col-start-6" : "max-w-[var(--measure)] md:col-span-9"}>
           <h1 className="t-title">
             {a.name}
             {a.nameNative ? <span className="ml-3 text-light">{a.nameNative}</span> : null}
@@ -139,6 +139,10 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
         <section className="mt-16 md:mt-20">
           <WorksFoldout works={works} label="Works" />
         </section>
+      ) : !ARTISTS_UNDER_CONSTRUCTION && shownIn.length === 0 && publications.length === 0 ? (
+        <p className="mt-16 max-w-[var(--measure)] font-sans text-small text-meta md:mt-20">
+          Works by {a.name} appear here as they are published.
+        </p>
       ) : null}
 
       {shownIn.length > 0 || publications.length > 0 ? (
