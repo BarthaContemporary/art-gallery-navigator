@@ -136,7 +136,7 @@ export function HeroSlideshow({
               active.title
             )}
           </h2>
-          {active.meta ? <p className="mt-1.5 font-sans text-small text-meta">{active.meta}</p> : null}
+          {active.meta ? <p className="mt-1.5 whitespace-pre-line font-sans text-small text-meta">{active.meta}</p> : null}
         </div>
       ) : null}
 

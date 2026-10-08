@@ -137,8 +137,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             <h1 className="t-title mt-3">{ev.title}</h1>
             {ev.subtitle ? <p className="mt-3 font-sans text-body text-body">{ev.subtitle}</p> : null}
             {dates || ev.stand ? (
-              <p className="mt-3 font-sans text-small text-meta">
-                {[dates, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join(" · ")}
+              <p className="mt-3 whitespace-pre-line font-sans text-small text-meta">
+                {[dates, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join("\n")}
               </p>
             ) : null}
             {privateViews.length > 0 ? (

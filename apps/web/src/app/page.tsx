@@ -38,7 +38,8 @@ export default async function HomePage() {
       image: e.hero ?? e.coverImage,
       eyebrow: eventEyebrow(e),
       title: e.title ?? "Untitled",
-      meta: [eventDates(e.startDate, e.endDate, e.datePrecision), e.isArtFair && e.venue ? e.venue : null].filter(Boolean).join(" · ") || null,
+      // Dates on their own line, the venue beneath (rendered pre-line).
+      meta: [eventDates(e.startDate, e.endDate, e.datePrecision), e.isArtFair && e.venue ? e.venue : null].filter(Boolean).join("\n") || null,
       href: `/events/${e.slug}`,
     }));
 
