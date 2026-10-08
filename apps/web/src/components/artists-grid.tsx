@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArtistPortrait, initialOf } from "./artist-portrait";
 import type { Artist } from "@/lib/sanity";
+import { formatLifeDates } from "@/lib/life-dates";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 
 type Mode = "az" | "country" | "period";
@@ -48,13 +49,8 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
 
   return (
     <div>
-      <header className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
-        <div>
-          <h1 className="t-title">Artists</h1>
-          <p className="mt-2 font-sans text-small text-meta">
-            <span className="tabular">{artists.length}</span> artists and makers
-          </p>
-        </div>
+      <header className="flex flex-wrap items-baseline justify-between gap-x-10 gap-y-2">
+        <h1 className="t-title">Artists</h1>
         <ul className="flex gap-x-5 font-sans text-ui" aria-label="Order artists by">
           {MODES.map((m) => (
             <li key={m.key}>
@@ -62,7 +58,7 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
                 type="button"
                 onClick={() => setMode(m.key)}
                 aria-pressed={mode === m.key}
-                className={`min-h-[44px] transition-colors duration-150 ${mode === m.key ? "text-ink" : "text-meta hover:text-ink"}`}
+                className={`-my-3 py-3 transition-colors duration-150 ${mode === m.key ? "text-ink" : "text-meta hover:text-ink"}`}
               >
                 {m.label}
               </button>
@@ -70,20 +66,23 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
           ))}
         </ul>
       </header>
+      <p className="mt-2 font-sans text-small text-meta">
+        <span className="tabular">{artists.length}</span> artists and makers
+      </p>
 
       {mode === "az" && artists.length > 0 ? (
-        <nav aria-label="Jump to a letter" className="mt-8 flex flex-wrap font-sans text-ui">
+        <nav aria-label="Jump to a letter" className="-mb-2 mt-6 grid grid-cols-13 font-sans text-ui sm:flex sm:flex-wrap">
           {LETTERS.map((l) =>
             lettersPresent.has(l) ? (
               <a
                 key={l}
                 href={`#letter-${l}`}
-                className="inline-flex min-h-[36px] min-w-[30px] items-center justify-center text-ink no-underline transition-colors duration-150 hover:text-accent"
+                className="inline-flex min-h-[44px] items-center justify-center text-ink no-underline transition-colors duration-150 hover:text-accent sm:min-w-[32px]"
               >
                 {l}
               </a>
             ) : (
-              <span key={l} aria-hidden className="inline-flex min-h-[36px] min-w-[30px] items-center justify-center text-light/60">
+              <span key={l} aria-hidden className="inline-flex min-h-[44px] items-center justify-center text-light/60 sm:min-w-[32px]">
                 {l}
               </span>
             ),
@@ -94,19 +93,24 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
       {artists.length === 0 ? (
         <p className="mt-8 font-sans text-body text-meta">Artists will appear here.</p>
       ) : (
-        groups.map((g) => (
+        groups.map((g, gi) => (
           <section key={g.key} id={g.key} className="mt-12 scroll-mt-24 md:mt-14">
             <h2 className="label mb-5">{g.label}</h2>
             <ul className="tiles-6">
-              {g.items.map((a) => (
+              {g.items.map((a, i) => (
                 <li key={a._id}>
                   <Tile href={ARTISTS_UNDER_CONSTRUCTION ? null : `/artists/${a.slug}`}>
-                    <ArtistPortrait subject={a} width={600} sizes="(min-width: 640px) 16vw, 33vw" />
+                    <ArtistPortrait
+                      subject={a}
+                      width={600}
+                      sizes="(min-width: 640px) 16vw, 33vw"
+                      priority={gi === 0 && i < 6}
+                    />
                     <p className="mt-3 font-sans text-small font-medium leading-snug text-ink transition-colors duration-150 group-hover:text-accent">
                       {a.name}
                       {a.nameNative ? <span className="ml-2 font-normal text-light">{a.nameNative}</span> : null}
                     </p>
-                    {a.lifeDates ? <p className="tabular mt-1 font-sans text-[12px] text-meta">{a.lifeDates}</p> : null}
+                    {a.lifeDates ? <p className="tabular mt-1 font-sans text-[12px] text-meta">{formatLifeDates(a.lifeDates)}</p> : null}
                   </Tile>
                 </li>
               ))}

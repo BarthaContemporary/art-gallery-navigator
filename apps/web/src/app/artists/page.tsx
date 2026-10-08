@@ -7,7 +7,7 @@ import { UnderConstruction } from "@/components/under-construction";
 
 export const metadata: Metadata = {
   title: "Artists",
-  description: "Artists and makers represented by the gallery — Japanese and Indian works of art.",
+  description: "Artists and makers represented by the gallery: Japanese and Indian works of art.",
   robots: ARTISTS_UNDER_CONSTRUCTION ? { index: false, follow: false } : undefined,
 };
 

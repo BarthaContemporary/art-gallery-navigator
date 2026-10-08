@@ -29,9 +29,12 @@ const getClassifier = () => (classifier ??= unpackCascade(new Uint8Array(Buffer.
 /** Find the most confident face in an image buffer (any format sharp reads). */
 export async function detectPortraitFocus(input: Buffer): Promise<PortraitFocus> {
   const detectedAt = new Date().toISOString();
-  const meta = await sharp(input).rotate().metadata();
-  const W = meta.width ?? 0;
-  const H = meta.height ?? 0;
+  // metadata() reports the stored dimensions; after rotate() an EXIF
+  // orientation of 5 to 8 swaps them, and the working copy must match.
+  const meta = await sharp(input).metadata();
+  const swapped = (meta.orientation ?? 1) >= 5;
+  const W = (swapped ? meta.height : meta.width) ?? 0;
+  const H = (swapped ? meta.width : meta.height) ?? 0;
   if (!W || !H) return { ...FALLBACK, detectedAt };
   const scale = Math.min(1, WORK_PX / Math.max(W, H));
   const w = Math.max(1, Math.round(W * scale));

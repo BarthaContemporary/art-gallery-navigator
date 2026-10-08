@@ -9,6 +9,7 @@ import { ArtistPortrait, artistPicture } from "@/components/artist-portrait";
 import { ReadMore } from "@/components/read-more";
 import { WorksFoldout } from "@/components/works-foldout";
 import { JsonLd } from "@/components/json-ld";
+import { formatLifeDates } from "@/lib/life-dates";
 
 async function getArtist(slug: string): Promise<Artist | null> {
   return sanityFetch<Artist | null>({
@@ -30,7 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!a) return { title: "Artist not found" };
   const robots = ARTISTS_UNDER_CONSTRUCTION ? { index: false, follow: false } : undefined;
   const title = [a.name, a.nameNative].filter(Boolean).join(" ");
-  const description = a.bioShort?.slice(0, 200) ?? [a.lifeDates, a.country, a.period].filter(Boolean).join(", ") ?? undefined;
+  const description = a.bioShort?.slice(0, 200) ?? [formatLifeDates(a.lifeDates), a.country, a.period].filter(Boolean).join(", ") ?? undefined;
   const ogImage = artistPicture(a, 1200)?.src;
   return {
     robots,
@@ -61,7 +62,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
 
   const picture = artistPicture(a, 900);
   const facts = [
-    { label: "Dates", value: a.lifeDates },
+    { label: "Dates", value: formatLifeDates(a.lifeDates) },
     { label: "Country", value: a.country },
     { label: "Period", value: a.period },
   ].filter((f): f is { label: string; value: string } => !!f.value);
@@ -92,16 +93,19 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
       <div className="grid grid-cols-1 gap-y-8 md:grid-cols-12 md:gap-x-10 lg:gap-x-14">
         {picture ? (
           <figure className="w-full max-w-[240px] md:col-span-4 md:max-w-none">
-            <ArtistPortrait subject={a} width={900} sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 240px" priority />
+            {/* A small original is shown no larger than about its own size rather than blown up beside crisp type. */}
+            <div style={picture.nativeSide && picture.nativeSide < 416 ? { maxWidth: `${Math.max(280, picture.nativeSide)}px` } : undefined}>
+              <ArtistPortrait subject={a} width={900} sizes="(min-width: 1024px) 30vw, (min-width: 768px) 33vw, 240px" priority />
+            </div>
             {picture.kind === "detail" && a.placeholder?.title ? (
-              <figcaption className="mt-2 font-sans text-[12px] text-meta">Detail of {a.placeholder.title}</figcaption>
+              <figcaption className="mt-2 font-sans text-[12px] text-meta">{a.placeholder.title}, detail</figcaption>
             ) : a.portrait?.caption ? (
               <figcaption className="mt-2 font-sans text-[12px] text-meta">{a.portrait.caption}</figcaption>
             ) : null}
           </figure>
         ) : null}
 
-        <header className={picture ? "max-w-[var(--measure)] md:col-span-8 lg:col-span-7 lg:col-start-6" : "max-w-[var(--measure)] md:col-span-9"}>
+        <header className={picture ? "max-w-[var(--measure)] md:col-span-8 lg:col-span-8 lg:col-start-5" : "max-w-[var(--measure)] md:col-span-9"}>
           <h1 className="t-title">
             {a.name}
             {a.nameNative ? <span className="ml-3 text-light">{a.nameNative}</span> : null}
@@ -124,7 +128,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
             </div>
           ) : null}
           {bioLong.length > 0 ? (
-            <ReadMore className="mt-1">
+            <ReadMore className="mt-1" label={bioShort.length > 0 ? "Read more" : "Biography"}>
               <div className="flex flex-col gap-3 font-sans text-small text-body">
                 {bioLong.map((p, i) => (
                   <p key={i}>{p}</p>
@@ -137,7 +141,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
 
       {works.length > 0 ? (
         <section className="mt-16 md:mt-20">
-          <WorksFoldout works={works} label="Works" />
+          <WorksFoldout works={works} label="Works" tileLabel="work" />
         </section>
       ) : !ARTISTS_UNDER_CONSTRUCTION && shownIn.length === 0 && publications.length === 0 ? (
         <p className="mt-16 max-w-[var(--measure)] font-sans text-small text-meta md:mt-20">

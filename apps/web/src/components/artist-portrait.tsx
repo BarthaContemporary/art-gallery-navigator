@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { ratioUrl, type Artist, type SanityImage } from "@/lib/sanity";
+import { imageDimensions, ratioUrl, type Artist, type SanityImage } from "@/lib/sanity";
 
 type Subject = Pick<Artist, "name" | "portrait" | "placeholder">;
 
@@ -41,8 +41,8 @@ export function ArtistPortrait({
       ) : (
         <span
           aria-hidden
-          className="absolute bottom-[-0.05em] left-[7%] font-sans font-light leading-none text-light opacity-70 select-none"
-          style={{ fontSize: "50cqw" }}
+          className="absolute bottom-[4%] left-[7%] font-sans font-light leading-none text-light opacity-70 select-none"
+          style={{ fontSize: "28cqw" }}
         >
           {initialOf(subject.name)}
         </span>
@@ -51,20 +51,69 @@ export function ArtistPortrait({
   );
 }
 
+export type ArtistPicture = {
+  src: string;
+  alt: string;
+  kind: "portrait" | "detail";
+  /** Source pixels along the square's side, so a small original is not blown up. */
+  nativeSide: number | null;
+};
+
 /** The square for an artist (portraits black and white, work details in colour), or null when there is no picture to make one from. */
-export function artistPicture(subject: Subject, width: number): { src: string; alt: string; kind: "portrait" | "detail" } | null {
+export function artistPicture(subject: Subject, width: number): ArtistPicture | null {
   const name = subject.name ?? "Artist";
   if (subject.portrait?.asset) {
-    const src = ratioUrl(subject.portrait, 1, width, { saturation: -100 });
-    if (src) return { src, alt: name, kind: "portrait" };
+    const framed = faceCrop(subject.portrait);
+    const src = ratioUrl(subject.portrait, 1, width, { saturation: -100, crop: framed?.crop });
+    if (src) {
+      const dims = imageDimensions(subject.portrait);
+      return { src, alt: name, kind: "portrait", nativeSide: framed?.side ?? (dims ? Math.min(dims.width, dims.height) : null) };
+    }
   }
   const work = subject.placeholder;
   if (work?.image?.asset) {
+    const dims = imageDimensions(work.image);
     const src = ratioUrl(work.image, 1, width, { crop: detailCrop(work.image) });
-    if (src) return { src, alt: work.title ? `${work.title} by ${name}, detail` : `A work by ${name}, detail`, kind: "detail" };
+    if (src) {
+      return {
+        src,
+        alt: work.title ? `${work.title} by ${name}, detail` : `A work by ${name}, detail`,
+        kind: "detail",
+        nativeSide: dims ? Math.round(Math.min(dims.width, dims.height) * DETAIL_SPAN) : null,
+      };
+    }
   }
   return null;
 }
+
+/**
+ * A square around the face. The CDN's focal point only slides a full-height
+ * (or full-width) window across the picture, so a face near an edge stays
+ * near that edge; this takes the face box the inventory detected and cuts
+ * the largest square that keeps the face at the centre, never tighter than
+ * head and shoulders and never smaller than half the short side. Without a
+ * face box, the focal point alone does what it can.
+ */
+function faceCrop(image: SanityImage): { crop: NonNullable<SanityImage["crop"]>; side: number } | null {
+  const dims = imageDimensions(image);
+  const hs = image.hotspot;
+  if (!dims || !hs || [hs.x, hs.y, hs.width, hs.height].some((v) => typeof v !== "number")) return null;
+  const { width: W, height: H } = dims;
+  const short = Math.min(W, H);
+  const cx = hs.x! * W;
+  const cy = hs.y! * H;
+  const face = Math.max(hs.width! * W, hs.height! * H);
+  const centred = Math.min(short, 2 * cx, 2 * (W - cx), 2 * cy, 2 * (H - cy));
+  const side = Math.round(Math.min(short, Math.max(centred, 2.4 * face, 0.5 * short)));
+  const left = Math.round(Math.min(Math.max(cx - side / 2, 0), W - side));
+  const top = Math.round(Math.min(Math.max(cy - side / 2, 0), H - side));
+  return {
+    crop: { left: left / W, top: top / H, right: (W - left - side) / W, bottom: (H - top - side) / H },
+    side,
+  };
+}
+
+const DETAIL_SPAN = 0.5;
 
 /**
  * The window on a work that stands in for a portrait: the middle half of
@@ -72,7 +121,7 @@ export function artistPicture(subject: Subject, width: number): { src: string; a
  * tile reads as a detail rather than a thumbnail of the whole object.
  */
 function detailCrop(image: SanityImage): NonNullable<SanityImage["crop"]> {
-  const SPAN = 0.5;
+  const SPAN = DETAIL_SPAN;
   const cx = typeof image.hotspot?.x === "number" ? image.hotspot.x : 0.5;
   const cy = typeof image.hotspot?.y === "number" ? image.hotspot.y : 0.5;
   const left = Math.min(Math.max(cx - SPAN / 2, 0), 1 - SPAN);
@@ -82,6 +131,6 @@ function detailCrop(image: SanityImage): NonNullable<SanityImage["crop"]> {
 
 /** The letter an artist files under: the first letter of the name, accents folded, as in the A to Z. */
 export function initialOf(name: string | null | undefined): string {
-  const first = (name ?? "").trim().normalize("NFD").replace(/[̀-ͯ]/g, "")[0] ?? "";
+  const first = Array.from((name ?? "").trim().normalize("NFD").replace(/[̀-ͯ]/g, ""))[0] ?? "";
   return /[a-z]/i.test(first) ? first.toUpperCase() : first;
 }

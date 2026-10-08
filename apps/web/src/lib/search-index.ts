@@ -1,4 +1,5 @@
 import groq from "groq";
+import { formatLifeDates } from "@/lib/life-dates";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 import { sanityFetch, type SanityImage } from "@/lib/sanity";
 
@@ -87,7 +88,7 @@ export async function loadSearchIndex(): Promise<SearchHit[]> {
       kind: "artist",
       id: a._id,
       text: [a.name, a.nameNative].filter(Boolean).join(" "),
-      meta: a.lifeDates,
+      meta: formatLifeDates(a.lifeDates),
       href: `/artists/${a.slug}`,
       image: a.portrait,
       ratio: 1,

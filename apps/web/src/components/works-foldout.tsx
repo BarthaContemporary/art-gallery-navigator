@@ -49,7 +49,16 @@ function writeParam(id: string | null) {
   window.history.replaceState(window.history.state, "", url);
 }
 
-export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; label?: string | null }) {
+export function WorksFoldout({
+  works,
+  label = "Works",
+  tileLabel = "artist",
+}: {
+  works: GridWork[];
+  label?: string | null;
+  /** What the line under each tile says: the artist (default), or the work itself on the artist's own page. */
+  tileLabel?: "artist" | "work";
+}) {
   const cols = useColumns();
   const [selected, setSelected] = useState<string | null>(null);
   // Panel content stays mounted while it folds closed.
@@ -164,7 +173,7 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                 />
                 <p className="mt-3 font-sans text-ui font-medium leading-snug text-ink transition-colors duration-150 group-hover:text-accent">
-                  {w.artist ?? workCaption(w)}
+                  {tileLabel === "work" ? workCaption(w) : (w.artist ?? workCaption(w))}
                 </p>
                 {w.status ? (
                   <p className="mt-1 font-sans text-small text-meta">{w.status === "sold" ? "Sold" : "Available"}</p>
