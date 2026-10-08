@@ -152,7 +152,9 @@ const exhibition = {
       type: "array",
       description:
         "Current stock, synced from the inventory. For past exhibitions use the catalogue below.",
-      of: [{ type: "reference", to: [{ type: "work" }] }],
+      // Weak: works are withdrawn by the inventory sync, and a strong reference
+      // would block that deletion and jam the queue behind it.
+      of: [{ type: "reference", to: [{ type: "work" }], weak: true }],
     },
     {
       name: "workLists",
@@ -160,7 +162,7 @@ const exhibition = {
       type: "array",
       description:
         "Show every web-visible work in these inventory lists, after the works chosen above. A list that changes in the inventory updates here by itself.",
-      of: [{ type: "reference", to: [{ type: "workList" }] }],
+      of: [{ type: "reference", to: [{ type: "workList" }], weak: true }],
     },
     {
       name: "workOrder",

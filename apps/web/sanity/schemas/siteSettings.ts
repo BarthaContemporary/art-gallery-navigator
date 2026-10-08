@@ -112,7 +112,7 @@ const siteSettings = {
       name: "featuredWorks",
       title: "Featured works (home page)",
       type: "array",
-      of: [{ type: "reference", to: [{ type: "work" }] }],
+      of: [{ type: "reference", to: [{ type: "work" }], weak: true }],
     },
     {
       name: "facebookPixelId",

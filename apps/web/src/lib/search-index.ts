@@ -57,7 +57,7 @@ const indexQuery = groq`{
   "works": *[_type == "work" && defined(slug.current)] | order(_createdAt desc){
     _id, title, maker, makerNative, stockNumber, medium, available, "slug": slug.current,
     "image": images[0]{ asset, hotspot },
-    "eventSlug": *[_type == "exhibition" && !coalesce(hidden, false) && references(^._id)][0].slug.current,
+    "eventSlug": *[_type == "exhibition" && !coalesce(hidden, false) && (references(^._id) || ^._id in workLists[]->works[]._ref)][0].slug.current,
     "artistSlug": artist->slug.current
   },
   "publications": *[_type == "publication" && defined(slug.current) && !coalesce(hidden, false)]

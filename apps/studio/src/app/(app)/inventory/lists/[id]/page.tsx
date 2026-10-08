@@ -49,13 +49,14 @@ export default async function InventoryListDetail({
 
   const { data: list } = await supabase
     .from("piece_lists")
-    .select("id, name, description, is_dynamic, filter_rules")
+    .select("id, name, description, is_dynamic, filter_rules, web_visible")
     .eq("id", id)
     .maybeSingle();
   if (!list) notFound();
 
   const isDynamic = Boolean(list.is_dynamic);
   const rules = (list.filter_rules ?? {}) as FilterRules;
+  const listOnWebsite = Boolean((list as { web_visible?: boolean | null }).web_visible);
 
   // ---- Members -------------------------------------------------------------
   let items: PieceLite[] = [];
@@ -401,6 +402,22 @@ export default async function InventoryListDetail({
     );
   }
 
+  async function toggleListOnWebsite(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const to = formData.get("to") === "on";
+    const { error } = await db.from("piece_lists").update({ web_visible: to }).eq("id", id);
+    if (error) redirect(`/inventory/lists/${id}?error=${encodeURIComponent(error.message)}`);
+    revalidatePath(`/inventory/lists/${id}`);
+    redirect(
+      `/inventory/lists/${id}?notice=${encodeURIComponent(
+        to
+          ? "This list is now available to events on the website; its web-visible works follow within a minute."
+          : "This list has been withdrawn from the website.",
+      )}`,
+    );
+  }
+
   async function deleteList() {
     "use server";
     const db = await getSupabase();
@@ -447,6 +464,24 @@ export default async function InventoryListDetail({
             {items.length} work{items.length === 1 ? "" : "s"}
             {items.length > 0 ? ` · ${onWebsite} on the website` : ""}
           </p>
+          {/* Whether the list itself is available to events on the website.
+              Independent of the works' own visibility: a list on the website
+              only ever shows its web-visible works. */}
+          <form action={toggleListOnWebsite}>
+            <input type="hidden" name="to" value={listOnWebsite ? "" : "on"} />
+            <button
+              type="submit"
+              role="switch"
+              aria-checked={listOnWebsite}
+              title={listOnWebsite ? "Events on the website can use this list — click to withdraw it" : "Not available on the website — click to let events use it"}
+              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[12px] font-medium ${
+                listOnWebsite ? "border-status-green/60 bg-control text-ink-mid" : "border-line-control bg-control text-ink-muted"
+              }`}
+            >
+              <span aria-hidden className="inline-block h-2 w-2 rounded-full" style={{ background: listOnWebsite ? "var(--jvb-status-green)" : "var(--jvb-danger)" }} />
+              {listOnWebsite ? "List on website — yes" : "List on website — no"}
+            </button>
+          </form>
           <PublishListButton action={setListVisibility} count={items.length} onCount={onWebsite} visible />
           <PublishListButton action={setListVisibility} count={items.length} onCount={onWebsite} visible={false} />
           {/* Says what the dot means, and only appears once there is one. */}

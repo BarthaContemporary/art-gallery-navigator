@@ -40,6 +40,7 @@ type Hit = {
   location_id: string | null;
   ledger: string;
   framed: boolean | null;
+  web_visible?: boolean | null;
 };
 
 /** Resolve a saved view's register rule to a value to match, or null for both. */
@@ -76,6 +77,7 @@ export async function resolveListPieceIds(
   // the calls used here.
   supabase: SupabaseClient,
   list: ListLike,
+  opts: { webVisibleOnly?: boolean } = {},
 ): Promise<string[]> {
   if (!list.is_dynamic) {
     const { data } = await supabase
@@ -104,6 +106,9 @@ export async function resolveListPieceIds(
     if (rules.category) f = f.filter((h) => facetMatches(rules.category, h.category_id));
     if (rules.location) f = f.filter((h) => facetMatches(rules.location, h.location_id));
     if (rules.framed) f = f.filter((h) => h.framed === true);
+    // For the website the cap must apply AFTER the visibility filter, or a
+    // large live list would hide older web-visible works.
+    if (opts.webVisibleOnly) f = f.filter((h) => h.web_visible === true);
     if (excluded.size) f = f.filter((h) => !excluded.has(h.id));
     return f.slice(0, LIVE_LIMIT).map((h) => h.id);
   }
@@ -115,6 +120,7 @@ export async function resolveListPieceIds(
     .limit(LIVE_LIMIT);
   const led = ledgerOf(rules);
   if (led) query = query.eq("ledger", led);
+  if (opts.webVisibleOnly) query = query.eq("web_visible", true);
   query = applyFacet(query, "status", rules.status);
   query = applyFacet(query, "category_id", rules.category, { nullable: true });
   query = applyFacet(query, "location_id", rules.location, { nullable: true });

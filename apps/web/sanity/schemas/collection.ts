@@ -23,7 +23,7 @@ const collection = {
       name: "works",
       title: "Works",
       type: "array",
-      of: [{ type: "reference", to: [{ type: "work" }] }],
+      of: [{ type: "reference", to: [{ type: "work" }], weak: true }],
     },
   ],
   preview: {

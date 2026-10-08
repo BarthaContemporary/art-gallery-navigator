@@ -17,7 +17,9 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   studio `/api/sync/sanity` at once (secret in `sync_config`), cron drains every
   10 min as fallback. Works publish only when `web_visible`; makers publish
   unless `web_visible` is switched off; inventory lists sync as `workList`
-  docs (web-visible members only) and events may reference them.
+  docs only when `piece_lists.web_visible` ("List on website" switch on the
+  list page), carrying web-visible members only; switching it off deletes
+  the Sanity doc. Events may reference lists through `workLists`.
 - **Artist pages**: `ARTISTS_UNDER_CONSTRUCTION` in `apps/web/src/lib/site.ts`
   is the one switch that hides or restores the whole artist section; do not
   add artist links that bypass it.

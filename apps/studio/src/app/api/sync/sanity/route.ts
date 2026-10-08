@@ -127,7 +127,7 @@ async function processBatch(
   const pieces = new Map<string, PieceRow | null>();
   for (const pieceId of pieceIds) {
     const ref = refs.get(pieceId);
-    const { data } = await supabase
+    const { data, error: pieceErr } = await supabase
       .from(ref?.table ?? "pieces")
       .select(
         `id, stock_number, title, medium, period, year, origin_region, description,
@@ -136,6 +136,8 @@ async function processBatch(
       )
       .eq("id", pieceId)
       .maybeSingle();
+    // A failed read must not be mistaken for "gone": leave the claim to lapse.
+    if (pieceErr) return { ok: false, detail: pieceErr.message };
     pieces.set(pieceId, (data as unknown as PieceRow | null) ?? null);
   }
 
@@ -210,12 +212,16 @@ async function processBatch(
   const assetCache = await loadAssetCache(supabase, assetKeys);
 
   const mutations: unknown[] = [];
+  // Deletes go in their own calls: Sanity refuses to delete a document that a
+  // strong reference still points at, and one such row must not wedge the
+  // whole batch behind it.
+  const deletes: { delete: { id: string } }[] = [];
 
   // Artists first so the works' references resolve in the same transaction.
   for (const makerId of makerIds) {
     const m = makers.get(makerId) ?? null;
     if (!makerPublished(m)) {
-      mutations.push({ delete: { id: artistDocId(makerId) } });
+      deletes.push({ delete: { id: artistDocId(makerId) } });
       continue;
     }
     const name = m!.romanized_name?.trim() || m!.display_name;
@@ -245,7 +251,7 @@ async function processBatch(
     const piece = pieces.get(pieceId) ?? null;
     const docId = workDocId(pieceId);
     if (!piece || !piece.web_visible) {
-      mutations.push({ delete: { id: docId } });
+      deletes.push({ delete: { id: docId } });
       continue;
     }
     const images: unknown[] = [];
@@ -300,16 +306,20 @@ async function processBatch(
   // web-visible works, so an event can show a whole list. Membership is
   // resolved here (live rules included) by the same resolver the studio uses.
   for (const listId of listIds) {
-    const { data: list } = await supabase
+    const { data: list, error: listErr } = await supabase
       .from("piece_lists")
-      .select("id, name, description, is_dynamic, filter_rules, updated_at")
+      .select("id, name, description, is_dynamic, filter_rules, updated_at, web_visible")
       .eq("id", listId)
       .maybeSingle();
-    if (!list) {
-      mutations.push({ delete: { id: listDocId(listId) } });
+    if (listErr) return { ok: false, detail: listErr.message };
+    // Deleted, or not marked for the website: the document goes.
+    if (!list || !list.web_visible) {
+      deletes.push({ delete: { id: listDocId(listId) } });
       continue;
     }
-    const memberIds = await resolveListPieceIds(supabase, list as ListLike);
+    // Resolved web-visible-only, so the live-list cap applies after the
+    // visibility filter; static members are then checked the same way.
+    const memberIds = await resolveListPieceIds(supabase, list as ListLike, { webVisibleOnly: true });
     const visible = await selectInChunks<{ id: string }>(memberIds, (chunk) =>
       supabase.from("vw_pieces_list").select("id").in("id", chunk).eq("web_visible", true),
     );
@@ -352,13 +362,26 @@ async function processBatch(
     return { ok: false, detail: result.detail };
   }
 
+  // Deletes one by one: a document still strongly referenced from an event
+  // (references saved before the schema made them weak) fails on its own,
+  // is recorded as an error against that entity, and does not hold up the rest.
+  const deleteErrors = new Map<string, string>();
+  for (const d of deletes) {
+    const r = await sanityMutate(env, [d]);
+    if (!r.ok) deleteErrors.set(d.delete.id, r.detail);
+  }
+
   const now = new Date().toISOString();
   await supabase
     .from("sync_outbox")
     .update({ processed_at: now })
     .in("id", rows.map((o) => o.id));
   await supabase.from("sanity_sync_state").upsert(
-    stateRows.map((r) => ({ ...r, status: "ok", error: null, last_pushed_at: now })),
+    stateRows.map((r) =>
+      deleteErrors.has(r.sanity_doc_id)
+        ? { ...r, status: "error", error: `Could not remove from the website (still referenced by an event?): ${deleteErrors.get(r.sanity_doc_id)}` }
+        : { ...r, status: "ok", error: null, last_pushed_at: now },
+    ),
     { onConflict: "entity_type,entity_id" },
   );
 

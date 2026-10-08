@@ -197,9 +197,14 @@ export default async function AdminPage({
       }
       rows.unshift(...(data ?? []).map((r) => ({ entity_type: "maker", entity_id: r.id, op: "upsert" })));
     }
-    // Lists last: their references point at the works pushed above.
+    // Lists last: their references point at the works pushed above. Only
+    // lists marked for the website are published.
     {
-      const { data } = await admin.from("piece_lists").select("id");
+      const { data, error } = await admin.from("piece_lists").select("id").eq("web_visible", true);
+      if (error) {
+        await flashNotice(`Could not list website lists: ${error.message}`);
+        redirect("/admin");
+      }
       rows.push(...(data ?? []).map((r) => ({ entity_type: "list", entity_id: r.id, op: "upsert" })));
     }
     for (let i = 0; i < rows.length; i += 500) {
@@ -229,14 +234,14 @@ export default async function AdminPage({
           break;
         }
         if (!body.processed) break;
-        pushed += body.pieces ?? body.processed;
+        pushed += body.processed ?? 0;
       }
     }
     const remaining = Math.max(0, rows.length - pushed);
     await flashNotice(
       failure
         ? `Queued ${rows.length} works; pushing stopped on an error (${failure}). The cron will retry.`
-        : `Queued ${rows.length} works for the website; ${pushed} pushed now${remaining ? `, ${remaining} follow via the cron within the hour` : ""}.`,
+        : `Queued ${rows.length} entries (works, makers, lists) for the website; ${pushed} pushed now${remaining ? `, ${remaining} follow via the cron within the hour` : ""}.`,
     );
     revalidatePath("/admin");
     redirect("/admin");
