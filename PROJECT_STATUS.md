@@ -32,7 +32,7 @@ vars are referenced by name only.
 - Weekly object-storage replica timer installed and first run verified.
 
 ## Done
-- Artist pages rebuilt (still behind `ARTISTS_UNDER_CONSTRUCTION`): every
+- Artist pages rebuilt and open again (`ARTISTS_UNDER_CONSTRUCTION` false): every
   portrait is black and white on the CDN and framed on the face. The
   studio detects the face (vendored pico cascade, `lib/face`) when a
   portrait is processed; `makers.portrait_focus` (0084) carries it and the
@@ -48,9 +48,9 @@ vars are referenced by name only.
   dedupe works across manual picks and lists and keep one order
   (`workOrder`, "Collect works" button); the fields need the next Studio
   deploy to appear. Event banners now use only uploaded slides.
-- Artist pages locked behind `ARTISTS_UNDER_CONSTRUCTION` in
-  `apps/web/src/lib/site.ts` (overlay, nav disabled, links plain, out of
-  search/sitemap/llms, noindex) — flip to false to reopen everything. Event
+- `ARTISTS_UNDER_CONSTRUCTION` in `apps/web/src/lib/site.ts` can lock the
+  artist section again in one go (overlay, nav disabled, links plain, out of
+  search/sitemap/llms, noindex); it is off since 8 October. Event
   banners are slow slideshows of the event's pictures; catalogue links prefer
   the publication page. Inventory lists can be put on / taken off the website
   in one click. Catalogue entries in Sanity are linked to inventory artists
