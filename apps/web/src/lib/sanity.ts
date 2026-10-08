@@ -203,6 +203,8 @@ export interface Exhibition {
   works: Work[] | null;
   /** Inventory lists attached to the event; their web-visible works follow the chosen works. */
   workLists: { _id: string; name: string | null; works: Work[] | null }[] | null;
+  /** Editor-arranged order across every source; works not listed follow in source order. */
+  workOrder: string[] | null;
   catalogue: CatalogueEntry[] | null;
   seo: Seo | null;
   /** Neighbours in the chronological archive, for the ← / → links. */
@@ -509,6 +511,7 @@ export const exhibitionBySlugQuery = groq`*[_type == "exhibition" && slug.curren
   "pdfUrl": pdf.asset->url,
   works[]->${workFields},
   workLists[]->{ _id, name, works[]->${workFields} },
+  "workOrder": workOrder[]._ref,
   catalogue[]${catalogueFields},
   seo{ title, description, ogImage{ asset } },
   "relatedPublication": *[_type == "publication" && references(^._id) && !coalesce(hidden, false)][0]${eventNeighbour},

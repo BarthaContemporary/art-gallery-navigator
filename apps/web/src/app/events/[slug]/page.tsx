@@ -73,9 +73,18 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
       seenWork.add(w._id);
       return true;
     });
+  const sourceWorks: Work[] = [
+    ...uniqueWorks(ev.works),
+    ...(ev.workLists ?? []).flatMap((l) => uniqueWorks(l?.works)),
+  ];
+  // The editor's arrangement wins; anything not yet arranged follows in source order.
+  const rank = new Map((ev.workOrder ?? []).map((id, i) => [id, i]));
+  const arranged = sourceWorks
+    .map((w, i) => ({ w, key: rank.has(w._id) ? rank.get(w._id)! : rank.size + i }))
+    .sort((a, b) => a.key - b.key)
+    .map((x) => x.w);
   const works: GridWork[] = [
-    ...uniqueWorks(ev.works).map(workToGrid).filter((w): w is GridWork => w !== null),
-    ...(ev.workLists ?? []).flatMap((l) => uniqueWorks(l?.works).map(workToGrid).filter((w): w is GridWork => w !== null)),
+    ...arranged.map(workToGrid).filter((w): w is GridWork => w !== null),
     ...(ev.catalogue ?? []).filter((c) => c?.image).map(catalogueToGrid),
   ];
 
@@ -120,51 +129,66 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
       ) : null}
 
       <div className="page pt-12 pb-24 md:pt-16">
-        <header className="max-w-[380px]">
-          <p className="eyebrow">{eventEyebrow(ev)}</p>
-          <h1 className="t-title mt-3">{ev.title}</h1>
-          {ev.subtitle ? <p className="mt-3 font-sans text-body text-body">{ev.subtitle}</p> : null}
-          {dates || ev.stand ? (
-            <p className="mt-3 font-sans text-small text-meta">{[dates, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join(" · ")}</p>
-          ) : null}
-          {privateViews.length > 0 ? (
-            <ul className="mt-2 flex flex-col gap-1 font-sans text-small text-meta">
-              {privateViews.map((v) => (
-                <li key={v._key}>
-                  <span className="text-ink">{v.label ?? "Private view"}</span>
-                  {" · "}
-                  {privateViewWhen(v.start, v.end)}
-                  {v.access ? ` · ${ACCESS_LABEL[v.access]}` : null}
-                  {v.note ? ` · ${v.note}` : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {ev.intro && ev.intro.length > 0 ? (
-            <div className="prose-event mt-6">
-              <PortableText value={ev.intro} />
-            </div>
-          ) : null}
-          {ev.longText && ev.longText.length > 0 ? (
-            <ReadMore className="mt-1">
+        {/* Desktop: the facts of the event on the left, the introduction at a
+            reading measure on the right; one column on phones. */}
+        <header className="grid grid-cols-1 gap-10 md:grid-cols-12 md:gap-x-10 lg:gap-x-14">
+          <div className="md:col-span-5 lg:col-span-4">
+            <p className="eyebrow">{eventEyebrow(ev)}</p>
+            <h1 className="t-title mt-3">{ev.title}</h1>
+            {ev.subtitle ? <p className="mt-3 font-sans text-body text-body">{ev.subtitle}</p> : null}
+            {dates || ev.stand ? (
+              <p className="mt-3 font-sans text-small text-meta">
+                {[dates, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join(" · ")}
+              </p>
+            ) : null}
+            {privateViews.length > 0 ? (
+              <section aria-labelledby="private-views" className="mt-8 border-t border-hairline pt-5">
+                <h2 id="private-views" className="font-sans text-small font-medium text-ink">
+                  Private views and openings
+                </h2>
+                <ul className="mt-3 flex flex-col gap-3">
+                  {privateViews.map((v) => (
+                    <li key={v._key} className="font-sans text-small leading-[1.6]">
+                      <p className="text-ink">
+                        {v.label ?? "Private view"}
+                        {v.access ? <span className="text-meta"> · {ACCESS_LABEL[v.access]}</span> : null}
+                      </p>
+                      <p className="text-meta">{privateViewWhen(v.start, v.end)}</p>
+                      {v.note ? <p className="text-meta">{v.note}</p> : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </div>
+
+          <div className="max-w-[var(--measure)] md:col-span-7 lg:col-span-7 lg:col-start-6">
+            {ev.intro && ev.intro.length > 0 ? (
               <div className="prose-event">
-                <PortableText value={ev.longText} />
+                <PortableText value={ev.intro} />
               </div>
-            </ReadMore>
-          ) : null}
-          {catalogueHref ? (
-            <p className="mt-3">
-              {publicationHref ? (
-                <Link href={publicationHref} className="link-accent inline-flex min-h-[44px] items-center">
-                  {ev.relatedPublication?.title ? `Catalogue: ${ev.relatedPublication.title} →` : "Catalogue →"}
-                </Link>
-              ) : (
-                <a href={catalogueHref} target="_blank" rel="noopener noreferrer" className="link-accent inline-flex min-h-[44px] items-center">
-                  Catalogue (PDF) ↓
-                </a>
-              )}
-            </p>
-          ) : null}
+            ) : null}
+            {ev.longText && ev.longText.length > 0 ? (
+              <ReadMore className="mt-1">
+                <div className="prose-event">
+                  <PortableText value={ev.longText} />
+                </div>
+              </ReadMore>
+            ) : null}
+            {catalogueHref ? (
+              <p className="mt-4">
+                {publicationHref ? (
+                  <Link href={publicationHref} className="link-accent inline-flex min-h-[44px] items-center">
+                    {ev.relatedPublication?.title ? `Catalogue: ${ev.relatedPublication.title} →` : "Catalogue →"}
+                  </Link>
+                ) : (
+                  <a href={catalogueHref} target="_blank" rel="noopener noreferrer" className="link-accent inline-flex min-h-[44px] items-center">
+                    Catalogue (PDF) ↓
+                  </a>
+                )}
+              </p>
+            ) : null}
+          </div>
         </header>
 
         {works.length > 0 ? (

@@ -1,3 +1,4 @@
+import { WorkOrderInput } from "../components/WorkOrderInput";
 /**
  * `exhibition` — a gallery show or art-fair presentation. The core of the
  * public site. Editors curate synced `work` documents into each exhibition.
@@ -160,6 +161,15 @@ const exhibition = {
       description:
         "Show every web-visible work in these inventory lists, after the works chosen above. A list that changes in the inventory updates here by itself.",
       of: [{ type: "reference", to: [{ type: "workList" }] }],
+    },
+    {
+      name: "workOrder",
+      title: "Order of works on the page",
+      type: "array",
+      description:
+        "Press “Collect works” to gather the hand-picked works and every list’s works here, then drag to arrange. Works not yet collected follow at the end in source order.",
+      of: [{ type: "reference", to: [{ type: "work" }], weak: true }],
+      components: { input: WorkOrderInput },
     },
     {
       name: "catalogue",
