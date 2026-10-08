@@ -12,7 +12,7 @@ export const siteUrl = (
  * sitemap and llms.txt, and robots disallows the section. Flip to false to
  * bring everything back in one go.
  */
-export const ARTISTS_UNDER_CONSTRUCTION = true;
+export const ARTISTS_UNDER_CONSTRUCTION = false;
 
 /** Fallback until Sanity siteSettings is populated. */
 export const fallbackGalleryName = "Joost van den Bergh";
