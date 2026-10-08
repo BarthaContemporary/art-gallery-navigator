@@ -4,11 +4,11 @@ import { ratioUrl, type Artist, type SanityImage } from "@/lib/sanity";
 type Subject = Pick<Artist, "name" | "portrait" | "placeholder">;
 
 /**
- * The square an artist is known by on the site, always in black and white:
- * the portrait, framed on the face by the hotspot the inventory sets; or,
- * with no portrait, a close detail of one of the artist's works; or, with
- * neither, the initial of the name set light on the field ground. The
- * initial is decoration (the name stands beside every tile), so it is
+ * The square an artist is known by on the site: the portrait in black and
+ * white, framed on the face by the hotspot the inventory sets; or, with no
+ * portrait, a close detail of one of the artist's works in its own colours;
+ * or, with neither, the initial of the name set light on the field ground.
+ * The initial is decoration (the name stands beside every tile), so it is
  * hidden from assistive technology.
  */
 export function ArtistPortrait({
@@ -51,7 +51,7 @@ export function ArtistPortrait({
   );
 }
 
-/** The black-and-white square for an artist, or null when there is no picture to make one from. */
+/** The square for an artist (portraits black and white, work details in colour), or null when there is no picture to make one from. */
 export function artistPicture(subject: Subject, width: number): { src: string; alt: string; kind: "portrait" | "detail" } | null {
   const name = subject.name ?? "Artist";
   if (subject.portrait?.asset) {
@@ -60,7 +60,7 @@ export function artistPicture(subject: Subject, width: number): { src: string; a
   }
   const work = subject.placeholder;
   if (work?.image?.asset) {
-    const src = ratioUrl(work.image, 1, width, { saturation: -100, crop: detailCrop(work.image) });
+    const src = ratioUrl(work.image, 1, width, { crop: detailCrop(work.image) });
     if (src) return { src, alt: work.title ? `${work.title} by ${name}, detail` : `A work by ${name}, detail`, kind: "detail" };
   }
   return null;
