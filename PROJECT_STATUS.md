@@ -32,6 +32,15 @@ vars are referenced by name only.
 - Weekly object-storage replica timer installed and first run verified.
 
 ## Done
+- Artist pages rebuilt (still behind `ARTISTS_UNDER_CONSTRUCTION`): every
+  artist square is black and white on the CDN and framed on the face. The
+  studio detects the face (vendored pico cascade, `lib/face`) when a
+  portrait is processed; `makers.portrait_focus` (0084) carries it and the
+  sync writes the Sanity hotspot, detecting older portraits on their next
+  pass. Without a portrait a detail of a work stands in; without any
+  picture, the initial on the field. Index groups A to Z with a letter
+  row; the artist page sets the square beside name, facts, biography, and
+  dates the exhibitions and publications.
 - Events can show whole inventory lists: lists sync to Sanity as `workList`
   documents (outbox + 0081–0083 triggers; re-pushed on list/membership/
   visibility changes) once "List on website" is switched on for the list;
