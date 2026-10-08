@@ -72,8 +72,7 @@ export function HeroSlideshow({
     <section
       aria-roledescription="carousel"
       aria-label={label}
-      className="relative w-full overflow-hidden bg-field"
-      style={{ aspectRatio: String(RATIO.hero) }}
+      className="relative w-full"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -95,6 +94,7 @@ export function HeroSlideshow({
       }}
       tabIndex={count > 1 ? 0 : -1}
     >
+      <div className="relative w-full overflow-hidden bg-field" style={{ aspectRatio: String(RATIO.hero) }}>
       {slides.map((s, i) => (
         <div
           key={s.key}
@@ -124,22 +124,6 @@ export function HeroSlideshow({
         <Link href={active.href} className="absolute inset-0 z-[1]" aria-label={active.title} />
       ) : null}
 
-      {caption ? (
-        <div className="pointer-events-none absolute bottom-0 left-0 z-[2] max-w-[min(520px,92%)] bg-white/85 px-5 py-4 backdrop-blur-[2px] md:bottom-6 md:left-6 md:px-7 md:py-6">
-          <p className="eyebrow">{active.eyebrow}</p>
-          <h2 className="mt-1.5 font-sans text-[20px] font-light leading-tight text-ink md:text-[22px]">
-            {active.href ? (
-              <Link href={active.href} className="pointer-events-auto hover:text-accent">
-                {active.title}
-              </Link>
-            ) : (
-              active.title
-            )}
-          </h2>
-          {active.meta ? <p className="mt-1.5 whitespace-pre-line font-sans text-small text-meta">{active.meta}</p> : null}
-        </div>
-      ) : null}
-
       {count > 1 ? (
         <ol className="absolute right-4 bottom-4 z-[3] flex gap-1.5 md:right-6 md:bottom-6" aria-label="Slides">
           {slides.map((s, i) => (
@@ -166,6 +150,28 @@ export function HeroSlideshow({
             </li>
           ))}
         </ol>
+      ) : null}
+      </div>
+
+      {/* The caption overlays the picture from md up; on a phone the 16:9
+          frame is only a few hundred pixels tall, so it sits beneath the
+          image instead, at a smaller size, and the picture stays clear. */}
+      {caption ? (
+        <div className="pointer-events-none z-[2] max-w-[min(520px,92%)] px-4 pt-3 md:absolute md:bottom-6 md:left-6 md:bg-white/85 md:px-7 md:py-6 md:backdrop-blur-[2px]">
+          <p className="eyebrow">{active.eyebrow}</p>
+          <h2 className="mt-1 font-sans text-[16px] font-light leading-tight text-ink md:mt-1.5 md:text-[22px]">
+            {active.href ? (
+              <Link href={active.href} className="pointer-events-auto hover:text-accent">
+                {active.title}
+              </Link>
+            ) : (
+              active.title
+            )}
+          </h2>
+          {active.meta ? (
+            <p className="mt-1 whitespace-pre-line font-sans text-[12px] text-meta md:mt-1.5 md:text-small">{active.meta}</p>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );
