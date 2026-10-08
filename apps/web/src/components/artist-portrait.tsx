@@ -4,10 +4,10 @@ import { imageDimensions, ratioUrl, type Artist, type SanityImage } from "@/lib/
 type Subject = Pick<Artist, "name" | "portrait" | "placeholder">;
 
 /**
- * The square an artist is known by on the site: the portrait in black and
- * white, framed on the face by the hotspot the inventory sets; or, with no
- * portrait, a close detail of one of the artist's works in its own colours;
- * or, with neither, the initial of the name set light on the field ground.
+ * The square an artist is known by on the site, always in black and white:
+ * the portrait, framed on the face by the hotspot the inventory sets; or,
+ * with no portrait, a close detail of one of the artist's works; or, with
+ * neither, the initial of the name set light on the field ground.
  * The initial is decoration (the name stands beside every tile), so it is
  * hidden from assistive technology.
  */
@@ -17,7 +17,6 @@ export function ArtistPortrait({
   sizes,
   priority,
   decorative = false,
-  monochrome = false,
   className = "",
 }: {
   subject: Subject;
@@ -27,11 +26,9 @@ export function ArtistPortrait({
   priority?: boolean;
   /** True when the name sits beside the square in the same link or figure caption, so the image needs no text of its own. */
   decorative?: boolean;
-  /** A stand-in work detail in black and white as well (the artist page); portraits always are. */
-  monochrome?: boolean;
   className?: string;
 }) {
-  const picture = artistPicture(subject, width, { monochrome });
+  const picture = artistPicture(subject, width);
   return (
     <div className={`relative aspect-square w-full overflow-hidden bg-field ${className}`} style={{ containerType: "inline-size" }}>
       {picture ? (
@@ -64,8 +61,8 @@ export type ArtistPicture = {
   nativeSide: number | null;
 };
 
-/** The square for an artist (portraits black and white, work details in colour unless `monochrome`), or null when there is no picture to make one from. */
-export function artistPicture(subject: Subject, width: number, opts: { monochrome?: boolean } = {}): ArtistPicture | null {
+/** The black-and-white square for an artist, or null when there is no picture to make one from. */
+export function artistPicture(subject: Subject, width: number): ArtistPicture | null {
   const name = subject.name ?? "Artist";
   if (subject.portrait?.asset) {
     const framed = faceCrop(subject.portrait);
@@ -78,7 +75,7 @@ export function artistPicture(subject: Subject, width: number, opts: { monochrom
   const work = subject.placeholder;
   if (work?.image?.asset) {
     const dims = imageDimensions(work.image);
-    const src = ratioUrl(work.image, 1, width, { crop: detailCrop(work.image), saturation: opts.monochrome ? -100 : undefined });
+    const src = ratioUrl(work.image, 1, width, { crop: detailCrop(work.image), saturation: -100 });
     if (src) {
       return {
         src,

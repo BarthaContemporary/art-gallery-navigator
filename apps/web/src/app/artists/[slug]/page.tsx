@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const title = [a.name, a.nameNative].filter(Boolean).join(" ");
   const firstParagraph = paragraphs(a.bioShort)[0] ?? paragraphs(a.bioLong)[0];
   const description = firstParagraph?.slice(0, 200) ?? [formatLifeDates(a.lifeDates), a.country, a.period].filter(Boolean).join(", ") ?? undefined;
-  const ogImage = artistPicture(a, 1200, { monochrome: true })?.src;
+  const ogImage = artistPicture(a, 1200)?.src;
   return {
     robots,
     title,
@@ -62,7 +62,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
   const a = await getArtist(slug);
   if (!a) notFound();
 
-  const picture = artistPicture(a, 900, { monochrome: true });
+  const picture = artistPicture(a, 900);
   const facts = [
     { label: "Dates", value: formatLifeDates(a.lifeDates) },
     { label: "Country", value: a.country },
@@ -105,7 +105,6 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
                 width={900}
                 sizes="(min-width: 1024px) 30vw, (min-width: 768px) 33vw, 240px"
                 priority
-                monochrome
                 decorative={picture.kind === "detail" && !!a.placeholder?.title}
               />
             </div>
@@ -157,7 +156,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
 
       {works.length > 0 ? (
         <section className="mt-16 md:mt-20">
-          <WorksFoldout works={works} label="Works" tileLabel="work" monochrome />
+          <WorksFoldout works={works} label="Works" tileLabel="work" />
         </section>
       ) : !ARTISTS_UNDER_CONSTRUCTION && shownIn.length === 0 && publications.length === 0 ? (
         <p className="mt-16 max-w-[var(--measure)] font-sans text-small text-meta md:mt-20">
