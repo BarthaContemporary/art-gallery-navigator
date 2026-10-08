@@ -23,7 +23,8 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   portrait carries `makers.portrait_focus` (face position found by
   `apps/studio/src/lib/face` when the portrait is processed, or on first
   sync); the sync writes it as the Sanity hotspot and the site frames the
-  black-and-white square on it.
+  black-and-white portrait square on it (work details used as stand-ins
+  stay in colour).
 - **Artist pages**: `ARTISTS_UNDER_CONSTRUCTION` in `apps/web/src/lib/site.ts`
   is the one switch that hides or restores the whole artist section; do not
   add artist links that bypass it.
