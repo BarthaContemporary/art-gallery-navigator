@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ArtistPortrait, initialOf } from "./artist-portrait";
 import type { Artist } from "@/lib/sanity";
 import { formatLifeDates } from "@/lib/life-dates";
+import { scriptLang } from "@/lib/script-lang";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 
 type Mode = "az" | "country" | "period";
@@ -95,7 +96,7 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
       ) : (
         groups.map((g, gi) => (
           <section key={g.key} id={g.key} className="mt-12 scroll-mt-24 md:mt-14">
-            <h2 className="label mb-5">{g.label}</h2>
+            <h2 className="label mb-5 text-meta">{g.label}</h2>
             <ul className="tiles-6">
               {g.items.map((a, i) => (
                 <li key={a._id}>
@@ -105,10 +106,15 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
                       width={600}
                       sizes="(min-width: 640px) 16vw, 33vw"
                       priority={gi === 0 && i < 6}
+                      decorative
                     />
                     <p className="mt-3 font-sans text-small font-medium leading-snug text-ink transition-colors duration-150 group-hover:text-accent">
                       {a.name}
-                      {a.nameNative ? <span className="ml-2 font-normal text-light">{a.nameNative}</span> : null}
+                      {a.nameNative ? (
+                        <span lang={scriptLang(a.nameNative)} className="ml-2 font-normal text-light">
+                          {a.nameNative}
+                        </span>
+                      ) : null}
                     </p>
                     {a.lifeDates ? <p className="tabular mt-1 font-sans text-[12px] text-meta">{formatLifeDates(a.lifeDates)}</p> : null}
                   </Tile>

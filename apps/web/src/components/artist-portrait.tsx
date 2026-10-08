@@ -16,6 +16,7 @@ export function ArtistPortrait({
   width = 700,
   sizes,
   priority,
+  decorative = false,
   className = "",
 }: {
   subject: Subject;
@@ -23,6 +24,8 @@ export function ArtistPortrait({
   width?: number;
   sizes: string;
   priority?: boolean;
+  /** True when the name sits beside the square in the same link or figure caption, so the image needs no text of its own. */
+  decorative?: boolean;
   className?: string;
 }) {
   const picture = artistPicture(subject, width);
@@ -31,7 +34,7 @@ export function ArtistPortrait({
       {picture ? (
         <Image
           src={picture.src}
-          alt={picture.alt}
+          alt={decorative ? "" : picture.alt}
           fill
           sizes={sizes}
           priority={priority}
@@ -41,8 +44,7 @@ export function ArtistPortrait({
       ) : (
         <span
           aria-hidden
-          className="absolute bottom-[4%] left-[7%] font-sans font-light leading-none text-light opacity-70 select-none"
-          style={{ fontSize: "28cqw" }}
+          className="initial-mark absolute bottom-[4%] left-[7%] font-sans font-light leading-none text-light opacity-70 select-none"
         >
           {initialOf(subject.name)}
         </span>
@@ -67,7 +69,7 @@ export function artistPicture(subject: Subject, width: number): ArtistPicture | 
     const src = ratioUrl(subject.portrait, 1, width, { saturation: -100, crop: framed?.crop });
     if (src) {
       const dims = imageDimensions(subject.portrait);
-      return { src, alt: name, kind: "portrait", nativeSide: framed?.side ?? (dims ? Math.min(dims.width, dims.height) : null) };
+      return { src, alt: `Portrait of ${name}`, kind: "portrait", nativeSide: framed?.side ?? (dims ? Math.min(dims.width, dims.height) : null) };
     }
   }
   const work = subject.placeholder;
@@ -77,7 +79,7 @@ export function artistPicture(subject: Subject, width: number): ArtistPicture | 
     if (src) {
       return {
         src,
-        alt: work.title ? `${work.title} by ${name}, detail` : `A work by ${name}, detail`,
+        alt: work.title ? `${work.title}, detail of a work by ${name}` : `Detail of a work by ${name}`,
         kind: "detail",
         nativeSide: dims ? Math.round(Math.min(dims.width, dims.height) * DETAIL_SPAN) : null,
       };

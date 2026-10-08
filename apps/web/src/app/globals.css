@@ -14,7 +14,7 @@
   /* colour — handoff values */
   --ink: #1a1a1a; /* headings, active nav, logo-on-orange text */
   --body: #444444; /* running text */
-  --meta: #777777; /* meta lines, nav at rest */
+  --meta: #767676; /* meta lines, nav at rest; 4.54:1 on white */
   --light: #999999; /* kanji beside romaji, tertiary */
   --field: #ebe8e2; /* image placeholder */
   --form: #f3f3f3; /* enquiry and booking fields, calendar, time slots */
@@ -275,6 +275,13 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--accent);
+  }
+
+  /* The initial on an artist tile without a picture: a small mark in the
+     corner, sized by the tile (container units), with a viewport fallback. */
+  .initial-mark {
+    font-size: clamp(36px, 7vw, 110px);
+    font-size: 28cqw;
   }
 
   /* Grey label (search result groups, "Shown in"). */

@@ -274,12 +274,12 @@ export interface Artist {
   lifeDates: string | null;
   country: string | null;
   period: string | null;
-  bioShort: string | null;
-  bioLong: string | null;
+  /** Biographies travel with the artist page only; the index leaves them out. */
+  bioShort?: string | null;
+  bioLong?: string | null;
   portrait: SanityImage | null;
   /** A published work with a picture, standing in for a missing portrait. */
   placeholder?: { image: SanityImage | null; title: string | null; slug: string | null } | null;
-  worksCount?: number | null;
   works?: Work[] | null;
   shownIn?: { title: string | null; slug: string | null; startDate?: string | null; endDate?: string | null }[] | null;
   publications?: { title: string | null; slug: string | null; publishedYear?: number | null }[] | null;
@@ -612,16 +612,20 @@ export const publicationBySlugQuery = groq`*[_type == "publication" && slug.curr
 export const publicationSlugsQuery = groq`*[_type == "publication" && defined(slug.current) && ${visible}].slug.current`;
 
 /* Artists — synced from the inventory's makers. */
-const artistFields = /* groq */ `{
-  _id, name, nameNative, "slug": slug.current, lifeDates, country, period, bioShort, bioLong,
+/* What a tile needs: the index carries no biographies. */
+const artistTileFields = /* groq */ `
+  _id, name, nameNative, "slug": slug.current, lifeDates, country, period,
   portrait{ asset, caption, hotspot, crop },
   "placeholder": *[_type == "work" && references(^._id) && defined(images[0].asset) && defined(slug.current)]
-    | order(_createdAt desc)[0]{ "image": images[0]{ asset, hotspot, crop }, title, "slug": slug.current },
-  "worksCount": count(*[_type == "work" && references(^._id) && defined(slug.current)])
+    | order(_createdAt desc)[0]{ "image": images[0]{ asset, hotspot, crop }, title, "slug": slug.current }`;
+
+const artistFields = /* groq */ `{
+  ${artistTileFields},
+  bioShort, bioLong
 }`;
 
 export const artistsQuery = groq`*[_type == "artist" && defined(slug.current) && !coalesce(hidden, false)]
-  | order(name asc)${artistFields}`;
+  | order(name asc){ ${artistTileFields} }`;
 
 export const artistBySlugQuery = groq`*[_type == "artist" && slug.current == $slug && !coalesce(hidden, false)][0]{
   ...${artistFields},

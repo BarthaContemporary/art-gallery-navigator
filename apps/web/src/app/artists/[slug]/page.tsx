@@ -10,6 +10,7 @@ import { ReadMore } from "@/components/read-more";
 import { WorksFoldout } from "@/components/works-foldout";
 import { JsonLd } from "@/components/json-ld";
 import { formatLifeDates } from "@/lib/life-dates";
+import { scriptLang } from "@/lib/script-lang";
 
 async function getArtist(slug: string): Promise<Artist | null> {
   return sanityFetch<Artist | null>({
@@ -95,7 +96,14 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
           <figure className="w-full max-w-[240px] md:col-span-4 md:max-w-none">
             {/* A small original is shown no larger than about its own size rather than blown up beside crisp type. */}
             <div style={picture.nativeSide && picture.nativeSide < 416 ? { maxWidth: `${Math.max(280, picture.nativeSide)}px` } : undefined}>
-              <ArtistPortrait subject={a} width={900} sizes="(min-width: 1024px) 30vw, (min-width: 768px) 33vw, 240px" priority />
+              {/* A stand-in detail is described by its caption below, so the image itself stays silent. */}
+              <ArtistPortrait
+                subject={a}
+                width={900}
+                sizes="(min-width: 1024px) 30vw, (min-width: 768px) 33vw, 240px"
+                priority
+                decorative={picture.kind === "detail" && !!a.placeholder?.title}
+              />
             </div>
             {picture.kind === "detail" && a.placeholder?.title ? (
               <figcaption className="mt-2 font-sans text-[12px] text-meta">{a.placeholder.title}, detail</figcaption>
@@ -108,7 +116,11 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
         <header className={picture ? "max-w-[var(--measure)] md:col-span-8 lg:col-span-8 lg:col-start-5" : "max-w-[var(--measure)] md:col-span-9"}>
           <h1 className="t-title">
             {a.name}
-            {a.nameNative ? <span className="ml-3 text-light">{a.nameNative}</span> : null}
+            {a.nameNative ? (
+              <span lang={scriptLang(a.nameNative)} className="ml-3 text-light">
+                {a.nameNative}
+              </span>
+            ) : null}
           </h1>
           {facts.length > 0 ? (
             <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 font-sans text-small text-meta">
