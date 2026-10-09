@@ -5,7 +5,7 @@ import { artistBySlugQuery, artistSlugsQuery, sanityFetch, type Artist } from "@
 import { ARTISTS_UNDER_CONSTRUCTION, absoluteUrl } from "@/lib/site";
 import { UnderConstruction } from "@/components/under-construction";
 import { catalogueToGrid, workToGrid, type GridWork } from "@/lib/grid-work";
-import { ArtistPortrait, artistPicture } from "@/components/artist-portrait";
+import { ArtistPortrait, artistPicture, standInCaption } from "@/components/artist-portrait";
 import { ReadMore } from "@/components/read-more";
 import { WorksFoldout } from "@/components/works-foldout";
 import { JsonLd } from "@/components/json-ld";
@@ -63,6 +63,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
   if (!a) notFound();
 
   const picture = artistPicture(a, 900);
+  const standIn = picture?.kind === "detail" ? standInCaption(a.placeholder) : null;
   const facts = [
     { label: "Dates", value: formatLifeDates(a.lifeDates) },
     { label: "Country", value: a.country },
@@ -115,11 +116,11 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
                 width={900}
                 sizes="(min-width: 1024px) 30vw, (min-width: 768px) 33vw, 240px"
                 priority
-                decorative={picture.kind === "detail" && !!a.placeholder?.title}
+                decorative={picture.kind === "detail" && !!standIn}
               />
             </div>
-            {picture.kind === "detail" && a.placeholder?.title ? (
-              <figcaption className="mt-2 font-sans text-[12px] text-meta">{a.placeholder.title}, detail</figcaption>
+            {picture.kind === "detail" && standIn ? (
+              <figcaption className="mt-2 font-sans text-[12px] text-meta">{standIn}</figcaption>
             ) : a.portrait?.caption ? (
               <figcaption className="mt-2 font-sans text-[12px] text-meta">{a.portrait.caption}</figcaption>
             ) : null}

@@ -6,8 +6,9 @@ type Subject = Pick<Artist, "name" | "portrait" | "placeholder">;
 /**
  * The square an artist is known by on the site, always in black and white:
  * the portrait, framed on the face by the hotspot the inventory sets; or,
- * with no portrait, a close detail of one of the artist's works; or, with
- * neither, the initial of the name set light on the field ground.
+ * with no portrait, a close detail of one of the artist's works, published
+ * or as it appeared in a past exhibition's catalogue; or, with neither, the
+ * initial of the name set light on the field ground.
  * The initial is decoration (the name stands beside every tile), so it is
  * hidden from assistive technology.
  */
@@ -86,6 +87,22 @@ export function artistPicture(subject: Subject, width: number): ArtistPicture | 
     }
   }
   return null;
+}
+
+/**
+ * The caption under a stand-in detail on the artist page: the work's title,
+ * and for a catalogue entry the exhibition it was shown in, with its year
+ * unless the exhibition's title already carries one.
+ */
+export function standInCaption(standIn: Artist["placeholder"]): string | null {
+  if (!standIn) return null;
+  const head = standIn.title ? `${standIn.title}, detail` : null;
+  if (standIn.kind !== "catalogue") return head;
+  const show = standIn.show?.title?.trim() || null;
+  if (!show) return head;
+  const year = standIn.show?.date?.slice(0, 4) ?? null;
+  const where = year && !show.includes(year) ? `${show}, ${year}` : show;
+  return head ? `${head}. Shown in ${where}` : `Detail of a work shown in ${where}`;
 }
 
 /**

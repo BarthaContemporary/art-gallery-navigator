@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default async function ArtistsPage() {
   // The stand-in squares come from works, so a work change refreshes the index too.
-  const artists = await sanityFetch<Artist[]>({ query: artistsQuery, tags: ["artist", "work"], fallback: [] });
+  const artists = await sanityFetch<Artist[]>({ query: artistsQuery, tags: ["artist", "work", "exhibition"], fallback: [] });
   const grid = (
     <div className="page pt-12 pb-24 md:pt-16">
       <ArtistsGrid

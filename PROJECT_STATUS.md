@@ -47,8 +47,11 @@ vars are referenced by name only.
   studio detects the face (vendored pico cascade, `lib/face`) when a
   portrait is processed; `makers.portrait_focus` (0084) carries it and the
   sync writes the Sanity hotspot, detecting older portraits on their next
-  pass. Without a portrait a detail of a work stands in, in colour; without
-  any picture, the initial on the field. Index groups A to Z with a letter
+  pass. Without a portrait a black-and-white detail of a work stands in:
+  the newest published work, or failing that the maker's entry in the newest
+  past-exhibition catalogue (40 of the 76 portrait-less artists had one on
+  9 October); without any picture, the initial on the field. Works are in
+  colour everywhere else. Index groups A to Z with a letter
   row; the artist page sets the square beside name, facts, biography, and
   dates the exhibitions and publications.
 - Events can show whole inventory lists: lists sync to Sanity as `workList`

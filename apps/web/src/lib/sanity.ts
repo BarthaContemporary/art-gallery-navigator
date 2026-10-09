@@ -278,13 +278,28 @@ export interface Artist {
   bioShort?: string | null;
   bioLong?: string | null;
   portrait: SanityImage | null;
-  /** A published work with a picture, standing in for a missing portrait. */
-  placeholder?: { image: SanityImage | null; title: string | null; slug: string | null } | null;
+  /** A picture standing in for a missing portrait; see ArtistStandIn. */
+  placeholder?: ArtistStandIn | null;
   works?: Work[] | null;
   shownIn?: { title: string | null; slug: string | null; startDate?: string | null; endDate?: string | null }[] | null;
   publications?: { title: string | null; slug: string | null; publishedYear?: number | null }[] | null;
   /** The artist's works in past exhibitions' catalogues (imported from the old site), newest show first. */
   catalogueWorks?: { slug: string | null; title: string | null; entries: CatalogueEntry[] | null }[] | null;
+}
+
+/**
+ * What stands in for a missing portrait: the newest published work with a
+ * picture, or failing that the artist's entry in the newest past exhibition
+ * catalogue (imported from the old site). The site shows a close detail of it.
+ */
+export interface ArtistStandIn {
+  kind: "work" | "catalogue";
+  image: SanityImage | null;
+  title: string | null;
+  /** The work's slug, or the exhibition's for a catalogue entry. */
+  slug: string | null;
+  /** The past exhibition a catalogue entry comes from. */
+  show?: { title: string | null; date: string | null } | null;
 }
 
 /**
@@ -618,8 +633,19 @@ export const publicationSlugsQuery = groq`*[_type == "publication" && defined(sl
 const artistTileFields = /* groq */ `
   _id, name, nameNative, "slug": slug.current, lifeDates, country, period,
   portrait{ asset, caption, hotspot, crop },
-  "placeholder": *[_type == "work" && references(^._id) && defined(images[0].asset) && defined(slug.current)]
-    | order(_createdAt desc)[0]{ "image": images[0]{ asset, hotspot, crop }, title, "slug": slug.current }`;
+  "placeholder": coalesce(
+    *[_type == "work" && references(^._id) && defined(images[0].asset) && defined(slug.current)]
+      | order(_createdAt desc)[0]{ "kind": "work", "image": images[0]{ asset, hotspot, crop }, title, "slug": slug.current },
+    *[_type == "exhibition" && !coalesce(hidden, false) && defined(slug.current)
+      && count(catalogue[(artist._ref == ^.^._id || maker == ^.^.name) && defined(image.asset)]) > 0]
+      | order(coalesce(endDate, startDate, "0000") desc, coalesce(sortOrder, 9999) asc)[0]{
+        "kind": "catalogue", "slug": slug.current, "show": { title, "date": coalesce(startDate, endDate) },
+        ...coalesce(
+          catalogue[(artist._ref == ^.^._id || maker == ^.^.name) && defined(image.asset) && defined(title)][0]{ image{ asset, hotspot, crop }, title },
+          catalogue[(artist._ref == ^.^._id || maker == ^.^.name) && defined(image.asset)][0]{ image{ asset, hotspot, crop }, title }
+        )
+      }
+  )`;
 
 const artistFields = /* groq */ `{
   ${artistTileFields},
