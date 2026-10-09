@@ -23,16 +23,15 @@ async function orientedSize(input: Buffer): Promise<{ width: number; height: num
   return { width: swap ? h : w, height: swap ? w : h };
 }
 
-async function decode(input: Buffer, max: number, blur = 0) {
+async function decode(input: Buffer, max: number) {
   const base = sharp(input, { limitInputPixels: 100_000_000 }).autoOrient().toColorspace("srgb").removeAlpha();
   const { width: sourceWidth, height: sourceHeight } = await orientedSize(input);
   const scale = Math.min(1, max / Math.max(sourceWidth, sourceHeight));
-  let pipe = base.resize({
+  const pipe = base.resize({
     width: Math.max(1, Math.round(sourceWidth * scale)),
     height: Math.max(1, Math.round(sourceHeight * scale)),
     fit: "fill",
   });
-  if (blur > 0) pipe = pipe.blur(blur);
   const { data, info } = await pipe.raw().toBuffer({ resolveWithObject: true });
   const raw: Raw = { data: new Uint8Array(data.buffer, data.byteOffset, data.byteLength), width: info.width, height: info.height };
   return { raw, scale, sourceWidth, sourceHeight };
@@ -222,6 +221,17 @@ async function findInsets(input: Buffer, width: number, height: number): Promise
   };
 }
 
+/** A blurred copy of a working image. */
+async function soften(raw: Raw, sigma: number): Promise<Raw> {
+  const { data, info } = await sharp(Buffer.from(raw.data.buffer, raw.data.byteOffset, raw.data.byteLength), {
+    raw: { width: raw.width, height: raw.height, channels: 3 },
+  })
+    .blur(sigma)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return { data: new Uint8Array(data.buffer, data.byteOffset, data.byteLength), width: info.width, height: info.height };
+}
+
 /** The working copy without its edge lines. */
 function cropRaw(raw: Raw, ins: Insets): Raw {
   const width = raw.width - ins.left - ins.right;
@@ -293,7 +303,6 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   const { width: fullW, height: fullH } = await orientedSize(input);
   const insets = await findInsets(input, fullW, fullH);
   const { raw: whole, scale } = await decode(input, WORK_PX);
-  const { raw: wholeSoft } = await decode(input, WORK_PX, 1.2);
   const insetsW: Insets = {
     left: Math.ceil(insets.left * scale),
     top: Math.ceil(insets.top * scale),
@@ -301,7 +310,9 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
     bottom: Math.ceil(insets.bottom * scale),
   };
   const work = cropRaw(whole, insetsW);
-  const soft = cropRaw(wholeSoft, insetsW);
+  // Softened after the edge lines are cut, so a trimmed line cannot bleed
+  // into the copy the mask reads.
+  const soft = await soften(work, 1.2);
   const { width, height } = work;
   const band = Math.max(4, Math.round(0.02 * Math.min(width, height)));
 
