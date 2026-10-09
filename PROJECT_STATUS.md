@@ -56,7 +56,8 @@ vars are referenced by name only.
   dates the exhibitions and publications.
 - Work squares read the photograph (9 October): flat works (paintings, works
   on paper) are fitted whole on white; objects are centred on their studio
-  backdrop with the backdrop continued, margins 9/9/9/11, rendered by the
+  backdrop with the backdrop continued (body 86% of the square, margins
+  6.5/6.5/6.5/7.5, wide low pieces set lower), rendered by the
   sync into `work.tile` (`apps/studio/src/lib/squares`, migration 0085,
   "Website square" select on the piece form overrides the guess). Full
   screen loads the largest rendition after the panel's picture. The image

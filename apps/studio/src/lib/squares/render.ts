@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { FILL, MARGIN_BOTTOM, MARGIN_TOP, SHADOW_MARGIN, SQUARE_PX, type Box, type ObjectSquare, type PhotographAnalysis } from "./constants";
+import { FILL, LOW_OBJECT_DROP, MARGIN_BOTTOM, MARGIN_TOP, SHADOW_MARGIN, SQUARE_PX, type Box, type ObjectSquare, type PhotographAnalysis } from "./constants";
 
 // One render at a time, nothing cached between them: the sync runs inside a
 // function with a fixed memory ceiling and renders a batch in sequence.
@@ -154,10 +154,11 @@ function runOutliers(run: Float32Array, radius: number, threshold: number): Uint
  */
 export type Insets = { left: number; top: number; right: number; bottom: number };
 
-function lineLuminance(raw: Raw, side: keyof Insets, index: number): number {
+/** The median colour of one line of pixels along an edge, `index` lines in from it. */
+function lineColour(raw: Raw, side: keyof Insets, index: number): [number, number, number] {
   const { data, width, height } = raw;
   const along = side === "left" || side === "right" ? height : width;
-  const vals: number[] = [];
+  const r: number[] = [], g: number[] = [], b: number[] = [];
   const step = Math.max(1, Math.round(along / 200));
   for (let i = 0; i < along; i += step) {
     let x: number, y: number;
@@ -166,18 +167,24 @@ function lineLuminance(raw: Raw, side: keyof Insets, index: number): number {
     else if (side === "top") { x = i; y = index; }
     else { x = i; y = height - 1 - index; }
     const p = (y * width + x) * 3;
-    vals.push(0.299 * data[p]! + 0.587 * data[p + 1]! + 0.114 * data[p + 2]!);
+    r.push(data[p]!); g.push(data[p + 1]!); b.push(data[p + 2]!);
   }
-  return median(vals);
+  return [median(r), median(g), median(b)];
+}
+
+function colourGap(a: [number, number, number], b: [number, number, number]): number {
+  return Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]));
 }
 
 /** Lines of the strip, counted from the photograph's edge inward, that differ from the interior. */
 function countEdgeLines(strip: Raw, side: keyof Insets, limit: number): number {
-  // The interior reference: lines just past the candidate band.
-  const ref = median([limit, limit + 1, limit + 2, limit + 3].map((i) => lineLuminance(strip, side, i)));
+  // The interior reference: lines just past the candidate band, per channel,
+  // so a coloured line (a scanner's yellow edge) counts as much as a white one.
+  const refs = [limit, limit + 1, limit + 2, limit + 3].map((i) => lineColour(strip, side, i));
+  const ref: [number, number, number] = [median(refs.map((c) => c[0])), median(refs.map((c) => c[1])), median(refs.map((c) => c[2]))];
   let n = 0;
   for (let i = 0; i < limit; i++) {
-    if (Math.abs(lineLuminance(strip, side, i) - ref) > 28) n = i + 1;
+    if (colourGap(lineColour(strip, side, i), ref) > 24) n = i + 1;
     else if (n < i) break;
   }
   return n;
@@ -389,7 +396,12 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   const uniform = noise <= 9;
   const coverage = (boxW.width * boxW.height) / (width * height);
   const paleBorder = luminance > 200;
-  const hasBackdrop = found && uniform && touch <= 0.12 && coverage < 0.92 && !(flatHint && paleBorder);
+  // A subject may reach the frame on one or two sides (a tightly framed
+  // piece) and still sit on a backdrop. A work the catalogue calls flat is
+  // taken as such when its even border is pale (its own mount) or when it
+  // fills the frame (its own edge); only a painting set small on a studio
+  // backdrop is treated as an object.
+  const hasBackdrop = found && uniform && touch <= 0.3 && !(flatHint && (paleBorder || coverage >= 0.6));
 
   const inv = 1 / scale;
   // Box in source pixels, within the uncropped photograph.
@@ -462,7 +474,11 @@ export async function renderObjectSquare(
   // the cast shadow keeps a small margin rather than being cut.
   const cx = body.left + body.width / 2;
   const cy = body.top + body.height / 2;
-  const centreV = MARGIN_TOP + (1 - MARGIN_TOP - MARGIN_BOTTOM) / 2;
+  // Vertical placement: a little below the middle, and lower still for a
+  // wide, low object, so it reads as resting rather than floating.
+  const aspect = body.height / Math.max(1, body.width);
+  const drop = aspect < 1 ? (1 - aspect) * LOW_OBJECT_DROP : 0;
+  const centreV = MARGIN_TOP + (1 - MARGIN_TOP - MARGIN_BOTTOM) / 2 + drop;
   let S = Math.max(body.width, body.height) / FILL;
   S = Math.max(
     S,
