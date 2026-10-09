@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { FILL, MARGIN_BOTTOM, MARGIN_TOP, SQUARE_PX, type Box, type ObjectSquare, type PhotographAnalysis } from "./constants";
+import { FILL, MARGIN_BOTTOM, MARGIN_TOP, SHADOW_MARGIN, SQUARE_PX, type Box, type ObjectSquare, type PhotographAnalysis } from "./constants";
 
 // One render at a time, nothing cached between them: the sync runs inside a
 // function with a fixed memory ceiling and renders a batch in sequence.
@@ -56,6 +56,15 @@ type EdgeModel = {
   bottom: Float32Array;
   band: number;
 };
+
+/** Darker than the backdrop in every channel, neutral, and not deep: a cast shadow rather than the subject. */
+function shadowLike(r: number, g: number, b: number, est: Float32Array): boolean {
+  if (r > est[0]! + 2 || g > est[1]! + 2 || b > est[2]! + 2) return false;
+  const chroma = Math.max(r, g, b) - Math.min(r, g, b);
+  if (chroma > 14) return false;
+  const depth = 0.299 * (est[0]! - r) + 0.587 * (est[1]! - g) + 0.114 * (est[2]! - b);
+  return depth <= 90;
+}
 
 function median(values: number[]): number {
   const s = values.slice().sort((a, b) => a - b);
@@ -314,19 +323,27 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   // band, per row and column, so the model can be rebuilt without it.
   const rows = new Int32Array(height);
   const cols = new Int32Array(width);
+  // The body: hits that are not a cast shadow (darker in every channel,
+  // neutral, and not deep), so the square can be centred on the thing itself.
+  const bodyRows = new Int32Array(height);
+  const bodyCols = new Int32Array(width);
   const occupied: EdgeOccupied = { left: new Uint8Array(height), right: new Uint8Array(height), top: new Uint8Array(width), bottom: new Uint8Array(width) };
   let bandTouched = 0, bandCount = 0;
   const maskPass = (model: EdgeModel, threshold: number) => {
-    rows.fill(0); cols.fill(0);
+    rows.fill(0); cols.fill(0); bodyRows.fill(0); bodyCols.fill(0);
     const hitsL = new Int32Array(height), hitsR = new Int32Array(height), hitsT = new Int32Array(width), hitsB = new Int32Array(width);
     bandTouched = 0; bandCount = 0;
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         modelAt(model, x, y, width, height, est);
         const p = (y * width + x) * 3;
-        const d = Math.max(Math.abs(soft.data[p]! - est[0]!), Math.abs(soft.data[p + 1]! - est[1]!), Math.abs(soft.data[p + 2]! - est[2]!));
+        const r = soft.data[p]!, g = soft.data[p + 1]!, b = soft.data[p + 2]!;
+        const d = Math.max(Math.abs(r - est[0]!), Math.abs(g - est[1]!), Math.abs(b - est[2]!));
         const hit = d > threshold;
-        if (hit) { rows[y]!++; cols[x]!++; }
+        if (hit) {
+          rows[y]!++; cols[x]!++;
+          if (!shadowLike(r, g, b, est)) { bodyRows[y]!++; bodyCols[x]!++; }
+        }
         const inBand = x < band || x >= width - band || y < band || y >= height - band;
         if (inBand) { bandCount++; if (hit) bandTouched++; }
         if (hit) {
@@ -354,11 +371,19 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   }
   const minRow = Math.max(3, Math.round(0.004 * width));
   const minCol = Math.max(3, Math.round(0.004 * height));
-  let top = -1, bottom = -1, left = -1, right = -1;
-  for (let y = 0; y < height; y++) if (rows[y]! >= minRow) { if (top < 0) top = y; bottom = y; }
-  for (let x = 0; x < width; x++) if (cols[x]! >= minCol) { if (left < 0) left = x; right = x; }
-  const found = top >= 0 && left >= 0;
-  const boxW = found ? { left, top, width: right - left + 1, height: bottom - top + 1 } : { left: 0, top: 0, width, height };
+  const bounds = (rs: Int32Array, cs: Int32Array): Box | null => {
+    let top = -1, bottom = -1, left = -1, right = -1;
+    for (let y = 0; y < height; y++) if (rs[y]! >= minRow) { if (top < 0) top = y; bottom = y; }
+    for (let x = 0; x < width; x++) if (cs[x]! >= minCol) { if (left < 0) left = x; right = x; }
+    return top >= 0 && left >= 0 ? { left, top, width: right - left + 1, height: bottom - top + 1 } : null;
+  };
+  const loose = bounds(rows, cols);
+  const found = !!loose;
+  const boxW = loose ?? { left: 0, top: 0, width, height };
+  // The body is trusted when it is a real part of what was found; a subject
+  // that is itself dark and neutral reads as shadow, and then the loose box serves.
+  const strict = bounds(bodyRows, bodyCols);
+  const bodyW = strict && strict.width * strict.height >= 0.25 * boxW.width * boxW.height ? strict : boxW;
 
   const touch = bandCount ? bandTouched / bandCount : 1;
   const uniform = noise <= 9;
@@ -368,15 +393,18 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
 
   const inv = 1 / scale;
   // Box in source pixels, within the uncropped photograph.
-  const box: Box = {
-    left: insets.left + Math.round(boxW.left * inv),
-    top: insets.top + Math.round(boxW.top * inv),
-    width: Math.max(1, Math.round(boxW.width * inv)),
-    height: Math.max(1, Math.round(boxW.height * inv)),
-  };
+  const toSource = (b: Box): Box => ({
+    left: insets.left + Math.round(b.left * inv),
+    top: insets.top + Math.round(b.top * inv),
+    width: Math.max(1, Math.round(b.width * inv)),
+    height: Math.max(1, Math.round(b.height * inv)),
+  });
+  const box = toSource(boxW);
+  const body = toSource(bodyW);
   return {
     hasBackdrop,
     box,
+    body,
     width: fullW,
     height: fullH,
     border: { noise: Math.round(noise * 10) / 10, touch: Math.round(touch * 1000) / 1000, luminance: Math.round(luminance), uniform },
@@ -393,7 +421,7 @@ export type Analysed = { analysis: PhotographAnalysis; detail: Analysis };
 
 export async function analysePhotograph(input: Buffer, opts: { flatHint?: boolean } = {}): Promise<PhotographAnalysis & { analysed: Analysed }> {
   const a = await analyse(input, !!opts.flatHint);
-  const analysis = { hasBackdrop: a.hasBackdrop, box: a.box, width: a.width, height: a.height, border: a.border };
+  const analysis = { hasBackdrop: a.hasBackdrop, box: a.box, body: a.body, width: a.width, height: a.height, border: a.border };
   return { ...analysis, analysed: { analysis, detail: a } };
 }
 
@@ -429,11 +457,22 @@ export async function renderObjectSquare(
   const side = opts.side ?? SQUARE_PX;
   const W = a.width, H = a.height;
   const box = a.box;
-  const S = Math.max(box.width, box.height) / FILL;
-  const cx = box.left + box.width / 2;
-  const cy = box.top + box.height / 2;
+  const body = a.body;
+  // Centred on the body, sized by the body; then widened just enough that
+  // the cast shadow keeps a small margin rather than being cut.
+  const cx = body.left + body.width / 2;
+  const cy = body.top + body.height / 2;
+  const centreV = MARGIN_TOP + (1 - MARGIN_TOP - MARGIN_BOTTOM) / 2;
+  let S = Math.max(body.width, body.height) / FILL;
+  S = Math.max(
+    S,
+    (cx - box.left) / (0.5 - SHADOW_MARGIN),
+    (box.left + box.width - cx) / (0.5 - SHADOW_MARGIN),
+    (cy - box.top) / (centreV - SHADOW_MARGIN),
+    (box.top + box.height - cy) / (1 - centreV - SHADOW_MARGIN),
+  );
   const canvasLeft = cx - S / 2;
-  const canvasTop = cy - (MARGIN_TOP + (1 - MARGIN_TOP - MARGIN_BOTTOM) / 2) * S;
+  const canvasTop = cy - centreV * S;
   const k = side / S;
 
   // The part of the photograph inside the square, at output scale, without
@@ -521,36 +560,96 @@ export async function renderObjectSquare(
   const grainSigma = Math.min(6, median(noiseSamples.map((v) => Math.abs(v))) * 1.4826);
   const rand = gaussian(0x9e3779b9);
 
+  // What the photograph's edge carries beyond the model: a cast shadow that
+  // runs off the frame is continued and fades slowly; anything else at the
+  // edge (the subject itself) fades within a few pixels; mere grain is not
+  // carried at all. One residual per row for the sides, per column for the
+  // top and bottom, smoothed along the edge.
+  type Seam = { res: Float32Array; kind: Uint8Array }; // kind: 0 none, 1 shadow, 2 subject
+  const SHADOW_REACH = 0.2 * side;
+  const SUBJECT_REACH = 0.01 * side;
+  const seamOf = (along: number, sample: (i: number, c: number) => number, at: (i: number, out: Float32Array) => void): Seam => {
+    const raw = new Float32Array(along * 3);
+    for (let i = 0; i < along; i++) {
+      at(i, est);
+      for (let c = 0; c < 3; c++) raw[i * 3 + c] = sample(i, c) - est[c]!;
+    }
+    const res = smoothRun(raw, Math.max(2, Math.round(side * 0.004)));
+    const kind = new Uint8Array(along);
+    const noiseFloor = Math.max(2, 1.5 * grainSigma);
+    for (let i = 0; i < along; i++) {
+      const r = res[i * 3]!, g = res[i * 3 + 1]!, b = res[i * 3 + 2]!;
+      const mag = Math.max(Math.abs(r), Math.abs(g), Math.abs(b));
+      if (mag <= noiseFloor) continue;
+      at(i, est);
+      const pr = est[0]! + r, pg = est[1]! + g, pb = est[2]! + b;
+      kind[i] = shadowLike(pr, pg, pb, est) ? 1 : 2;
+    }
+    return { res, kind };
+  };
+  const edgeMean = (x0: number, y0: number, dx: number, dy: number, c: number) => {
+    // mean of three photo pixels stepping inward from the edge
+    let sum = 0, n = 0;
+    for (let j = 0; j < 3; j++) {
+      const x = x0 + dx * j, y = y0 + dy * j;
+      if (x < 0 || x >= pw || y < 0 || y >= ph) break;
+      sum += photo[(y * pw + x) * 3 + c]!; n++;
+    }
+    return n ? sum / n : 0;
+  };
+  const seamL = px > 0 ? seamOf(ph, (i, c) => edgeMean(0, i, 1, 0, c), (i, out) => colourAt(px, py + i, out)) : null;
+  const seamR = px + pw < side ? seamOf(ph, (i, c) => edgeMean(pw - 1, i, -1, 0, c), (i, out) => colourAt(px + pw - 1, py + i, out)) : null;
+  const seamT = py > 0 ? seamOf(pw, (i, c) => edgeMean(i, 0, 0, 1, c), (i, out) => colourAt(px + i, py, out)) : null;
+  const seamB = py + ph < side ? seamOf(pw, (i, c) => edgeMean(i, ph - 1, 0, -1, c), (i, out) => colourAt(px + i, py + ph - 1, out)) : null;
+  const carry = (seam: Seam | null, i: number, dist: number, out: Float32Array) => {
+    if (!seam) return;
+    const j = Math.min(seam.res.length / 3 - 1, Math.max(0, i));
+    const kind = seam.kind[j]!;
+    if (!kind) return;
+    const w = Math.exp(-dist / (kind === 1 ? SHADOW_REACH : SUBJECT_REACH));
+    for (let c = 0; c < 3; c++) out[c] = out[c]! + seam.res[j * 3 + c]! * w;
+  };
+
   // Fill everything outside the photograph.
   const inPhoto = (x: number, y: number) => x >= px && x < px + pw && y >= py && y < py + ph;
+  const carried = new Float32Array(3);
   for (let y = 0; y < side; y++) {
     for (let x = 0; x < side; x++) {
       if (inPhoto(x, y)) continue;
       colourAt(x, y, est);
+      // Distance past each edge of the photograph (0 when not beyond it).
+      const dl = px - x, dr = x - (px + pw - 1), dt = py - y, db = y - (py + ph - 1);
+      carried.set(est);
+      if (dl > 0 && dr <= 0) carry(seamL, y - py, dl + Math.max(0, dt, db), carried);
+      if (dr > 0 && dl <= 0) carry(seamR, y - py, dr + Math.max(0, dt, db), carried);
+      if (dt > 0 && db <= 0) carry(seamT, x - px, dt + Math.max(0, dl, dr), carried);
+      if (db > 0 && dt <= 0) carry(seamB, x - px, db + Math.max(0, dl, dr), carried);
       const n = grainSigma > 0 ? rand() * grainSigma : 0;
       const d = (y * side + x) * 3;
-      canvas[d] = Math.max(0, Math.min(255, Math.round(est[0]! + n)));
-      canvas[d + 1] = Math.max(0, Math.min(255, Math.round(est[1]! + n)));
-      canvas[d + 2] = Math.max(0, Math.min(255, Math.round(est[2]! + n)));
+      canvas[d] = Math.max(0, Math.min(255, Math.round(carried[0]! + n)));
+      canvas[d + 1] = Math.max(0, Math.min(255, Math.round(carried[1]! + n)));
+      canvas[d + 2] = Math.max(0, Math.min(255, Math.round(carried[2]! + n)));
     }
   }
 
   // Soften the seam: inside the photograph, backdrop-like pixels near an edge
   // that meets synthesised backdrop ease towards the model colour.
   const feather = Math.max(6, Math.round(0.015 * side));
-  const seamL = px > 0, seamR = px + pw < side, seamT = py > 0, seamB = py + ph < side;
   const tol = a.threshold * 1.5;
+  const carriedAt = (seam: Seam | null, i: number) => !!seam && seam.kind[Math.min(seam.kind.length - 1, Math.max(0, i))]! !== 0;
   for (let y = 0; y < ph; y++) {
     const cy2 = py + y;
     if (cy2 < 0 || cy2 >= side) continue;
     for (let x = 0; x < pw; x++) {
       const cx2 = px + x;
       if (cx2 < 0 || cx2 >= side) continue;
+      // Where the edge's own shadow or subject is carried on outside, the
+      // inside is left as photographed.
       let dist = Infinity;
-      if (seamL) dist = Math.min(dist, x);
-      if (seamR) dist = Math.min(dist, pw - 1 - x);
-      if (seamT) dist = Math.min(dist, y);
-      if (seamB) dist = Math.min(dist, ph - 1 - y);
+      if (seamL && !carriedAt(seamL, y)) dist = Math.min(dist, x);
+      if (seamR && !carriedAt(seamR, y)) dist = Math.min(dist, pw - 1 - x);
+      if (seamT && !carriedAt(seamT, x)) dist = Math.min(dist, y);
+      if (seamB && !carriedAt(seamB, x)) dist = Math.min(dist, ph - 1 - y);
       if (dist >= feather) continue;
       const d = (cy2 * side + cx2) * 3;
       colourAt(cx2, cy2, est);
