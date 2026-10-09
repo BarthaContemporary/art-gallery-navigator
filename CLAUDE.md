@@ -34,11 +34,12 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   owner's choice; on auto the sync reads the first photograph
   (`apps/studio/src/lib/squares`): a flat work cropped to its edges is
   fitted whole on white by the site; an object on the studio backdrop gets a
-  rendered 1600 px square (centred on the object's body, its larger side
-  86% of the tile, margins 6.5% top and sides, 7.5% bottom, a wide low
-  object set lower; the cast shadow is kept inside with a 4% margin;
-  backdrop and any shadow running off the frame continued with the
-  photograph's own grain) kept
+  rendered 1600 px square (centred on and sized by the object's body
+  alone, what stands out clearly from the backdrop with cast shadows and
+  reflections excluded; the body's larger side 86% of the tile, margins
+  6.5% top and sides, 7.5% bottom, a wide low object set lower; shadows
+  take what room the margins leave; backdrop and any shadow running off
+  the frame continued with the photograph's own grain) kept
   in `piece-derivatives` as `<piece>/<image>.sq-<w>x<h>.jpg` and published
   as `tile`. `piece_image_squares` remembers the guess and the render per
   master size, so nothing is redone until the master changes. The fold-out

@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { FILL, LOW_OBJECT_DROP, MARGIN_BOTTOM, MARGIN_TOP, SHADOW_MARGIN, SQUARE_PX, type Box, type ObjectSquare, type PhotographAnalysis } from "./constants";
+import { FILL, LOW_OBJECT_DROP, MARGIN_BOTTOM, MARGIN_TOP, SQUARE_PX, type Box, type ObjectSquare, type PhotographAnalysis } from "./constants";
 
 // One render at a time, nothing cached between them: the sync runs inside a
 // function with a fixed memory ceiling and renders a batch in sequence.
@@ -56,13 +56,19 @@ type EdgeModel = {
   band: number;
 };
 
-/** Darker than the backdrop in every channel, neutral, and not deep: a cast shadow rather than the subject. */
+/**
+ * Darker than the backdrop in every channel, neutral, and not as dark as a
+ * black object: a cast shadow or a reflection on the ground rather than the
+ * subject. The backdrop's chroma is allowed for, so a warm grey backdrop's
+ * shadow still reads as neutral.
+ */
 function shadowLike(r: number, g: number, b: number, est: Float32Array): boolean {
   if (r > est[0]! + 2 || g > est[1]! + 2 || b > est[2]! + 2) return false;
   const chroma = Math.max(r, g, b) - Math.min(r, g, b);
-  if (chroma > 14) return false;
+  const backdropChroma = Math.max(est[0]!, est[1]!, est[2]!) - Math.min(est[0]!, est[1]!, est[2]!);
+  if (chroma > backdropChroma + 16) return false;
   const depth = 0.299 * (est[0]! - r) + 0.587 * (est[1]! - g) + 0.114 * (est[2]! - b);
-  return depth <= 90;
+  return depth <= 120;
 }
 
 function median(values: number[]): number {
@@ -183,7 +189,7 @@ function countEdgeLines(strip: Raw, side: keyof Insets, limit: number): number {
   const ref: [number, number, number] = [median(refs.map((c) => c[0])), median(refs.map((c) => c[1])), median(refs.map((c) => c[2]))];
   let n = 0;
   for (let i = 0; i < limit; i++) {
-    if (colourGap(lineColour(strip, side, i), ref) > 24) n = i + 1;
+    if (colourGap(lineColour(strip, side, i), ref) > 12) n = i + 1;
     else if (n < i) break;
   }
   return n;
@@ -348,6 +354,7 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   const occupied: EdgeOccupied = { left: new Uint8Array(height), right: new Uint8Array(height), top: new Uint8Array(width), bottom: new Uint8Array(width) };
   let bandTouched = 0, bandCount = 0;
   const maskPass = (model: EdgeModel, threshold: number) => {
+    const bodyThreshold = Math.max(30, 2.5 * threshold);
     rows.fill(0); cols.fill(0); bodyRows.fill(0); bodyCols.fill(0);
     const hitsL = new Int32Array(height), hitsR = new Int32Array(height), hitsT = new Int32Array(width), hitsB = new Int32Array(width);
     bandTouched = 0; bandCount = 0;
@@ -360,7 +367,9 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
         const hit = d > threshold;
         if (hit) {
           rows[y]!++; cols[x]!++;
-          if (!shadowLike(r, g, b, est)) { bodyRows[y]!++; bodyCols[x]!++; }
+          // The body is what stands out clearly: the backdrop's own lighting
+          // and a soft shadow drift from the model by less than this.
+          if (d > bodyThreshold && !shadowLike(r, g, b, est)) { bodyRows[y]!++; bodyCols[x]!++; }
         }
         const inBand = x < band || x >= width - band || y < band || y >= height - band;
         if (inBand) { bandCount++; if (hit) bandTouched++; }
@@ -387,20 +396,21 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
     ({ noise, luminance, threshold } = measureBand(model));
     maskPass(model, threshold);
   }
-  const minRow = Math.max(3, Math.round(0.004 * width));
-  const minCol = Math.max(3, Math.round(0.004 * height));
-  const bounds = (rs: Int32Array, cs: Int32Array): Box | null => {
+  const bounds = (rs: Int32Array, cs: Int32Array, share: number): Box | null => {
+    const minRow = Math.max(3, Math.round(share * width));
+    const minCol = Math.max(3, Math.round(share * height));
     let top = -1, bottom = -1, left = -1, right = -1;
     for (let y = 0; y < height; y++) if (rs[y]! >= minRow) { if (top < 0) top = y; bottom = y; }
     for (let x = 0; x < width; x++) if (cs[x]! >= minCol) { if (left < 0) left = x; right = x; }
     return top >= 0 && left >= 0 ? { left, top, width: right - left + 1, height: bottom - top + 1 } : null;
   };
-  const loose = bounds(rows, cols);
+  const loose = bounds(rows, cols, 0.004);
   const found = !!loose;
   const boxW = loose ?? { left: 0, top: 0, width, height };
   // The body is trusted when it is a real part of what was found; a subject
-  // that is itself dark and neutral reads as shadow, and then the loose box serves.
-  const strict = bounds(bodyRows, bodyCols);
+  // that is itself dark and neutral reads as shadow, and then the loose box
+  // serves. A row or column needs a run of body, not a streak.
+  const strict = bounds(bodyRows, bodyCols, 0.01);
   const bodyW = strict && strict.width * strict.height >= 0.25 * boxW.width * boxW.height ? strict : boxW;
 
   const touch = bandCount ? bandTouched / bandCount : 1;
@@ -481,8 +491,9 @@ export async function renderObjectSquare(
   const W = a.width, H = a.height;
   const box = a.box;
   const body = a.body;
-  // Centred on the body, sized by the body; then widened just enough that
-  // the cast shadow keeps a small margin rather than being cut.
+  // Centred on the body and sized by the body alone: a cast shadow or
+  // reflection on the ground takes what room the margins leave and is cut
+  // by the square beyond that, as a product photograph would crop it.
   const cx = body.left + body.width / 2;
   const cy = body.top + body.height / 2;
   // Vertical placement: a little below the middle, and lower still for a
@@ -490,14 +501,7 @@ export async function renderObjectSquare(
   const aspect = body.height / Math.max(1, body.width);
   const drop = aspect < 1 ? (1 - aspect) * LOW_OBJECT_DROP : 0;
   const centreV = MARGIN_TOP + (1 - MARGIN_TOP - MARGIN_BOTTOM) / 2 + drop;
-  let S = Math.max(body.width, body.height) / FILL;
-  S = Math.max(
-    S,
-    (cx - box.left) / (0.5 - SHADOW_MARGIN),
-    (box.left + box.width - cx) / (0.5 - SHADOW_MARGIN),
-    (cy - box.top) / (centreV - SHADOW_MARGIN),
-    (box.top + box.height - cy) / (1 - centreV - SHADOW_MARGIN),
-  );
+  const S = Math.max(body.width, body.height) / FILL;
   const canvasLeft = cx - S / 2;
   const canvasTop = cy - centreV * S;
   const k = side / S;
@@ -628,12 +632,15 @@ export async function renderObjectSquare(
   const seamR = px + pw < side ? seamOf(ph, (i, c) => edgeMean(pw - 1, i, -1, 0, c), (i, out) => colourAt(px + pw - 1, py + i, out)) : null;
   const seamT = py > 0 ? seamOf(pw, (i, c) => edgeMean(i, 0, 0, 1, c), (i, out) => colourAt(px + i, py, out)) : null;
   const seamB = py + ph < side ? seamOf(pw, (i, c) => edgeMean(i, ph - 1, 0, -1, c), (i, out) => colourAt(px + i, py + ph - 1, out)) : null;
+  // Even plain backdrop at the edge differs a little from the model (uneven
+  // lighting, a vignette); that small difference is carried a short way out
+  // so the join is tonally seamless, then the model takes over.
+  const TONE_REACH = 0.03 * side;
   const carry = (seam: Seam | null, i: number, dist: number, out: Float32Array) => {
     if (!seam) return;
     const j = Math.min(seam.res.length / 3 - 1, Math.max(0, i));
     const kind = seam.kind[j]!;
-    if (!kind) return;
-    const w = Math.exp(-dist / (kind === 1 ? SHADOW_REACH : SUBJECT_REACH));
+    const w = Math.exp(-dist / (kind === 1 ? SHADOW_REACH : kind === 2 ? SUBJECT_REACH : TONE_REACH));
     for (let c = 0; c < 3; c++) out[c] = out[c]! + seam.res[j * 3 + c]! * w;
   };
 

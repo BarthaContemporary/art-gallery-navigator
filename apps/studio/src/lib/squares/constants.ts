@@ -34,7 +34,5 @@ export const MARGIN_BOTTOM = 0.075;
  * per unit the height falls short of the width.
  */
 export const LOW_OBJECT_DROP = 0.1;
-/** The least margin kept around the subject's shadow, so it is never cut by the square. */
-export const SHADOW_MARGIN = 0.04;
 /** Pixels across the rendered square. */
 export const SQUARE_PX = 1600;
