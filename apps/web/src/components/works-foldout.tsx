@@ -251,7 +251,14 @@ function WorkPanel({
   const dims = imageDimensions(work.image);
   // Full screen opens on the panel's picture and then swaps in the largest
   // rendition the master allows, so zooming stays sharp.
-  const largest = dims ? imageUrl(work.image, { width: Math.min(LIGHTBOX_MAX_PX, dims.width), quality: 85 }) : null;
+  const largest = dims
+    ? imageUrl(
+        work.image,
+        dims.width >= dims.height
+          ? { width: Math.min(LIGHTBOX_MAX_PX, dims.width), quality: 85 }
+          : { height: Math.min(LIGHTBOX_MAX_PX, dims.height), quality: 85 },
+      )
+    : null;
   const imageSpan = Math.min(2, cols);
   const textSpan = cols > 2 ? cols - 2 : cols;
   const more = [work.provenance ? `Provenance: ${work.provenance}` : null, work.literature ? `Literature: ${work.literature}` : null].filter(
