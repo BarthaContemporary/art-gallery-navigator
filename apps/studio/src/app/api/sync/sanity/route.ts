@@ -29,6 +29,13 @@ const IMAGES_PER_WORK = 8;
 const SETTLE_MS = 4000;
 /** Keep draining batches this long per invocation (maxDuration is 60 s). */
 const TIME_BUDGET_MS = 42_000;
+/**
+ * Square tiles are rendered only while this much of the invocation remains
+ * unspent; a batch of a dozen objects would otherwise outlast the function.
+ * Pieces whose tile had to wait are queued again and finished by the next
+ * wake-up, which the queue itself raises.
+ */
+const RENDER_BUDGET_MS = 24_000;
 
 /**
  * Supabase → Sanity sync (one way). Woken by the database the moment an
@@ -81,43 +88,49 @@ async function ensureSquare(
   piece: { id: string; presentation: string | null; medium: string | null; title: string | null },
   img: { id: string; path: string; width: number | null; height: number | null },
   row: SquareRow | null,
-): Promise<{ kind: "flat" | "object" | null; squarePath: string | null }> {
+  renderUntil: number,
+): Promise<{ kind: "flat" | "object" | null; squarePath: string | null; deferred: boolean }> {
   const forced = piece.presentation === "flat" || piece.presentation === "object" ? piece.presentation : null;
   const flatHint = flatWorkHint(piece.medium, piece.title);
   const fresh = !!row && row.source_width === img.width && row.source_height === img.height;
   let master: Buffer | null | undefined;
   const load = async () => (master === undefined ? (master = await downloadBuffer(supabase, "piece-derivatives", img.path)) : master);
+  // What is already known costs nothing; new analysis or rendering waits for a
+  // fresh invocation once this one's budget is spent.
+  const outOfTime = () => Date.now() > renderUntil;
 
   let guess: "flat" | "object" | null = fresh ? row!.guess : null;
   let box: Box | null = null;
   if (!guess) {
+    if (outOfTime()) return { kind: forced, squarePath: null, deferred: true };
     const buf = await load();
-    if (!buf) return { kind: forced, squarePath: null };
+    if (!buf) return { kind: forced, squarePath: null, deferred: false };
     try {
       const a = await analysePhotograph(buf, { flatHint });
       guess = a.hasBackdrop ? "object" : "flat";
       box = a.box;
     } catch {
-      return { kind: forced, squarePath: null };
+      return { kind: forced, squarePath: null, deferred: false };
     }
   }
   const kind = forced ?? guess;
 
   let squarePath = kind === "object" && fresh && row!.kind === "object" ? row!.square_path : null;
   if (kind === "object" && !squarePath) {
+    if (outOfTime()) return { kind, squarePath: null, deferred: true };
     const buf = await load();
-    if (!buf) return { kind: null, squarePath: null };
+    if (!buf) return { kind: null, squarePath: null, deferred: false };
     try {
       const r = await renderObjectSquare(buf, { flatHint });
       const path = `${piece.id}/${img.id}.sq-${r.sourceWidth}x${r.sourceHeight}.jpg`;
       const { error } = await supabase.storage
         .from("piece-derivatives")
         .upload(path, r.square, { contentType: "image/jpeg", upsert: true });
-      if (error) return { kind: null, squarePath: null };
+      if (error) return { kind: null, squarePath: null, deferred: false };
       squarePath = path;
       box = r.box;
     } catch {
-      return { kind: null, squarePath: null };
+      return { kind: null, squarePath: null, deferred: false };
     }
   }
 
@@ -136,7 +149,7 @@ async function ensureSquare(
       { onConflict: "image_id" },
     );
   }
-  return { kind, squarePath };
+  return { kind, squarePath, deferred: false };
 }
 
 export async function POST(request: Request) {
@@ -159,9 +172,10 @@ export async function POST(request: Request) {
   if (request.headers.get("x-sync-source") === "outbox") await sleep(SETTLE_MS);
 
   const started = Date.now();
-  const totals = { processed: 0, pieces: 0, makers: 0, lists: 0, runs: 0 };
+  const renderUntil = started + RENDER_BUDGET_MS;
+  const totals = { processed: 0, pieces: 0, makers: 0, lists: 0, runs: 0, deferred: 0 };
   while (Date.now() - started < TIME_BUDGET_MS) {
-    const r = await processBatch(supabase, env);
+    const r = await processBatch(supabase, env, renderUntil);
     if (!r.ok) {
       return Response.json({ error: "sanity mutate failed", detail: r.detail, ...totals }, { status: 502 });
     }
@@ -171,6 +185,9 @@ export async function POST(request: Request) {
     totals.makers += r.makers;
     totals.lists += r.lists;
     totals.runs += 1;
+    totals.deferred += r.deferred;
+    // Tiles left for later belong to the next invocation, not to this one.
+    if (r.deferred > 0) break;
   }
   return Response.json(totals);
 }
@@ -192,19 +209,21 @@ async function isAuthorised(supabase: ReturnType<typeof createServiceClient>, pr
 }
 
 type BatchResult =
-  | { ok: true; processed: number; pieces: number; makers: number; lists: number }
+  | { ok: true; processed: number; pieces: number; makers: number; lists: number; deferred: number }
   | { ok: false; detail: string };
 
 async function processBatch(
   supabase: ReturnType<typeof createServiceClient>,
   env: NonNullable<ReturnType<typeof sanityEnv>>,
+  /** Square analysis and rendering run only before this time; later pieces are queued again. */
+  renderUntil: number,
 ): Promise<BatchResult> {
   // Claim rows (SKIP LOCKED) so an overlapping cron/webhook/resync run never
   // pushes the same row twice; a claim lapses after two minutes if the run
   // dies, and the next run picks the row up again.
   const { data: outbox, error } = await supabase.rpc("claim_sync_outbox", { batch: BATCH });
   if (error) return { ok: false, detail: error.message };
-  if (!outbox || outbox.length === 0) return { ok: true, processed: 0, pieces: 0, makers: 0, lists: 0 };
+  if (!outbox || outbox.length === 0) return { ok: true, processed: 0, pieces: 0, makers: 0, lists: 0, deferred: 0 };
 
   const rows = outbox as { id: number; entity_type: string; entity_id: string; op: string }[];
   const pieceIds = [...new Set(rows.filter((o) => o.entity_type === "piece").map((o) => o.entity_id))];
@@ -333,6 +352,8 @@ async function processBatch(
   const assetCache = await loadAssetCache(supabase, assetKeys);
 
   const mutations: unknown[] = [];
+  // Pieces whose square tile could not be made within this invocation's budget.
+  const deferredPieceIds: string[] = [];
   // Deletes go in their own calls: Sanity refuses to delete a document that a
   // strong reference still points at, and one such row must not wedge the
   // whole batch behind it.
@@ -401,8 +422,9 @@ async function processBatch(
     let presentation: "flat" | "object" | null = null;
     let tile: unknown = null;
     if (first) {
-      const square = await ensureSquare(supabase, piece, first, squareRows.get(first.id) ?? null);
+      const square = await ensureSquare(supabase, piece, first, squareRows.get(first.id) ?? null, renderUntil);
       presentation = square.kind;
+      if (square.deferred) deferredPieceIds.push(pieceId);
       if (square.squarePath) {
         const tileAssetId = await ensureImageAsset(supabase, env, "piece-derivatives", square.squarePath, assetCache);
         if (tileAssetId) tile = { _type: "image", asset: { _type: "reference", _ref: tileAssetId } };
@@ -529,7 +551,12 @@ async function processBatch(
     { onConflict: "entity_type,entity_id" },
   );
 
-  return { ok: true, processed: rows.length, pieces: pieceIds.length, makers: makerIds.length, lists: listIds.length };
+  // A piece whose tile had to wait goes back on the queue; the insert wakes the
+  // sync again, and that invocation starts with a full render budget.
+  if (deferredPieceIds.length > 0) {
+    await supabase.from("sync_outbox").insert(deferredPieceIds.map((id) => ({ entity_type: "piece", entity_id: id, op: "upsert" })));
+  }
+  return { ok: true, processed: rows.length, pieces: pieceIds.length, makers: makerIds.length, lists: listIds.length, deferred: deferredPieceIds.length };
 }
 
 /** Vercel cron entry point — drains any outbox rows pg_net missed. */
