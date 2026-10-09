@@ -271,7 +271,7 @@ services:
       IMGPROXY_ALLOWED_SOURCES: local://,${VULTR_S3_ENDPOINT}/
       IMGPROXY_USE_ETAG: "true"
       IMGPROXY_ENABLE_WEBP_DETECTION: "true"
-      # Display masters are ≤2560px, but allow headroom (megapixels).
+      # Display masters are ≤4096px, but allow headroom (megapixels).
       IMGPROXY_MAX_SRC_RESOLUTION: "80"
       # Leave both EMPTY (see .env.example): storage-api sends unsigned
       # requests over the internal network. Set both only if imgproxy is

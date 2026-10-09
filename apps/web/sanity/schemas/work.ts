@@ -50,6 +50,28 @@ const work = {
       description: "Used by the /works category filter.",
     },
     {
+      name: "presentation",
+      title: "Square presentation",
+      type: "string",
+      readOnly: true,
+      options: {
+        list: [
+          { title: "Flat work: fitted on white", value: "flat" },
+          { title: "Object: centred on the extended backdrop", value: "object" },
+        ],
+      },
+      description:
+        "How the website draws the work's square tile. Decided by the inventory sync from the photograph, or set on the piece in the studio.",
+    },
+    {
+      name: "tile",
+      title: "Square tile",
+      type: "image",
+      readOnly: true,
+      description:
+        "Pre-rendered square for an object: the object centred with the studio backdrop extended. Flat works are fitted on white from the first image.",
+    },
+    {
       name: "images",
       title: "Images",
       type: "array",

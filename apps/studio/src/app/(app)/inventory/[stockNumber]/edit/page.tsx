@@ -69,6 +69,24 @@ export default async function EditPiecePage({
         .eq("piece_id", piece.id),
     ]);
 
+  // What the website sync decided for the first photograph (the one the tile uses).
+  let squareGuess: "flat" | "object" | null = null;
+  {
+    const { data: first } = await supabase
+      .from("piece_images")
+      .select("id")
+      .eq("piece_id", piece.id)
+      .not("storage_path_display", "is", null)
+      .eq("processing_status", "done")
+      .order("sort_order")
+      .limit(1)
+      .maybeSingle();
+    if (first?.id) {
+      const { data: sq } = await supabase.from("piece_image_squares").select("guess").eq("image_id", first.id).maybeSingle();
+      if (sq?.guess === "flat" || sq?.guess === "object") squareGuess = sq.guess;
+    }
+  }
+
   // Documents linked to this piece (via the shared document_pieces link table).
   const pieceDocs = ((documents.data ?? []) as unknown as {
     doc: { id: string; doc_type: string; title: string; storage_path: string; created_at: string } | null;
@@ -297,6 +315,7 @@ export default async function EditPiecePage({
             originRegions={originOptions}
             showFinancials={showFinancials}
             buyerName={buyerName}
+            squareGuess={squareGuess}
           />
         </div>
       </AutosaveForm>

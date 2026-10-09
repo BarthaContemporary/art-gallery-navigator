@@ -130,10 +130,26 @@ export interface Piece {
   tags: string[];
   ai_suggestions: Record<string, unknown> | null;
   web_visible: boolean;
+  /** Website square: auto (decided from the photograph), flat (fit on white) or object (centred on the extended backdrop). */
+  presentation: PiecePresentation;
   created_by: string | null;
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type PiecePresentation = "auto" | "flat" | "object";
+
+/** What the sync decided for a display master and the square it rendered (piece_image_squares). */
+export interface PieceImageSquare {
+  image_id: string;
+  guess: "flat" | "object";
+  kind: "flat" | "object";
+  square_path: string | null;
+  source_width: number | null;
+  source_height: number | null;
+  box: { left: number; top: number; width: number; height: number } | null;
+  rendered_at: string;
 }
 
 export interface PieceFinancials {

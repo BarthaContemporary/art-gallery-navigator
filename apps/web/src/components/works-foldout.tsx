@@ -3,11 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RatioImage } from "./ratio-image";
+import { WorkSquare } from "./work-square";
 import { EnquiryForm } from "./enquiry-form";
 import { ReadMore } from "./read-more";
 import { Lightbox } from "./lightbox";
-import { imageDimensions, imageUrl, RATIO } from "@/lib/sanity";
+import { imageDimensions, imageUrl } from "@/lib/sanity";
+
+/** Widest rendition the full-screen view asks the CDN for; masters are up to 4096 px. */
+const LIGHTBOX_MAX_PX = 4096;
 import { workCaption, workSubject, type GridWork } from "@/lib/grid-work";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 
@@ -165,9 +168,8 @@ export function WorksFoldout({
                 data-selected={isSelected}
                 className="work-tile group relative block w-full text-left"
               >
-                <RatioImage
-                  image={w.image}
-                  ratio={RATIO.work}
+                <WorkSquare
+                  subject={w}
                   width={800}
                   alt={workCaption(w)}
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
@@ -247,6 +249,9 @@ function WorkPanel({
   // on white — never cropped, never letterboxed on grey.
   const large = imageUrl(work.image, { width: 1600 });
   const dims = imageDimensions(work.image);
+  // Full screen opens on the panel's picture and then swaps in the largest
+  // rendition the master allows, so zooming stays sharp.
+  const largest = dims ? imageUrl(work.image, { width: Math.min(LIGHTBOX_MAX_PX, dims.width), quality: 85 }) : null;
   const imageSpan = Math.min(2, cols);
   const textSpan = cols > 2 ? cols - 2 : cols;
   const more = [work.provenance ? `Provenance: ${work.provenance}` : null, work.literature ? `Literature: ${work.literature}` : null].filter(
@@ -277,7 +282,8 @@ function WorkPanel({
             </button>
             {lightbox ? (
               <Lightbox
-                src={imageUrl(work.image, { width: 2400, quality: 85 }) ?? large}
+                src={large}
+                largeSrc={largest && largest !== large ? largest : undefined}
                 alt={caption}
                 width={dims.width}
                 height={dims.height}

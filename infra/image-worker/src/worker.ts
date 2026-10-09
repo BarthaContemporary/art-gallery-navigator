@@ -11,7 +11,7 @@
  *   - Each cycle claims up to BATCH_SIZE pending rows (FOR UPDATE SKIP LOCKED,
  *     so multiple workers would not double-process), then per image:
  *       download original → EXIF subset via exifr → sharp: auto-rotate,
- *       sRGB, max 2560px longest side (no enlargement), JPEG q85 →
+ *       sRGB, max 4096px longest side (no enlargement), JPEG q85 →
  *       upload to `piece-derivatives/${piece_id}/${image_id}.jpg` →
  *       update the row (paths, dims, bytes, exif, status 'done').
  *   - Any failure marks the row 'error' with the message so the studio can
@@ -49,8 +49,12 @@ const ORIGINALS_BUCKET = "piece-originals";
 const DERIVATIVES_BUCKET = "piece-derivatives";
 const NOTIFY_CHANNEL = "new_piece_image";
 
-/** Display master: longest side, never enlarged (BUILD_PLAN §4). */
-const MAX_DIMENSION_PX = 2560;
+/**
+ * Display master: longest side, never enlarged. Raised from 2560 (BUILD_PLAN
+ * §4) to 4096 on 9 October 2026 so the website's full-screen zoom stays sharp;
+ * imgproxy's IMGPROXY_MAX_SRC_RESOLUTION (80 MP) leaves ample headroom.
+ */
+const MAX_DIMENSION_PX = 4096;
 // Decompression-bomb ceiling: cap decoded pixels so a small, highly compressed
 // original can't force a multi-GB raw allocation and OOM the worker. 100 MP is
 // far above any real gallery photo yet well under a bomb (matches the

@@ -28,6 +28,20 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   in the newest past-exhibition catalogue (`artistTileFields` in
   `apps/web/src/lib/sanity.ts`), also black and white; works everywhere
   else stay in colour.
+- **Work squares**: the website draws a work's tile from `work.presentation`
+  and `work.tile`, both written by the sync. `pieces.presentation` (auto /
+  flat / object, the "Website square" select on the piece form) is the
+  owner's choice; on auto the sync reads the first photograph
+  (`apps/studio/src/lib/squares`): a flat work cropped to its edges is
+  fitted whole on white by the site; an object on the studio backdrop gets a
+  rendered 1600 px square (object's larger side 80% of the tile, margins
+  9% top and sides, 11% bottom, backdrop continued with its own grain) kept
+  in `piece-derivatives` as `<piece>/<image>.sq-<w>x<h>.jpg` and published
+  as `tile`. `piece_image_squares` remembers the guess and the render per
+  master size, so nothing is redone until the master changes. The fold-out
+  panel and the full-screen view always show the whole photograph; full
+  screen swaps in the largest rendition (up to 4096 px, the image worker's
+  display-master cap since 9 October 2026).
 - **Artist pages**: `ARTISTS_UNDER_CONSTRUCTION` in `apps/web/src/lib/site.ts`
   is the one switch that hides or restores the whole artist section; do not
   add artist links that bypass it.

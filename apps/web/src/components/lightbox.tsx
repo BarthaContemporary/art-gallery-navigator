@@ -15,18 +15,37 @@ type Pt = { x: number; y: number };
 
 export function Lightbox({
   src,
+  largeSrc,
   alt,
   width,
   height,
   onClose,
 }: {
+  /** The picture already on the page, shown at once. */
   src: string;
+  /** A larger rendition for zooming, swapped in once it has loaded. */
+  largeSrc?: string;
   alt: string;
   width: number;
   height: number;
   onClose: () => void;
 }) {
   const stage = useRef<HTMLDivElement>(null);
+  // The large file arrives in the background; until then the page's picture
+  // stands in, so opening is instant and zooming sharpens a moment later.
+  const [shown, setShown] = useState(src);
+  useEffect(() => {
+    if (!largeSrc) return;
+    let live = true;
+    const img = new window.Image();
+    img.onload = () => {
+      if (live) setShown(largeSrc);
+    };
+    img.src = largeSrc;
+    return () => {
+      live = false;
+    };
+  }, [largeSrc]);
   const [scale, setScale] = useState(1);
   const [pos, setPos] = useState<Pt>({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
@@ -204,12 +223,13 @@ export function Lightbox({
         }}
       >
         <Image
-          src={src}
+          src={shown}
           alt={alt}
           width={width}
           height={height}
-          sizes="100vw"
-          quality={85}
+          // Served straight from the CDN at the width asked for, so zooming
+          // reaches the master's own pixels rather than a screen-sized copy.
+          unoptimized
           priority
           draggable={false}
           className="lightbox-img absolute top-1/2 left-1/2"

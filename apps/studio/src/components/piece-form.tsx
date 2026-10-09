@@ -23,6 +23,7 @@ export function PieceFormFields({
   originRegions,
   showFinancials,
   buyerName,
+  squareGuess,
 }: {
   piece: Record<string, unknown> | null;
   financials: Record<string, unknown> | null;
@@ -32,6 +33,8 @@ export function PieceFormFields({
   originRegions: string[];
   showFinancials: boolean;
   buyerName?: string | null;
+  /** What the website sync decided for the first photograph, shown beside "Auto". */
+  squareGuess?: "flat" | "object" | null;
 }) {
   const v = (k: string) => (piece?.[k] as string | number | null) ?? "";
   const f = (k: string) => (financials?.[k] as string | number | null) ?? "";
@@ -105,6 +108,19 @@ export function PieceFormFields({
                 <option key={st} value={st}>{st.replace(/_/g, " ")}</option>
               ))}
             </select>
+          </label>
+          <label className={label}>
+            Website square
+            <select name="presentation" defaultValue={v("presentation") || "auto"} className={field}>
+              <option value="auto">
+                {squareGuess ? `Auto (currently ${squareGuess === "flat" ? "flat work" : "object"})` : "Auto"}
+              </option>
+              <option value="flat">Flat work: fitted on white</option>
+              <option value="object">Object: centred on the backdrop</option>
+            </select>
+            <span className="mt-1 block text-[11px] text-ink-faint">
+              How the first photograph fills the square on the website. Auto reads the photograph: a work cropped to its edges is fitted on white; an object on the studio backdrop is centred with the backdrop extended.
+            </span>
           </label>
           <label className={`${label} sm:col-span-2`}>
             Description

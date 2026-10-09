@@ -73,6 +73,8 @@ const pieceSchema = z.object({
   purchased_from: z.string().trim().max(300).transform((v) => v || null),
   sold_to: z.string().trim().max(300).transform((v) => v || null),
   web_visible: z.preprocess((v) => v === "on" || v === true, z.boolean()),
+  // Website square: anything but an explicit choice means "decide from the photograph".
+  presentation: z.preprocess((v) => (v === "flat" || v === "object" ? v : "auto"), z.enum(["auto", "flat", "object"])),
 });
 
 const financialsSchema = z.object({

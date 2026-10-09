@@ -4,6 +4,7 @@ import { resolvePieces } from "@/lib/piece-store";
 import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
 import { selectInChunks } from "@/lib/chunk";
 import { detectPortraitFocus, sanityFraming, type PortraitFocus } from "@/lib/face/focus";
+import { analysePhotograph, flatWorkHint, renderObjectSquare, type Box } from "@/lib/squares";
 import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 import {
   artistDocId,
@@ -48,6 +49,94 @@ async function detectFocusInStorage(supabase: Db, bucket: string, path: string):
   } catch {
     return null;
   }
+}
+
+/** Download a storage object as a buffer; null when it is missing. */
+async function downloadBuffer(supabase: Db, bucket: string, path: string): Promise<Buffer | null> {
+  const { data: blob, error } = await supabase.storage.from(bucket).download(path);
+  if (error || !blob) return null;
+  return Buffer.from(await blob.arrayBuffer());
+}
+
+/** What the sync decided for a display master before (piece_image_squares). */
+type SquareRow = {
+  image_id: string;
+  guess: "flat" | "object";
+  kind: "flat" | "object";
+  square_path: string | null;
+  source_width: number | null;
+  source_height: number | null;
+};
+
+/**
+ * The square tile for a work's first photograph. A flat work is fitted on
+ * white by the website itself; an object gets a rendered square (centred,
+ * backdrop extended) stored beside the display master. The owner's choice on
+ * the piece overrides the photograph's reading. Analysis and rendering happen
+ * once per master; the row remembers them. Null kind: nothing could be
+ * decided (the master would not download), so the website keeps its crop.
+ */
+async function ensureSquare(
+  supabase: Db,
+  piece: { id: string; presentation: string | null; medium: string | null; title: string | null },
+  img: { id: string; path: string; width: number | null; height: number | null },
+  row: SquareRow | null,
+): Promise<{ kind: "flat" | "object" | null; squarePath: string | null }> {
+  const forced = piece.presentation === "flat" || piece.presentation === "object" ? piece.presentation : null;
+  const flatHint = flatWorkHint(piece.medium, piece.title);
+  const fresh = !!row && row.source_width === img.width && row.source_height === img.height;
+  let master: Buffer | null | undefined;
+  const load = async () => (master === undefined ? (master = await downloadBuffer(supabase, "piece-derivatives", img.path)) : master);
+
+  let guess: "flat" | "object" | null = fresh ? row!.guess : null;
+  let box: Box | null = null;
+  if (!guess) {
+    const buf = await load();
+    if (!buf) return { kind: forced, squarePath: null };
+    try {
+      const a = await analysePhotograph(buf, { flatHint });
+      guess = a.hasBackdrop ? "object" : "flat";
+      box = a.box;
+    } catch {
+      return { kind: forced, squarePath: null };
+    }
+  }
+  const kind = forced ?? guess;
+
+  let squarePath = kind === "object" && fresh && row!.kind === "object" ? row!.square_path : null;
+  if (kind === "object" && !squarePath) {
+    const buf = await load();
+    if (!buf) return { kind: null, squarePath: null };
+    try {
+      const r = await renderObjectSquare(buf, { flatHint });
+      const path = `${piece.id}/${img.id}.sq-${r.sourceWidth}x${r.sourceHeight}.jpg`;
+      const { error } = await supabase.storage
+        .from("piece-derivatives")
+        .upload(path, r.square, { contentType: "image/jpeg", upsert: true });
+      if (error) return { kind: null, squarePath: null };
+      squarePath = path;
+      box = r.box;
+    } catch {
+      return { kind: null, squarePath: null };
+    }
+  }
+
+  if (!fresh || row!.kind !== kind || (row!.square_path ?? null) !== (squarePath ?? null)) {
+    await supabase.from("piece_image_squares").upsert(
+      {
+        image_id: img.id,
+        guess,
+        kind,
+        square_path: squarePath,
+        source_width: img.width,
+        source_height: img.height,
+        ...(box ? { box } : {}),
+        rendered_at: new Date().toISOString(),
+      },
+      { onConflict: "image_id" },
+    );
+  }
+  return { kind, squarePath };
 }
 
 export async function POST(request: Request) {
@@ -134,6 +223,7 @@ async function processBatch(
     description: string | null;
     status: string;
     web_visible: boolean;
+    presentation: string | null;
     maker_id: string | null;
     maker: { display_name: string; romanized_name: string | null; native_name: string | null; life_dates: string | null; web_visible: boolean } | null;
   };
@@ -145,7 +235,7 @@ async function processBatch(
       .from(ref?.table ?? "pieces")
       .select(
         `id, stock_number, title, medium, period, year, origin_region, description,
-         ${DIMENSION_COLUMNS}, status, web_visible, maker_id,
+         ${DIMENSION_COLUMNS}, status, web_visible, presentation, maker_id,
          maker:makers(display_name, romanized_name, native_name, life_dates, web_visible)`,
       )
       .eq("id", pieceId)
@@ -175,11 +265,14 @@ async function processBatch(
   }
 
   // Display masters for the live pieces, in sort order.
-  const imagesByPiece = new Map<string, { id: string; path: string; caption: string | null; role: string }[]>();
+  const imagesByPiece = new Map<
+    string,
+    { id: string; path: string; caption: string | null; role: string; width: number | null; height: number | null }[]
+  >();
   if (livePieceIds.length > 0) {
     const { data: imgs } = await supabase
       .from("piece_images")
-      .select("id, piece_id, storage_path_display, caption, role, sort_order")
+      .select("id, piece_id, storage_path_display, caption, role, sort_order, width, height")
       .in("piece_id", livePieceIds)
       .not("storage_path_display", "is", null)
       .eq("processing_status", "done")
@@ -187,10 +280,22 @@ async function processBatch(
     for (const row of imgs ?? []) {
       const list = imagesByPiece.get(row.piece_id) ?? [];
       if (list.length < IMAGES_PER_WORK) {
-        list.push({ id: row.id, path: row.storage_path_display, caption: row.caption, role: row.role });
+        list.push({ id: row.id, path: row.storage_path_display, caption: row.caption, role: row.role, width: row.width, height: row.height });
       }
       imagesByPiece.set(row.piece_id, list);
     }
+  }
+
+  // Each live piece's first photograph makes its square tile; what the sync
+  // decided for that master before is kept, so analysis and rendering run once.
+  const squareRows = new Map<string, SquareRow>();
+  const firstImageIds = [...imagesByPiece.values()].map((l) => l[0]?.id).filter((id): id is string => !!id);
+  if (firstImageIds.length > 0) {
+    const { data } = await supabase
+      .from("piece_image_squares")
+      .select("image_id, guess, kind, square_path, source_width, source_height")
+      .in("image_id", firstImageIds);
+    for (const row of (data ?? []) as SquareRow[]) squareRows.set(row.image_id, row);
   }
 
   /* ---- makers ---------------------------------------------------------- */
@@ -222,6 +327,7 @@ async function processBatch(
   /* ---- assets ---------------------------------------------------------- */
   const assetKeys = [
     ...[...imagesByPiece.values()].flat().map((i) => `piece-derivatives/${i.path}`),
+    ...[...squareRows.values()].filter((r) => r.square_path).map((r) => `piece-derivatives/${r.square_path}`),
     ...[...makers.values()].filter((m) => makerPublished(m) && m?.portrait_path).map((m) => `maker-portraits/${m!.portrait_path}`),
   ];
   const assetCache = await loadAssetCache(supabase, assetKeys);
@@ -290,6 +396,18 @@ async function processBatch(
         role: img.role,
       });
     }
+    // The square tile: decided from the first photograph (or forced on the piece).
+    const first = (imagesByPiece.get(pieceId) ?? [])[0];
+    let presentation: "flat" | "object" | null = null;
+    let tile: unknown = null;
+    if (first) {
+      const square = await ensureSquare(supabase, piece, first, squareRows.get(first.id) ?? null);
+      presentation = square.kind;
+      if (square.squarePath) {
+        const tileAssetId = await ensureImageAsset(supabase, env, "piece-derivatives", square.squarePath, assetCache);
+        if (tileAssetId) tile = { _type: "image", asset: { _type: "reference", _ref: tileAssetId } };
+      }
+    }
     const maker = piece.maker;
     // A live work always makes its maker publishable, so the reference resolves.
     const artistLinked = !!piece.maker_id && !!maker;
@@ -317,6 +435,8 @@ async function processBatch(
         available: piece.status === "in_stock",
         priceDisplay: "POA",
         images,
+        presentation,
+        tile,
         slug: {
           _type: "slug",
           current: `${piece.stock_number.toLowerCase()}-${slugify(piece.title ?? "untitled", 60)}`,

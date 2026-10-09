@@ -54,6 +54,16 @@ vars are referenced by name only.
   colour everywhere else. Index groups A to Z with a letter
   row; the artist page sets the square beside name, facts, biography, and
   dates the exhibitions and publications.
+- Work squares read the photograph (9 October): flat works (paintings, works
+  on paper) are fitted whole on white; objects are centred on their studio
+  backdrop with the backdrop continued, margins 9/9/9/11, rendered by the
+  sync into `work.tile` (`apps/studio/src/lib/squares`, migration 0085,
+  "Website square" select on the piece form overrides the guess). Full
+  screen loads the largest rendition after the panel's picture. The image
+  worker's display-master cap is raised to 4096 px in `infra/image-worker`
+  (deploy on the VPS per `infra/README.md` §6b, then run
+  `docs/ops/requeue-4096.sql` to re-derive the 35 published masters that
+  were capped at 2560 and have the website re-upload them).
 - Events can show whole inventory lists: lists sync to Sanity as `workList`
   documents (outbox + 0081–0083 triggers; re-pushed on list/membership/
   visibility changes) once "List on website" is switched on for the list;

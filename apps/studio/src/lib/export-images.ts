@@ -5,7 +5,7 @@ import { selectInChunks } from "@/lib/chunk";
 /**
  * Thumbnails for exports that embed imagery.
  *
- * The display masters are up to 2560px and a few hundred KB each — fine for one
+ * The display masters are up to 4096px and under a megabyte each — fine for one
  * fact sheet, ruinous for a whole inventory. Everything here exists to keep a
  * thousand-row export finishable: take one image per work, fetch a bounded
  * number of them concurrently, and downscale hard before embedding.

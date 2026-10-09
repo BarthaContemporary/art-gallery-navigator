@@ -201,6 +201,10 @@ export interface Work {
   category: string | null;
   categorySlug: string | null;
   images: SanityImage[] | null;
+  /** How the square tile is drawn: a flat work fitted on white, or an object centred on its extended backdrop. Absent until the sync has decided. */
+  presentation?: "flat" | "object" | null;
+  /** The pre-rendered square for an object (sync-made from the first image). */
+  tile?: SanityImage | null;
 }
 
 export interface WorkListResult {
@@ -444,7 +448,9 @@ const workFields = /* groq */ `{
   supabaseId,
   category,
   categorySlug,
-  images[]{ _key, asset, caption, role, hotspot }
+  images[]{ _key, asset, caption, role, hotspot },
+  presentation,
+  tile{ asset }
 }`;
 
 export const siteSettingsQuery = groq`*[_type == "siteSettings"][0]{

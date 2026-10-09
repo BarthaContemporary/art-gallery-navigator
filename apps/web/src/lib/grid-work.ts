@@ -25,6 +25,10 @@ export type GridWork = {
   status: "available" | "sold" | null;
   /** Inventory piece id — recorded against the enquiry when present. */
   pieceId: string | null;
+  /** How the square tile is drawn (see WorkSquare); null until the sync has decided, or for catalogue entries. */
+  presentation: "flat" | "object" | null;
+  /** The sync-rendered square for an object. */
+  tile: SanityImage | null;
 };
 
 export function workToGrid(w: Work): GridWork | null {
@@ -46,6 +50,8 @@ export function workToGrid(w: Work): GridWork | null {
     literature: w.literature ?? null,
     status: w.available === false ? "sold" : w.available ? "available" : null,
     pieceId: w.supabaseId,
+    presentation: w.presentation ?? null,
+    tile: w.tile ?? null,
   };
 }
 
@@ -67,6 +73,8 @@ export function catalogueToGrid(c: CatalogueEntry): GridWork {
     literature: null,
     status: c.sold ? "sold" : null,
     pieceId: null,
+    presentation: null,
+    tile: null,
   };
 }
 

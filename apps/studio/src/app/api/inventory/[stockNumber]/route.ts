@@ -111,6 +111,11 @@ async function autoAddInterestForPurchase(
   // custom_fields.interests (migration 0060), so merging it above is enough.
 }
 
+/** The website-square choice from the form: an explicit flat/object, else auto. */
+function presentationOf(v: FormDataEntryValue | null): "auto" | "flat" | "object" {
+  return v === "flat" || v === "object" ? v : "auto";
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ stockNumber: string }> },
@@ -189,6 +194,8 @@ export async function PATCH(
       purchased_from: str("purchased_from"),
       sold_to: str("sold_to"),
       web_visible: fd.get("web_visible") === "on",
+      // Website square; mirrors pieceSchema in the save action.
+      presentation: presentationOf(fd.get("presentation")),
       updated_by: session.user.id,
     })
     .eq("id", ref.id);
