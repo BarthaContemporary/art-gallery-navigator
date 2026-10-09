@@ -1,6 +1,11 @@
 import sharp from "sharp";
 import { FILL, MARGIN_BOTTOM, MARGIN_TOP, SQUARE_PX, type Box, type ObjectSquare, type PhotographAnalysis } from "./constants";
 
+// One render at a time, nothing cached between them: the sync runs inside a
+// function with a fixed memory ceiling and renders a batch in sequence.
+sharp.cache(false);
+sharp.concurrency(1);
+
 /* ------------------------------------------------------------------------ */
 /* Decoding                                                                 */
 /* ------------------------------------------------------------------------ */
@@ -8,12 +13,19 @@ import { FILL, MARGIN_BOTTOM, MARGIN_TOP, SQUARE_PX, type Box, type ObjectSquare
 type Raw = { data: Uint8Array; width: number; height: number };
 
 /** Decode to an 8-bit sRGB RGB working copy no larger than `max` on the long side. */
+/** The photograph's size as displayed: EXIF orientation 5 to 8 swaps the stored sides. */
+async function orientedSize(input: Buffer): Promise<{ width: number; height: number }> {
+  const meta = await sharp(input, { limitInputPixels: 100_000_000 }).metadata();
+  const w = meta.width ?? 0;
+  const h = meta.height ?? 0;
+  if (!w || !h) throw new Error("Image has no size");
+  const swap = (meta.orientation ?? 1) >= 5;
+  return { width: swap ? h : w, height: swap ? w : h };
+}
+
 async function decode(input: Buffer, max: number, blur = 0) {
   const base = sharp(input, { limitInputPixels: 100_000_000 }).autoOrient().toColorspace("srgb").removeAlpha();
-  const meta = await base.metadata();
-  const sourceWidth = meta.width ?? 0;
-  const sourceHeight = meta.height ?? 0;
-  if (!sourceWidth || !sourceHeight) throw new Error("Image has no size");
+  const { width: sourceWidth, height: sourceHeight } = await orientedSize(input);
   const scale = Math.min(1, max / Math.max(sourceWidth, sourceHeight));
   let pipe = base.resize({
     width: Math.max(1, Math.round(sourceWidth * scale)),
@@ -150,20 +162,48 @@ function lineLuminance(raw: Raw, side: keyof Insets, index: number): number {
   return median(vals);
 }
 
-function findInsets(raw: Raw): Insets {
-  const limit = Math.max(2, Math.round(0.01 * Math.min(raw.width, raw.height)));
-  const insets: Insets = { left: 0, top: 0, right: 0, bottom: 0 };
-  for (const side of ["left", "top", "right", "bottom"] as const) {
-    // The interior reference: lines just past the candidate band.
-    const ref = median([limit, limit + 1, limit + 2, limit + 3].map((i) => lineLuminance(raw, side, i)));
-    let n = 0;
-    for (let i = 0; i < limit; i++) {
-      if (Math.abs(lineLuminance(raw, side, i) - ref) > 28) n = i + 1;
-      else if (n < i) break;
-    }
-    insets[side] = n;
+/** Lines of the strip, counted from the photograph's edge inward, that differ from the interior. */
+function countEdgeLines(strip: Raw, side: keyof Insets, limit: number): number {
+  // The interior reference: lines just past the candidate band.
+  const ref = median([limit, limit + 1, limit + 2, limit + 3].map((i) => lineLuminance(strip, side, i)));
+  let n = 0;
+  for (let i = 0; i < limit; i++) {
+    if (Math.abs(lineLuminance(strip, side, i) - ref) > 28) n = i + 1;
+    else if (n < i) break;
   }
-  return insets;
+  return n;
+}
+
+/**
+ * Edge lines are a pixel or two wide, so they are looked for on the
+ * photograph at full size: a thin strip along each edge, read as displayed.
+ */
+async function findInsets(input: Buffer, width: number, height: number): Promise<Insets> {
+  const limit = Math.max(2, Math.min(12, Math.round(0.01 * Math.min(width, height))));
+  const depth = limit + 4;
+  if (width < 2 * depth + 8 || height < 2 * depth + 8) return { left: 0, top: 0, right: 0, bottom: 0 };
+  const strip = async (region: { left: number; top: number; width: number; height: number }): Promise<Raw> => {
+    const { data, info } = await sharp(input, { limitInputPixels: 100_000_000 })
+      .autoOrient()
+      .toColorspace("srgb")
+      .removeAlpha()
+      .extract(region)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    return { data: new Uint8Array(data.buffer, data.byteOffset, data.byteLength), width: info.width, height: info.height };
+  };
+  const [left, right, top, bottom] = await Promise.all([
+    strip({ left: 0, top: 0, width: depth, height }),
+    strip({ left: width - depth, top: 0, width: depth, height }),
+    strip({ left: 0, top: 0, width, height: depth }),
+    strip({ left: 0, top: height - depth, width, height: depth }),
+  ]);
+  return {
+    left: countEdgeLines(left, "left", limit),
+    right: countEdgeLines(right, "right", limit),
+    top: countEdgeLines(top, "top", limit),
+    bottom: countEdgeLines(bottom, "bottom", limit),
+  };
 }
 
 /** The working copy without its edge lines. */
@@ -179,11 +219,16 @@ function cropRaw(raw: Raw, ins: Insets): Raw {
   return { data, width, height };
 }
 
-function buildEdgeModel(raw: Raw, band: number): EdgeModel {
+type EdgeOccupied = { left: Uint8Array; right: Uint8Array; top: Uint8Array; bottom: Uint8Array };
+
+function buildEdgeModel(raw: Raw, band: number, occupied?: EdgeOccupied): EdgeModel {
   const radius = Math.max(3, Math.round(0.02 * Math.max(raw.width, raw.height)));
   const make = (side: "left" | "right" | "top" | "bottom") => {
     const run = edgeRun(raw, band, side);
     const bad = runOutliers(run, radius * 3, 12);
+    // Where the subject itself sits in the border band, the band says nothing about the backdrop.
+    const occ = occupied?.[side];
+    if (occ) for (let i = 0; i < bad.length; i++) if (occ[i]) bad[i] = 1;
     return smoothRun(bridgeRun(run, bad), radius);
   };
   return { left: make("left"), right: make("right"), top: make("top"), bottom: make("bottom"), band };
@@ -229,47 +274,83 @@ type Analysis = PhotographAnalysis & {
  * paper or mount rather than a backdrop.
  */
 async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
-  const { raw: whole, scale, sourceWidth, sourceHeight } = await decode(input, WORK_PX);
+  const { width: fullW, height: fullH } = await orientedSize(input);
+  const insets = await findInsets(input, fullW, fullH);
+  const { raw: whole, scale } = await decode(input, WORK_PX);
   const { raw: wholeSoft } = await decode(input, WORK_PX, 1.2);
-  const insetsW = findInsets(whole);
+  const insetsW: Insets = {
+    left: Math.ceil(insets.left * scale),
+    top: Math.ceil(insets.top * scale),
+    right: Math.ceil(insets.right * scale),
+    bottom: Math.ceil(insets.bottom * scale),
+  };
   const work = cropRaw(whole, insetsW);
   const soft = cropRaw(wholeSoft, insetsW);
   const { width, height } = work;
   const band = Math.max(4, Math.round(0.02 * Math.min(width, height)));
-  const model = buildEdgeModel(work, band);
 
   // Residual noise of the border band against the model (robust: MAD).
   const est = new Float32Array(3);
-  const residuals: number[] = [];
-  let lum = 0, lumN = 0;
-  const sampleBand = (x: number, y: number) => {
-    modelAt(model, x, y, width, height, est);
-    const p = (y * width + x) * 3;
-    const d = Math.max(Math.abs(work.data[p]! - est[0]!), Math.abs(work.data[p + 1]! - est[1]!), Math.abs(work.data[p + 2]! - est[2]!));
-    residuals.push(d);
-    lum += 0.299 * work.data[p]! + 0.587 * work.data[p + 1]! + 0.114 * work.data[p + 2]!;
-    lumN++;
-  };
-  const step = Math.max(1, Math.round(Math.max(width, height) / 400));
-  for (let y = 0; y < height; y += step) for (let j = 0; j < band; j++) { sampleBand(j, y); sampleBand(width - 1 - j, y); }
-  for (let x = 0; x < width; x += step) for (let j = 0; j < band; j++) { sampleBand(x, j); sampleBand(x, height - 1 - j); }
-  const noise = median(residuals) * 1.4826;
-  const luminance = lumN ? lum / lumN : 0;
-  const threshold = Math.min(48, Math.max(14, 4 * noise));
-
-  // Subject mask on the softened copy; rows and columns that hold enough of it bound the subject.
-  const rows = new Int32Array(height);
-  const cols = new Int32Array(width);
-  let bandTouched = 0, bandCount = 0;
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
+  const measureBand = (model: EdgeModel) => {
+    const residuals: number[] = [];
+    let lum = 0, lumN = 0;
+    const sampleBand = (x: number, y: number) => {
       modelAt(model, x, y, width, height, est);
       const p = (y * width + x) * 3;
-      const d = Math.max(Math.abs(soft.data[p]! - est[0]!), Math.abs(soft.data[p + 1]! - est[1]!), Math.abs(soft.data[p + 2]! - est[2]!));
-      const hit = d > threshold;
-      if (hit) { rows[y]!++; cols[x]!++; }
-      if (x < band || x >= width - band || y < band || y >= height - band) { bandCount++; if (hit) bandTouched++; }
+      const d = Math.max(Math.abs(work.data[p]! - est[0]!), Math.abs(work.data[p + 1]! - est[1]!), Math.abs(work.data[p + 2]! - est[2]!));
+      residuals.push(d);
+      lum += 0.299 * work.data[p]! + 0.587 * work.data[p + 1]! + 0.114 * work.data[p + 2]!;
+      lumN++;
+    };
+    const step = Math.max(1, Math.round(Math.max(width, height) / 400));
+    for (let y = 0; y < height; y += step) for (let j = 0; j < band; j++) { sampleBand(j, y); sampleBand(width - 1 - j, y); }
+    for (let x = 0; x < width; x += step) for (let j = 0; j < band; j++) { sampleBand(x, j); sampleBand(x, height - 1 - j); }
+    const noise = median(residuals) * 1.4826;
+    return { noise, luminance: lumN ? lum / lumN : 0, threshold: Math.min(48, Math.max(14, 4 * noise)) };
+  };
+
+  // Subject mask on the softened copy; rows and columns that hold enough of
+  // it bound the subject. Also counted: where the subject sits in the border
+  // band, per row and column, so the model can be rebuilt without it.
+  const rows = new Int32Array(height);
+  const cols = new Int32Array(width);
+  const occupied: EdgeOccupied = { left: new Uint8Array(height), right: new Uint8Array(height), top: new Uint8Array(width), bottom: new Uint8Array(width) };
+  let bandTouched = 0, bandCount = 0;
+  const maskPass = (model: EdgeModel, threshold: number) => {
+    rows.fill(0); cols.fill(0);
+    const hitsL = new Int32Array(height), hitsR = new Int32Array(height), hitsT = new Int32Array(width), hitsB = new Int32Array(width);
+    bandTouched = 0; bandCount = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        modelAt(model, x, y, width, height, est);
+        const p = (y * width + x) * 3;
+        const d = Math.max(Math.abs(soft.data[p]! - est[0]!), Math.abs(soft.data[p + 1]! - est[1]!), Math.abs(soft.data[p + 2]! - est[2]!));
+        const hit = d > threshold;
+        if (hit) { rows[y]!++; cols[x]!++; }
+        const inBand = x < band || x >= width - band || y < band || y >= height - band;
+        if (inBand) { bandCount++; if (hit) bandTouched++; }
+        if (hit) {
+          if (x < band) hitsL[y]!++;
+          if (x >= width - band) hitsR[y]!++;
+          if (y < band) hitsT[x]!++;
+          if (y >= height - band) hitsB[x]!++;
+        }
+      }
     }
+    const half = Math.max(1, Math.floor(band / 2));
+    let any = false;
+    for (let y = 0; y < height; y++) { occupied.left[y] = hitsL[y]! >= half ? 1 : 0; occupied.right[y] = hitsR[y]! >= half ? 1 : 0; any ||= !!(occupied.left[y] || occupied.right[y]); }
+    for (let x = 0; x < width; x++) { occupied.top[x] = hitsT[x]! >= half ? 1 : 0; occupied.bottom[x] = hitsB[x]! >= half ? 1 : 0; any ||= !!(occupied.top[x] || occupied.bottom[x]); }
+    return any;
+  };
+
+  let model = buildEdgeModel(work, band);
+  let { noise, luminance, threshold } = measureBand(model);
+  if (maskPass(model, threshold)) {
+    // The subject reaches the border: model the backdrop from the rest of it.
+    model = buildEdgeModel(work, band, occupied);
+    ({ noise, luminance, threshold } = measureBand(model));
+    maskPass(model, threshold);
   }
   const minRow = Math.max(3, Math.round(0.004 * width));
   const minCol = Math.max(3, Math.round(0.004 * height));
@@ -286,12 +367,6 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   const hasBackdrop = found && uniform && touch <= 0.12 && coverage < 0.92 && !(flatHint && paleBorder);
 
   const inv = 1 / scale;
-  const insets: Insets = {
-    left: Math.ceil(insetsW.left * inv),
-    top: Math.ceil(insetsW.top * inv),
-    right: Math.ceil(insetsW.right * inv),
-    bottom: Math.ceil(insetsW.bottom * inv),
-  };
   // Box in source pixels, within the uncropped photograph.
   const box: Box = {
     left: insets.left + Math.round(boxW.left * inv),
@@ -302,8 +377,8 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   return {
     hasBackdrop,
     box,
-    width: sourceWidth,
-    height: sourceHeight,
+    width: fullW,
+    height: fullH,
     border: { noise: Math.round(noise * 10) / 10, touch: Math.round(touch * 1000) / 1000, luminance: Math.round(luminance), uniform },
     model,
     threshold,
@@ -313,9 +388,13 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   };
 }
 
-export async function analysePhotograph(input: Buffer, opts: { flatHint?: boolean } = {}): Promise<PhotographAnalysis> {
+/** A finished analysis, handed to renderObjectSquare so the photograph is not read twice. */
+export type Analysed = { analysis: PhotographAnalysis; detail: Analysis };
+
+export async function analysePhotograph(input: Buffer, opts: { flatHint?: boolean } = {}): Promise<PhotographAnalysis & { analysed: Analysed }> {
   const a = await analyse(input, !!opts.flatHint);
-  return { hasBackdrop: a.hasBackdrop, box: a.box, width: a.width, height: a.height, border: a.border };
+  const analysis = { hasBackdrop: a.hasBackdrop, box: a.box, width: a.width, height: a.height, border: a.border };
+  return { ...analysis, analysed: { analysis, detail: a } };
 }
 
 /* ------------------------------------------------------------------------ */
@@ -342,8 +421,11 @@ function gaussian(seed: number) {
  * square reaches past the photograph the backdrop is continued from the
  * edge model, with the photograph's own grain and a soft seam.
  */
-export async function renderObjectSquare(input: Buffer, opts: { flatHint?: boolean; side?: number } = {}): Promise<ObjectSquare> {
-  const a = await analyse(input, !!opts.flatHint);
+export async function renderObjectSquare(
+  input: Buffer,
+  opts: { flatHint?: boolean; side?: number; analysed?: Analysed } = {},
+): Promise<ObjectSquare> {
+  const a = opts.analysed?.detail ?? (await analyse(input, !!opts.flatHint));
   const side = opts.side ?? SQUARE_PX;
   const W = a.width, H = a.height;
   const box = a.box;

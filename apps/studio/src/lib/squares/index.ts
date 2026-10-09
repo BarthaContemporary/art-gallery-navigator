@@ -5,5 +5,5 @@
  * continued where the photograph runs out.
  */
 export * from "./constants";
-export { analysePhotograph, renderObjectSquare } from "./render";
+export { analysePhotograph, renderObjectSquare, type Analysed } from "./render";
 export { flatWorkHint } from "./hint";

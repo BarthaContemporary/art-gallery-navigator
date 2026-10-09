@@ -15,6 +15,7 @@ type Pt = { x: number; y: number };
 
 export function Lightbox({
   src,
+  sizes,
   largeSrc,
   alt,
   width,
@@ -23,6 +24,8 @@ export function Lightbox({
 }: {
   /** The picture already on the page, shown at once. */
   src: string;
+  /** The sizes the page rendered `src` with, so the browser reuses the rendition it already holds. */
+  sizes?: string;
   /** A larger rendition for zooming, swapped in once it has loaded. */
   largeSrc?: string;
   alt: string;
@@ -44,6 +47,9 @@ export function Lightbox({
     img.src = largeSrc;
     return () => {
       live = false;
+      // Closing early drops the download rather than letting it run on unseen.
+      img.onload = null;
+      img.src = "";
     };
   }, [largeSrc]);
   const [scale, setScale] = useState(1);
@@ -227,9 +233,12 @@ export function Lightbox({
           alt={alt}
           width={width}
           height={height}
-          // Served straight from the CDN at the width asked for, so zooming
-          // reaches the master's own pixels rather than a screen-sized copy.
-          unoptimized
+          // The page's picture comes through the optimiser exactly as the
+          // page fetched it, so it is on screen at once; the large rendition
+          // is served straight from the CDN, so zooming reaches the master's
+          // own pixels rather than a screen-sized copy.
+          sizes={shown === src ? sizes : undefined}
+          unoptimized={shown !== src}
           priority
           draggable={false}
           className="lightbox-img absolute top-1/2 left-1/2"

@@ -9,8 +9,12 @@ import { ReadMore } from "./read-more";
 import { Lightbox } from "./lightbox";
 import { imageDimensions, imageUrl } from "@/lib/sanity";
 
+/** Width the fold-out panel's picture is rendered at. */
+const PANEL_PX = 1600;
 /** Widest rendition the full-screen view asks the CDN for; masters are up to 4096 px. */
 const LIGHTBOX_MAX_PX = 4096;
+/** The panel picture's sizes, shared with full screen so the browser reuses what it already fetched. */
+const PANEL_SIZES = "(min-width: 1024px) 50vw, (min-width: 640px) 66vw, 100vw";
 import { workCaption, workSubject, type GridWork } from "@/lib/grid-work";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 
@@ -247,18 +251,21 @@ function WorkPanel({
   const closeLightbox = useCallback(() => setLightbox(false), []);
   // The panel shows the whole photograph at its own ratio, two tiles wide,
   // on white — never cropped, never letterboxed on grey.
-  const large = imageUrl(work.image, { width: 1600 });
+  const large = imageUrl(work.image, { width: PANEL_PX });
   const dims = imageDimensions(work.image);
   // Full screen opens on the panel's picture and then swaps in the largest
   // rendition the master allows, so zooming stays sharp.
-  const largest = dims
-    ? imageUrl(
-        work.image,
-        dims.width >= dims.height
-          ? { width: Math.min(LIGHTBOX_MAX_PX, dims.width), quality: 85 }
-          : { height: Math.min(LIGHTBOX_MAX_PX, dims.height), quality: 85 },
-      )
-    : null;
+  // The panel's rendition is bound by width, so only a master wider than it
+  // has more pixels to offer full screen.
+  const largest =
+    dims && dims.width > PANEL_PX
+      ? imageUrl(
+          work.image,
+          dims.width >= dims.height
+            ? { width: Math.min(LIGHTBOX_MAX_PX, dims.width), quality: 85 }
+            : { height: Math.min(LIGHTBOX_MAX_PX, dims.height), quality: 85 },
+        )
+      : null;
   const imageSpan = Math.min(2, cols);
   const textSpan = cols > 2 ? cols - 2 : cols;
   const more = [work.provenance ? `Provenance: ${work.provenance}` : null, work.literature ? `Literature: ${work.literature}` : null].filter(
@@ -283,14 +290,15 @@ function WorkPanel({
                 alt={caption}
                 width={dims.width}
                 height={dims.height}
-                sizes="(min-width: 1024px) 50vw, (min-width: 640px) 66vw, 100vw"
+                sizes={PANEL_SIZES}
                 className="h-auto w-full"
               />
             </button>
             {lightbox ? (
               <Lightbox
                 src={large}
-                largeSrc={largest && largest !== large ? largest : undefined}
+                sizes={PANEL_SIZES}
+                largeSrc={largest ?? undefined}
                 alt={caption}
                 width={dims.width}
                 height={dims.height}

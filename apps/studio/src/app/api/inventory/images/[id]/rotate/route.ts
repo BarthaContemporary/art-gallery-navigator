@@ -90,6 +90,12 @@ export async function POST(
     });
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
+  // The master changed under its own path: forget the website's copy of it
+  // and the square tile made from it, so the sync this row's update raises
+  // uploads the rotated pixels and renders the tile afresh.
+  await admin.from("sanity_assets").delete().eq("storage_path", `${DERIVATIVES_BUCKET}/${img.storage_path_display}`);
+  await admin.from("piece_image_squares").delete().eq("image_id", id);
+
   // 90° counter-clockwise === 270° clockwise, kept in the 0/90/180/270 domain
   // the column's check constraint allows.
   const nextRotation = (((img.rotation ?? 0) + 270) % 360) as 0 | 90 | 180 | 270;

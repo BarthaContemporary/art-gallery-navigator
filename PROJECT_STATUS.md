@@ -63,7 +63,10 @@ vars are referenced by name only.
   worker's display-master cap is raised to 4096 px in `infra/image-worker`
   (deploy on the VPS per `infra/README.md` §6b, then run
   `docs/ops/requeue-4096.sql` to re-derive the 35 published masters that
-  were capped at 2560 and have the website re-upload them).
+  were capped at 2560 and have the website re-upload them; 0086 keeps a
+  queued photograph from re-syncing its work until the worker is done).
+  A change to what the sync writes needs Admin → Resync afterwards: only
+  edited pieces pass through the outbox otherwise.
 - Events can show whole inventory lists: lists sync to Sanity as `workList`
   documents (outbox + 0081–0083 triggers; re-pushed on list/membership/
   visibility changes) once "List on website" is switched on for the list;

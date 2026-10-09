@@ -4,7 +4,7 @@ import { resolvePieces } from "@/lib/piece-store";
 import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
 import { selectInChunks } from "@/lib/chunk";
 import { detectPortraitFocus, sanityFraming, type PortraitFocus } from "@/lib/face/focus";
-import { analysePhotograph, flatWorkHint, renderObjectSquare, type Box } from "@/lib/squares";
+import { analysePhotograph, flatWorkHint, renderObjectSquare, type Analysed, type Box } from "@/lib/squares";
 import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 import {
   artistDocId,
@@ -101,6 +101,7 @@ async function ensureSquare(
 
   let guess: "flat" | "object" | null = fresh ? row!.guess : null;
   let box: Box | null = null;
+  let analysed: Analysed | undefined;
   if (!guess) {
     if (outOfTime()) return { kind: forced, squarePath: null, deferred: true };
     const buf = await load();
@@ -109,6 +110,7 @@ async function ensureSquare(
       const a = await analysePhotograph(buf, { flatHint });
       guess = a.hasBackdrop ? "object" : "flat";
       box = a.box;
+      analysed = a.analysed;
     } catch {
       return { kind: forced, squarePath: null, deferred: false };
     }
@@ -121,7 +123,7 @@ async function ensureSquare(
     const buf = await load();
     if (!buf) return { kind: null, squarePath: null, deferred: false };
     try {
-      const r = await renderObjectSquare(buf, { flatHint });
+      const r = await renderObjectSquare(buf, { flatHint, analysed });
       const path = `${piece.id}/${img.id}.sq-${r.sourceWidth}x${r.sourceHeight}.jpg`;
       const { error } = await supabase.storage
         .from("piece-derivatives")
