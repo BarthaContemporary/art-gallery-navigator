@@ -35,8 +35,9 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   (`apps/studio/src/lib/squares`): a flat work cropped to its edges is
   fitted whole on white by the site; an object on the studio backdrop gets a
   rendered 1600 px square (centred on and sized by the object's body
-  alone, what stands out clearly from the backdrop with cast shadows and
-  reflections excluded; the body's larger side 86% of the tile, margins
+  alone: the extent of its sharp edges, which a soft cast shadow or the
+  backdrop's own lighting never has, falling back to clear colour
+  difference when a piece shows too few edges; the body's larger side 86% of the tile, margins
   6.5% top and sides, 7.5% bottom, a wide low object set lower; shadows
   take what room the margins leave; backdrop and any shadow running off
   the frame continued with the photograph's own grain) kept

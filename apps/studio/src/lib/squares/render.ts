@@ -56,6 +56,9 @@ type EdgeModel = {
   band: number;
 };
 
+/** Luminance step across three pixels of the softened copy that marks a sharp edge of the piece. */
+const EDGE_GRADIENT = 24;
+
 /**
  * Darker than the backdrop in every channel, neutral, and not as dark as a
  * black object: a cast shadow or a reflection on the ground rather than the
@@ -351,11 +354,24 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   // neutral, and not deep), so the square can be centred on the thing itself.
   const bodyRows = new Int32Array(height);
   const bodyCols = new Int32Array(width);
+  // Sharp edges among the hits: the silhouette and surface of the piece
+  // itself. A cast shadow fades softly and has none, so a dark, neutral part
+  // of the piece (a black bronze wing, an open weave) still counts.
+  const edgeRows = new Int32Array(height);
+  const edgeCols = new Int32Array(width);
+  let edgeTotal = 0;
+  const softLum = new Float32Array(width * height);
+  for (let i = 0, n = width * height; i < n; i++) softLum[i] = 0.299 * soft.data[i * 3]! + 0.587 * soft.data[i * 3 + 1]! + 0.114 * soft.data[i * 3 + 2]!;
+  const gradAt = (x: number, y: number) => {
+    const xl = Math.max(0, x - 1), xr = Math.min(width - 1, x + 1), yt = Math.max(0, y - 1), yb = Math.min(height - 1, y + 1);
+    return Math.max(Math.abs(softLum[y * width + xr]! - softLum[y * width + xl]!), Math.abs(softLum[yb * width + x]! - softLum[yt * width + x]!));
+  };
   const occupied: EdgeOccupied = { left: new Uint8Array(height), right: new Uint8Array(height), top: new Uint8Array(width), bottom: new Uint8Array(width) };
   let bandTouched = 0, bandCount = 0;
   const maskPass = (model: EdgeModel, threshold: number) => {
     const bodyThreshold = Math.max(30, 2.5 * threshold);
     rows.fill(0); cols.fill(0); bodyRows.fill(0); bodyCols.fill(0);
+    edgeRows.fill(0); edgeCols.fill(0); edgeTotal = 0;
     const hitsL = new Int32Array(height), hitsR = new Int32Array(height), hitsT = new Int32Array(width), hitsB = new Int32Array(width);
     bandTouched = 0; bandCount = 0;
     for (let y = 0; y < height; y++) {
@@ -370,6 +386,7 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
           // The body is what stands out clearly: the backdrop's own lighting
           // and a soft shadow drift from the model by less than this.
           if (d > bodyThreshold && !shadowLike(r, g, b, est)) { bodyRows[y]!++; bodyCols[x]!++; }
+          if (gradAt(x, y) > EDGE_GRADIENT) { edgeRows[y]!++; edgeCols[x]!++; edgeTotal++; }
         }
         const inBand = x < band || x >= width - band || y < band || y >= height - band;
         if (inBand) { bandCount++; if (hit) bandTouched++; }
@@ -410,8 +427,37 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   // The body is trusted when it is a real part of what was found; a subject
   // that is itself dark and neutral reads as shadow, and then the loose box
   // serves. A row or column needs a run of body, not a streak.
-  const strict = bounds(bodyRows, bodyCols, 0.01);
-  const bodyW = strict && strict.width * strict.height >= 0.25 * boxW.width * boxW.height ? strict : boxW;
+  const strictRaw = bounds(bodyRows, bodyCols, 0.01);
+  const strict = strictRaw && strictRaw.width * strictRaw.height >= 0.25 * boxW.width * boxW.height ? strictRaw : null;
+  // The extent of the sharp edges. A stray speck on the backdrop is a line
+  // or two on its own; the piece, even at a pointed corner, runs on through
+  // consecutive lines, so the extent starts and ends where such a run does.
+  const RUN = 4;
+  const edgeExtent = (): Box | null => {
+    if (edgeTotal < 20) return null;
+    const span = (counts: Int32Array): [number, number] | null => {
+      const n = counts.length;
+      const runFrom = (i: number, step: 1 | -1) => {
+        for (let k = 0; k < RUN; k++) {
+          const j = i + k * step;
+          if (j < 0 || j >= n || counts[j]! === 0) return false;
+        }
+        return true;
+      };
+      let lo = 0;
+      while (lo < n && !runFrom(lo, 1)) lo++;
+      let hi = n - 1;
+      while (hi >= 0 && !runFrom(hi, -1)) hi--;
+      return lo <= hi ? [lo, hi] : null;
+    };
+    const ys = span(edgeRows), xs = span(edgeCols);
+    return ys && xs ? { left: xs[0], top: ys[0], width: xs[1] - xs[0] + 1, height: ys[1] - ys[0] + 1 } : null;
+  };
+  // The sharp edges lead: they trace the piece and nothing else. Clear
+  // colour difference stands in only where there are too few edges, because
+  // an unevenly lit backdrop also differs clearly from the model in places.
+  const edges = edgeExtent();
+  const bodyW = edges ?? strict ?? boxW;
 
   const touch = bandCount ? bandTouched / bandCount : 1;
   const uniform = noise <= 9;
