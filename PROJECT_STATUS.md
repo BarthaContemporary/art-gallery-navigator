@@ -38,7 +38,10 @@ vars are referenced by name only.
   inventory), 130 makers created in the inventory with a note naming their
   exhibitions, 24 entries left for a decision. Report with every list:
   `docs/catalogue-artist-links-2026-10-08.md`. Artist pages show those
-  entries under "Works from past exhibitions".
+  entries under "Works from past exhibitions". On 9 October the 130
+  created makers had "Artist page" switched off again, so the site lists
+  only the gallery's own makers; switch a maker on in the studio to give
+  it a page (its catalogue works follow).
 - Artist pages rebuilt and open again (`ARTISTS_UNDER_CONSTRUCTION` false): every
   portrait is black and white on the CDN and framed on the face. The
   studio detects the face (vendored pico cascade, `lib/face`) when a

@@ -19,6 +19,8 @@ Entries linked in this pass: 355. Makers created in the inventory: 130 (each car
 
 ## Makers created
 
+Their artist pages were switched off on 9 October so the website lists only the gallery's own makers. Each stays in the studio with its catalogue links; switch "Artist page" on for any you want on the site.
+
 - Acharya Vyakul (1930–2000)
 - Albrecht Altdorfer
 - Alexander Gorlizki
