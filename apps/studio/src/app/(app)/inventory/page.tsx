@@ -1,4 +1,5 @@
 import { SaveToDriveLink } from "@/components/save-to-drive";
+import { signedThumbnail, THUMB_WIDTH } from "@/lib/thumbnails";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
@@ -289,15 +290,12 @@ export default async function InventoryPage({
       .not("storage_path_display", "is", null);
     const paths = (imgs ?? []).filter((i) => i.storage_path_display);
     if (paths.length > 0) {
-      const { data: signed } = await supabase.storage
-        .from("piece-derivatives")
-        .createSignedUrls(
-          paths.map((p) => p.storage_path_display as string),
-          3600,
-        );
-      (signed ?? []).forEach((s, i) => {
+      const signed = await Promise.all(
+        paths.map((p) => signedThumbnail(supabase, "piece-derivatives", p.storage_path_display as string, THUMB_WIDTH)),
+      );
+      signed.forEach((url, i) => {
         const pieceId = paths[i]?.piece_id;
-        if (pieceId && s.signedUrl) thumbByPiece.set(pieceId, s.signedUrl);
+        if (pieceId && url) thumbByPiece.set(pieceId, url);
       });
     }
   }

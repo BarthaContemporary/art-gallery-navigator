@@ -149,6 +149,8 @@ export interface PieceImageSquare {
   source_width: number | null;
   source_height: number | null;
   box: { left: number; top: number; width: number; height: number } | null;
+  /** The catalogue hint the guess was made with; null on rows from before it was recorded. */
+  flat_hint: boolean | null;
   rendered_at: string;
 }
 

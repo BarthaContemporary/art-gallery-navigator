@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { signedThumbnail, PREVIEW_WIDTH } from "@/lib/thumbnails";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
@@ -74,10 +75,7 @@ export default async function ManageImagesPage({
     (images ?? []).map(async (img) => {
       let url: string | null = null;
       if (img.storage_path_display) {
-        const { data } = await supabase.storage
-          .from("piece-derivatives")
-          .createSignedUrl(img.storage_path_display, 3600);
-        url = data?.signedUrl ?? null;
+        url = await signedThumbnail(supabase, "piece-derivatives", img.storage_path_display, PREVIEW_WIDTH);
       }
       return { ...img, url };
     }),

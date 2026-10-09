@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { signedThumbnail, THUMB_WIDTH } from "@/lib/thumbnails";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
@@ -261,10 +262,7 @@ export default async function EditPiecePage({
 
   let thumbUrl: string | null = null;
   if (primaryImage.data?.storage_path_display) {
-    const { data } = await supabase.storage
-      .from("piece-derivatives")
-      .createSignedUrl(primaryImage.data.storage_path_display, 3600);
-    thumbUrl = data?.signedUrl ?? null;
+    thumbUrl = await signedThumbnail(supabase, "piece-derivatives", primaryImage.data.storage_path_display, THUMB_WIDTH);
   }
 
   const fin = financials.data as Record<string, unknown> | null;

@@ -73,6 +73,8 @@ type SquareRow = {
   square_path: string | null;
   source_width: number | null;
   source_height: number | null;
+  /** The catalogue hint the guess was made with; null on rows from before it was recorded. */
+  flat_hint: boolean | null;
 };
 
 /**
@@ -89,10 +91,13 @@ async function ensureSquare(
   img: { id: string; path: string; width: number | null; height: number | null },
   row: SquareRow | null,
   renderUntil: number,
-): Promise<{ kind: "flat" | "object" | null; squarePath: string | null; deferred: boolean }> {
+): Promise<{ kind: "flat" | "object" | null; squarePath: string | null; rendered: boolean; deferred: boolean }> {
   const forced = piece.presentation === "flat" || piece.presentation === "object" ? piece.presentation : null;
   const flatHint = flatWorkHint(piece.medium, piece.title);
-  const fresh = !!row && row.source_width === img.width && row.source_height === img.height;
+  // Same master as before: the rendered square still holds; the guess only
+  // if the catalogue hint it was made with has not changed.
+  const sameMaster = !!row && row.source_width === img.width && row.source_height === img.height;
+  const fresh = sameMaster && row!.flat_hint === flatHint;
   let master: Buffer | null | undefined;
   const load = async () => (master === undefined ? (master = await downloadBuffer(supabase, "piece-derivatives", img.path)) : master);
   // What is already known costs nothing; new analysis or rendering waits for a
@@ -103,36 +108,38 @@ async function ensureSquare(
   let box: Box | null = null;
   let analysed: Analysed | undefined;
   if (!guess) {
-    if (outOfTime()) return { kind: forced, squarePath: null, deferred: true };
+    if (outOfTime()) return { kind: forced, squarePath: null, rendered: false, deferred: true };
     const buf = await load();
-    if (!buf) return { kind: forced, squarePath: null, deferred: false };
+    if (!buf) return { kind: forced, squarePath: null, rendered: false, deferred: false };
     try {
       const a = await analysePhotograph(buf, { flatHint });
       guess = a.hasBackdrop ? "object" : "flat";
       box = a.box;
       analysed = a.analysed;
     } catch {
-      return { kind: forced, squarePath: null, deferred: false };
+      return { kind: forced, squarePath: null, rendered: false, deferred: false };
     }
   }
   const kind = forced ?? guess;
 
-  let squarePath = kind === "object" && fresh && row!.kind === "object" ? row!.square_path : null;
+  let squarePath = kind === "object" && sameMaster && row!.kind === "object" ? row!.square_path : null;
+  let rendered = false;
   if (kind === "object" && !squarePath) {
-    if (outOfTime()) return { kind, squarePath: null, deferred: true };
+    if (outOfTime()) return { kind, squarePath: null, rendered, deferred: true };
     const buf = await load();
-    if (!buf) return { kind: null, squarePath: null, deferred: false };
+    if (!buf) return { kind: null, squarePath: null, rendered, deferred: false };
     try {
       const r = await renderObjectSquare(buf, { flatHint, analysed });
       const path = `${piece.id}/${img.id}.sq-${r.sourceWidth}x${r.sourceHeight}.jpg`;
       const { error } = await supabase.storage
         .from("piece-derivatives")
         .upload(path, r.square, { contentType: "image/jpeg", upsert: true });
-      if (error) return { kind: null, squarePath: null, deferred: false };
+      if (error) return { kind: null, squarePath: null, rendered, deferred: false };
       squarePath = path;
+      rendered = true;
       box = r.box;
     } catch {
-      return { kind: null, squarePath: null, deferred: false };
+      return { kind: null, squarePath: null, rendered, deferred: false };
     }
   }
 
@@ -145,13 +152,14 @@ async function ensureSquare(
         square_path: squarePath,
         source_width: img.width,
         source_height: img.height,
+        flat_hint: flatHint,
         ...(box ? { box } : {}),
         rendered_at: new Date().toISOString(),
       },
       { onConflict: "image_id" },
     );
   }
-  return { kind, squarePath, deferred: false };
+  return { kind, squarePath, rendered, deferred: false };
 }
 
 export async function POST(request: Request) {
@@ -314,7 +322,7 @@ async function processBatch(
   if (firstImageIds.length > 0) {
     const { data } = await supabase
       .from("piece_image_squares")
-      .select("image_id, guess, kind, square_path, source_width, source_height")
+      .select("image_id, guess, kind, square_path, source_width, source_height, flat_hint")
       .in("image_id", firstImageIds);
     for (const row of (data ?? []) as SquareRow[]) squareRows.set(row.image_id, row);
   }
@@ -428,6 +436,12 @@ async function processBatch(
       presentation = square.kind;
       if (square.deferred) deferredPieceIds.push(pieceId);
       if (square.squarePath) {
+        if (square.rendered) {
+          // New pixels at a path the website may already hold: forget the old asset.
+          const key = `piece-derivatives/${square.squarePath}`;
+          assetCache.delete(key);
+          await supabase.from("sanity_assets").delete().eq("storage_path", key);
+        }
         const tileAssetId = await ensureImageAsset(supabase, env, "piece-derivatives", square.squarePath, assetCache);
         if (tileAssetId) tile = { _type: "image", asset: { _type: "reference", _ref: tileAssetId } };
       }

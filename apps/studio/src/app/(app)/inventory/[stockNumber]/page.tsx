@@ -1,4 +1,5 @@
 import { SaveToDriveLink } from "@/components/save-to-drive";
+import { signedThumbnail, THUMB_WIDTH } from "@/lib/thumbnails";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -244,10 +245,8 @@ export default async function PieceDetail({
     }
     await Promise.all(
       [...best.entries()].map(async ([pid, v]) => {
-        const { data } = await supabase.storage
-          .from("piece-derivatives")
-          .createSignedUrl(v.path, 3600);
-        if (data?.signedUrl) relatedImg.set(pid, data.signedUrl);
+        const url = await signedThumbnail(supabase, "piece-derivatives", v.path, THUMB_WIDTH);
+        if (url) relatedImg.set(pid, url);
       }),
     );
   }

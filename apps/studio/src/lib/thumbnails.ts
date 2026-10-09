@@ -14,13 +14,34 @@ type Db = {
   };
   storage: {
     from: (bucket: string) => {
-      createSignedUrls: (
-        paths: string[],
+      createSignedUrl: (
+        path: string,
         expiresIn: number,
-      ) => Promise<{ data: { signedUrl: string | null }[] | null }>;
+        options?: { transform?: { width?: number; height?: number; quality?: number } },
+      ) => Promise<{ data: { signedUrl: string } | null }>;
     };
   };
 };
+
+/**
+ * Thumbnails come from the storage transform, not the display master: masters
+ * run to 4096 px, and a list of fifty would otherwise pull a hundred
+ * megabytes. Width in pixels; the server keeps the proportions.
+ */
+export const THUMB_WIDTH = 320;
+export const PREVIEW_WIDTH = 1000;
+
+/** A signed URL for a storage path rendered at `width` px wide. */
+export async function signedThumbnail(
+  db: Pick<Db, "storage">,
+  bucket: string,
+  path: string,
+  width: number,
+  expiresIn = 3600,
+): Promise<string | null> {
+  const { data } = await db.storage.from(bucket).createSignedUrl(path, expiresIn, { transform: { width, quality: 75 } });
+  return data?.signedUrl ?? null;
+}
 
 type ImageRow = {
   piece_id: string;
@@ -82,15 +103,12 @@ export async function loadThumbnails(
   if (best.size === 0) return out;
 
   const entries = [...best.entries()];
-  const { data: signed } = await db.storage
-    .from("piece-derivatives")
-    .createSignedUrls(
-      entries.map(([, img]) => img.storage_path_display as string),
-      expiresIn,
-    );
-  (signed ?? []).forEach((s, i) => {
+  const signed = await Promise.all(
+    entries.map(([, img]) => signedThumbnail(db, "piece-derivatives", img.storage_path_display as string, THUMB_WIDTH, expiresIn)),
+  );
+  signed.forEach((url, i) => {
     const pieceId = entries[i]?.[0];
-    if (pieceId && s.signedUrl) out.set(pieceId, s.signedUrl);
+    if (pieceId && url) out.set(pieceId, url);
   });
   return out;
 }
