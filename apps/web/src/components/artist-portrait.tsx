@@ -91,8 +91,10 @@ export function artistPicture(subject: Subject, width: number): ArtistPicture | 
 
 /**
  * The caption under a stand-in detail on the artist page: the work's title,
- * and for a catalogue entry the exhibition it was shown in, with its year
- * unless the exhibition's title already carries one.
+ * and for a catalogue entry the exhibition it comes from, dated by its year
+ * unless the exhibition's title already carries one. The year goes before
+ * the word "exhibition" so a show named after the artist still reads:
+ * "From the 2015 exhibition Watanabe Tadashi".
  */
 export function standInCaption(standIn: Artist["placeholder"]): string | null {
   if (!standIn) return null;
@@ -101,8 +103,8 @@ export function standInCaption(standIn: Artist["placeholder"]): string | null {
   const show = standIn.show?.title?.trim() || null;
   if (!show) return head;
   const year = standIn.show?.date?.slice(0, 4) ?? null;
-  const where = year && !show.includes(year) ? `${show}, ${year}` : show;
-  return head ? `${head}. Shown in ${where}` : `Detail of a work shown in ${where}`;
+  const from = year && !show.includes(year) ? `From the ${year} exhibition ${show}` : `From the exhibition ${show}`;
+  return head ? `${head}. ${from}` : `Detail of a work. ${from}`;
 }
 
 /**
