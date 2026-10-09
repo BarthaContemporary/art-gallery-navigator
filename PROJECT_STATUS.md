@@ -57,7 +57,10 @@ vars are referenced by name only.
 - Work squares read the photograph (9 October): flat works (paintings, works
   on paper) are fitted whole on white; objects are centred on their studio
   backdrop with the backdrop continued (body 86% of the square, margins
-  6.5/6.5/6.5/7.5, wide low pieces set lower), rendered by the
+  6.5/6.5/6.5/7.5, wide low pieces set lower); older room photographs
+  (piece on a table, no clean backdrop) are cut to a square inside the
+  photograph that keeps the whole piece (migration 0088 adds the "photo"
+  kind). Both are rendered by the
   sync into `work.tile` (`apps/studio/src/lib/squares`, migration 0085,
   "Website square" select on the piece form overrides the guess). Full
   screen loads the largest rendition after the panel's picture. The image

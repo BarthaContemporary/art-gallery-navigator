@@ -130,7 +130,7 @@ export interface Piece {
   tags: string[];
   ai_suggestions: Record<string, unknown> | null;
   web_visible: boolean;
-  /** Website square: auto (decided from the photograph), flat (fit on white) or object (centred on the extended backdrop). */
+  /** Website square: auto (decided from the photograph), flat (fit on white), object (centred on the extended backdrop) or photo (as taken, cut square around the piece). */
   presentation: PiecePresentation;
   created_by: string | null;
   updated_by: string | null;
@@ -138,13 +138,13 @@ export interface Piece {
   updated_at: string;
 }
 
-export type PiecePresentation = "auto" | "flat" | "object";
+export type PiecePresentation = "auto" | "flat" | "object" | "photo";
 
 /** What the sync decided for a display master and the square it rendered (piece_image_squares). */
 export interface PieceImageSquare {
   image_id: string;
-  guess: "flat" | "object";
-  kind: "flat" | "object";
+  guess: "flat" | "object" | "photo";
+  kind: "flat" | "object" | "photo";
   square_path: string | null;
   source_width: number | null;
   source_height: number | null;

@@ -201,8 +201,8 @@ export interface Work {
   category: string | null;
   categorySlug: string | null;
   images: SanityImage[] | null;
-  /** How the square tile is drawn: a flat work fitted on white, or an object centred on its extended backdrop. Absent until the sync has decided. */
-  presentation?: "flat" | "object" | null;
+  /** How the square tile is drawn: a flat work fitted on white, an object centred on its extended backdrop, or a room photograph as taken, cut square around the piece. Absent until the sync has decided. */
+  presentation?: "flat" | "object" | "photo" | null;
   /** The pre-rendered square for an object (sync-made from the first image). */
   tile?: SanityImage | null;
 }

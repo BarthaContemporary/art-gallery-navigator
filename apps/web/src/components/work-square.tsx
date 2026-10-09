@@ -5,7 +5,7 @@ export type WorkSquareSubject = Pick<Work, "presentation" | "tile"> & { image: S
 
 export type WorkSquarePicture = {
   src: string;
-  /** flat: the whole photograph fitted on white; object: the sync-rendered square; crop: the centre crop used before the sync decided. */
+  /** flat: the whole photograph fitted on white; object: the sync-rendered square (a studio shot on its extended backdrop, or a room photograph cut square around the piece); crop: the centre crop used before the sync has decided. */
   kind: "flat" | "object" | "crop";
 };
 
@@ -13,8 +13,9 @@ export type WorkSquarePicture = {
  * The square a work is shown in on tiles, always in colour. A flat work
  * (painting, work on paper) is fitted whole inside the square on white; an
  * object comes as the square the inventory sync rendered, centred on its
- * studio backdrop with the backdrop extended. A work the sync has not yet
- * classified keeps the centre crop on the field ground.
+ * studio backdrop with the backdrop extended, or for a work photographed in
+ * a room the photograph as taken, cut square around the piece. A work the
+ * sync has not yet classified keeps the centre crop on the field ground.
  */
 export function WorkSquare({
   subject,
@@ -53,7 +54,7 @@ export function WorkSquare({
 
 /** The picture for a work's square at a CDN width, or null without an image. */
 export function workSquare(subject: WorkSquareSubject, width: number): WorkSquarePicture | null {
-  if (subject.presentation === "object" && subject.tile?.asset) {
+  if ((subject.presentation === "object" || subject.presentation === "photo") && subject.tile?.asset) {
     const src = ratioUrl(subject.tile, 1, width);
     if (src) return { src, kind: "object" };
   }

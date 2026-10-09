@@ -26,7 +26,7 @@ export type GridWork = {
   /** Inventory piece id — recorded against the enquiry when present. */
   pieceId: string | null;
   /** How the square tile is drawn (see WorkSquare); null until the sync has decided, or for catalogue entries. */
-  presentation: "flat" | "object" | null;
+  presentation: "flat" | "object" | "photo" | null;
   /** The sync-rendered square for an object. */
   tile: SanityImage | null;
 };

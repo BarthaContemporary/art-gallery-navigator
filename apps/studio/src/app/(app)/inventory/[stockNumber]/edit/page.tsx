@@ -71,7 +71,7 @@ export default async function EditPiecePage({
     ]);
 
   // What the website sync decided for the first photograph (the one the tile uses).
-  let squareGuess: "flat" | "object" | null = null;
+  let squareGuess: "flat" | "object" | "photo" | null = null;
   {
     const { data: first } = await supabase
       .from("piece_images")
@@ -84,7 +84,7 @@ export default async function EditPiecePage({
       .maybeSingle();
     if (first?.id) {
       const { data: sq } = await supabase.from("piece_image_squares").select("guess").eq("image_id", first.id).maybeSingle();
-      if (sq?.guess === "flat" || sq?.guess === "object") squareGuess = sq.guess;
+      if (sq?.guess === "flat" || sq?.guess === "object" || sq?.guess === "photo") squareGuess = sq.guess;
     }
   }
 

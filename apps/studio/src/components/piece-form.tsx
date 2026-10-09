@@ -34,7 +34,7 @@ export function PieceFormFields({
   showFinancials: boolean;
   buyerName?: string | null;
   /** What the website sync decided for the first photograph, shown beside "Auto". */
-  squareGuess?: "flat" | "object" | null;
+  squareGuess?: "flat" | "object" | "photo" | null;
 }) {
   const v = (k: string) => (piece?.[k] as string | number | null) ?? "";
   const f = (k: string) => (financials?.[k] as string | number | null) ?? "";
@@ -113,13 +113,16 @@ export function PieceFormFields({
             Website square
             <select name="presentation" defaultValue={v("presentation") || "auto"} className={field}>
               <option value="auto">
-                {squareGuess ? `Auto (currently ${squareGuess === "flat" ? "flat work" : "object"})` : "Auto"}
+                {squareGuess
+                  ? `Auto (currently ${squareGuess === "flat" ? "flat work" : squareGuess === "photo" ? "photograph as taken" : "object"})`
+                  : "Auto"}
               </option>
               <option value="flat">Flat work: fitted on white</option>
               <option value="object">Object: centred on the backdrop</option>
+              <option value="photo">Photograph as taken: cut square around the piece</option>
             </select>
             <span className="mt-1 block text-[11px] text-ink-faint">
-              How the first photograph fills the square on the website. Auto reads the photograph: a work cropped to its edges is fitted on white; an object on the studio backdrop is centred with the backdrop extended.
+              How the first photograph fills the square on the website. Auto reads the photograph: a work cropped to its edges is fitted on white; an object on the studio backdrop is centred with the backdrop extended; an object photographed in a room is shown as taken.
             </span>
           </label>
           <label className={`${label} sm:col-span-2`}>

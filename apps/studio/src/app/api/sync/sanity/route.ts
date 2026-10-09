@@ -4,7 +4,7 @@ import { resolvePieces } from "@/lib/piece-store";
 import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
 import { selectInChunks } from "@/lib/chunk";
 import { detectPortraitFocus, sanityFraming, type PortraitFocus } from "@/lib/face/focus";
-import { analysePhotograph, flatWorkHint, renderObjectSquare, type Analysed, type Box } from "@/lib/squares";
+import { analysePhotograph, flatWorkHint, renderObjectSquare, renderPhotoSquare, type Analysed, type Box } from "@/lib/squares";
 import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 import {
   artistDocId,
@@ -65,11 +65,14 @@ async function downloadBuffer(supabase: Db, bucket: string, path: string): Promi
   return Buffer.from(await blob.arrayBuffer());
 }
 
+/** How a work's square tile is drawn: fitted on white, rendered on the extended backdrop, or the photograph as taken cut square around the piece. */
+type Presentation = "flat" | "object" | "photo";
+
 /** What the sync decided for a display master before (piece_image_squares). */
 type SquareRow = {
   image_id: string;
-  guess: "flat" | "object";
-  kind: "flat" | "object";
+  guess: Presentation;
+  kind: Presentation;
   square_path: string | null;
   source_width: number | null;
   source_height: number | null;
@@ -91,8 +94,8 @@ async function ensureSquare(
   img: { id: string; path: string; width: number | null; height: number | null },
   row: SquareRow | null,
   renderUntil: number,
-): Promise<{ kind: "flat" | "object" | null; squarePath: string | null; rendered: boolean; deferred: boolean }> {
-  const forced = piece.presentation === "flat" || piece.presentation === "object" ? piece.presentation : null;
+): Promise<{ kind: Presentation | null; squarePath: string | null; rendered: boolean; deferred: boolean }> {
+  const forced = piece.presentation === "flat" || piece.presentation === "object" || piece.presentation === "photo" ? piece.presentation : null;
   const flatHint = flatWorkHint(piece.medium, piece.title);
   // Same master as before: the rendered square still holds; the guess only
   // if the catalogue hint it was made with has not changed.
@@ -104,7 +107,7 @@ async function ensureSquare(
   // fresh invocation once this one's budget is spent.
   const outOfTime = () => Date.now() > renderUntil;
 
-  let guess: "flat" | "object" | null = fresh ? row!.guess : null;
+  let guess: Presentation | null = fresh ? row!.guess : null;
   let box: Box | null = null;
   let analysed: Analysed | undefined;
   if (!guess) {
@@ -113,7 +116,9 @@ async function ensureSquare(
     if (!buf) return { kind: forced, squarePath: null, rendered: false, deferred: false };
     try {
       const a = await analysePhotograph(buf, { flatHint });
-      guess = a.hasBackdrop ? "object" : "flat";
+      // A room photograph is shown as taken; a studio shot is rendered; a
+      // work cropped to its own edges is fitted on white.
+      guess = a.scene ? "photo" : a.hasBackdrop ? "object" : "flat";
       box = a.box;
       analysed = a.analysed;
     } catch {
@@ -122,14 +127,16 @@ async function ensureSquare(
   }
   const kind = forced ?? guess;
 
-  let squarePath = kind === "object" && sameMaster && row!.kind === "object" ? row!.square_path : null;
+  // Objects and room photographs both get a rendered tile; flat works are fitted by the site.
+  const tiled = kind === "object" || kind === "photo";
+  let squarePath = tiled && sameMaster && row!.kind === kind ? row!.square_path : null;
   let rendered = false;
-  if (kind === "object" && !squarePath) {
+  if (tiled && !squarePath) {
     if (outOfTime()) return { kind, squarePath: null, rendered, deferred: true };
     const buf = await load();
     if (!buf) return { kind: null, squarePath: null, rendered, deferred: false };
     try {
-      const r = await renderObjectSquare(buf, { flatHint, analysed });
+      const r = kind === "photo" ? await renderPhotoSquare(buf, { flatHint, analysed }) : await renderObjectSquare(buf, { flatHint, analysed });
       const path = `${piece.id}/${img.id}.sq-${r.sourceWidth}x${r.sourceHeight}.jpg`;
       const { error } = await supabase.storage
         .from("piece-derivatives")
@@ -429,7 +436,7 @@ async function processBatch(
     }
     // The square tile: decided from the first photograph (or forced on the piece).
     const first = (imagesByPiece.get(pieceId) ?? [])[0];
-    let presentation: "flat" | "object" | null = null;
+    let presentation: Presentation | null = null;
     let tile: unknown = null;
     if (first) {
       const square = await ensureSquare(supabase, piece, first, squareRows.get(first.id) ?? null, renderUntil);

@@ -56,21 +56,31 @@ type EdgeModel = {
   band: number;
 };
 
-/** Luminance step across three pixels of the softened copy that marks a sharp edge of the piece. */
-const EDGE_GRADIENT = 24;
+/** A step in the backdrop's luminance down both sides, over 1.5% of the height, that marks a wall meeting a table. */
+const SCENE_STEP = 25;
+
+/** Luminance step across three pixels of the softened copy that marks an edge of the piece. */
+const EDGE_GRADIENT = 12;
+/** The same for a pixel in a shadow's colours (darker, neutral): a dark piece's silhouette is this sharp, a soft shadow's fall-off is not. */
+const EDGE_GRADIENT_SHADE = 24;
+
+/** How far, in any channel, a shadow may stray from the backdrop's own colour darkened. */
+const SHADE_TINT = 7;
 
 /**
- * Darker than the backdrop in every channel, neutral, and not as dark as a
- * black object: a cast shadow or a reflection on the ground rather than the
- * subject. The backdrop's chroma is allowed for, so a warm grey backdrop's
- * shadow still reads as neutral.
+ * Darker than the backdrop in every channel, the backdrop's own colour
+ * darkened, and not as dark as a black object: a cast shadow or a reflection
+ * on the ground rather than the subject. A shadow on a warm grey backdrop is
+ * warm grey; a pale glaze in shade keeps its own tint and is not a shadow.
  */
 function shadowLike(r: number, g: number, b: number, est: Float32Array): boolean {
   if (r > est[0]! + 2 || g > est[1]! + 2 || b > est[2]! + 2) return false;
-  const chroma = Math.max(r, g, b) - Math.min(r, g, b);
-  const backdropChroma = Math.max(est[0]!, est[1]!, est[2]!) - Math.min(est[0]!, est[1]!, est[2]!);
-  if (chroma > backdropChroma + 16) return false;
-  const depth = 0.299 * (est[0]! - r) + 0.587 * (est[1]! - g) + 0.114 * (est[2]! - b);
+  const backdropLum = 0.299 * est[0]! + 0.587 * est[1]! + 0.114 * est[2]!;
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  const k = backdropLum > 1 ? lum / backdropLum : 0;
+  const tint = Math.max(Math.abs(r - k * est[0]!), Math.abs(g - k * est[1]!), Math.abs(b - k * est[2]!));
+  if (tint > SHADE_TINT) return false;
+  const depth = backdropLum - lum;
   return depth <= 120;
 }
 
@@ -203,7 +213,9 @@ function countEdgeLines(strip: Raw, side: keyof Insets, limit: number): number {
  * photograph at full size: a thin strip along each edge, read as displayed.
  */
 async function findInsets(input: Buffer, width: number, height: number): Promise<Insets> {
-  const limit = Math.max(2, Math.min(12, Math.round(0.01 * Math.min(width, height))));
+  // A scanner edge can stack several lines; small photographs need a few
+  // lines' search even where one percent of the side is less.
+  const limit = Math.max(6, Math.min(12, Math.round(0.01 * Math.min(width, height))));
   const depth = limit + 4;
   if (width < 2 * depth + 8 || height < 2 * depth + 8) return { left: 0, top: 0, right: 0, bottom: 0 };
   const strip = async (region: { left: number; top: number; width: number; height: number }): Promise<Raw> => {
@@ -385,8 +397,13 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
           rows[y]!++; cols[x]!++;
           // The body is what stands out clearly: the backdrop's own lighting
           // and a soft shadow drift from the model by less than this.
-          if (d > bodyThreshold && !shadowLike(r, g, b, est)) { bodyRows[y]!++; bodyCols[x]!++; }
-          if (gradAt(x, y) > EDGE_GRADIENT) { edgeRows[y]!++; edgeCols[x]!++; edgeTotal++; }
+          const shade = shadowLike(r, g, b, est);
+          if (d > bodyThreshold && !shade) { bodyRows[y]!++; bodyCols[x]!++; }
+          // An edge in a shadow's colours counts only when it is sharp, as a
+          // dark piece's silhouette is and a soft shadow's fall-off is not.
+          // Any other edge counts even when faint, which a pale glaze against
+          // a pale backdrop needs.
+          if (gradAt(x, y) > (shade ? EDGE_GRADIENT_SHADE : EDGE_GRADIENT)) { edgeRows[y]!++; edgeCols[x]!++; edgeTotal++; }
         }
         const inBand = x < band || x >= width - band || y < band || y >= height - band;
         if (inBand) { bandCount++; if (hit) bandTouched++; }
@@ -459,6 +476,22 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   const edges = edgeExtent();
   const bodyW = edges ?? strict ?? boxW;
 
+  // A room, not the studio sweep: either the "piece" runs to the left or
+  // right edge of the frame without filling it top to bottom (a table edge
+  // or a wall corner read as part of it), or the backdrop steps sharply
+  // down both sides at once (a wall meeting a table). A studio sweep
+  // changes gradually.
+  const lumAt = (run: Float32Array, i: number) => 0.299 * run[i * 3]! + 0.587 * run[i * 3 + 1]! + 0.114 * run[i * 3 + 2]!;
+  const steepest = (run: Float32Array) => {
+    const n = run.length / 3, k = Math.max(2, Math.round(0.015 * n));
+    let best = 0;
+    for (let i = k; i < n - k; i++) best = Math.max(best, Math.abs(lumAt(run, i + k) - lumAt(run, i - k)));
+    return best;
+  };
+  const sideStep = Math.min(steepest(model.left), steepest(model.right));
+  const touchesSide = bodyW.left <= 0.015 * width || bodyW.left + bodyW.width >= 0.985 * width;
+  const sceneLike = (touchesSide && bodyW.height < 0.93 * height) || sideStep >= SCENE_STEP;
+
   const touch = bandCount ? bandTouched / bandCount : 1;
   const uniform = noise <= 9;
   const coverage = (boxW.width * boxW.height) / (width * height);
@@ -482,6 +515,7 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   const body = toSource(bodyW);
   return {
     hasBackdrop,
+    scene: hasBackdrop && !flatHint && sceneLike,
     box,
     body,
     width: fullW,
@@ -500,13 +534,45 @@ export type Analysed = { analysis: PhotographAnalysis; detail: Analysis };
 
 export async function analysePhotograph(input: Buffer, opts: { flatHint?: boolean } = {}): Promise<PhotographAnalysis & { analysed: Analysed }> {
   const a = await analyse(input, !!opts.flatHint);
-  const analysis = { hasBackdrop: a.hasBackdrop, box: a.box, body: a.body, width: a.width, height: a.height, border: a.border };
+  const analysis = { hasBackdrop: a.hasBackdrop, scene: a.scene, box: a.box, body: a.body, width: a.width, height: a.height, border: a.border };
   return { ...analysis, analysed: { analysis, detail: a } };
 }
 
 /* ------------------------------------------------------------------------ */
 /* Rendering                                                                */
 /* ------------------------------------------------------------------------ */
+
+/**
+ * A room photograph as taken: the largest square inside it, nothing
+ * invented. Across, the square is centred on the piece as far as the frame
+ * allows. Down, it keeps the photographer's own centred framing and moves up
+ * only as far as keeps the piece's top inside with the usual margin, so a
+ * vase's mouth or neck is not cut. A top that runs into the frame's edge
+ * is the room, not the piece, and is left out of it.
+ */
+export async function renderPhotoSquare(
+  input: Buffer,
+  opts: { flatHint?: boolean; side?: number; analysed?: Analysed } = {},
+): Promise<ObjectSquare> {
+  const a = opts.analysed?.detail ?? (await analyse(input, !!opts.flatHint));
+  const out = opts.side ?? SQUARE_PX;
+  const W = a.width, H = a.height, body = a.body;
+  const side = Math.min(W, H);
+  const cx = body.left + body.width / 2;
+  const left = Math.round(Math.min(Math.max(cx - side / 2, 0), W - side));
+  const centred = (H - side) / 2;
+  const ownTop = body.top > 0.01 * H;
+  const top = Math.round(Math.min(Math.max(ownTop ? Math.min(centred, body.top - MARGIN_TOP * side) : centred, 0), H - side));
+  const square = await sharp(input, { limitInputPixels: 100_000_000 })
+    .autoOrient()
+    .toColorspace("srgb")
+    .removeAlpha()
+    .extract({ left, top, width: side, height: side })
+    .resize({ width: out, height: out, fit: "fill" })
+    .jpeg({ quality: 85, mozjpeg: true })
+    .toBuffer();
+  return { square, box: a.box, canvas: { left, top, side }, sourceWidth: W, sourceHeight: H };
+}
 
 /** Deterministic Gaussian noise, so a re-render is identical. */
 function gaussian(seed: number) {
@@ -523,8 +589,8 @@ function gaussian(seed: number) {
 }
 
 /**
- * The object square: the subject's larger side fills 80% of the side, the
- * box is centred across and sits with 9% above and 11% below. Where the
+ * The object square: the body's larger side fills 86% of the side, centred
+ * across, with 6.5% above and 7.5% below (a wide low piece set lower). Where the
  * square reaches past the photograph the backdrop is continued from the
  * edge model, with the photograph's own grain and a soft seam.
  */
@@ -643,7 +709,7 @@ export async function renderObjectSquare(
   // carried at all. One residual per row for the sides, per column for the
   // top and bottom, smoothed along the edge.
   type Seam = { res: Float32Array; kind: Uint8Array }; // kind: 0 none, 1 shadow, 2 subject
-  const SHADOW_REACH = 0.2 * side;
+  const SHADOW_REACH = 0.1 * side;
   const SUBJECT_REACH = 0.01 * side;
   const seamOf = (along: number, sample: (i: number, c: number) => number, at: (i: number, out: Float32Array) => void): Seam => {
     const raw = new Float32Array(along * 3);

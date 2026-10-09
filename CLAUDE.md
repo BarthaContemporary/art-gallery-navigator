@@ -30,17 +30,22 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   else stay in colour.
 - **Work squares**: the website draws a work's tile from `work.presentation`
   and `work.tile`, both written by the sync. `pieces.presentation` (auto /
-  flat / object, the "Website square" select on the piece form) is the
-  owner's choice; on auto the sync reads the first photograph
+  flat / object / photo, the "Website square" select on the piece form) is
+  the owner's choice; on auto the sync reads the first photograph
   (`apps/studio/src/lib/squares`): a flat work cropped to its edges is
   fitted whole on white by the site; an object on the studio backdrop gets a
   rendered 1600 px square (centred on and sized by the object's body
   alone: the extent of its sharp edges, which a soft cast shadow or the
-  backdrop's own lighting never has, falling back to clear colour
-  difference when a piece shows too few edges; the body's larger side 86% of the tile, margins
-  6.5% top and sides, 7.5% bottom, a wide low object set lower; shadows
-  take what room the margins leave; backdrop and any shadow running off
-  the frame continued with the photograph's own grain) kept
+  backdrop's own lighting never has, an edge in a shadow's colours (the
+  backdrop's own colour darkened) counting only when sharp, falling back
+  to clear colour difference when a piece shows too few edges; the body's
+  larger side 86% of the tile, margins 6.5% top and sides, 7.5% bottom, a
+  wide low object set lower; shadows take what room the margins leave;
+  backdrop and any shadow running off the frame continued with the
+  photograph's own grain); a room photograph (piece on a table against a
+  wall, no clean backdrop) gets the largest square inside the photograph,
+  nothing invented, centred across on the piece and moved up from the
+  centred framing only to keep the piece's top. Both renders are kept
   in `piece-derivatives` as `<piece>/<image>.sq-<w>x<h>.jpg` and published
   as `tile`. `piece_image_squares` remembers the guess and the render per
   master size, so nothing is redone until the master changes. The fold-out

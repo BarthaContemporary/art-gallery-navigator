@@ -112,8 +112,8 @@ async function autoAddInterestForPurchase(
 }
 
 /** The website-square choice from the form: an explicit flat/object, else auto. */
-function presentationOf(v: FormDataEntryValue | null): "auto" | "flat" | "object" {
-  return v === "flat" || v === "object" ? v : "auto";
+function presentationOf(v: FormDataEntryValue | null): "auto" | "flat" | "object" | "photo" {
+  return v === "flat" || v === "object" || v === "photo" ? v : "auto";
 }
 
 export async function PATCH(

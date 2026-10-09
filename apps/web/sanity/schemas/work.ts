@@ -58,6 +58,7 @@ const work = {
         list: [
           { title: "Flat work: fitted on white", value: "flat" },
           { title: "Object: centred on the extended backdrop", value: "object" },
+          { title: "Photograph as taken: cut square around the piece", value: "photo" },
         ],
       },
       description:

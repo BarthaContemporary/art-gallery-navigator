@@ -4,6 +4,13 @@ export type Box = { left: number; top: number; width: number; height: number };
 export type PhotographAnalysis = {
   /** True when the photograph shows a subject on a plain studio backdrop (an object); false when it is cropped to the work itself (a flat work). */
   hasBackdrop: boolean;
+  /**
+   * True when the "backdrop" is a room rather than the studio sweep: a wall
+   * meeting a table, a corner. Such a photograph is shown as taken, cut
+   * square around the piece, because a wall and a table edge cannot be
+   * continued cleanly beyond the frame.
+   */
+  scene: boolean;
   /** The subject's bounding box in source pixels, shadow included; the whole photograph when nothing stands out. */
   box: Box;
   /** The subject's body alone, without its cast shadow: what the square is centred on. Equals `box` when no body stands out. */
