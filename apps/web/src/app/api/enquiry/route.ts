@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@jvb/db/server";
 import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
-import { galleryNotificationAddress, maskAddress, sendEmail } from "@/lib/email";
+import { fromLine, galleryNotificationAddress, maskAddress, sendEmail } from "@/lib/email";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
       const galleryName = settings?.galleryName ?? fallbackGalleryName;
       const from = process.env.BOOKING_FROM_EMAIL ?? `website@${req.nextUrl.hostname}`;
       const id = await sendEmail(apiKey, {
-        from: `${galleryName} website <${from}>`,
+        from: fromLine(from, `${galleryName} website`),
         to,
         replyTo: email,
         subject: `${label}${payload.subject ? `: ${payload.subject}` : ""}`,

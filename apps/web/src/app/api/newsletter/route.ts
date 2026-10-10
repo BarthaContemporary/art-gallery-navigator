@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { sendEmail } from "@/lib/email";
+import { fromLine, sendEmail } from "@/lib/email";
 import { createServiceClient } from "@jvb/db/server";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName, siteUrl } from "@/lib/site";
@@ -108,7 +108,7 @@ async function sendConfirmation(req: NextRequest, to: string, name: string, toke
   const link = `${siteUrl}/newsletter/confirm/${token}`;
   const address = settings?.address?.replace(/\r?\n/g, ", ");
   await sendEmail(apiKey, {
-    from: `${galleryName} <${from}>`,
+    from: fromLine(from, galleryName),
     to,
     subject: `Please confirm your subscription to ${galleryName}`,
     text: [

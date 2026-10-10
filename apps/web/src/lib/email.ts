@@ -16,6 +16,17 @@ export async function sendEmail(apiKey: string, message: CreateEmailOptions, lab
   return data.id;
 }
 
+/**
+ * The From line for a configured sender. BOOKING_FROM_EMAIL may be a bare
+ * address or already carry a name ("Joost van den Bergh <bookings@…>", as it
+ * does live); wrapping the latter in a second name gives an address Resend
+ * refuses. A sender with its own name is used as given.
+ */
+export function fromLine(sender: string, displayName: string): string {
+  const s = sender.trim();
+  return s.includes("<") ? s : `${displayName} <${s}>`;
+}
+
 /** An address shortened for logs: first letter and domain, e.g. j…@example.com. */
 export function maskAddress(address: string): string {
   const at = address.lastIndexOf("@");

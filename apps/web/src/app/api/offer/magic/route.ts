@@ -72,6 +72,8 @@ export async function POST(req: Request) {
 <p>If you didn't request this, you can ignore this email.</p>
 <p>${GALLERY_NAME}</p>`,
         }, "[offer] sign-in link");
+      } else {
+        console.error("[offer] sign-in link not sent: RESEND_API_KEY not set");
       }
     }
   } catch (err) {
