@@ -12,7 +12,9 @@ with capped as (
   where p.web_visible
     and i.processing_status = 'done'
     and i.storage_path_original is not null
-    and greatest(coalesce(i.width, 0), coalesce(i.height, 0)) >= 2560
+    -- exactly at the old cap: a master already remade at up to 4096 px is
+    -- never picked again, so running this twice is harmless
+    and greatest(coalesce(i.width, 0), coalesce(i.height, 0)) = 2560
 ),
 forgotten as (
   delete from public.sanity_assets s

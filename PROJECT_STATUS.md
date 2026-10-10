@@ -64,11 +64,12 @@ vars are referenced by name only.
   sync into `work.tile` (`apps/studio/src/lib/squares`, migration 0085,
   "Website square" select on the piece form overrides the guess). Full
   screen loads the largest rendition after the panel's picture. The image
-  worker's display-master cap is raised to 4096 px in `infra/image-worker`
-  (deploy on the VPS per `infra/README.md` §6b, then run
-  `docs/ops/requeue-4096.sql` to re-derive the 35 published masters that
-  were capped at 2560 and have the website re-upload them; 0086 keeps a
-  queued photograph from re-syncing its work until the worker is done).
+  worker's display-master cap is 4096 px, live on the VPS since 10 October
+  (`docs/ops/image-worker-4096.md`); the 37 published masters that were
+  capped at 2560 were re-derived and re-uploaded that day (0086 keeps a
+  queued photograph from re-syncing its work until the worker is done). A
+  room photograph no longer needs an even border to be read as one, so
+  room shots of bronzes are cut square rather than fitted small on white.
   A change to what the sync writes needs Admin → Resync afterwards: only
   edited pieces pass through the outbox otherwise.
 - Events can show whole inventory lists: lists sync to Sanity as `workList`

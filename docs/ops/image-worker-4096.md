@@ -25,3 +25,8 @@ worker rewrites the master in place from the original, and its status write
 re-enqueues the piece so the website sync uploads the new pixels and renders
 a fresh square tile for objects. 35 masters qualified on 9 October 2026.
 Originals smaller than 2560 px are left alone: nothing would change.
+
+**Done 10 October 2026.** The worker was deployed on the VPS (it logs
+`"maxDimensionPx":4096`) and all 37 capped masters on 34 published works were
+re-derived, now 2735 to 4096 px on the long side, and published to Sanity.
+The script selects masters exactly at 2560 px, so a second run finds none.

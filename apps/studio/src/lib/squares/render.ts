@@ -515,7 +515,10 @@ async function analyse(input: Buffer, flatHint: boolean): Promise<Analysis> {
   const body = toSource(bodyW);
   return {
     hasBackdrop,
-    scene: hasBackdrop && !flatHint && sceneLike,
+    // A room is rarely as even as a studio sweep, so a room photograph need
+    // not pass the uniform-border test; it must still show a subject that
+    // leaves most of the frame's edge clear, and not be a catalogued flat work.
+    scene: found && touch <= 0.3 && !flatHint && sceneLike,
     box,
     body,
     width: fullW,

@@ -51,7 +51,7 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   master size, so nothing is redone until the master changes. The fold-out
   panel and the full-screen view always show the whole photograph; full
   screen swaps in the largest rendition (up to 4096 px, the image worker's
-  display-master cap since 9 October 2026).
+  display-master cap, live since 10 October 2026).
 - **Artist pages**: `ARTISTS_UNDER_CONSTRUCTION` in `apps/web/src/lib/site.ts`
   is the one switch that hides or restores the whole artist section; do not
   add artist links that bypass it.
