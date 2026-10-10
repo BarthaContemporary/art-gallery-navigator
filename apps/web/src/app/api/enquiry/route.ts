@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { Resend } from "resend";
 import { createServiceClient } from "@jvb/db/server";
 import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
+import { galleryNotificationAddress, maskAddress, sendEmail } from "@/lib/email";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -147,16 +147,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not send your enquiry right now — please try again." }, { status: 500 });
   }
 
-  // Email the gallery; a failure here must not fail the enquiry (it's recorded).
-  const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.GALLERY_NOTIFICATIONS_EMAIL;
-  if (apiKey && to) {
-    try {
-      const settings = await getSiteSettings();
+  // Email the gallery; a failure here must not fail the enquiry (it's
+  // recorded), but it is always logged so a lost notification can be traced.
+  try {
+    const apiKey = process.env.RESEND_API_KEY;
+    const settings = await getSiteSettings();
+    const to = galleryNotificationAddress(settings?.email);
+    if (!apiKey || !to) {
+      console.error(`[enquiry] gallery not notified: ${!apiKey ? "RESEND_API_KEY" : "GALLERY_NOTIFICATIONS_EMAIL (and the site settings email)"} not set`);
+    } else {
       const galleryName = settings?.galleryName ?? fallbackGalleryName;
       const from = process.env.BOOKING_FROM_EMAIL ?? `website@${req.nextUrl.hostname}`;
-      const resend = new Resend(apiKey);
-      await resend.emails.send({
+      const id = await sendEmail(apiKey, {
         from: `${galleryName} website <${from}>`,
         to,
         replyTo: email,
@@ -174,10 +176,11 @@ export async function POST(req: NextRequest) {
         ]
           .filter((l) => l !== null)
           .join("\n"),
-      });
-    } catch (err) {
-      console.error("[enquiry] email failed:", err);
+      }, "[enquiry] gallery notification");
+      console.info(`[enquiry] gallery notified at ${maskAddress(to)} (Resend ${id})`);
     }
+  } catch (err) {
+    console.error("[enquiry] gallery notification failed:", err);
   }
 
   return NextResponse.json({ ok: true });

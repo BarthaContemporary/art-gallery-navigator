@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { Resend } from "resend";
+import { sendEmail } from "@/lib/email";
 import { createServiceClient } from "@jvb/db/server";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName, siteUrl } from "@/lib/site";
@@ -107,7 +107,7 @@ async function sendConfirmation(req: NextRequest, to: string, name: string, toke
   const from = process.env.BOOKING_FROM_EMAIL ?? `website@${req.nextUrl.hostname}`;
   const link = `${siteUrl}/newsletter/confirm/${token}`;
   const address = settings?.address?.replace(/\r?\n/g, ", ");
-  await new Resend(apiKey).emails.send({
+  await sendEmail(apiKey, {
     from: `${galleryName} <${from}>`,
     to,
     subject: `Please confirm your subscription to ${galleryName}`,
@@ -128,7 +128,7 @@ async function sendConfirmation(req: NextRequest, to: string, name: string, toke
 <p><a href="${link}" style="display:inline-block;padding:10px 18px;background:#1a1a1a;color:#fff;text-decoration:none;border-radius:4px">Confirm subscription</a></p>
 <p style="color:#666;font-size:13px">If you did not ask to subscribe, simply ignore this email and nothing further will be sent.</p>
 <p style="color:#666;font-size:12px">${escapeHtml(galleryName)}${address ? ` · ${escapeHtml(address)}` : ""} · <a href="${siteUrl}/privacy" style="color:#666">Privacy Notice</a></p>`,
-  });
+  }, "[newsletter] confirmation");
 }
 
 function escapeHtml(s: string) {

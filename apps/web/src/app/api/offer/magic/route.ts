@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import { sendEmail } from "@/lib/email";
 import { createServiceClient } from "@jvb/db/server";
 import { signGrant, MAGIC_TTL_SECONDS } from "@/lib/offer-access";
 
@@ -62,8 +62,7 @@ export async function POST(req: Request) {
           process.env.EMAIL_FROM ??
           `${GALLERY_NAME} <offers@web.joostvandenbergh.com>`;
         const name = contact?.first_name ?? contact?.salutation ?? "there";
-        const resend = new Resend(apiKey);
-        await resend.emails.send({
+        await sendEmail(apiKey, {
           from,
           to: email,
           subject: `Your sign-in link — ${offer.title ?? "private viewing"}`,
@@ -72,11 +71,12 @@ export async function POST(req: Request) {
 <p><a href="${link}">Open the private viewing</a></p>
 <p>If you didn't request this, you can ignore this email.</p>
 <p>${GALLERY_NAME}</p>`,
-        });
+        }, "[offer] sign-in link");
       }
     }
-  } catch {
-    // Swallow — the response is deliberately identical either way.
+  } catch (err) {
+    // The response is deliberately identical either way; the log is not.
+    console.error("[offer] sign-in link not sent:", err);
   }
   return NextResponse.json({ ok: true });
 }

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { Resend } from "resend";
+import { galleryNotificationAddress, maskAddress, sendEmail } from "@/lib/email";
 import { createServiceClient } from "@jvb/db/server";
 import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
 import { buildIcs } from "@/lib/ics";
@@ -197,8 +197,6 @@ export async function POST(req: NextRequest) {
         contentType: "text/calendar; method=PUBLISH",
       };
 
-      const resend = new Resend(apiKey);
-
       const prettyDate = new Intl.DateTimeFormat("en-GB", {
         weekday: "long",
         day: "numeric",
@@ -206,25 +204,33 @@ export async function POST(req: NextRequest) {
         year: "numeric",
       }).format(new Date(`${payload.date}T12:00:00Z`));
 
-      await resend.emails.send({
-        from,
-        to: payload.email,
-        subject: `Your appointment request — ${galleryName}`,
-        text: [
-          `Dear ${payload.name},`,
-          "",
-          `Thank you — we have received your request for a ${typeLabel.toLowerCase()} on ${prettyDate} at ${payload.time}.`,
-          "We will confirm the appointment shortly. A calendar invitation is attached.",
-          "",
-          `With best wishes,`,
-          galleryName,
-        ].join("\n"),
-        attachments: [icsAttachment],
-      });
+      // The visitor's confirmation and the staff notification are sent
+      // separately: one being refused must not stop the other.
+      try {
+        await sendEmail(apiKey, {
+          from,
+          to: payload.email,
+          subject: `Your appointment request — ${galleryName}`,
+          text: [
+            `Dear ${payload.name},`,
+            "",
+            `Thank you — we have received your request for a ${typeLabel.toLowerCase()} on ${prettyDate} at ${payload.time}.`,
+            "We will confirm the appointment shortly. A calendar invitation is attached.",
+            "",
+            `With best wishes,`,
+            galleryName,
+          ].join("\n"),
+          attachments: [icsAttachment],
+        }, "[booking] visitor confirmation");
+      } catch (error) {
+        console.error("[booking] visitor confirmation failed:", error);
+      }
 
-      const staffEmail = process.env.GALLERY_NOTIFICATIONS_EMAIL ?? settings?.email;
-      if (staffEmail) {
-        await resend.emails.send({
+      const staffEmail = galleryNotificationAddress(settings?.email);
+      if (!staffEmail) {
+        console.error("[booking] gallery not notified: GALLERY_NOTIFICATIONS_EMAIL (and the site settings email) not set");
+      } else {
+        const id = await sendEmail(apiKey, {
           from,
           to: staffEmail,
           subject: `New booking request: ${payload.name} — ${prettyDate} ${payload.time}`,
@@ -241,12 +247,15 @@ export async function POST(req: NextRequest) {
             .filter(Boolean)
             .join("\n"),
           attachments: [icsAttachment],
-        });
+        }, "[booking] gallery notification");
+        console.info(`[booking] gallery notified at ${maskAddress(staffEmail)} (Resend ${id})`);
       }
+    } else {
+      console.error("[booking] no emails sent: RESEND_API_KEY not set");
     }
   } catch (error) {
     // Email failure should not fail the booking — staff see it in the studio.
-    console.error("[booking] confirmation email failed:", error);
+    console.error("[booking] emails failed:", error);
   }
 
   return NextResponse.json({ ok: true });
