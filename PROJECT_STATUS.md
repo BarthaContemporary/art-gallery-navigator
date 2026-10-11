@@ -4,16 +4,19 @@ Working notes for continuity across Claude Code sessions. No secrets here — en
 vars are referenced by name only.
 
 ## Deployment topology (source of truth)
-- **Deploy repo:** `joostvandenberghproject-gif/jvb-project2026` — this is the
-  source of truth. Both Vercel projects (`jvb-studio`, `jvb-web`) deploy from it
-  (production branch `main`). Work here going forward.
-- Earlier work was pushed to `BarthaContemporary/art-gallery-navigator` (a
-  Claude Code agent remote) and periodically synced into the deploy repo. That
-  split is being retired — everything now lives in `jvb-project2026`.
+- **Deploy repo:** as of October 2026 the Vercel projects `jvb-web`,
+  `jvb-studio` and `capture` build production from `main` of
+  `BarthaContemporary/art-gallery-navigator` (every push to `main` shows a
+  Production deployment for each on that repository). Earlier notes named
+  `joostvandenberghproject-gif/jvb-project2026` as the deploy repo; check the
+  Git connection in each Vercel project before relying on either.
 - **Studio DB is self-hosted Supabase on a Vultr VPS** (IP `104.238.184.145`).
   Reachable via `sslip.io` hostnames, e.g. `https://api.104-238-184-145.sslip.io`.
-  The domain `joostvandenbergh.com` (GoDaddy DNS) still points at Squarespace;
-  the `api.`/`studio.` subdomains have no DNS records (sslip.io is used instead).
+  The public website moved off Squarespace on 11 October 2026:
+  `www.joostvandenbergh.com` is served by Vercel `jvb-web` and the bare domain
+  308s to www (DNS at GoDaddy; runbook, rollback values and after-launch tasks
+  in `docs/ops/go-live-www.md`). `studio.` is on Vercel; `api.` has no record
+  (sslip.io is used instead).
 - Applying DB migrations remotely: POST SQL to `/pg/query` (postgres-meta,
   exposed through Kong) with the `service_role` key as `apikey` + Bearer. This
   is how migrations 16/17 and the data backfill were applied.
