@@ -6,6 +6,7 @@ import { PortableText } from "@/components/portable-text";
 import { AppointmentForm } from "@/components/appointment-form";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/about" },
   title: "About",
   description: "About the gallery — Japanese and Indian works of art in St James's, London. By appointment.",
 };

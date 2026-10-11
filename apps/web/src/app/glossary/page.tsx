@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/glossary" },
   title: "Glossary",
   description:
     "A short glossary of terms used in cataloguing Japanese and Indian works of art — okimono, tomobako, shibuichi, shakudo, patina and more.",

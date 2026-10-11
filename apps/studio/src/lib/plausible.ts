@@ -14,9 +14,9 @@
 export type PlausibleConfig = { host: string; apiKey: string; siteId: string };
 
 export function plausibleConfig(): PlausibleConfig | null {
-  const host = process.env.PLAUSIBLE_STATS_HOST?.replace(/\/+$/, "");
+  const host = process.env.PLAUSIBLE_STATS_HOST?.trim().replace(/\/+$/, "");
   const apiKey = process.env.PLAUSIBLE_API_KEY;
-  const siteId = process.env.PLAUSIBLE_SITE_ID;
+  const siteId = process.env.PLAUSIBLE_SITE_ID?.trim();
   if (!host || !apiKey || !siteId) return null;
   return { host, apiKey, siteId };
 }

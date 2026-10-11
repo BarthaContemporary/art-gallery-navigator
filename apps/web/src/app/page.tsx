@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { exhibitionsQuery, sanityFetch, type ExhibitionListItem } from "@/lib/sanity";
 import { eventDates, eventEyebrow, eventStatus } from "@/lib/events";
 import { HeroSlideshow, type Slide } from "@/components/hero-slideshow";
@@ -5,6 +6,8 @@ import { EventTile } from "@/components/event-tile";
 import { InfiniteGrid } from "@/components/infinite-grid";
 
 export const revalidate = 3600;
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 /**
  * Home is the Events page (handoff 2a): hero slideshow of current and

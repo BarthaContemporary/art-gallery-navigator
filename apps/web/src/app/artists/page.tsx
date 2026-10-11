@@ -6,6 +6,7 @@ import { ArtistsGrid } from "@/components/artists-grid";
 import { UnderConstruction } from "@/components/under-construction";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/artists" },
   title: "Artists",
   description: "Artists and makers represented by the gallery: Japanese and Indian works of art.",
   robots: ARTISTS_UNDER_CONSTRUCTION ? { index: false, follow: false } : undefined,

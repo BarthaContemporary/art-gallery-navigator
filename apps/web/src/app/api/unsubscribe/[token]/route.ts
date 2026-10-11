@@ -87,3 +87,10 @@ export async function GET(
     );
   }
 }
+
+/**
+ * One-click unsubscribe (RFC 8058): mail providers POST to the address in
+ * List-Unsubscribe when the reader presses their own Unsubscribe button. The
+ * handler reads nothing from the body, so it serves both methods.
+ */
+export const POST = GET;

@@ -3,6 +3,7 @@ import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 
 export const metadata = {
+  alternates: { canonical: "/accessibility" },
   title: "Accessibility",
   description: "Our commitment to an accessible website, and how to tell us if something is not working for you.",
 };

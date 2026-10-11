@@ -4,6 +4,7 @@ import { PublicationTile } from "@/components/publication-tile";
 import { InfiniteGrid } from "@/components/infinite-grid";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/publications" },
   title: "Publications",
   description: "Exhibition catalogues and publications on Japanese and Indian art.",
 };

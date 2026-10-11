@@ -3,6 +3,7 @@ import { LegalDoc, LegalSection } from "@/components/legal-doc";
 import { ConsentReopenLink } from "@/components/consent-reopen-link";
 
 export const metadata = {
+  alternates: { canonical: "/cookies" },
   title: "Cookie Policy",
   description:
     "Exactly which cookies and similar technologies this website uses, what each one does, how long it lasts, and how to change your choice.",

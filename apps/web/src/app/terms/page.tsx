@@ -1,6 +1,7 @@
 import { LegalDoc, LegalSection } from "@/components/legal-doc";
 
 export const metadata = {
+  alternates: { canonical: "/terms" },
   title: "Terms & Conditions",
   description: "Terms of use for the Joost van den Bergh website and terms of sale.",
 };

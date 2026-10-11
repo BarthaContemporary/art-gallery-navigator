@@ -3,6 +3,7 @@ import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 
 export const metadata = {
+  alternates: { canonical: "/privacy" },
   title: "Privacy Notice",
   description: "How Joost van den Bergh collects, uses, shares and protects your personal data, and your rights.",
 };

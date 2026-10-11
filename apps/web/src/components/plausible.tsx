@@ -21,13 +21,13 @@ import { useConsent } from "@/components/consent-provider";
  */
 export function Plausible() {
   const { granted } = useConsent();
-  const domain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+  const domain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN?.trim();
 
   if (!domain) return null;
   if (!granted("analytics")) return null;
 
   const src =
-    process.env.NEXT_PUBLIC_PLAUSIBLE_SRC ??
+    process.env.NEXT_PUBLIC_PLAUSIBLE_SRC?.trim() ||
     "https://analytics.joostvandenbergh.com/js/script.js";
 
   return (

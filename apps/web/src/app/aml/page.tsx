@@ -1,6 +1,7 @@
 import { LegalDoc, LegalSection } from "@/components/legal-doc";
 
 export const metadata = {
+  alternates: { canonical: "/aml" },
   title: "Anti-Money-Laundering Notice",
   description: "The gallery's anti-money-laundering and know-your-client obligations.",
 };

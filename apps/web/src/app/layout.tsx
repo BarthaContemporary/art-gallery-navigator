@@ -36,10 +36,11 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s — ${galleryName}`,
     },
     description,
+    // No og:url here: a page that sets none would otherwise claim the home
+    // page's address. Pages give their own canonical through `alternates`.
     openGraph: {
       siteName: galleryName,
       type: "website",
-      url: siteUrl,
     },
   };
 }

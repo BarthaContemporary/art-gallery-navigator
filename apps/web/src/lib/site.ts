@@ -2,7 +2,7 @@
 
 export const siteUrl = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001"
-).replace(/\/$/, "");
+).trim().replace(/\/+$/, "");
 
 /**
  * Artist pages are being rebuilt. While this is true the site hides every

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/faq" },
   title: "Collectors' FAQ",
   description:
     "Answers to common questions about buying Japanese and Indian works of art — condition, tomobako, provenance, shipping and prices.",

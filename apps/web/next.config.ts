@@ -72,6 +72,31 @@ const nextConfig: NextConfig = {
       { source: "/collections/:slug", destination: "/", permanent: true },
       { source: "/journal", destination: "/", permanent: true },
       { source: "/journal/:slug", destination: "/", permanent: true },
+      // Squarespace's search page, linked from every old page's header. The
+      // new search is an overlay with no address of its own; temporary, so a
+      // real search page can take the address later.
+      { source: "/search", destination: "/", permanent: false },
+      // Old addresses outside the Squarespace sitemap: a gallery page, a dead
+      // catalogue link and pages and PDFs of the site before Squarespace.
+      // These come first, so they win over the generated list below.
+      { source: "/new-gallery", destination: "/about", permanent: true },
+      { source: "/from-bactria-to-kashmir-catalogue", destination: "/publications/from-bactria-to-kashmir", permanent: true },
+      { source: "/tadashi-watanabe", destination: "/events/watanabe-tadashi", permanent: true },
+      { source: "/exhibition-india", destination: "/events/from-the-indus-to-ceylon", permanent: true },
+      { source: "/index.html", destination: "/", permanent: true },
+      { source: "/about.html", destination: "/about", permanent: true },
+      { source: "/contact.html", destination: "/about", permanent: true },
+      { source: "/publications.html", destination: "/publications", permanent: true },
+      { source: "/tantra_objects.html", destination: "/events/tantra", permanent: true },
+      { source: "/tantra_sculptures.html", destination: "/events/tantra", permanent: true },
+      { source: "/past&present_contemporary.html", destination: "/events/past-and-present", permanent: true },
+      { source: "/past&present_traditional.html", destination: "/events/past-and-present", permanent: true },
+      { source: "/assets/joost/img/publications/JOOST_IMRAN_Foldout_2013.pdf", destination: "/publications/imran-channa", permanent: true },
+      { source: "/assets/joost/img/publications/JOOST_MagicMarkings.pdf", destination: "/publications/magic-markings", permanent: true },
+      { source: "/assets/joost/img/publications/JVB_ObjectsOfWorship.pdf", destination: "/publications/objects-of-worship", permanent: true },
+      { source: "/assets/joost/img/publications/256544a-JoostvandenBerghLtd_TantricDrawings.pdf", destination: "/publications/tantric-drawings", permanent: true },
+      { source: "/assets/joost/img/publications/ACOP_digital_catalogue.pdf", destination: "/events/a-concentration-of-power", permanent: true },
+      { source: "/assets/joost/img/publications/:file*", destination: "/publications", permanent: true },
       ...squarespaceRedirects()
         .filter((r) => r.source !== r.destination)
         .map((r) => ({ source: r.source, destination: r.destination, permanent: true })),
