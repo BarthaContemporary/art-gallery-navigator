@@ -1,10 +1,14 @@
+import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { LegalDoc, LegalSection } from "@/components/legal-doc";
 
-export const metadata = {
-  alternates: { canonical: "/aml" },
+export const metadata: Metadata = pageMeta({
   title: "Anti-Money-Laundering Notice",
-  description: "The gallery's anti-money-laundering and know-your-client obligations.",
-};
+  ogTitle: "Anti-Money-Laundering Notice",
+  description:
+    "How Joost van den Bergh meets its anti-money-laundering duties as a UK art market participant: client due diligence, what we may ask for, and record keeping.",
+  path: "/aml",
+});
 
 export default function AmlPage() {
   return (

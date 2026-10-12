@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/glossary" },
+export const metadata: Metadata = pageMeta({
   title: "Glossary",
+  ogTitle: "Glossary",
   description:
     "A short glossary of terms used in cataloguing Japanese and Indian works of art — okimono, tomobako, shibuichi, shakudo, patina and more.",
-};
+  path: "/glossary",
+});
 
 const terms: { term: string; definition: string }[] = [
   {

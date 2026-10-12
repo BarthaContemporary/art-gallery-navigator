@@ -683,6 +683,26 @@ export const artistBySlugQuery = groq`*[_type == "artist" && slug.current == $sl
     }
 }`;
 
+/**
+ * What the sitemap lists: every visible event and publication, and the
+ * artists whose page has something on it (a biography, a work, or a show
+ * they appear in). An empty artist page is noindexed (lib/seo.ts
+ * artistIsThin) and left out here; it returns on its own once content arrives.
+ * lastmod is the document's own last edit.
+ */
+export type SitemapEntry = { slug: string; lastmod: string };
+export const sitemapQuery = groq`{
+  "events": *[_type == "exhibition" && defined(slug.current) && ${visible}]{ "slug": slug.current, "lastmod": _updatedAt },
+  "publications": *[_type == "publication" && defined(slug.current) && ${visible}]{ "slug": slug.current, "lastmod": _updatedAt },
+  "artists": *[_type == "artist" && defined(slug.current) && !coalesce(hidden, false)
+    && (defined(bioShort) || defined(bioLong)
+      || count(*[_type == "work" && references(^._id) && defined(slug.current)]) > 0
+      || count(*[_type == "exhibition" && !coalesce(hidden, false) && defined(slug.current)
+        && (count(works[@->artist._ref == ^.^._id]) > 0
+          || count(workLists[]->works[defined(@->artist) && @->artist._ref == ^.^._id]) > 0
+          || count(catalogue[artist._ref == ^.^._id || maker == ^.^.name]) > 0)]) > 0)]{ "slug": slug.current, "lastmod": _updatedAt }
+}`;
+
 export const artistSlugsQuery = groq`*[_type == "artist" && defined(slug.current) && !coalesce(hidden, false)].slug.current`;
 
 export const journalPostsQuery = groq`*[_type == "journalPost" && defined(slug.current)] | order(coalesce(publishedAt, _createdAt) desc){

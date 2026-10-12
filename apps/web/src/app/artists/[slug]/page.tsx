@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { artistBySlugQuery, artistSlugsQuery, sanityFetch, type Artist } from "@/lib/sanity";
-import { ARTISTS_UNDER_CONSTRUCTION, absoluteUrl } from "@/lib/site";
+import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
+import { artistDescription, artistIsThin, fitTitle, pageMeta } from "@/lib/seo";
 import { UnderConstruction } from "@/components/under-construction";
 import { catalogueToGrid, workToGrid, type GridWork } from "@/lib/grid-work";
 import { ArtistPortrait, artistPicture, standInCaption } from "@/components/artist-portrait";
 import { ReadMore } from "@/components/read-more";
 import { WorksFoldout } from "@/components/works-foldout";
 import { JsonLd } from "@/components/json-ld";
+import { artistJsonLd } from "@/lib/structured-data";
 import { formatLifeDates } from "@/lib/life-dates";
 import { scriptLang } from "@/lib/script-lang";
 
@@ -30,18 +32,19 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const a = await getArtist(slug);
   if (!a) return { title: "Artist not found" };
-  const robots = ARTISTS_UNDER_CONSTRUCTION ? { index: false, follow: false } : undefined;
-  const title = [a.name, a.nameNative].filter(Boolean).join(" ");
-  const firstParagraph = paragraphs(a.bioShort)[0] ?? paragraphs(a.bioLong)[0];
-  const description = firstParagraph?.slice(0, 200) ?? [formatLifeDates(a.lifeDates), a.country, a.period].filter(Boolean).join(", ") ?? undefined;
-  const ogImage = artistPicture(a, 1200)?.src;
-  return {
-    robots,
-    title,
-    description,
-    alternates: { canonical: absoluteUrl(`/artists/${slug}`) },
-    openGraph: { title, description, type: "profile", url: absoluteUrl(`/artists/${slug}`), images: ogImage ? [{ url: ogImage }] : undefined },
-  };
+  const label = [a.name ?? "Artist", a.nameNative].filter(Boolean).join(" ");
+  const dates = formatLifeDates(a.lifeDates);
+  const picture = artistPicture(a, 1200);
+  return pageMeta({
+    title: fitTitle(dates ? `${label} (${dates})` : label, label),
+    ogTitle: label,
+    description: artistDescription(a),
+    path: `/artists/${slug}`,
+    type: "profile",
+    image: picture ? { url: picture.src, width: 1200, height: 1200, alt: picture.alt } : null,
+    // Locked section: hidden. A page with nothing on it yet: kept out of the index, links still followed.
+    robots: ARTISTS_UNDER_CONSTRUCTION ? { index: false, follow: false } : artistIsThin(a) ? { index: false, follow: true } : undefined,
+  });
 }
 
 function paragraphs(text: string | null | undefined): string[] {
@@ -93,17 +96,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
 
   const article = (
     <article className="page pt-12 pb-24 md:pt-16">
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Person",
-          name: a.name ?? undefined,
-          alternateName: a.nameNative ?? undefined,
-          url: absoluteUrl(`/artists/${slug}`),
-          image: picture?.kind === "portrait" ? picture.src : undefined,
-          description: lead[0] ?? undefined,
-        }}
-      />
+      <JsonLd data={artistJsonLd(a, picture?.kind === "portrait" ? artistPicture(a, 1200)?.src : null, [...works, ...catalogueWorks])} />
 
       <div className="grid grid-cols-1 gap-y-8 md:grid-cols-12 md:gap-x-10 lg:gap-x-14">
         {picture ? (

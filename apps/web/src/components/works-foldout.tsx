@@ -15,7 +15,7 @@ const PANEL_PX = 1600;
 const LIGHTBOX_MAX_PX = 4096;
 /** The panel picture's sizes, shared with full screen so the browser reuses what it already fetched. */
 const PANEL_SIZES = "(min-width: 1024px) 50vw, (min-width: 640px) 66vw, 100vw";
-import { workCaption, workSubject, type GridWork } from "@/lib/grid-work";
+import { workAlt, workCaption, workSubject, type GridWork } from "@/lib/grid-work";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 
 /**
@@ -60,9 +60,12 @@ export function WorksFoldout({
   works,
   label = "Works",
   tileLabel = "artist",
+  context = null,
 }: {
   works: GridWork[];
   label?: string | null;
+  /** The event or page the works hang in; names an otherwise undescribed work in its alt text. */
+  context?: string | null;
   /** What the line under each tile says: the artist (default), or the work itself on the artist's own page. */
   tileLabel?: "artist" | "work";
 }) {
@@ -175,7 +178,7 @@ export function WorksFoldout({
                 <WorkSquare
                   subject={w}
                   width={800}
-                  alt={workCaption(w)}
+                  alt={workAlt(w, context, i + 1)}
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                 />
                 <p className="mt-3 font-sans text-ui font-medium leading-snug text-ink transition-colors duration-150 group-hover:text-accent">
@@ -209,6 +212,7 @@ export function WorksFoldout({
                       <div key={panelWork.id} className="panel-swap" style={{ "--swap-x": `${swapDir * 14}px` } as React.CSSProperties}>
                         <WorkPanel
                           work={panelWork}
+                          context={context}
                           cols={cols}
                           enquiryOpen={enquiryOpen}
                           onEnquiry={setEnquiryOpen}
@@ -229,12 +233,14 @@ export function WorksFoldout({
 
 function WorkPanel({
   work,
+  context,
   cols,
   enquiryOpen,
   onEnquiry,
   onClose,
 }: {
   work: GridWork;
+  context: string | null;
   /** Columns of the tile grid above — the panel aligns to the same grid. */
   cols: number;
   enquiryOpen: boolean;
@@ -242,6 +248,7 @@ function WorkPanel({
   onClose: () => void;
 }) {
   const caption = workCaption(work);
+  const alt = workAlt(work, context);
   // The enquiry form stays mounted while its fold closes (never an empty box).
   const [enquiryMounted, setEnquiryMounted] = useState(enquiryOpen);
   useEffect(() => {
@@ -287,7 +294,7 @@ function WorkPanel({
             >
               <Image
                 src={large}
-                alt={caption}
+                alt={alt}
                 width={dims.width}
                 height={dims.height}
                 sizes={PANEL_SIZES}
@@ -299,7 +306,7 @@ function WorkPanel({
                 src={large}
                 sizes={PANEL_SIZES}
                 largeSrc={largest ?? undefined}
-                alt={caption}
+                alt={alt}
                 width={dims.width}
                 height={dims.height}
                 onClose={closeLightbox}

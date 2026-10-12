@@ -5,7 +5,8 @@
  * "b.1948" without its space, are the usual inconsistencies.
  */
 export function formatLifeDates(raw: string | null | undefined): string | null {
-  const s = (raw ?? "").replace(/\s+/g, " ").trim();
+  // "(1911-1987)" as typed for one maker: the brackets are the page's to add.
+  const s = (raw ?? "").replace(/\s+/g, " ").trim().replace(/^\((.*)\)$/, "$1").trim();
   if (!s) return null;
   return s
     .replace(/(\d{3,4})\s*[-–—]\s*(\d{3,4})/g, "$1–$2")

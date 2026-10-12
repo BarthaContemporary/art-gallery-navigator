@@ -55,10 +55,22 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    return [
+      { source: "/(.*)", headers: securityHeaders },
+      // File names are not hashed: give a font a new name whenever it changes.
+      { source: "/fonts/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+      // The vercel.app host duplicates www; its /api/ and /o/ addresses stay for links already emailed.
+      { source: "/(.*)", has: [{ type: "host", value: "jvb-web.vercel.app" }], headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+    ];
   },
   async redirects() {
     return [
+      // The vercel.app host duplicates www. Pages move to www; /api/ and /o/
+      // stay, so offer, magic-link and unsubscribe links already emailed keep working.
+      { source: "/", has: [{ type: "host", value: "jvb-web.vercel.app" }], destination: "https://www.joostvandenbergh.com/", permanent: true },
+      { source: "/:path((?!api/|o/).+)", has: [{ type: "host", value: "jvb-web.vercel.app" }], destination: "https://www.joostvandenbergh.com/:path", permanent: true },
+      // Home is the Events page; /events is kept as a permanent alias for it.
+      { source: "/events", destination: "/", permanent: true },
       // The previous information architecture: exhibitions now live under /events.
       { source: "/exhibitions", destination: "/", permanent: true },
       { source: "/exhibitions/:slug", destination: "/events/:slug", permanent: true },

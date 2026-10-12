@@ -1,10 +1,14 @@
+import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { LegalDoc, LegalSection } from "@/components/legal-doc";
 
-export const metadata = {
-  alternates: { canonical: "/terms" },
+export const metadata: Metadata = pageMeta({
   title: "Terms & Conditions",
-  description: "Terms of use for the Joost van den Bergh website and terms of sale.",
-};
+  ogTitle: "Terms & Conditions",
+  description:
+    "Terms of use for the Joost van den Bergh website and the gallery's terms of sale: prices and payment, consumer rights, export and cultural property.",
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

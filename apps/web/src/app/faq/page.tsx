@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/faq" },
+export const metadata: Metadata = pageMeta({
   title: "Collectors' FAQ",
+  ogTitle: "Collectors' FAQ",
   description:
     "Answers to common questions about buying Japanese and Indian works of art — condition, tomobako, provenance, shipping and prices.",
-};
+  path: "/faq",
+});
 
 const faqs: { question: string; answer: string }[] = [
   {
@@ -28,7 +30,7 @@ const faqs: { question: string; answer: string }[] = [
   {
     question: "How is provenance documented?",
     answer:
-      "Provenance is the ownership history of a work: previous collections, auction appearances, exhibitions and publications. Where it is known we list it on the work's page, and invoices record it permanently. Good provenance supports authenticity and can add value, but many fine works have simply remained quietly in private hands.",
+      "Provenance is the ownership history of a work: previous collections, auction appearances, exhibitions and publications. Where it is known we list it with the work's details, and invoices record it permanently. Good provenance supports authenticity and can add value, but many fine works have simply remained quietly in private hands.",
   },
   {
     question: "Do you ship internationally?",
@@ -38,7 +40,7 @@ const faqs: { question: string; answer: string }[] = [
   {
     question: "Can I view a work before buying?",
     answer:
-      "Always. The gallery is open by appointment, and we are happy to bring selected works to major fairs where we exhibit. Use the booking page to arrange a private viewing.",
+      "Always. The gallery is open by appointment, and we are happy to bring selected works to major fairs where we exhibit. Use the appointment form on the About page to arrange a private viewing.",
   },
   {
     question: "Do you buy works or accept consignments?",

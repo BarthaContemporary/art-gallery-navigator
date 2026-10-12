@@ -42,11 +42,19 @@ export function InfiniteGrid({
     return () => io.disconnect();
   }, [visible, total, pageSize]);
 
+  // Every tile is in the server HTML, so crawlers find every link; tiles not
+  // yet revealed carry `hidden`. Without JavaScript the style below shows them
+  // all (Tailwind's preflight sets [hidden] to display:none !important).
   return (
     <>
-      <ul className={className}>
-        {Children.map(children.slice(0, visible), (child, i) => {
-          if (animateFrom === null || i < animateFrom || !isValidElement<{ className?: string; style?: React.CSSProperties }>(child)) return child;
+      <noscript>
+        <style>{`.ig > li[hidden]{display:block!important}.ig-more{display:none!important}`}</style>
+      </noscript>
+      <ul className={`${className} ig`}>
+        {Children.map(children, (child, i) => {
+          if (!isValidElement<{ className?: string; style?: React.CSSProperties; hidden?: boolean }>(child)) return child;
+          if (i >= visible) return cloneElement(child, { hidden: true });
+          if (animateFrom === null || i < animateFrom) return child;
           const step = Math.min(i - animateFrom, 12);
           return cloneElement(child, {
             className: [child.props.className, "tile-in"].filter(Boolean).join(" "),
@@ -55,15 +63,8 @@ export function InfiniteGrid({
         })}
       </ul>
       {visible < total ? (
-        <div ref={sentinel} className="flex justify-center py-8">
-          <noscript>
-            <ul className={className}>{children.slice(visible)}</ul>
-          </noscript>
-          <button
-            type="button"
-            onClick={reveal}
-            className="link-accent"
-          >
+        <div ref={sentinel} className="ig-more flex justify-center py-8">
+          <button type="button" onClick={reveal} className="link-accent">
             Show more
           </button>
         </div>

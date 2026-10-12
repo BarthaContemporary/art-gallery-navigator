@@ -1,49 +1,28 @@
 import type { MetadataRoute } from "next";
-import {
-  artistSlugsQuery,
-  exhibitionSlugsQuery,
-  publicationSlugsQuery,
-  sanityFetch,
-} from "@/lib/sanity";
+import { sanityFetch, sitemapQuery, type SitemapEntry } from "@/lib/sanity";
 import { ARTISTS_UNDER_CONSTRUCTION, absoluteUrl } from "@/lib/site";
 
+type SitemapData = { events: SitemapEntry[]; publications: SitemapEntry[]; artists: SitemapEntry[] };
+
+/** Newest edit in a list: the index page that lists them changed then too. */
+const newest = (list: SitemapEntry[]) => list.map((e) => e.lastmod).sort().at(-1);
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const staticRoutes: MetadataRoute.Sitemap = [
-    { url: absoluteUrl("/"), changeFrequency: "weekly", priority: 1 },
-    ...(ARTISTS_UNDER_CONSTRUCTION ? [] : [{ url: absoluteUrl("/artists"), changeFrequency: "weekly" as const, priority: 0.9 }]),
-    { url: absoluteUrl("/publications"), changeFrequency: "weekly", priority: 0.8 },
-    { url: absoluteUrl("/about"), changeFrequency: "monthly", priority: 0.5 },
-    { url: absoluteUrl("/faq"), changeFrequency: "monthly", priority: 0.4 },
-    { url: absoluteUrl("/glossary"), changeFrequency: "monthly", priority: 0.3 },
-    { url: absoluteUrl("/privacy"), changeFrequency: "yearly", priority: 0.2 },
-    { url: absoluteUrl("/terms"), changeFrequency: "yearly", priority: 0.2 },
-    { url: absoluteUrl("/cookies"), changeFrequency: "yearly", priority: 0.2 },
-    { url: absoluteUrl("/aml"), changeFrequency: "yearly", priority: 0.2 },
-    { url: absoluteUrl("/accessibility"), changeFrequency: "yearly", priority: 0.2 },
-  ];
-
-  const [exhibitionSlugs, publicationSlugs, artistSlugs] = await Promise.all([
-    sanityFetch<string[]>({ query: exhibitionSlugsQuery, tags: ["exhibition"], fallback: [] }),
-    sanityFetch<string[]>({ query: publicationSlugsQuery, tags: ["publication"], fallback: [] }),
-    sanityFetch<string[]>({ query: artistSlugsQuery, tags: ["artist"], fallback: [] }),
-  ]);
-
+  const d = await sanityFetch<SitemapData>({
+    query: sitemapQuery,
+    tags: ["exhibition", "publication", "artist", "work", "workList"],
+    fallback: { events: [], publications: [], artists: [] },
+  });
+  const artists = ARTISTS_UNDER_CONSTRUCTION ? [] : d.artists;
+  // changeFrequency and priority are left out: Google ignores both. Static
+  // pages carry no lastmod rather than an invented one.
   return [
-    ...staticRoutes,
-    ...exhibitionSlugs.map((slug) => ({
-      url: absoluteUrl(`/events/${slug}`),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    })),
-    ...(ARTISTS_UNDER_CONSTRUCTION ? [] : artistSlugs).map((slug) => ({
-      url: absoluteUrl(`/artists/${slug}`),
-      changeFrequency: "weekly" as const,
-      priority: 0.7,
-    })),
-    ...publicationSlugs.map((slug) => ({
-      url: absoluteUrl(`/publications/${slug}`),
-      changeFrequency: "monthly" as const,
-      priority: 0.7,
-    })),
+    { url: absoluteUrl("/"), lastModified: newest(d.events) },
+    ...(ARTISTS_UNDER_CONSTRUCTION ? [] : [{ url: absoluteUrl("/artists"), lastModified: newest(artists) }]),
+    { url: absoluteUrl("/publications"), lastModified: newest(d.publications) },
+    ...["/about", "/faq", "/glossary", "/privacy", "/terms", "/cookies", "/aml", "/accessibility"].map((p) => ({ url: absoluteUrl(p) })),
+    ...d.events.map((e) => ({ url: absoluteUrl(`/events/${e.slug}`), lastModified: e.lastmod })),
+    ...artists.map((e) => ({ url: absoluteUrl(`/artists/${e.slug}`), lastModified: e.lastmod })),
+    ...d.publications.map((e) => ({ url: absoluteUrl(`/publications/${e.slug}`), lastModified: e.lastmod })),
   ];
 }

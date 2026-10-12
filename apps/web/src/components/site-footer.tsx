@@ -95,6 +95,12 @@ export function SiteFooter({
       ) : null}
       <div className="page flex flex-wrap items-center gap-x-5 gap-y-1 pb-10 font-sans text-[12px] text-white/70">
         <span>&copy; {new Date().getFullYear()} {galleryName}</span>
+        <Link href="/faq" className="hover:text-white">
+          Collectors&rsquo; FAQ
+        </Link>
+        <Link href="/glossary" className="hover:text-white">
+          Glossary
+        </Link>
         <Link href="/privacy" className="hover:text-white">
           Privacy
         </Link>

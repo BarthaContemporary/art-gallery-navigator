@@ -5,14 +5,16 @@ import {
   exhibitionBySlugQuery,
   exhibitionSlugsQuery,
   getSiteSettings,
-  imageUrl,
   sanityFetch,
   type Exhibition,
   type Work,
 } from "@/lib/sanity";
-import { absoluteUrl, fallbackGalleryName } from "@/lib/site";
-import { ACCESS_LABEL, eventDates, eventEyebrow, eventPlace, privateViewWhen } from "@/lib/events";
+import { eventJsonLd } from "@/lib/structured-data";
+import { eventDescription, fitTitle, ogImage, pageMeta, stripBrand } from "@/lib/seo";
+import { ACCESS_LABEL, eventDates, eventEyebrow, privateViewWhen } from "@/lib/events";
 import { arrangeWorks } from "@/lib/arrange-works";
+import { artistCollator } from "@/lib/artist-order";
+import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 import { catalogueToGrid, workToGrid, type GridWork } from "@/lib/grid-work";
 import { JsonLd } from "@/components/json-ld";
 import { PortableText } from "@/components/portable-text";
@@ -38,16 +40,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const ev = await getEvent(slug);
   if (!ev) return { title: "Event not found" };
-  const dates = eventDates(ev.startDate, ev.endDate, ev.datePrecision);
-  const title = ev.seo?.title ?? ev.title ?? "Event";
-  const description = ev.seo?.description ?? ([ev.subtitle, eventPlace(ev), dates].filter(Boolean).join(" · ") || undefined);
-  const ogImage = imageUrl(ev.seo?.ogImage, { width: 1200 }) ?? imageUrl(ev.heroImages?.[0] ?? ev.coverImage, { width: 1200 });
-  return {
-    title,
-    description,
-    alternates: { canonical: absoluteUrl(`/events/${slug}`) },
-    openGraph: { title, description, type: "article", url: absoluteUrl(`/events/${slug}`), images: ogImage ? [{ url: ogImage }] : undefined },
-  };
+  // An SEO title typed with the gallery name ("Joost van den Bergh | Show") would repeat the template's suffix.
+  const title = stripBrand(ev.seo?.title ?? ev.title ?? "Event");
+  const hero = ev.heroImages?.find((i) => i?.asset) ?? ev.coverImage;
+  return pageMeta({
+    title: fitTitle(title),
+    ogTitle: title,
+    description: eventDescription(ev),
+    path: `/events/${slug}`,
+    type: "article",
+    image: ogImage(ev.seo?.ogImage, title) ?? ogImage(hero, hero?.caption ?? ev.title ?? title),
+  });
 }
 
 /**
@@ -59,7 +62,6 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const [ev, settings] = await Promise.all([getEvent(slug), getSiteSettings()]);
   if (!ev) notFound();
 
-  const galleryName = settings?.galleryName ?? fallbackGalleryName;
   const dates = eventDates(ev.startDate, ev.endDate, ev.datePrecision);
   const privateViews = (ev.privateViews ?? []).filter((v) => v?.start);
   const heroImages = (ev.heroImages ?? []).filter((i) => i?.asset);
@@ -86,6 +88,13 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
     ...(ev.catalogue ?? []).filter((c) => c?.image).map(catalogueToGrid),
   ];
 
+  // Every artist on show with a page of their own, A to Z: the event's links into the artist section.
+  const eventArtists = ARTISTS_UNDER_CONSTRUCTION
+    ? []
+    : [...new Map(works.filter((w) => w.artistSlug && w.artist).map((w) => [w.artistSlug as string, w.artist as string]))].sort(
+        ([, a], [, b]) => artistCollator.compare(a, b),
+      );
+
   // The banner is a slow slideshow of the slides uploaded for the event in
   // the Studio ("Slideshow images"); with none uploaded, the cover image sits
   // still. Works are shown in the panel below, never in the banner.
@@ -103,25 +112,10 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   // availability and ordering — rather than as a bare PDF.
   const publicationHref = ev.relatedPublication?.slug ? `/publications/${ev.relatedPublication.slug}` : null;
   const catalogueHref = publicationHref ?? ev.pdfUrl ?? null;
-  const pageUrl = absoluteUrl(`/events/${slug}`);
-  const place = [ev.isArtFair ? ev.fairName : null, ev.venue, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join(" · ");
-
-  const jsonLd: Record<string, unknown> = {
-    "@context": "https://schema.org",
-    "@type": "ExhibitionEvent",
-    name: ev.title ?? "Event",
-    url: pageUrl,
-    startDate: ev.startDate ?? undefined,
-    endDate: ev.endDate ?? undefined,
-    description: ev.subtitle ?? undefined,
-    image: imageUrl(heroImages[0] ?? ev.coverImage, { width: 1600 }) ?? undefined,
-    organizer: { "@type": "ArtGallery", name: galleryName, url: absoluteUrl("/") },
-    ...(place ? { location: { "@type": "Place", name: place } } : {}),
-  };
 
   return (
     <article>
-      <JsonLd data={jsonLd} />
+      <JsonLd data={eventJsonLd(ev, settings, works)} />
       {slides.length > 0 ? (
         <HeroSlideshow slides={slides} caption={false} intervalMs={9000} fadeMs={1800} label={ev.title ?? "Event"} />
       ) : null}
@@ -191,7 +185,24 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
 
         {works.length > 0 ? (
           <section className="mt-16 md:mt-20">
-            <WorksFoldout works={works} label="Works" />
+            <WorksFoldout works={works} label="Works" context={ev.title} />
+          </section>
+        ) : null}
+
+        {eventArtists.length > 0 ? (
+          <section aria-labelledby="event-artists" className="mt-16">
+            <h2 id="event-artists" className="label">
+              Artists in this exhibition
+            </h2>
+            <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-sans text-ui">
+              {eventArtists.map(([artistSlug, name]) => (
+                <li key={artistSlug}>
+                  <Link href={`/artists/${artistSlug}`} className="text-ink no-underline hover:text-accent">
+                    {name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </section>
         ) : null}
 

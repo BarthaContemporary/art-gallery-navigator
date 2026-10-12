@@ -1,12 +1,16 @@
+import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { LegalDoc, LegalSection } from "@/components/legal-doc";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 
-export const metadata = {
-  alternates: { canonical: "/accessibility" },
+export const metadata: Metadata = pageMeta({
   title: "Accessibility",
-  description: "Our commitment to an accessible website, and how to tell us if something is not working for you.",
-};
+  ogTitle: "Accessibility",
+  description:
+    "Our commitment to an accessible website, and how to tell us if something is not working for you.",
+  path: "/accessibility",
+});
 
 /** Equality Act 2010 s.29 (reasonable adjustments) — a statement is good
  *  practice for a private business; the commitments below are what the site

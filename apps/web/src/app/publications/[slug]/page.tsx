@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { imageUrl, publicationBySlugQuery, publicationSlugsQuery, sanityFetch, RATIO, type Publication } from "@/lib/sanity";
-import { absoluteUrl } from "@/lib/site";
+import { getSiteSettings, publicationBySlugQuery, publicationSlugsQuery, sanityFetch, RATIO, type Publication } from "@/lib/sanity";
 import { PortableText } from "@/components/portable-text";
 import { RatioImage } from "@/components/ratio-image";
 import { PageFlipReader } from "@/components/page-flip-reader";
 import { InlineEnquiry } from "@/components/inline-enquiry";
 import { availabilityLabel } from "@/lib/publications";
 import { JsonLd } from "@/components/json-ld";
+import { publicationJsonLd } from "@/lib/structured-data";
+import { fitTitle, ogImage, pageMeta, publicationDescription, stripBrand } from "@/lib/seo";
 
 async function getPublication(slug: string): Promise<Publication | null> {
   return sanityFetch<Publication | null>({ query: publicationBySlugQuery, params: { slug }, tags: ["publication"], fallback: null });
@@ -23,15 +24,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const p = await getPublication(slug);
   if (!p) return { title: "Publication not found" };
-  const title = p.seo?.title ?? p.title ?? "Publication";
-  const description = p.seo?.description ?? undefined;
-  const ogImage = imageUrl(p.seo?.ogImage, { width: 1200 }) ?? imageUrl(p.coverImage, { width: 1200 });
-  return {
-    title,
-    description,
-    alternates: { canonical: absoluteUrl(`/publications/${slug}`) },
-    openGraph: { title, description, type: "book", url: absoluteUrl(`/publications/${slug}`), images: ogImage ? [{ url: ogImage }] : undefined },
-  };
+  const name = p.title ?? "Publication";
+  // "Objects of Veneration – Sculpture and Paintings from …" → "Objects of Veneration"; the h1 keeps the whole title.
+  const main = name.split(" – ")[0] ?? name;
+  const tag = p.publishedYear ? `${p.publishedYear} catalogue` : "catalogue";
+  const seoTitle = p.seo?.title ? stripBrand(p.seo.title) : null;
+  const image = ogImage(p.seo?.ogImage, name, "whole") ?? ogImage(p.coverImage, p.coverImage?.caption ?? `Cover of ${name}`, "whole");
+  return pageMeta({
+    title: seoTitle ? fitTitle(seoTitle) : fitTitle(`${name} (${tag})`, `${main} (${tag})`),
+    ogTitle: seoTitle ?? name,
+    description: publicationDescription(p),
+    path: `/publications/${slug}`,
+    type: "book",
+    image,
+  });
 }
 
 /**
@@ -41,7 +47,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
  */
 export default async function PublicationPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const p = await getPublication(slug);
+  const [p, settings] = await Promise.all([getPublication(slug), getSiteSettings()]);
   if (!p) notFound();
 
   const spreads = (p.spreads ?? []).filter((s) => s?.asset);
@@ -104,18 +110,7 @@ export default async function PublicationPage({ params }: { params: Promise<{ sl
 
   return (
     <article className="page pt-12 pb-24 md:pt-16">
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Book",
-          name: title,
-          url: absoluteUrl(`/publications/${slug}`),
-          datePublished: p.publishedYear ? String(p.publishedYear) : undefined,
-          numberOfPages: p.pages ?? undefined,
-          inLanguage: p.language ?? undefined,
-          image: imageUrl(p.coverImage, { width: 800 }) ?? undefined,
-        }}
-      />
+      <JsonLd data={publicationJsonLd(p, settings)} />
       {spreads.length > 0 ? (
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-14">
           <div>

@@ -1,15 +1,20 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import Image from "next/image";
 import { getSiteSettings, imageDimensions, imageUrl, pageBySlugQuery, sanityFetch, type SitePage } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 import { PortableText } from "@/components/portable-text";
 import { AppointmentForm } from "@/components/appointment-form";
+import { JsonLd } from "@/components/json-ld";
+import { aboutJsonLd } from "@/lib/structured-data";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/about" },
-  title: "About",
-  description: "About the gallery — Japanese and Indian works of art in St James's, London. By appointment.",
-};
+export const metadata: Metadata = pageMeta({
+  title: "About the Gallery, Visits and Contact",
+  ogTitle: "About the Gallery, Visits and Contact",
+  description:
+    "Joost van den Bergh deals in 20th-century Japanese and Indian works of art from St James's, London. Visits by appointment; contact details and press.",
+  path: "/about",
+});
 
 /**
  * About (handoff 2g, adjusted): the gallery photo sits above the statement at
@@ -40,6 +45,7 @@ export default async function AboutPage() {
 
   return (
     <article>
+      <JsonLd data={aboutJsonLd()} />
       <div className="page pt-12 pb-24 md:pt-16">
         {/* The heading sits above both columns so Visit aligns with the photo's top edge. */}
         {headline ? <h1 className="t-title">{headline}</h1> : <h1 className="t-title">{galleryName}</h1>}

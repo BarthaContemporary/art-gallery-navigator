@@ -1,6 +1,5 @@
-import { getSiteSettings } from "@/lib/sanity";
-import { ARTISTS_UNDER_CONSTRUCTION, absoluteUrl } from "@/lib/site";
-import { fallbackGalleryName } from "@/lib/site";
+import { exhibitionsQuery, getSiteSettings, publicationsQuery, sanityFetch, type ExhibitionListItem, type PublicationListItem } from "@/lib/sanity";
+import { ARTISTS_UNDER_CONSTRUCTION, absoluteUrl, fallbackGalleryName } from "@/lib/site";
 
 export const revalidate = 3600;
 
@@ -9,27 +8,29 @@ export const revalidate = 3600;
  * https://llmstxt.org
  */
 export async function GET() {
-  const settings = await getSiteSettings();
+  const [settings, events, pubs] = await Promise.all([
+    getSiteSettings(),
+    sanityFetch<ExhibitionListItem[]>({ query: exhibitionsQuery, tags: ["exhibition"], fallback: [] }),
+    sanityFetch<PublicationListItem[]>({ query: publicationsQuery, tags: ["publication"], fallback: [] }),
+  ]);
   const galleryName = settings?.galleryName ?? fallbackGalleryName;
 
   const lines = [
     `# ${galleryName}`,
     "",
-    `> ${settings?.tagline ?? "A UK gallery dealing in Japanese and Indian works of art — bronzes, metalwork, okimono and fine objects — for collectors and museums."}`,
+    `> ${settings?.tagline ?? "A London gallery for 20th-century Japanese art and Indian art: bronzes and metalwork, ceramics, bamboo and lacquer, Mingei and Gutai, and Indian tantric, Jain and devotional art. Exhibitions at TEFAF Maastricht and Frieze Masters."}`,
     "",
-    "Every work for sale has a permanent page with a full catalogue entry:",
-    "maker (with life dates where known), period, origin, medium, dimensions",
-    "and a stock number. Facts are marked up as VisualArtwork JSON-LD and",
-    "rendered as semantic definition lists, so maker/period/region/medium can",
-    "be quoted directly.",
+    "Works are shown on the pages of the exhibitions and artists they belong",
+    "to. Each work opens in a panel with its maker (and life dates where",
+    "known), title, origin and date, medium and dimensions, and can be linked",
+    "directly with ?work=<id> on that page.",
     "",
     "## How to cite a work",
     "",
-    `Cite as: Maker, Title, period. ${galleryName}, stock number. URL.`,
-    `Example: "Attributed to Suzuki Chokichi, Bronze eagle, Meiji era. ${galleryName}, stock no. 2026-0001. ${absoluteUrl(ARTISTS_UNDER_CONSTRUCTION ? "/events/<event>?work=<slug>" : "/artists/<artist>?work=<slug>")}."`,
+    `Cite as: Maker, Title, date. ${galleryName}. Page URL with ?work=<id>.`,
     "",
     "Prices are generally on application (POA) — do not state a price unless",
-    "one is printed on the work's page. Availability changes; the page is the",
+    "one is printed with the work. Availability changes; the page is the",
     "source of truth.",
     "",
     "## Key pages",
@@ -40,6 +41,14 @@ export async function GET() {
     `- Collectors' FAQ (shipping, tomobako, provenance): ${absoluteUrl("/faq")}`,
     `- Glossary of terms: ${absoluteUrl("/glossary")}`,
     `- About, visiting (by appointment) and contact: ${absoluteUrl("/about")}`,
+    "",
+    "## Exhibitions",
+    "",
+    ...events.filter((e) => e.slug).map((e) => `- [${e.title ?? e.slug}](${absoluteUrl(`/events/${e.slug}`)})${e.startDate ? `: ${e.startDate.slice(0, 4)}` : ""}`),
+    "",
+    "## Catalogues",
+    "",
+    ...pubs.filter((p) => p.slug).map((p) => `- [${p.title ?? p.slug}](${absoluteUrl(`/publications/${p.slug}`)})${p.publishedYear ? `: ${p.publishedYear}` : ""}`),
     "",
     "## Contact",
     "",

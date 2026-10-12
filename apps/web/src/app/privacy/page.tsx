@@ -1,12 +1,16 @@
+import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { LegalDoc, LegalSection } from "@/components/legal-doc";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 
-export const metadata = {
-  alternates: { canonical: "/privacy" },
+export const metadata: Metadata = pageMeta({
   title: "Privacy Notice",
-  description: "How Joost van den Bergh collects, uses, shares and protects your personal data, and your rights.",
-};
+  ogTitle: "Privacy Notice",
+  description:
+    "How Joost van den Bergh collects, uses, shares and protects your personal data, and your rights.",
+  path: "/privacy",
+});
 
 /**
  * UK GDPR Arts. 13/14 notice. Processor names, retention periods and the

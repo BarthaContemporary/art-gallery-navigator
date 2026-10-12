@@ -1,13 +1,16 @@
+import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import Link from "next/link";
 import { LegalDoc, LegalSection } from "@/components/legal-doc";
 import { ConsentReopenLink } from "@/components/consent-reopen-link";
 
-export const metadata = {
-  alternates: { canonical: "/cookies" },
+export const metadata: Metadata = pageMeta({
   title: "Cookie Policy",
+  ogTitle: "Cookie Policy",
   description:
     "Exactly which cookies and similar technologies this website uses, what each one does, how long it lasts, and how to change your choice.",
-};
+  path: "/cookies",
+});
 
 export default function CookiesPage() {
   return (

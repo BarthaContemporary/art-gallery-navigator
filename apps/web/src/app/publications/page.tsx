@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { publicationsQuery, sanityFetch, type PublicationListItem } from "@/lib/sanity";
 import { PublicationTile } from "@/components/publication-tile";
 import { InfiniteGrid } from "@/components/infinite-grid";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/publications" },
-  title: "Publications",
-  description: "Exhibition catalogues and publications on Japanese and Indian art.",
-};
+export const metadata: Metadata = pageMeta({
+  title: "Exhibition Catalogues",
+  ogTitle: "Exhibition Catalogues",
+  description:
+    "Catalogues of Japanese and Indian art published by Joost van den Bergh for gallery exhibitions, TEFAF and Frieze Masters. Read online in full or order a copy.",
+  path: "/publications",
+});
 
 export default async function PublicationsPage() {
   const publications = (
