@@ -59,7 +59,7 @@ export default async function HomePage() {
   return (
     <>
       {/* The page's one h1, for search engines and screen readers; the hero caption stays an h2. */}
-      <h1 className="sr-only">Joost van den Bergh – 20th-century Japanese and Indian art, London</h1>
+      <h1 className="sr-only">Joost van den Bergh – 20th-century Japanese art and Indian art, London</h1>
       <HeroSlideshow slides={slides} />
 
       {/* Site settings → About teaser ("Short paragraph shown on the home page"); nothing renders until it is filled. */}

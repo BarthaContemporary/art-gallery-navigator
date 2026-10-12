@@ -12,7 +12,7 @@ export const metadata: Metadata = pageMeta({
   title: "About the Gallery, Visits and Contact",
   ogTitle: "About the Gallery, Visits and Contact",
   description:
-    "Joost van den Bergh deals in 20th-century Japanese and Indian works of art from St James's, London. Visits by appointment; contact details and press.",
+    "Joost van den Bergh deals in 20th-century Japanese art and Indian art from St James's, London. Visits are by appointment: book a viewing or contact the gallery here.",
   path: "/about",
 });
 

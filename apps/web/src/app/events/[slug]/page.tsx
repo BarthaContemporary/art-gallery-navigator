@@ -192,7 +192,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
         {eventArtists.length > 0 ? (
           <section aria-labelledby="event-artists" className="mt-16">
             <h2 id="event-artists" className="label">
-              Artists in this exhibition
+              Artists
             </h2>
             <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-sans text-ui">
               {eventArtists.map(([artistSlug, name]) => (

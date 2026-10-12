@@ -120,7 +120,7 @@ const UK_POSTCODE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
  * A free-text Studio address as a PostalAddress. Lines or commas separate the
  * parts; a part with a number is the street, a known country becomes its ISO
  * code, a UK postcode is lifted out, the rest is the locality. So
- * "St. James's, London\nUnited Kingdom" gives locality "St. James's, London",
+ * "St. James's, London\nUnited Kingdom" gives locality "London",
  * country GB, and "12 Duke Street\nLondon SW1Y 6BN\nUnited Kingdom" gives all four.
  */
 export function postalAddress(raw: string | null | undefined): JsonLdNode | undefined {
@@ -145,10 +145,12 @@ export function postalAddress(raw: string | null | undefined): JsonLdNode | unde
     }
     (/\d/.test(p) ? street : locality).push(p);
   }
+  // "St. James's, London": the town is the last part; a district is neither
+  // a street nor a town, so it stays in the visible address only.
   return {
     "@type": "PostalAddress",
-    streetAddress: street.join(", "),
-    addressLocality: locality.join(", "),
+    streetAddress: street.join(", ") || undefined,
+    addressLocality: locality[locality.length - 1],
     postalCode,
     addressCountry,
   };
@@ -284,7 +286,10 @@ const COUNTRY_NAMES: Record<string, string> = { usa: "United States", us: "Unite
 
 function personRef(name: string, slug: string | null | undefined): JsonLdNode {
   const url = slug && !ARTISTS_UNDER_CONSTRUCTION ? absoluteUrl(`/artists/${slug}`) : undefined;
-  return { "@type": "Person", "@id": url ? `${url}#person` : undefined, name: splitName(name).name, url };
+  // A linked artist is named on their own page; the catalogue's free-text
+  // maker ("Tomoe Ogawa") would give that Person a second, conflicting name.
+  if (url) return { "@type": "Person", "@id": `${url}#person`, url };
+  return { "@type": "Person", name: splitName(name).name };
 }
 
 /**
@@ -327,6 +332,19 @@ export function personNode(
 /* Works                                                               */
 /* ------------------------------------------------------------------ */
 
+/**
+ * The medium as catalogued, unless the field holds a date or a place instead
+ * (some imported entries have medium and origin swapped): a year, "circa",
+ * "century" or "period" with no material word.
+ */
+function mediumOnly(text: string | null | undefined): string | undefined {
+  const m = oneLine(text);
+  if (!m) return undefined;
+  const dated = /\b(1\d{3}|20\d{2}|circa|c\.|century|period)\b/i.test(m);
+  const material = /\b(bronze|iron|silver|gold|copper|brass|metal|ceramic|stoneware|porcelain|earthenware|glaze|bamboo|lacquer|wood|ivory|stone|sandstone|ink|oil|gouache|watercolou?r|paper|silk|canvas|cotton|textile|clay|enamel|paint|pigment|on)\b/i.test(m);
+  return dated && !material ? undefined : m;
+}
+
 /** A single year of making, or nothing when the date is a range, a decade or approximate. */
 function yearMade(text: string | null | undefined): string | undefined {
   const s = text ?? "";
@@ -356,13 +374,19 @@ export function dimensions(text: string | null | undefined): Partial<Record<Side
   if (!unit) return {};
   const q = (v: string): JsonLdNode => ({ "@type": "QuantitativeValue", value: Number(v), unitCode: unit });
   const out: Partial<Record<Side, JsonLdNode>> = {};
-  const labelled = [...s.matchAll(/(?:^|[^a-zø])(height|width|depth|length|diameter|dia|h|w|d|l|ø)\s*[:.]?\s*(\d+(?:\.\d+)?)/gi)];
+  const labelled = [...s.matchAll(/(?:^|[^a-zø])(height|width|depth|length|diameter|dia|h|w|d|l|ø)\s*[:.;]?\s*(\d+(?:\.\d+)?)/gi)];
   if (labelled.length > 0) {
+    // Explicit height, width and depth first; a length or diameter then fills
+    // whichever of width and depth is still open ("h 4 l 15 w 13.5 cm").
+    const rest: string[] = [];
     for (const m of labelled) {
       const label = LABELS[m[1]!.toLowerCase()];
       const value = m[2]!;
       if (label === "height" || label === "width" || label === "depth") out[label] ??= q(value);
-      else if (!out.width) out.width = q(value);
+      else rest.push(value);
+    }
+    for (const value of rest) {
+      if (!out.width) out.width = q(value);
       else out.depth ??= q(value);
     }
     return out;
@@ -391,7 +415,7 @@ export function artworkNode(w: GridWork, pageUrl: string): JsonLdNode | null {
     image: imageUrl(w.image, { width: 1200 }),
     creator: artist ? personRef(artist, w.artistSlug) : undefined,
     dateCreated: yearMade(w.origin),
-    artMedium: oneLine(w.medium),
+    artMedium: mediumOnly(w.medium),
     ...dimensions(w.dimensions),
     // Place and date as catalogued ("Western India, 19th century"); medium and size have their own fields.
     description: oneLine(w.origin),
@@ -492,7 +516,8 @@ export function eventJsonLd(ev: EventInput, settings: SiteSettings | null, works
       : {
           // Undated or unplaced (old-site imports): described, but not offered to Google as an event.
           "@type": "CollectionPage",
-          "@id": `${url}#page`,
+          // Same @id as the dated branch, so a catalogue's `about` always resolves.
+          "@id": `${url}#event`,
           name: title,
           url,
           description,
@@ -549,7 +574,14 @@ export function publicationJsonLd(p: Publication & { isbn?: string | null }, set
     size: oneLine(p.format),
     isbn: oneLine(p.isbn)?.replace(/[^\dX]/gi, ""),
     publisher: { "@type": "ArtGallery", "@id": GALLERY_ID, name: galleryName },
-    about: p.relatedExhibition?.slug ? ref(`${absoluteUrl(`/events/${p.relatedExhibition.slug}`)}#event`) : undefined,
+    // Named and linked, so it means something even where the event page is not loaded.
+    about: p.relatedExhibition?.slug
+      ? {
+          "@id": `${absoluteUrl(`/events/${p.relatedExhibition.slug}`)}#event`,
+          name: oneLine(p.relatedExhibition.title),
+          url: absoluteUrl(`/events/${p.relatedExhibition.slug}`),
+        }
+      : undefined,
   };
   return graph(breadcrumbNode(url, [{ name: "Publications", path: "/publications" }, { name: title, path: `/publications/${slug}` }]), book);
 }

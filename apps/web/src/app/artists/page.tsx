@@ -10,7 +10,7 @@ export const metadata: Metadata = pageMeta({
   title: "Japanese and Indian Artists and Makers",
   ogTitle: "Japanese and Indian Artists and Makers",
   description:
-    "Biographies and works of the Japanese and Indian artists and makers shown by Joost van den Bergh: 20th-century bronze, metalwork, ceramics, bamboo and lacquer.",
+    "Biographies and works of the Japanese and Indian artists and makers shown by Joost van den Bergh: bronze and metalwork, ceramics, bamboo, lacquer and painting.",
   path: "/artists",
   robots: ARTISTS_UNDER_CONSTRUCTION ? { index: false, follow: false } : undefined,
 });

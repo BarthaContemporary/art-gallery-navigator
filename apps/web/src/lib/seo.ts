@@ -51,15 +51,34 @@ export function oneLine(s: string | null | undefined): string | undefined {
   return t || undefined;
 }
 
-/** Shortens at a word boundary with an ellipsis; undefined for empty text. */
+/**
+ * Shortens text the owner wrote: at the last sentence end that leaves at
+ * least 60% of the length, else at a word boundary with an ellipsis.
+ * Undefined for empty text.
+ */
 export function clip(text: string | null | undefined, max = 155): string | undefined {
   const t = oneLine(text);
   if (!t) return undefined;
   if (t.length <= max) return t;
+  const head = t.slice(0, max);
+  // A full stop, ! or ?, optionally closed by a bracket or quote, then a space.
+  const ends = [...head.matchAll(/[.!?][)"'’”]?(?=\s)/g)].map((m) => (m.index ?? 0) + m[0].length);
+  const sentence = ends.filter((i) => i >= max * 0.6).pop();
+  if (sentence) return t.slice(0, sentence);
   let cut = t.slice(0, max - 1);
   const sp = cut.lastIndexOf(" ");
   if (sp > max * 0.6) cut = cut.slice(0, sp);
   return `${cut.replace(/[\s,;:–—-]+$/, "")}…`;
+}
+
+/**
+ * The first of the candidate sentences that fits, longest and fullest
+ * first; a sentence built from data is never cut mid-fact. Only when none
+ * fits is the shortest one clipped.
+ */
+export function firstThatFits(candidates: (string | undefined)[], max = 155): string | undefined {
+  const list = candidates.map(oneLine).filter((c): c is string => !!c);
+  return list.find((c) => c.length <= max) ?? clip(list[list.length - 1], max);
 }
 
 /** Paragraph text of Portable Text blocks, on one line. */
@@ -80,11 +99,19 @@ export function stripBrand(title: string): string {
     .trim();
 }
 
-/** Keeps the brand suffix only while the whole title fits 60 characters; tries `short` before dropping it. */
-export function fitTitle(full: string, short: string = full): Metadata["title"] {
-  if (full.length + BRAND.length <= 60) return full;
-  if (short.length + BRAND.length <= 60) return short;
-  return { absolute: clip(short, 60) ?? short };
+/**
+ * The fullest version of a title that fits 60 characters: every version with
+ * the brand suffix first, then every version without it, in the order given.
+ * Only when none fits is the last one clipped.
+ */
+export function fitTitle(...versions: string[]): Metadata["title"] {
+  const list = versions.map(oneLine).filter((v): v is string => !!v);
+  const withBrand = list.find((v) => v.length + BRAND.length <= 60);
+  if (withBrand) return withBrand;
+  const bare = list.find((v) => v.length <= 60);
+  if (bare) return { absolute: bare };
+  const last = list[list.length - 1] ?? fallbackGalleryName;
+  return { absolute: clip(last, 60) ?? last };
 }
 
 function paragraphs(text: string | null | undefined): string[] {
@@ -116,15 +143,20 @@ export function eventDescription(ev: Exhibition): string | undefined {
         : `Exhibition at ${fallbackGalleryName}, London`;
   const ids = new Set([...(ev.works ?? []), ...(ev.workLists ?? []).flatMap((l) => l?.works ?? [])].map((w) => w?._id).filter(Boolean));
   const workCount = ids.size + (ev.catalogue ?? []).filter((c) => c?.image).length;
+  const at = `${where}${dates ? `, ${dates}` : ""}.`;
+  const works = workCount ? ` ${workCount} works illustrated` : "";
   return (
     // Text the owner wrote for search is kept whole up to 170 characters.
     clip(ev.seo?.description, 170) ??
     clip(blocksToText(ev.intro)) ??
-    clip(
-      `${name}${theme ? ` – ${theme}` : ""}. ${where}${dates ? `, ${dates}` : ""}.${
-        workCount ? ` ${workCount} works illustrated${pub ? ", with the catalogue" : ""}.` : ""
-      }`,
-    )
+    // Built from the data: the theme goes first, then the catalogue mention,
+    // then the works count, so whatever remains is whole.
+    firstThatFits([
+      theme ? `${name} – ${theme}. ${at}${works}${works && pub ? ", with the catalogue" : ""}${works ? "." : ""}` : undefined,
+      `${name}. ${at}${works}${works && pub ? ", with the catalogue" : ""}${works ? "." : ""}`,
+      `${name}. ${at}${works}${works ? "." : ""}`,
+      `${name}. ${at}`,
+    ])
   );
 }
 
@@ -138,14 +170,22 @@ export function publicationDescription(p: Publication): string | undefined {
   ]
     .filter(Boolean)
     .join(" or ");
+  // "Double Take – Works from, and inspired by, …": the part before the dash.
+  const main = name.split(" – ")[0] ?? name;
+  const kind = p.relatedExhibition ? "exhibition catalogue" : "catalogue";
+  const published = `${kind} published by ${fallbackGalleryName}, London${facts ? `, ${facts}` : ""}.`;
+  const offer = actions ? ` ${actions.charAt(0).toUpperCase()}${actions.slice(1)}.` : "";
   return (
     clip(p.seo?.description, 170) ??
     clip(blocksToText(p.description)) ??
-    clip(
-      `${name}: ${p.relatedExhibition ? "exhibition catalogue" : "catalogue"} published by ${fallbackGalleryName}, London${
-        facts ? `, ${facts}` : ""
-      }.${actions ? ` ${actions.charAt(0).toUpperCase()}${actions.slice(1)}.` : ""}`,
-    )
+    // The page title already carries the full name, so the subtitle goes
+    // first, then the reading and ordering line.
+    firstThatFits([
+      `${name}: ${published}${offer}`,
+      `${main}: ${published}${offer}`,
+      `${main}: ${published}`,
+      `${main}: ${kind} published by ${fallbackGalleryName}, London.`,
+    ])
   );
 }
 
@@ -161,13 +201,15 @@ export function artistDescription(a: Artist): string | undefined {
   const workCount = (a.works?.length ?? 0) + (a.catalogueWorks ?? []).reduce((n, ex) => n + (ex.entries?.length ?? 0), 0);
   const lastShow = oneLine((a.shownIn ?? []).find((e) => e?.title)?.title);
   const who = dates ? `${name} (${dates})` : name;
+  const lead = workCount ? `${workCount} ${workCount === 1 ? "work" : "works"} by ${who}` : `Works by ${who}`;
   return (
     clip(artistLead(a)) ??
-    clip(
-      `${workCount ? `${workCount} ${workCount === 1 ? "work" : "works"} by ${who}` : `Works by ${who}`} at ${fallbackGalleryName}, London dealer in 20th-century Japanese and Indian art${
-        lastShow ? `, most recently in ${lastShow}` : ""
-      }.`,
-    )
+    firstThatFits([
+      lastShow ? `${lead} at ${fallbackGalleryName}, London dealer in Japanese and Indian art, most recently in ${lastShow}.` : undefined,
+      lastShow ? `${lead} at ${fallbackGalleryName}, London, most recently in ${lastShow}.` : undefined,
+      `${lead} at ${fallbackGalleryName}, London dealer in Japanese and Indian art.`,
+      `${lead} at ${fallbackGalleryName}, London.`,
+    ])
   );
 }
 

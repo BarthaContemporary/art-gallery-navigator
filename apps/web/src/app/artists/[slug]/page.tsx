@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const dates = formatLifeDates(a.lifeDates);
   const picture = artistPicture(a, 1200);
   return pageMeta({
-    title: fitTitle(dates ? `${label} (${dates})` : label, label),
+    title: dates ? fitTitle(`${label} (${dates})`, label) : fitTitle(label),
     ogTitle: label,
     description: artistDescription(a),
     path: `/artists/${slug}`,

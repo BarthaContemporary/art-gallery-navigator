@@ -44,11 +44,13 @@ export function InfiniteGrid({
 
   // Every tile is in the server HTML, so crawlers find every link; tiles not
   // yet revealed carry `hidden`. Without JavaScript the style below shows them
-  // all (Tailwind's preflight sets [hidden] to display:none !important).
+  // all. Tailwind's preflight sets [hidden] to display:none !important inside
+  // @layer base; a layered !important beats an unlayered one, so the override
+  // sits in the same layer and wins on specificity.
   return (
     <>
       <noscript>
-        <style>{`.ig > li[hidden]{display:block!important}.ig-more{display:none!important}`}</style>
+        <style>{`@layer base{.ig > li[hidden]{display:block!important}}.ig-more{display:none!important}`}</style>
       </noscript>
       <ul className={`${className} ig`}>
         {Children.map(children, (child, i) => {

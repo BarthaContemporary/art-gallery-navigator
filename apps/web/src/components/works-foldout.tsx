@@ -178,7 +178,7 @@ export function WorksFoldout({
                 <WorkSquare
                   subject={w}
                   width={800}
-                  alt={workAlt(w, context, i + 1)}
+                  alt={workAlt(w, context, i + 1, tileLabel === "artist" && !!w.artist)}
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                 />
                 <p className="mt-3 font-sans text-ui font-medium leading-snug text-ink transition-colors duration-150 group-hover:text-accent">

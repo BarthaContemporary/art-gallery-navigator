@@ -65,10 +65,12 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      // The vercel.app host duplicates www. Pages move to www; /api/ and /o/
-      // stay, so offer, magic-link and unsubscribe links already emailed keep working.
+      // The vercel.app host duplicates www. Pages move to www; /api/, /o/,
+      // /newsletter/ and Next's own files stay, so offer, magic-link,
+      // unsubscribe and confirmation links already emailed keep working, even
+      // if DNS were rolled back to Squarespace.
       { source: "/", has: [{ type: "host", value: "jvb-web.vercel.app" }], destination: "https://www.joostvandenbergh.com/", permanent: true },
-      { source: "/:path((?!api/|o/).+)", has: [{ type: "host", value: "jvb-web.vercel.app" }], destination: "https://www.joostvandenbergh.com/:path", permanent: true },
+      { source: "/:path((?!api/|o/|newsletter/|_next/).+)", has: [{ type: "host", value: "jvb-web.vercel.app" }], destination: "https://www.joostvandenbergh.com/:path", permanent: true },
       // Home is the Events page; /events is kept as a permanent alias for it.
       { source: "/events", destination: "/", permanent: true },
       // The previous information architecture: exhibitions now live under /events.

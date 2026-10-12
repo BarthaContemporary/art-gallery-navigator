@@ -89,11 +89,11 @@ export function workCaption(w: GridWork): string {
  * "Untitled" never stands alone: an imported entry with no data is named by
  * the show it hangs in and its place there ("Work from Indian Bronze (3)").
  */
-export function workAlt(w: GridWork, context?: string | null, position?: number): string {
+export function workAlt(w: GridWork, context?: string | null, position?: number, omitArtist = false): string {
   const title = w.title?.trim() || null;
-  const parts = [w.artist, title, w.medium, w.origin].filter((p): p is string => !!p && !!p.trim());
+  const parts = [omitArtist ? null : w.artist, title, w.medium, w.origin].filter((p): p is string => !!p && !!p.trim());
   if (parts.length > 1 || (title && !/^untitled$/i.test(title))) return parts.join(", ");
-  const base = w.artist ? `Work by ${w.artist}` : "Work";
+  const base = w.artist && !omitArtist ? `Work by ${w.artist}` : "Work";
   return `${base}${context ? ` from ${context}` : ""}${position ? ` (${position})` : ""}`;
 }
 
