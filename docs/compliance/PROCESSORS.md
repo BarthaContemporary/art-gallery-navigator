@@ -3,7 +3,7 @@
 | Processor | Role | Data | Location | Safeguard | DPA |
 |---|---|---|---|---|---|
 | Vultr (The Constant Company) | VPS and object storage: database, images, backups | Everything in the system | London (lhr1) | UK | Vultr DPA (in account) |
-| Vercel | Hosting of website and studio; request logs | All data in transit; IP addresses in logs | USA (edge global) | UK Extension to the EU-US DPF (Vercel is certified) / IDTA | Vercel DPA (dashboard → Legal) |
+| Vercel | Hosting of website and studio; request logs | All data in transit; IP addresses in logs | Studio functions in London (lhr1); website functions USA; edge global | UK Extension to the EU-US DPF (Vercel is certified) / IDTA | Vercel DPA (dashboard → Legal) |
 | Resend | Transactional and newsletter email; webhooks | Names, emails, email content, open/click events | USA | DPF / SCC + UK Addendum | Resend DPA (resend.com/legal/dpa) |
 | Sanity | Website content (works, artists, events). No personal data except artist biographies, which are published | Public content only | EU / USA | Adequacy (EU) / DPF | Sanity DPA |
 | Cloudflare (Turnstile) | Bot protection on forms | IP, browser signals | Global | DPF / SCC + UK Addendum | Cloudflare DPA (self-serve) |
