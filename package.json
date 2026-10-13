@@ -8,6 +8,8 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
+    "ui:guard": "node scripts/ui-guard/form-keys.mjs --check",
+    "ui:guard:update": "node scripts/ui-guard/form-keys.mjs --update",
     "db:types": "supabase gen types typescript --local > packages/db/src/database.types.ts"
   },
   "devDependencies": {

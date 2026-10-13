@@ -13,4 +13,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # Form-key guard: fails when a field name, type, hidden input or request
+      # body key in the studio changes without scripts/ui-guard's baseline
+      # being updated in the same change (autosave contract in CLAUDE.md).
+      # Runs before the build because it needs only the TypeScript parser.
+      - name: UI guard (studio form keys)
+        run: pnpm ui:guard
+      # Builds and typechecks every workspace, the studio and the website included.
       - run: pnpm turbo build typecheck
