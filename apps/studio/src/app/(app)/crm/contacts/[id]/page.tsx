@@ -13,7 +13,7 @@ import { DataProtectionPanel } from "@/components/data-protection-panel";
 import { consignmentSplit } from "@/lib/consignment";
 import { loadPieceRows } from "@/lib/piece-store";
 // London dates: this page renders on the server, where the zone is UTC.
-import { formatDate } from "@/lib/format";
+import { EMPTY, formatDate } from "@/lib/format";
 import {
   CONTACT_TYPE_LABELS,
   KYC_STATUS_LABELS,
@@ -199,8 +199,14 @@ export default async function ContactProfile({
     "Unnamed contact";
   const amlDate =
     typeof contact.custom_fields?.aml_confirmed_date === "string"
-      ? (contact.custom_fields.aml_confirmed_date as string)
+      ? (contact.custom_fields.aml_confirmed_date as string).trim()
       : "";
+  // The editor stores a calendar day ("2026-10-03"), shown as "3 Oct 2026".
+  // The field is free text in older and imported records, so anything that is
+  // not an ISO date is shown as it was entered rather than as a dash, and
+  // never re-read as a guessed date.
+  const amlDateFormatted = /^\d{4}-\d{2}-\d{2}/.test(amlDate) ? formatDate(amlDate) : EMPTY;
+  const amlDateShown = amlDateFormatted !== EMPTY ? amlDateFormatted : amlDate;
 
   // Right to erasure (Art. 17) with the legal holds the database knows about:
   // erase_contact() hard-deletes when nothing must be kept and pseudonymises
@@ -258,7 +264,7 @@ export default async function ContactProfile({
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge tone={kycTone}>
             AML: {labelOf(KYC_STATUS_LABELS, contact.kyc_status)}
-            {amlDate ? `, ${formatDate(amlDate)}` : ""}
+            {amlDateShown ? `, ${amlDateShown}` : ""}
           </Badge>
           {sanctions ? (
             <Badge tone={sanctions === "potential_match" ? "warn" : "neutral"}>
@@ -268,6 +274,26 @@ export default async function ContactProfile({
           ) : null}
         </div>
       </PageHeader>
+
+      {/* A potential sanctions match is the most serious state a contact can
+          be in, so besides the tag it gets a notice of its own, announced as
+          an alert. It states the screen's result and points to the AML
+          section; what to do about a match is the gallery's AML procedure,
+          not this page's to set. Drawn with the shared .notice look: Notice
+          itself gives a warn tone role="status", and this one must be an
+          alert. */}
+      {sanctions === "potential_match" ? (
+        <div role="alert" data-tone="warn" className="notice mb-6">
+          <p className="min-w-0 flex-1">
+            Possible match on the UK sanctions list
+            {contact.last_screened_at ? ` (screened ${formatDate(contact.last_screened_at)})` : ""}. Check it
+            before any offer, sale or shipment for this contact.
+          </p>
+          <a href="#aml" className="shrink-0 text-ink underline underline-offset-2">
+            Go to AML
+          </a>
+        </div>
+      ) : null}
 
       <ContactEditor
         id={id}

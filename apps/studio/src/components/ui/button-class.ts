@@ -15,6 +15,12 @@ export type ButtonStyle = {
   size?: ButtonSize;
   /** Square, for a single icon. The component forms require a label with it. */
   iconOnly?: boolean;
+  /**
+   * A long label that may wrap onto a second line: the height grows from the
+   * control height instead of clipping, and the text sets left. For the rare
+   * sentence-length action in a narrow column; keep labels short otherwise.
+   */
+  wrap?: boolean;
 };
 
 /**
@@ -24,12 +30,13 @@ export type ButtonStyle = {
  * components can call it.
  */
 export function buttonClass(style: ButtonStyle = {}, className?: string): string {
-  const { variant = "secondary", size = "md", iconOnly = false } = style;
+  const { variant = "secondary", size = "md", iconOnly = false, wrap = false } = style;
   return cx(
     "btn",
     variant !== "secondary" && `btn-${variant}`,
     size === "sm" && "btn-sm",
     iconOnly && "btn-icon",
+    wrap && !iconOnly && "btn-wrap",
     className,
   );
 }

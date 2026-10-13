@@ -104,10 +104,12 @@ export function CategoryTableRow({
           )}
         </Td>
         <Td numeric>
+          {/* Underlined at rest so it reads as a link, not a bare figure. */}
           <Link
             href={`/inventory?category=${cat.id}&ledger=all`}
-            className="link-plain text-ink underline decoration-rule-strong underline-offset-2"
+            className="link-plain text-ink underline decoration-meta underline-offset-2 hover:decoration-ink"
             title={`Show the ${cat.pieces === 1 ? "work" : "works"} in ${cat.name}`}
+            aria-label={`Show ${formatCount(cat.pieces)} ${cat.pieces === 1 ? "work" : "works"} in ${cat.name} in the inventory`}
           >
             {formatCount(cat.pieces)}
           </Link>
@@ -124,7 +126,14 @@ export function CategoryTableRow({
                 {cat.is_active ? "Hide" : "Show"}
               </Button>
             </form>
-            <Button size="sm" variant="quiet" aria-expanded={confirming} onClick={() => setConfirming((c) => !c)}>
+            {/* A row's destructive action: quiet, in the danger colour. */}
+            <Button
+              size="sm"
+              variant="quiet"
+              aria-expanded={confirming}
+              onClick={() => setConfirming((c) => !c)}
+              className="text-danger"
+            >
               Delete
             </Button>
           </span>

@@ -118,9 +118,7 @@ export default async function OffersPage() {
         </Section>
 
         <Section title="All offers">
-          {/* relative: the frame contains the sr-only head words, which
-              otherwise sit outside the scroll and widen a phone page. */}
-          <TableFrame className="relative">
+          <TableFrame>
             <Table className="min-w-[720px]">
               <thead>
                 <tr>

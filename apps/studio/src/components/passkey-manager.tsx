@@ -96,11 +96,12 @@ export function PasskeyManager() {
             <span className="min-w-0 text-[13px] text-ink">
               {k.device_label ?? "Passkey"}
               <span className="block text-[12px] text-meta">
-                Added {formatDate(k.created_at, "numeric")}
-                {k.last_used_at ? ` · last used ${formatDate(k.last_used_at, "numeric")}` : ""}
+                Added {formatDate(k.created_at, "short")}
+                {k.last_used_at ? ` · last used ${formatDate(k.last_used_at, "short")}` : ""}
               </span>
             </span>
-            <Button variant="quiet" size="sm" onClick={() => void remove(k)}>
+            {/* A destructive action in a list row: quiet, in danger (spec R4). */}
+            <Button variant="quiet" size="sm" className="text-danger" onClick={() => void remove(k)}>
               Remove
             </Button>
           </li>

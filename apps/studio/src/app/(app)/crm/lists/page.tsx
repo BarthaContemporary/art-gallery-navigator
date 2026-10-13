@@ -93,7 +93,7 @@ export default async function ListsPage() {
     <>
       {/* Same Avery prompt everywhere: a plain link would silently pick a
           layout for the user. */}
-      <LabelPdfButton listId={l.id} className={buttonClass({ variant: "quiet", size: "sm" })} />
+      <LabelPdfButton listId={l.id} variant="quiet" />
       <SaveToDriveLink
         href={`/api/export/contacts.vcf?list=${l.id}`}
         className={buttonClass({ variant: "quiet", size: "sm" })}

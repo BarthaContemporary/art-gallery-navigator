@@ -57,13 +57,17 @@ export function Badge({
 }) {
   if (variant === "dot") {
     return (
-      <span title={title} className={cx("inline-flex items-center gap-1.5 text-body", className)}>
-        <span
-          aria-hidden
-          className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
-          style={hollow ? { border: `1.5px solid ${DOT[tone]}` } : { background: DOT[tone] }}
-        />
-        {children}
+      // items-start with the dot centred in a one-line box: on one line it
+      // sits mid-text as before; when the words wrap it stays on the first
+      // line instead of drifting to the middle of the block.
+      <span title={title} className={cx("inline-flex items-start gap-1.5 text-body", className)}>
+        <span aria-hidden className="flex h-[1lh] shrink-0 items-center">
+          <span
+            className="inline-block h-1.5 w-1.5 rounded-full"
+            style={hollow ? { border: `1.5px solid ${DOT[tone]}` } : { background: DOT[tone] }}
+          />
+        </span>
+        <span className="min-w-0">{children}</span>
       </span>
     );
   }

@@ -99,7 +99,8 @@ export function MakerRow({
             }}
           >
             <input type="hidden" name="id" value={maker.id} />
-            <button type="submit" className={buttonClass({ variant: "quiet", size: "sm" })}>
+            {/* A row's destructive action: quiet, in the danger colour. */}
+            <button type="submit" className={buttonClass({ variant: "quiet", size: "sm" }, "text-danger")}>
               Delete
             </button>
           </form>

@@ -18,7 +18,7 @@ import { ReorderGrid, ReorderHandle } from "@/components/reorder-grid";
 import { formatCount } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { FlashNotice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
@@ -504,7 +504,8 @@ export default async function InventoryListDetail({
             {titleWithYear(p.title, p.year)}
           </Link>
           {editedSinceAdded.has(p.id) ? (
-            <Badge tone="ok" size="xs" title="Edited since it was added to this list">
+            // A fact about the work, not a success: info, not ok (spec R4).
+            <Badge tone="info" size="xs" title="Edited since it was added to this list">
               Edited
             </Badge>
           ) : null}
@@ -626,7 +627,6 @@ export default async function InventoryListDetail({
             endpoint="/api/export/work-labels.pdf"
             buttonLabel="Work labels PDF"
             filePrefix="work-labels"
-            className={buttonClass({ size: "sm" })}
           />
           {/* The list's own exports (api/export/list.*), in the list's order.
               Nothing to export from an empty list. */}

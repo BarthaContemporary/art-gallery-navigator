@@ -48,6 +48,10 @@ export function StatPanel({ title, metric }: { title: string; metric: string }) 
   return (
     <Section
       title={title}
+      // Three across a tablet (sm to lg) leaves too little room to keep each
+      // title and its period on one line, and only the shorter titles would;
+      // so there every panel puts its period under the title, alike.
+      className="sm:max-lg:[&>.section-head]:flex-col sm:max-lg:[&>.section-head]:items-start"
       actions={
         <Select
           fieldSize="sm"

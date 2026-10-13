@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cleanNumberPaste } from "@/lib/amount";
 import { useEditFinancials } from "@/components/edit-financials-context";
 import { consignmentSplit } from "@/lib/consignment";
@@ -9,7 +9,7 @@ import { Field } from "@/components/ui/field";
 import { Panel, Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { CloseIcon } from "@/components/ui/icons";
-import { useFlushForDone } from "@/components/editor-save";
+import { useFlushForDone, useStateAutosave } from "@/components/editor-save";
 
 const figure = "tabular mt-1 text-[14.5px] leading-[1.45] text-ink";
 const note = "mt-0.5 text-[12px] leading-[1.4] text-meta";
@@ -56,7 +56,6 @@ export function ConsignmentPanel({
   const [notes, setNotes] = useState(initial.notes);
   const [sharePct, setSharePct] = useState(initial.sharePct);
   const [saleHandled, setSaleHandled] = useState<"" | "yes" | "no">(initial.saleHandled);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   // CRM contact search for the co-owner / consignee (optional — a free-text
   // name still works for consignees not in the CRM).
@@ -107,56 +106,31 @@ export function ConsignmentPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sharePct, saleHandled]);
 
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const attempt = useRef(0);
-  // An edit the server does not hold yet (waiting, failed or invalid).
-  const unsaved = useRef(false);
   const first = useRef(true);
 
   const pctNum = sharePct.trim() === "" ? null : Number(sharePct);
   const pctInvalid = pctNum !== null && (!Number.isFinite(pctNum) || pctNum <= 0 || pctNum >= 100);
 
-  const save = useCallback(async (): Promise<boolean> => {
-    if (timer.current) clearTimeout(timer.current);
-    if (retryTimer.current) clearTimeout(retryTimer.current);
-    timer.current = null;
-    retryTimer.current = null;
-    if (pctInvalid) {
-      // Nothing is sent until the share is fixed; the field says why.
-      setStatus("error");
-      return false;
-    }
-    setStatus("saving");
+  // The request for what the panel shows now; the autosave calls it through a
+  // ref, so a retry sends the latest values. Nothing is sent until the share
+  // is fixed (null); the field says why.
+  const send = (): Promise<boolean> | null => {
+    if (pctInvalid) return null;
     const body = new FormData();
     body.set("co_owner_consignee", coOwner);
     body.set("consignee_contact_id", coOwnerContactId);
     body.set("consignment_details", notes);
     body.set("consignment_share_pct", sharePct);
     body.set("sale_handled_by_jvb", saleHandled);
-    let ok = false;
-    try {
-      const res = await fetch(`/api/inventory/${encodeURIComponent(stockNumber)}/consignment`, {
-        method: "PATCH",
-        body,
-      });
-      ok = res.ok;
-    } catch {
-      ok = false;
-    }
-    if (ok) {
-      attempt.current = 0;
-      unsaved.current = false;
-      setStatus("saved");
-      return true;
-    }
-    // Try again with a capped backoff (2s, 4s, 8s … 30s), as the main form
-    // does, so a dropped connection heals without re-typing.
-    setStatus("error");
-    attempt.current += 1;
-    retryTimer.current = setTimeout(() => void save(), Math.min(2000 * 2 ** (attempt.current - 1), 30000));
-    return false;
-  }, [coOwner, coOwnerContactId, notes, sharePct, saleHandled, pctInvalid, stockNumber]);
+    return fetch(`/api/inventory/${encodeURIComponent(stockNumber)}/consignment`, {
+      method: "PATCH",
+      body,
+    }).then(
+      (res) => res.ok,
+      () => false,
+    );
+  };
+  const { status, save, schedule, flush } = useStateAutosave(send);
 
   // Debounced autosave on any change (skip the initial mount).
   useEffect(() => {
@@ -164,20 +138,8 @@ export function ConsignmentPanel({
       first.current = false;
       return;
     }
-    unsaved.current = true;
-    setStatus("saving");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void save(), 700);
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, [coOwner, coOwnerContactId, notes, sharePct, saleHandled, save]);
-  useEffect(
-    () => () => {
-      if (retryTimer.current) clearTimeout(retryTimer.current);
-    },
-    [],
-  );
+    schedule();
+  }, [coOwner, coOwnerContactId, notes, sharePct, saleHandled, schedule]);
 
   // Into the editor's one status line, and Done's list of parts to save.
   const report = useSaveReporter("consignment");
@@ -188,7 +150,6 @@ export function ConsignmentPanel({
       onRetry: status === "error" && !pctInvalid ? () => void save() : undefined,
     });
   }, [report, status, pctInvalid, save]);
-  const flush = useCallback(() => (unsaved.current ? save() : Promise.resolve(true)), [save]);
   useFlushForDone("consignment", flush);
 
   // Live settlement (admin/accountant only — settlement is null otherwise).

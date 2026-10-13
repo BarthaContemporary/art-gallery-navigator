@@ -23,7 +23,7 @@ import { cmToInchesFraction } from "@/lib/measure";
 import { titleWithYear } from "@jvb/db";
 import { formatDimensionsCm } from "@jvb/db";
 import { consignmentSplit, round2 } from "@/lib/consignment";
-import { DOC_TYPE_LABELS, VAT_TREATMENT_LABELS, labelOf } from "@/lib/labels";
+import { ACTIVITY_ACTION_LABELS, DOC_TYPE_LABELS, VAT_TREATMENT_LABELS, labelOf } from "@/lib/labels";
 // London time and the shared money format; this page renders on the server,
 // where a bare toLocaleString prints UTC.
 import { formatCount, formatDate, formatDateTime, gbpDisplay, gbpExact } from "@/lib/format";
@@ -297,6 +297,25 @@ export default async function PieceDetail({
   const actorIds = isAdmin
     ? [...new Set(activityRows.map((a) => a.actor_id).filter((x): x is string => Boolean(x)))]
     : [];
+  // The makers, categories, locations and contacts the admin's change history
+  // names by id, so it can print their names rather than the ids.
+  const historyIds = (keys: string[]) =>
+    isAdmin
+      ? [
+          ...new Set(
+            activityRows.flatMap((a) =>
+              keys.flatMap((k) => {
+                const c = a.changes?.[k] as { old?: unknown; new?: unknown } | undefined;
+                return [c?.old, c?.new].filter((v): v is string => typeof v === "string" && v !== "");
+              }),
+            ),
+          ),
+        ]
+      : [];
+  const historyMakerIds = historyIds(["maker_id"]);
+  const historyCategoryIds = historyIds(["category_id"]);
+  const historyLocationIds = historyIds(["location_id"]);
+  const historyContactIds = historyIds(["buyer_contact_id", "seller_contact_id", "consignee_contact_id"]);
   const fin = financialsRes.data;
   const buyerContactId = (fin?.buyer_contact_id as string | null | undefined) ?? null;
   // The photograph the website tile is drawn from: the first processed one.
@@ -304,7 +323,7 @@ export default async function PieceDetail({
 
   // The follow-up reads each depend on the batch above but not on each
   // other, so they run together.
-  const [relImgsRes, profsRes, buyerRes, squareRes] = await Promise.all([
+  const [relImgsRes, profsRes, buyerRes, squareRes, historyNamesRes] = await Promise.all([
     related.length
       ? supabase
           .from("piece_images")
@@ -321,6 +340,22 @@ export default async function PieceDetail({
     firstDone
       ? supabase.from("piece_image_squares").select("guess, kind, square_path").eq("image_id", firstDone.id).maybeSingle()
       : Promise.resolve({ data: null }),
+    Promise.all([
+      historyMakerIds.length
+        ? supabase.from("makers").select("id, display_name").in("id", historyMakerIds)
+        : Promise.resolve({ data: [] as { id: string; display_name: string | null }[] }),
+      historyCategoryIds.length
+        ? supabase.from("categories").select("id, name").in("id", historyCategoryIds)
+        : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
+      historyLocationIds.length
+        ? supabase.from("locations").select("id, code").in("id", historyLocationIds)
+        : Promise.resolve({ data: [] as { id: string; code: string | null }[] }),
+      historyContactIds.length
+        ? supabase.from("crm_contacts").select("id, first_name, last_name, email").in("id", historyContactIds)
+        : Promise.resolve({
+            data: [] as { id: string; first_name: string | null; last_name: string | null; email: string | null }[],
+          }),
+    ]),
   ]);
 
   if (related.length) {
@@ -355,7 +390,16 @@ export default async function PieceDetail({
   // name of whoever made each change; other roles see a short recent list
   // (and RLS returns nothing to staff regardless).
   let historyEntries: HistoryEntry[] = [];
+  const historyNames: Record<string, string> = {};
   if (isAdmin) {
+    const [makersRes, categoriesRes, locationsRes, contactsRes] = historyNamesRes;
+    for (const m of makersRes.data ?? []) if (m.display_name) historyNames[m.id] = m.display_name;
+    for (const c of categoriesRes.data ?? []) if (c.name) historyNames[c.id] = c.name;
+    for (const l of locationsRes.data ?? []) if (l.code) historyNames[l.id] = l.code;
+    for (const c of contactsRes.data ?? []) {
+      const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email;
+      if (name) historyNames[c.id] = name;
+    }
     const names: Record<string, string> = Object.fromEntries(
       (profsRes.data ?? []).map((p) => [p.id as string, (p.full_name as string | null) ?? ""]),
     );
@@ -454,6 +498,54 @@ export default async function PieceDetail({
       : saleTreatment === "standard"
         ? "1/6 of the sale price"
         : "No VAT on this treatment";
+  // The margin in the Commercial section. While the work is unsold it is
+  // projected at the marked price (J.v.d.B.'s share of it on a consignment
+  // with a share %). Once sold it is the realised margin, the stock book's
+  // figure (sale less total cost), with a word for what it was: "Loss" in the
+  // danger tone when the sale fell below cost. Display only: no figure here
+  // is worked out differently from the editor and the stock book.
+  const isSold = piece.status === "sold" || soldGbp != null;
+  let realised: { value: string; word: string | null; pct: string | null; loss: boolean; share: string | null } | null =
+    null;
+  if (fin && isSold) {
+    const totalCost =
+      fin.total_cost_gbp != null
+        ? Number(fin.total_cost_gbp)
+        : num0(fin.purchase_cost_gbp) + num0(fin.restoration_cost_gbp) + num0(fin.other_costs_gbp);
+    // A margin over a missing purchase £ would be the whole sale: say so instead.
+    const margin = soldGbp != null && fin.purchase_cost_gbp != null ? round2(soldGbp - totalCost) : null;
+    // On a consignment with a share, what J.v.d.B. made: the editor's
+    // settlement at the sale price.
+    const jvbShare =
+      soldGbp != null && onConsignment && consignSharePct != null
+        ? consignmentSplit({
+            amount: soldGbp,
+            vatTreatment: saleTreatment,
+            saleHandledByJvb: consignSaleHandled,
+            purchaseCostGbp: num0(fin.purchase_cost_gbp),
+            extraCostsGbp: num0(fin.restoration_cost_gbp) + num0(fin.other_costs_gbp),
+            importVatPaidGbp: fin.import_type === "import_vat_paid" ? num0(fin.import_vat_gbp) : 0,
+            sharePct: consignSharePct,
+          }).jvbNetProfit
+        : null;
+    realised = {
+      value: margin != null ? gbp(margin) : "—",
+      word:
+        margin == null
+          ? soldGbp == null
+            ? "No sale £ recorded"
+            : "No purchase £ recorded"
+          : margin < 0
+            ? "Loss"
+            : margin > 0
+              ? "Profit"
+              : "Break-even",
+      pct: margin != null && soldGbp ? `${((margin / soldGbp) * 100).toFixed(1)}%` : null,
+      loss: margin != null && margin < 0,
+      share: jvbShare != null ? `J.v.d.B. net profit ${gbp(jvbShare)} · ${consignSharePct}% share` : null,
+    };
+  }
+
   const buyer = buyerRes.data as { id: string; first_name: string | null; last_name: string | null; email: string | null } | null;
   const buyerName = buyer
     ? [buyer.first_name, buyer.last_name].filter(Boolean).join(" ") || buyer.email || "Unnamed contact"
@@ -695,32 +787,37 @@ export default async function PieceDetail({
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
           <span aria-hidden className="hidden h-5 w-px bg-rule md:inline-block" />
-          {/* Words on a wide screen; narrower, the icon, named by aria-label. */}
+          {/* Toggle buttons: one constant name, the state in aria-pressed and
+              the pressed look (a name that changed with the state would be
+              read as "Watching, pressed"). Words on a wide screen; narrower,
+              the icon, named by aria-label. */}
           <form action={toggleWatch}>
             <Button
               type="submit"
               aria-pressed={watching}
-              aria-label={watching ? "Watching" : "Watch"}
+              aria-label="Watch"
+              title={watching ? "Watching this work. Press to stop watching." : "Watch this work"}
               icon={<EyeIcon size={15} />}
               className={`px-3 ${watching ? "border-ink bg-band" : ""}`}
             >
-              <span className="hidden lg:inline">{watching ? "Watching" : "Watch"}</span>
+              <span className="hidden lg:inline">Watch</span>
             </Button>
           </form>
           <form action={toggleFlag}>
             <Button
               type="submit"
               aria-pressed={flagged}
-              aria-label={flagged ? "Flagged" : "Flag"}
+              aria-label="Flag"
               title={flagged ? "Flagged. Press to remove the flag." : "Flag this work to come back to it from the inventory"}
               icon={<FlagIcon size={15} className={flagged ? "text-warn" : undefined} />}
               className={`px-3 ${flagged ? "border-warn bg-warn-wash text-warn" : ""}`}
             >
-              <span className="hidden lg:inline">{flagged ? "Flagged" : "Flag"}</span>
+              <span className="hidden lg:inline">Flag</span>
             </Button>
           </form>
-          {/* Documents ▾: the exports and the list form, one click away */}
-          <RecordMenu label="Documents" icon={<FileIcon size={15} />}>
+          {/* Documents & lists: the exports and the add-to-list form, one
+              click away. The name says both, so the lists are findable. */}
+          <RecordMenu label="Documents & lists" icon={<FileIcon size={15} />}>
             <p className="label">Documents</p>
             <ul className="mt-1.5 grid grid-cols-[1fr_auto] gap-x-4 text-[13px] leading-[1.45]">
               {(
@@ -847,9 +944,12 @@ export default async function PieceDetail({
           ) : null}
 
           {/* the facts, on hairlines */}
-          <dl className="mt-6 grid grid-cols-2 border-t border-rule-strong sm:grid-cols-3 lg:grid-cols-2">
+          {/* The list draws its own bottom rule across the full width, and each
+              fact's rule sits 1px lower (-mb-px), so the last row's rules lie
+              on it: a short last row leaves no half-width stub. */}
+          <dl className="mt-6 grid grid-cols-2 border-y border-b-rule border-t-rule-strong sm:grid-cols-3 lg:grid-cols-2">
             {specs.map(([label, value]) => (
-              <div key={label} className="min-w-0 border-b border-rule py-2.5 pr-3">
+              <div key={label} className="-mb-px min-w-0 border-b border-rule py-2.5 pr-3">
                 <dt className="label">{label}</dt>
                 <dd className="mt-1 text-[13.5px] leading-[1.5] text-ink">{value}</dd>
               </div>
@@ -921,16 +1021,33 @@ export default async function PieceDetail({
             <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
               <Stat label="Marked price">{gbp(fin.marked_price_gbp)}</Stat>
               <Stat label="Purchase cost">{gbp(fin.total_cost_gbp)}</Stat>
-              <Stat
-                label={useJvbMargin ? "Projected margin (JvdB)" : "Projected margin"}
-                sub={useJvbMargin ? `${consignSharePct}% share` : marginPct ? `${marginPct}%` : null}
-              >
-                {useJvbMargin
-                  ? gbp(jvbProjectedMargin)
-                  : fin.marked_price_gbp != null && fin.total_cost_gbp != null
-                    ? gbp(fin.marked_price_gbp - fin.total_cost_gbp)
-                    : "—"}
-              </Stat>
+              {realised ? (
+                <Stat
+                  label="Realised margin"
+                  tone={realised.loss ? "danger" : undefined}
+                  sub={
+                    <>
+                      <span className={realised.loss ? "font-medium text-danger" : undefined}>
+                        {[realised.word, realised.pct].filter(Boolean).join(" · ")}
+                      </span>
+                      {realised.share ? <span className="block text-meta">{realised.share}</span> : null}
+                    </>
+                  }
+                >
+                  {realised.value}
+                </Stat>
+              ) : (
+                <Stat
+                  label={useJvbMargin ? "Projected margin (JvdB)" : "Projected margin"}
+                  sub={useJvbMargin ? `${consignSharePct}% share` : marginPct ? `${marginPct}%` : null}
+                >
+                  {useJvbMargin
+                    ? gbp(jvbProjectedMargin)
+                    : fin.marked_price_gbp != null && fin.total_cost_gbp != null
+                      ? gbp(fin.marked_price_gbp - fin.total_cost_gbp)
+                      : "—"}
+                </Stat>
+              )}
               <Stat
                 label="Enquiries"
                 sub={lastEnquiry ? `last ${formatDate(lastEnquiry, "short", { year: false })}` : null}
@@ -1099,17 +1216,15 @@ export default async function PieceDetail({
           }
         >
           {isAdmin ? (
-            <ChangeHistory entries={historyEntries} revertAction={revertChange} />
+            <ChangeHistory entries={historyEntries} revertAction={revertChange} names={historyNames} />
           ) : activityRows.length === 0 ? (
             <p className="text-[13px] text-meta">No activity yet.</p>
           ) : (
             <ul>
               {activityRows.map((a) => (
                 <li key={a.id} className="flex flex-wrap items-baseline justify-between gap-x-4 border-t border-rule py-2 first:border-t-0 first:pt-0">
-                  <span className="text-[13px] text-body">{a.action}</span>
-                  <span className="tabular text-[12px] text-meta">
-                    {formatDateTime(a.created_at, "numeric", { seconds: true })}
-                  </span>
+                  <span className="text-[13px] text-body">{labelOf(ACTIVITY_ACTION_LABELS, a.action)}</span>
+                  <span className="tabular text-[12px] text-meta">{formatDateTime(a.created_at, "short")}</span>
                 </li>
               ))}
             </ul>
@@ -1120,12 +1235,30 @@ export default async function PieceDetail({
   );
 }
 
-/** One figure under its label: the record's money and counts. */
-function Stat({ label, sub, children }: { label: string; sub?: string | null; children: React.ReactNode }) {
+/**
+ * One figure under its label: the record's money and counts. tone="danger"
+ * marks a figure that is bad news (a sale below cost); the word beside it in
+ * `sub` says so, so the colour is never the only signal.
+ */
+function Stat({
+  label,
+  sub,
+  tone,
+  children,
+}: {
+  label: string;
+  sub?: React.ReactNode;
+  tone?: "danger";
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-w-0">
       <dt className="label">{label}</dt>
-      <dd className="tabular mt-1 text-[22px] font-light leading-[1.25] text-ink">{children}</dd>
+      <dd
+        className={`tabular mt-1 text-[22px] font-light leading-[1.25] ${tone === "danger" ? "text-danger" : "text-ink"}`}
+      >
+        {children}
+      </dd>
       {sub ? <dd className="mt-0.5 text-[12px] leading-[1.4] text-meta">{sub}</dd> : null}
     </div>
   );

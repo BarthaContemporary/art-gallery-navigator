@@ -19,8 +19,9 @@ const rowCls =
 const nameCls = "link-plain min-w-0 truncate text-ink";
 const countCls = "tabular shrink-0 text-[12px] leading-[1.4] text-meta";
 const emptyCls = "text-[13px] leading-[1.45] text-body";
-// shipment_date and doc_date are `date` columns: printed as the day they name.
-const fmt = (d: string | null) => formatDate(d, "numeric");
+// shipment_date and doc_date are `date` columns: printed as the day they
+// name, in the studio's date form ("12 Oct 2026").
+const fmt = (d: string | null) => formatDate(d, "short");
 
 export default async function LibraryPage() {
   const supabase = await getSupabase();

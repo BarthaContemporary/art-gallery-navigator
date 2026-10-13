@@ -353,6 +353,21 @@
   .btn-icon.btn-sm {
     width: var(--jvb-control-h-sm);
   }
+  /* A sentence-length label that wraps: the control height becomes a
+     minimum and the words set left (buttonClass({ wrap })). */
+  .btn-wrap {
+    height: auto;
+    min-height: var(--jvb-control-h);
+    padding-block: 6px;
+    justify-content: flex-start;
+    text-align: left;
+    line-height: 1.35;
+    white-space: normal;
+  }
+  .btn-sm.btn-wrap {
+    min-height: var(--jvb-control-h-sm);
+    padding-block: 5px;
+  }
 
   .btn:is(:disabled, [aria-disabled="true"]) {
     opacity: 0.45;
@@ -410,8 +425,12 @@
     padding: 8px 10px;
     resize: vertical;
   }
+  /* Placeholders are hints, so they must be readable: meta, 4.09:1 on the
+     light form fill and 6.23:1 on the dark one (light, at 2.6:1, is for
+     disabled and decorative marks only, spec R3). A placeholder is never
+     the only label: every field has a Label or an aria-label as well. */
   .field::placeholder {
-    color: var(--jvb-light);
+    color: var(--jvb-meta);
     opacity: 1;
   }
   .field:is(:hover, [data-preview~="hover"]):not(:disabled, :focus) {

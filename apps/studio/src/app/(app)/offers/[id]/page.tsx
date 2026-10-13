@@ -733,9 +733,7 @@ export default async function OfferDetail({
 
         {/* Recipients */}
         <Section title={<SectionCount title="Recipients" n={recipients.length} />}>
-          {/* relative: the frame contains the sr-only head words, which
-              otherwise sit outside the scroll and widen a phone page. */}
-          <TableFrame className="relative">
+          <TableFrame>
             <Table className="min-w-[640px]">
               <thead>
                 <tr>

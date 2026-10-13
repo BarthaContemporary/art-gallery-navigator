@@ -250,7 +250,7 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
             aria-activedescendant={rows[active] ? optionId(active) : undefined}
             autoComplete="off"
             spellCheck={false}
-            className="block h-12 w-full bg-transparent pl-11 pr-4 text-[14.5px] text-ink placeholder:text-light"
+            className="block h-12 w-full bg-transparent pl-11 pr-4 text-[14.5px] text-ink placeholder:text-meta"
           />
         </div>
         <div className="max-h-[52vh] overflow-y-auto py-1.5">

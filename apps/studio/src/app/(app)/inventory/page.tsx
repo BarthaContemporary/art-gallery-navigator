@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { FlashNotice, Notice } from "@/components/ui/notice";
 import { Panel } from "@/components/ui/section";
+import { Pager } from "@/components/ui/pager";
 import { chipClass } from "@/components/ui/chips";
 import { CloseIcon, FlagIcon } from "@/components/ui/icons";
 import { formatCount } from "@/lib/format";
@@ -388,7 +389,7 @@ export default async function InventoryPage({
             ""
           )}
         </p>
-        <Pager sp={sp} page={page} pages={pages} label="Pagination, top" />
+        <Pager page={page} pages={pages} href={(p) => pageHref(sp, p)} label="Pagination, top" />
       </div>
 
       {error ? (
@@ -430,9 +431,9 @@ export default async function InventoryPage({
       {/* justify-end so it sits under the top pager, which the count line's
           justify-between already pushes to the right edge. */}
       <Pager
-        sp={sp}
         page={page}
         pages={pages}
+        href={(p) => pageHref(sp, p)}
         label="Pagination, bottom"
         className="mt-4 justify-end"
       />
@@ -441,54 +442,13 @@ export default async function InventoryPage({
 }
 
 /**
- * First / prev / next / last, rendered once above the results and once below.
- * Both carry the current filters and sort; only `page` changes.
+ * A page of the current view, for the shared Pager above and below the
+ * results: the filters and sort are kept, only `page` changes.
  */
-function Pager({
-  sp,
-  page,
-  pages,
-  label,
-  className = "",
-}: {
-  sp: Search;
-  page: number;
-  pages: number;
-  label: string;
-  className?: string;
-}) {
-  if (pages <= 1) return null;
-  return (
-    <nav aria-label={label} className={`flex flex-wrap items-center gap-1.5 ${className}`}>
-      <PageLink sp={sp} page={1} disabled={page === 1} label="First" />
-      <PageLink sp={sp} page={page - 1} disabled={page === 1} label="Previous" />
-      <span className="tabular px-1.5 text-[12px] text-meta">
-        Page {page} of {pages}
-      </span>
-      <PageLink sp={sp} page={page + 1} disabled={page === pages} label="Next" />
-      <PageLink sp={sp} page={pages} disabled={page === pages} label="Last" />
-    </nav>
-  );
-}
-
-function PageLink({
-  sp,
-  page,
-  disabled,
-  label,
-}: {
-  sp: Search;
-  page: number;
-  disabled: boolean;
-  label: string;
-}) {
+function pageHref(sp: Search, page: number): string {
   const params = new URLSearchParams(strip(sp));
   params.set("page", String(page));
-  return (
-    <ButtonLink href={`?${params.toString()}`} size="sm" disabled={disabled}>
-      {label}
-    </ButtonLink>
-  );
+  return `?${params.toString()}`;
 }
 
 function strip(sp: Search): Record<string, string> {

@@ -9,6 +9,9 @@
  *             role="status".
  *     title   a short bold first line.
  *     action  a control on the right (a Retry button, a link).
+ *     onDismiss  adds a Dismiss control (a close icon in body, readable on
+ *             the wash) after the action. A handler, so client components
+ *             only; the caller removes the notice.
  *     inline  the compact form, for inside a row or next to a control.
  *
  *   <FlashNotice searchParams codes? fallback?>
@@ -29,7 +32,9 @@
  */
 import type { ReactNode } from "react";
 import { describeEmailError } from "@/lib/email-errors";
+import { Button } from "./button";
 import { cx } from "./cx";
+import { CloseIcon } from "./icons";
 
 export type NoticeTone = "info" | "ok" | "warn" | "danger" | "neutral";
 
@@ -37,6 +42,7 @@ export function Notice({
   tone = "info",
   title,
   action,
+  onDismiss,
   inline = false,
   className,
   id,
@@ -45,6 +51,7 @@ export function Notice({
   tone?: NoticeTone;
   title?: ReactNode;
   action?: ReactNode;
+  onDismiss?: () => void;
   inline?: boolean;
   className?: string;
   id?: string;
@@ -61,7 +68,17 @@ export function Notice({
         {title ? <p className="font-semibold text-ink">{title}</p> : null}
         {children}
       </div>
-      {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
+      {action || onDismiss ? (
+        <div className="flex shrink-0 items-center gap-2">
+          {action}
+          {onDismiss ? (
+            // body, not the quiet button's meta: meta fails on a wash (spec R3).
+            <Button iconOnly label="Dismiss" variant="quiet" size="sm" onClick={onDismiss} className="text-body">
+              <CloseIcon size={14} />
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

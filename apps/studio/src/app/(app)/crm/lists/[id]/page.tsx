@@ -131,7 +131,7 @@ export default async function ListDetail({
         }
         actions={
           <>
-            <LabelPdfButton listId={id} className={buttonClass({ size: "sm" })} />
+            <LabelPdfButton listId={id} align="right" />
             <SaveToDriveLink href={`/api/export/contacts.vcf?list=${id}`} className={buttonClass({ size: "sm" })}>
               vCards
             </SaveToDriveLink>
@@ -145,9 +145,7 @@ export default async function ListDetail({
 
       <div className="space-y-6">
         <Section title="Members">
-          {/* relative: the frame contains the sr-only head words, which
-              otherwise sit outside the scroll and widen a phone page. */}
-          <TableFrame className="relative">
+          <TableFrame>
             <Table className="min-w-[520px]">
               <thead>
                 <tr>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StatusPill, STATUS_LABELS } from "@/components/status-pill";
@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/field";
 import { ArrowRightIcon, FlagIcon, ImageIcon } from "@/components/ui/icons";
+import { Kbd } from "@/components/ui/kbd";
 import { Notice } from "@/components/ui/notice";
 import { Panel } from "@/components/ui/section";
-import { ColumnResizer, EmptyRow, SortMark, TableFrame, Td, rowClass } from "@/components/ui/table";
+import { ColumnResizer, SortMark, TableFrame, Td, rowClass, thClass } from "@/components/ui/table";
 import { WebsiteDot } from "@/components/ui/website-switch";
 import { cx } from "@/components/ui/cx";
 import { useResizableColumns } from "@/hooks/use-resizable-columns";
@@ -65,9 +66,6 @@ const COLS: Col[] = [
 const WEB_COL: Col = { key: "web_visible", label: "Website", sortable: false, resizable: true, width: 96 };
 /** Heads with no visible words (the checkbox, flag and image columns). */
 const WORDLESS = new Set(["select", "flag", "image"]);
-/** The shared Th head style (components/ui/table). */
-const TH =
-  "whitespace-nowrap border-b border-rule-strong bg-page px-3 py-2 align-bottom text-left text-[11.5px] font-semibold uppercase leading-[1.3] tracking-[0.06em] text-meta";
 const ARIA_SORT = { asc: "ascending", desc: "descending", none: "none" } as const;
 
 const MIN_W = 64;
@@ -315,6 +313,64 @@ export function InventoryTable({
   // Rows change (paging/sort/filter) → drop the highlight.
   useEffect(() => setActiveRow(-1), [rows]);
 
+  // ---- the head and the rows' frame, kept in step ----
+  const headScroll = useRef<HTMLDivElement>(null);
+  const bodyScroll = useRef<HTMLDivElement>(null);
+  const bodyTable = useRef<HTMLTableElement>(null);
+  /** The element this table last scrolled by script, and to where. */
+  const scriptedScroll = useRef<{ el: HTMLElement | null; left: number }>({ el: null, left: 0 });
+
+  /**
+   * Copies one side's sideways scroll to the other. The scroll event that
+   * the copy itself raises is recognised and ignored, so momentum on one
+   * side is never pulled back by a late echo from the other.
+   */
+  function mirrorScroll(from: HTMLElement | null, to: HTMLElement | null) {
+    if (!from || !to) return;
+    const last = scriptedScroll.current;
+    if (last.el === from && Math.abs(from.scrollLeft - last.left) < 1) return;
+    if (to.scrollLeft === from.scrollLeft) return;
+    scriptedScroll.current = { el: to, left: from.scrollLeft };
+    to.scrollLeft = from.scrollLeft;
+  }
+
+  /**
+   * A drag writes the head's <col> widths straight to the DOM (see
+   * useResizableColumns) and commits on release; the rows' table copies
+   * them every frame while the drag lasts, so the two never part.
+   */
+  function copyWidths() {
+    const head = cols.tableRef.current;
+    const body = bodyTable.current;
+    if (!head || !body) return;
+    if (body.style.width !== head.style.width) body.style.width = head.style.width;
+    const headCols = head.querySelectorAll("col");
+    const bodyCols = body.querySelectorAll("col");
+    headCols.forEach((col, i) => {
+      const target = bodyCols[i];
+      if (target && target.style.width !== col.style.width) target.style.width = col.style.width;
+    });
+  }
+  function resizeHandle(key: string, label: string) {
+    const props = cols.handleProps(key, label);
+    return {
+      ...props,
+      onPointerDown: (e: ReactPointerEvent) => {
+        props.onPointerDown(e);
+        let frame = requestAnimationFrame(function follow() {
+          copyWidths();
+          frame = requestAnimationFrame(follow);
+        });
+        const stop = () => {
+          cancelAnimationFrame(frame);
+          copyWidths();
+          window.removeEventListener("pointerup", stop);
+        };
+        window.addEventListener("pointerup", stop);
+      },
+    };
+  }
+
   function cell(col: Col, r: InventoryRow) {
     switch (col.key) {
       case "select":
@@ -456,7 +512,9 @@ export function InventoryTable({
         <p className="mr-auto hidden text-[11px] leading-[1.3] text-meta lg:block">
           <Kbd>j</Kbd> <Kbd>k</Kbd> move · <Kbd>⏎</Kbd> open · <Kbd>x</Kbd> select · <Kbd>f</Kbd> flag
         </p>
-        <Button variant="quiet" size="sm" onClick={toggleWebColumn} aria-pressed={showWeb}>
+        {/* The words say what a press does, as on the density toggle beside
+            it, so there is no aria-pressed to contradict them (R5). */}
+        <Button variant="quiet" size="sm" onClick={toggleWebColumn}>
           {showWeb ? "Hide website column" : "Show website column"}
         </Button>
         <Button variant="quiet" size="sm" onClick={toggleDensity} title="Toggle row density">
@@ -536,101 +594,146 @@ export function InventoryTable({
         ) : null}
       </ul>
 
-      {/* TableFrame: the frame scrolls sideways and would clip an outer focus
-          ring, so cells draw it inside (data-inset-focus). From lg up it stops
-          clipping so the head can stick under the app header. */}
-      <TableFrame className="hidden md:block lg:overflow-x-visible">
-        <table
-          ref={cols.tableRef}
-          style={
-            {
-              width: cols.totalWidth(),
-              tableLayout: "fixed",
-              // Density is this table's own setting (DENSITY_KEY), so it sets
-              // the row padding the Td cells read rather than the page's.
-              "--jvb-row-py": density === "compact" ? "6px" : "10px",
-            } as CSSProperties
-          }
-          className="min-w-full border-collapse bg-page text-left text-[13px] leading-[1.45]"
+      {/* The table, from md up. A wide table (the default columns are wider
+          than an iPad in landscape, and widths are the user's to change)
+          scrolls sideways inside its own frame and never moves the page.
+          A head inside a scrolling frame cannot stick to the page, so the
+          head is a table of its own above the frame: from lg it sticks
+          under the app header, and it follows the frame's sideways scroll
+          (both ways, so a swipe or Tab on the head moves the rows too).
+          The two <table>s are one ARIA table (role="table" on the wrapper,
+          rowgroup / row / columnheader / cell inside), so each cell is
+          still read with its column's head. */}
+      <div role="table" aria-label="Inventory" className="hidden md:block">
+        <div
+          ref={headScroll}
+          onScroll={() => mirrorScroll(headScroll.current, bodyScroll.current)}
+          data-inset-focus
+          className="relative overflow-x-auto bg-page [scrollbar-width:none] lg:sticky lg:top-[var(--app-header-h,88px)] lg:z-20 [&::-webkit-scrollbar]:hidden"
         >
-          <colgroup>
-            {columns.map((c) => (
-              <col key={c.key} ref={cols.colRef(c.key)} style={{ width: cols.widthOf(c.key) }} />
-            ))}
-          </colgroup>
-          <thead>
-            <tr>
-              {columns.map((c) => {
-                const state = activeSort === c.key ? activeDir : "none";
-                return (
-                  // Th's look, composed here: the resize handle has to sit
-                  // beside the sort button, and Th puts every child inside it.
-                  <th
-                    key={c.key}
-                    scope="col"
-                    aria-sort={c.sortable ? ARIA_SORT[state] : undefined}
-                    // The offset only where the head sticks (lg up): on a
-                    // relative cell it would shift the head down over the rows.
-                    className={cx(TH, "relative select-none lg:sticky lg:top-[var(--app-header-h,88px)] lg:z-20")}
-                  >
-                    {c.key === "select" ? (
-                      <input
-                        type="checkbox"
-                        aria-label="Select all on this page"
-                        checked={allSelected}
-                        onChange={toggleAll}
-                        className="h-4 w-4 align-middle"
-                      />
-                    ) : WORDLESS.has(c.key) ? (
-                      <span className="sr-only">{c.label}</span>
-                    ) : c.sortable ? (
-                      <button
-                        type="button"
-                        onClick={() => onHeaderClick(c.key)}
-                        title="Click to sort · click again to reverse"
-                        className={cx(
-                          "inline-flex items-center gap-1 uppercase tracking-[inherit] hover:text-ink",
-                          state !== "none" && "text-ink",
-                        )}
-                      >
-                        <span className="self-baseline">{c.label}</span>
-                        <SortMark state={state} />
-                      </button>
-                    ) : (
-                      c.label
-                    )}
-                    {c.resizable ? <ColumnResizer {...cols.handleProps(c.key, c.label)} /> : null}
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr
-                key={r.id}
-                ref={(el) => {
-                  rowRefs.current[i] = el;
-                }}
-                className={rowClass({
-                  selected: selected.has(r.id),
-                  flagged: flags.has(r.id),
-                  current: i === activeRow,
+          <table
+            ref={cols.tableRef}
+            role="presentation"
+            style={{ width: cols.totalWidth(), tableLayout: "fixed" }}
+            className="min-w-full border-collapse bg-page text-left text-[13px] leading-[1.45]"
+          >
+            <colgroup>
+              {columns.map((c) => (
+                <col key={c.key} ref={cols.colRef(c.key)} style={{ width: cols.widthOf(c.key) }} />
+              ))}
+            </colgroup>
+            <thead role="rowgroup">
+              <tr role="row">
+                {columns.map((c) => {
+                  const state = activeSort === c.key ? activeDir : "none";
+                  return (
+                    // Th's look (thClass), composed here so the resize handle
+                    // sits beside the sort button rather than inside it.
+                    <th
+                      key={c.key}
+                      role="columnheader"
+                      scope="col"
+                      aria-sort={c.sortable ? ARIA_SORT[state] : undefined}
+                      className={thClass({}, "select-none")}
+                    >
+                      {c.key === "select" ? (
+                        <input
+                          type="checkbox"
+                          aria-label="Select all on this page"
+                          checked={allSelected}
+                          onChange={toggleAll}
+                          className="h-4 w-4 align-middle"
+                        />
+                      ) : WORDLESS.has(c.key) ? (
+                        <span className="sr-only">{c.label}</span>
+                      ) : c.sortable ? (
+                        <button
+                          type="button"
+                          onClick={() => onHeaderClick(c.key)}
+                          title="Click to sort · click again to reverse"
+                          className={cx(
+                            "inline-flex items-center gap-1 uppercase tracking-[inherit] hover:text-ink",
+                            state !== "none" && "text-ink",
+                          )}
+                        >
+                          <span className="self-baseline">{c.label}</span>
+                          <SortMark state={state} />
+                        </button>
+                      ) : (
+                        c.label
+                      )}
+                      {c.resizable ? <ColumnResizer {...resizeHandle(c.key, c.label)} /> : null}
+                    </th>
+                  );
                 })}
-              >
-                {columns.map((c) => (
-                  <Td key={c.key} className="overflow-hidden">
-                    {cell(c, r)}
-                  </Td>
-                ))}
               </tr>
-            ))}
-            {rows.length === 0 ? (
-              <EmptyRow colSpan={columns.length}>No records match these filters.</EmptyRow>
-            ) : null}
-          </tbody>
-        </table>
-      </TableFrame>
+            </thead>
+          </table>
+        </div>
+
+        {/* The rows' frame: scrolls sideways at any width the table is wider
+            than; cells draw the focus ring inside (data-inset-focus). */}
+        <TableFrame ref={bodyScroll} onScroll={() => mirrorScroll(bodyScroll.current, headScroll.current)}>
+          <table
+            ref={bodyTable}
+            role="presentation"
+            style={
+              {
+                width: cols.totalWidth(),
+                tableLayout: "fixed",
+                // Density is this table's own setting (DENSITY_KEY), so it sets
+                // the row padding the Td cells read rather than the page's.
+                "--jvb-row-py": density === "compact" ? "6px" : "10px",
+              } as CSSProperties
+            }
+            className="min-w-full border-collapse bg-page text-left text-[13px] leading-[1.45]"
+          >
+            <colgroup>
+              {columns.map((c) => (
+                <col key={c.key} style={{ width: cols.widthOf(c.key) }} />
+              ))}
+            </colgroup>
+            <tbody role="rowgroup">
+              {rows.map((r, i) => (
+                <tr
+                  key={r.id}
+                  role="row"
+                  ref={(el) => {
+                    rowRefs.current[i] = el;
+                  }}
+                  className={rowClass({
+                    selected: selected.has(r.id),
+                    flagged: flags.has(r.id),
+                    current: i === activeRow,
+                  })}
+                >
+                  {columns.map((c) => (
+                    <Td key={c.key} role="cell" className="overflow-hidden">
+                      {cell(c, r)}
+                    </Td>
+                  ))}
+                </tr>
+              ))}
+              {rows.length === 0 ? (
+                // EmptyRow's look, with the row and cell roles this ARIA
+                // table needs.
+                <tr role="row">
+                  <td
+                    role="cell"
+                    colSpan={columns.length}
+                    aria-colspan={columns.length}
+                    className="border-b border-rule px-3 py-10 text-center"
+                  >
+                    <p className="mx-auto max-w-[46ch] text-[13px] leading-[1.45] text-body">
+                      No records match these filters.
+                    </p>
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </TableFrame>
+      </div>
     </div>
   );
 }
@@ -645,14 +748,6 @@ function Thumb({ src, size, lazy = false }: { src: string | undefined; size: str
     <span aria-hidden className={cx("jvb-hatch flex shrink-0 items-center justify-center text-meta", size)}>
       <ImageIcon size={14} />
     </span>
-  );
-}
-
-function Kbd({ children }: { children: string }) {
-  return (
-    <kbd className="inline-block min-w-[16px] border border-rule-strong px-1 text-center font-sans text-[11px] leading-[16px] text-body">
-      {children}
-    </kbd>
   );
 }
 

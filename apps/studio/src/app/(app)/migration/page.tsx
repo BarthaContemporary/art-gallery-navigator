@@ -9,6 +9,9 @@ import { Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 
 export const metadata = { title: "Data review" };
 
+/** Flagged import rows listed on the page; the heading counts them all. */
+const FLAGGED_SHOWN = 500;
+
 type PieceRef = { stock_number: string; title: string | null } | null;
 
 function StockLink({ piece }: { piece: PieceRef }) {
@@ -212,7 +215,7 @@ export default async function DataReview() {
                   </tr>
                 </thead>
                 <tbody>
-                  {flagged.slice(0, 500).map((r) => (
+                  {flagged.slice(0, FLAGGED_SHOWN).map((r) => (
                     <Tr key={r.row_number}>
                       <Td className="tabular text-body">{r.row_number}</Td>
                       <Td>
@@ -225,6 +228,11 @@ export default async function DataReview() {
                   ))}
                 </tbody>
               </Table>
+              {flagged.length > FLAGGED_SHOWN ? (
+                <p className="px-3 py-2 text-[12px] leading-[1.4] text-meta">
+                  The first {formatCount(FLAGGED_SHOWN)} of {formatCount(flagged.length)} are listed here.
+                </p>
+              ) : null}
             </TableFrame>
           ) : (
             <p className="text-[13px] text-body">No per-row issue log recorded in the database.</p>

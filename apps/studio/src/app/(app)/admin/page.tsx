@@ -433,6 +433,10 @@ export default async function AdminPage({
           </Section>
 
           <Section title="Users">
+            <p id="admin-reset-hint" className="mb-3 max-w-[70ch] text-[12px] leading-[1.4] text-meta">
+              To reset a password, type a new one of at least {PASSWORD_MIN} characters, or leave the box
+              blank to generate one. Either way it is shown once, above.
+            </p>
             <TableFrame>
               <Table className="min-w-[720px]">
                 <thead>
@@ -449,7 +453,7 @@ export default async function AdminPage({
                     <Tr key={u.id}>
                       <Td className="text-ink">{u.email}</Td>
                       <Td className="text-body">{u.roles.join(", ") || "—"}</Td>
-                      <Td className="tabular text-body">{formatDate(u.created_at, "numeric")}</Td>
+                      <Td className="tabular whitespace-nowrap text-body">{formatDate(u.created_at, "short")}</Td>
                       <Td>
                         <form action={resetPassword} className="flex items-center gap-1.5">
                           <input type="hidden" name="user_id" value={u.id} />
@@ -458,7 +462,8 @@ export default async function AdminPage({
                             name="password"
                             minLength={PASSWORD_MIN}
                             placeholder="Blank to generate"
-                            aria-label={`New password for ${u.email} (leave blank to generate one)`}
+                            aria-label={`New password for ${u.email}`}
+                            aria-describedby="admin-reset-hint"
                             className="field field-sm w-44"
                           />
                           <Button type="submit" size="sm" pendingLabel="Resetting…">
@@ -480,7 +485,13 @@ export default async function AdminPage({
                               Re-invite
                             </Button>
                           </form>
-                          <DeleteListButton action={deleteUser} id={u.id} name={u.email} />
+                          {/* A destructive action in a table row: the first step is quiet
+                              in danger (spec R4), the confirm step keeps its own
+                              "Yes, delete". DeleteListButton draws its trigger quiet; the
+                              wrapper colours that one button and not the confirm form. */}
+                          <span className="contents [&>button]:text-danger">
+                            <DeleteListButton action={deleteUser} id={u.id} name={u.email} />
+                          </span>
                         </div>
                       </Td>
                     </Tr>
@@ -543,7 +554,7 @@ export default async function AdminPage({
                       {a.action} {a.entity_type}
                     </span>
                     <time dateTime={a.created_at} className="text-[12px] text-meta">
-                      {formatDateTime(a.created_at, "numeric", { seconds: true })}
+                      {formatDateTime(a.created_at, "short")}
                     </time>
                   </li>
                 ))}

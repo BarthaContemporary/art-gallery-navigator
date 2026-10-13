@@ -3,6 +3,7 @@ import { londonTime } from "@/lib/caldav";
 import { Panel } from "@/components/ui/section";
 import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { CloseIcon } from "@/components/ui/icons";
+import { SubmitterLabel } from "@/components/submitter-label";
 
 // The studio's field look (.field, .label). Native elements throughout, so
 // the posted names stay exactly what the server actions read; the touch-size
@@ -192,8 +193,10 @@ export function EventEditor({
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Button type="submit" variant="primary" pendingLabel="Saving…">
-              {mode === "new" ? "Add event" : "Save changes"}
+            {/* No pendingLabel: Delete below submits this same form, and the
+                label must say "Saving…" only for a save (SubmitterLabel). */}
+            <Button type="submit" variant="primary">
+              <SubmitterLabel idle={mode === "new" ? "Add event" : "Save changes"} pending="Saving…" />
             </Button>
             <ButtonLink href={closeHref}>Cancel</ButtonLink>
           </div>
@@ -204,9 +207,9 @@ export function EventEditor({
               type="submit"
               formAction={deleteAction}
               formNoValidate
-              className={buttonClass({ variant: "danger" })}
+              className={buttonClass({ variant: "danger", size: "sm" })}
             >
-              Delete event
+              <SubmitterLabel idle="Delete event" pending="Deleting…" />
             </button>
           ) : null}
         </div>

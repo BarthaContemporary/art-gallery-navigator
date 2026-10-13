@@ -181,7 +181,7 @@ async function setStatus(formData: FormData) {
   revalidatePath("/appointments");
 }
 
-function StatusActions({ appt }: { appt: Appointment }) {
+function StatusActions({ appt, justify = "justify-end" }: { appt: Appointment; justify?: string }) {
   const actions: { status: string; label: string }[] = [];
   if (appt.status === "requested") {
     actions.push({ status: "confirmed", label: "Confirm" });
@@ -196,12 +196,18 @@ function StatusActions({ appt }: { appt: Appointment }) {
   if (actions.length === 0) return null;
   return (
     // Wraps to a second line rather than pushing Cancel out of the frame.
-    <div className="flex flex-wrap justify-end gap-1.5">
+    <div className={`flex flex-wrap gap-1.5 ${justify}`}>
       {actions.map((a) => (
         <form key={a.status} action={setStatus}>
           <input type="hidden" name="id" value={appt.id} />
           <input type="hidden" name="status" value={a.status} />
-          <Button type="submit" size="sm" variant={a.status === "cancelled" ? "danger" : "secondary"}>
+          {/* Cancel is a row's destructive action: quiet, in the danger colour. */}
+          <Button
+            type="submit"
+            size="sm"
+            variant={a.status === "cancelled" ? "quiet" : "secondary"}
+            className={a.status === "cancelled" ? "text-danger" : undefined}
+          >
             {a.label}
           </Button>
         </form>
@@ -214,6 +220,61 @@ function nameOf(c: ContactLite): string {
   return [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed";
 }
 
+/** The person: a link to their contact when there is one. */
+function Person({ appt }: { appt: Appointment }) {
+  return appt.contact_id ? (
+    <Link href={`/crm/contacts/${appt.contact_id}`} className="link-plain font-medium">
+      {appt.contact ? nameOf(appt.contact) : (appt.name ?? "Contact")}
+    </Link>
+  ) : (
+    <>{appt.name ?? "—"}</>
+  );
+}
+
+/**
+ * One appointment as a stacked row (V35): when and who on the first line,
+ * type and status on the second, then contact details and notes. The actions
+ * wrap below on a phone and sit at the right from md, so status and actions
+ * are always on screen (the table puts them past the right edge below xl).
+ */
+function AppointmentItem({ appt, withActions }: { appt: Appointment; withActions: boolean }) {
+  return (
+    <li className="border-b border-rule py-3 md:flex md:items-start md:justify-between md:gap-6">
+      <div className="min-w-0">
+        <p className="text-[13px] leading-[1.45] text-ink">
+          <span className="tabular">{fmt(appt.starts_at)}</span>
+          <span className="text-meta"> · </span>
+          <Person appt={appt} />
+        </p>
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] leading-[1.45] text-body">
+          {appt.type?.name ? <span>{appt.type.name}</span> : null}
+          <AppointmentStatusBadge status={appt.status} />
+        </p>
+        {appt.email || appt.phone ? (
+          <p className="mt-1 flex flex-wrap gap-x-3 text-[12px] leading-[1.4] text-body">
+            {appt.email ? (
+              <a href={`mailto:${appt.email}`} className="link-plain break-all">
+                {appt.email}
+              </a>
+            ) : null}
+            {appt.phone ? <span className="tabular">{appt.phone}</span> : null}
+          </p>
+        ) : null}
+        {appt.notes ? (
+          <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-[12px] leading-[1.4] text-body" title={appt.notes}>
+            {appt.notes}
+          </p>
+        ) : null}
+      </div>
+      {withActions ? (
+        <div className="mt-2 md:mt-0 md:max-w-[50%] md:shrink-0">
+          <StatusActions appt={appt} justify="justify-start md:justify-end" />
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
 function AppointmentRow({ appt, withActions }: { appt: Appointment; withActions: boolean }) {
   return (
     <Tr>
@@ -222,13 +283,7 @@ function AppointmentRow({ appt, withActions }: { appt: Appointment; withActions:
       </Td>
       <Td className="align-top text-body">{appt.type?.name ?? "—"}</Td>
       <Td className="whitespace-nowrap align-top text-ink">
-        {appt.contact_id ? (
-          <Link href={`/crm/contacts/${appt.contact_id}`} className="link-plain font-medium">
-            {appt.contact ? nameOf(appt.contact) : (appt.name ?? "Contact")}
-          </Link>
-        ) : (
-          (appt.name ?? "—")
-        )}
+        <Person appt={appt} />
       </Td>
       <Td className="whitespace-nowrap align-top text-body">
         {appt.email ? (
@@ -242,7 +297,7 @@ function AppointmentRow({ appt, withActions }: { appt: Appointment; withActions:
       <Td className="whitespace-nowrap align-top text-body">
         {appt.phone ? <span className="tabular">{appt.phone}</span> : "—"}
       </Td>
-      <Td className="min-w-[180px] max-w-[260px] align-top text-[12px] leading-[1.4] text-body">
+      <Td className="min-w-[140px] max-w-[260px] align-top text-[12px] leading-[1.4] text-body">
         {appt.notes ? (
           <span className="line-clamp-2 whitespace-pre-wrap break-words" title={appt.notes}>
             {appt.notes}
@@ -269,33 +324,43 @@ function AppointmentsTable({
   withActions: boolean;
 }) {
   return (
-    <TableFrame bordered>
-      <Table className="min-w-[880px]">
-        <thead>
-          <tr>
-            <Th>When</Th>
-            <Th>Type</Th>
-            <Th>Person</Th>
-            <Th>Email</Th>
-            <Th>Phone</Th>
-            <Th>Notes</Th>
-            <Th>Status</Th>
-            {withActions ? (
-              // relative: the hidden word is absolutely positioned, and in a
-              // sideways-scrolling frame it must not escape and widen the page.
-              <Th className="relative text-right">
-                <span className="sr-only">Actions</span>
-              </Th>
-            ) : null}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((appt) => (
-            <AppointmentRow key={appt.id} appt={appt} withActions={withActions} />
-          ))}
-        </tbody>
-      </Table>
-    </TableFrame>
+    <>
+      {/* Phones and tablets: stacked rows. The table needs about 1200px
+          before Status and the actions fit; narrower, they sat past the
+          frame's right edge (768 and 1024 alike), so it starts at xl. */}
+      <ul className="border-t border-rule xl:hidden">
+        {rows.map((appt) => (
+          <AppointmentItem key={appt.id} appt={appt} withActions={withActions} />
+        ))}
+      </ul>
+      <TableFrame bordered className="hidden xl:block">
+        <Table className="min-w-[880px]">
+          <thead>
+            <tr>
+              <Th>When</Th>
+              <Th>Type</Th>
+              <Th>Person</Th>
+              <Th>Email</Th>
+              <Th>Phone</Th>
+              <Th>Notes</Th>
+              <Th>Status</Th>
+              {withActions ? (
+                // relative: the hidden word is absolutely positioned, and in a
+                // sideways-scrolling frame it must not escape and widen the page.
+                <Th className="relative text-right">
+                  <span className="sr-only">Actions</span>
+                </Th>
+              ) : null}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((appt) => (
+              <AppointmentRow key={appt.id} appt={appt} withActions={withActions} />
+            ))}
+          </tbody>
+        </Table>
+      </TableFrame>
+    </>
   );
 }
 

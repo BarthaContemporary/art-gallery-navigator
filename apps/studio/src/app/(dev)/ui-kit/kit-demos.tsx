@@ -5,8 +5,10 @@
  * (which a server page cannot pass), so they can be tried by hand as well as
  * screenshotted. Dev only, like the page.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { DeleteListButton } from "@/components/delete-list-button";
 import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
 import { ToggleChip } from "@/components/ui/chips";
 import { SaveStatus, SaveStatusProvider, useSaveReporter, type SaveState } from "@/components/ui/save-status";
 import { ColumnResizer, EmptyRow, Table, TableFrame, Td, Th, Tr, type SortState } from "@/components/ui/table";
@@ -25,6 +27,12 @@ export function SaveStatusStates() {
       <SaveStatus sticky={false} state="saved" />
       <SaveStatus sticky={false} state="error" what="the consignment" onRetry={noop} />
       <SaveStatus sticky={false} state="error" signedOut onRetry={noop} />
+      <SaveStatus
+        sticky={false}
+        state="error"
+        what="the consignment"
+        detail="The share must be more than 0 and less than 100."
+      />
       <SaveStatus sticky={false} state="saved">
         <Button variant="primary">Done</Button>
       </SaveStatus>
@@ -125,15 +133,15 @@ export function ResizableSortableTable() {
               {COLUMNS.map((c) => (
                 <Th
                   key={c.key}
-                  className="relative"
                   numeric={c.key === "price"}
                   sort={stateOf(c.key)}
                   onSort={() =>
                     setSort((s) => (s?.key === c.key && s.dir === "asc" ? { key: c.key, dir: "desc" } : { key: c.key, dir: "asc" }))
                   }
+                  // Beside the sort button, not inside it: a drag never sorts.
+                  after={<ColumnResizer {...cols.handleProps(c.key, c.label)} />}
                 >
                   {c.label}
-                  <ColumnResizer {...cols.handleProps(c.key, c.label)} />
                 </Th>
               ))}
             </tr>
@@ -175,5 +183,116 @@ export function EmptyTable() {
         </tbody>
       </Table>
     </TableFrame>
+  );
+}
+
+/** A notice the reader can close (Notice onDismiss); Restore brings it back. */
+export function DismissibleNotice() {
+  const [shown, setShown] = useState(true);
+  return shown ? (
+    <Notice tone="ok" onDismiss={() => setShown(false)}>
+      Added 3 works to &ldquo;Autumn fair&rdquo;.
+    </Notice>
+  ) : (
+    <Button size="sm" variant="quiet" onClick={() => setShown(true)}>
+      Restore the notice
+    </Button>
+  );
+}
+
+/** The shared delete with its inline confirm step, live (the action does nothing here). */
+export function LiveDeleteListButton() {
+  return <DeleteListButton action={noop} id="ui-kit" name="Autumn fair" />;
+}
+
+const TONE_ROWS = [
+  ["ok", "Saved", "saved or done"],
+  ["warn", "Overdue", "flagged, needs attention"],
+  ["danger", "Couldn’t save", "errors, destructive actions"],
+  ["info", "Draft", "a neutral notice"],
+] as const;
+
+/** One CSS colour as sRGB bytes, through a 1x1 canvas (reads hex, rgb(), color-mix() alike). */
+function rgbOf(css: string): [number, number, number] | null {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.fillStyle = "#000";
+  ctx.fillStyle = css;
+  ctx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+  return [r!, g!, b!];
+}
+
+function luminance([r, g, b]: [number, number, number]): number {
+  const ch = (v: number) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
+}
+
+function contrast(a: [number, number, number], b: [number, number, number]): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * The four state tones on their washes, with the contrast measured from the
+ * colours the page actually draws (so the figures follow the theme).
+ */
+export function ToneSwatches() {
+  const root = useRef<HTMLDivElement>(null);
+  const [ratios, setRatios] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const measure = () => {
+      const out: Record<string, string> = {};
+      root.current?.querySelectorAll<HTMLElement>("[data-swatch]").forEach((el) => {
+        const cs = getComputedStyle(el);
+        const fg = rgbOf(cs.color);
+        const bg = rgbOf(cs.backgroundColor);
+        const page = rgbOf(getComputedStyle(document.documentElement).getPropertyValue("--jvb-page").trim());
+        if (!fg || !bg || !page) return;
+        out[el.dataset.swatch!] = `${contrast(fg, bg).toFixed(2)}:1 on its wash · ${contrast(fg, page).toFixed(2)}:1 on the page`;
+      });
+      setRatios(out);
+    };
+    measure();
+    // The theme switch flips data-theme on <html>; measure again once its
+    // colour transition (200ms) has finished.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const mo = new MutationObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(measure, 260);
+    });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class"] });
+    return () => {
+      mo.disconnect();
+      clearTimeout(timer);
+    };
+  }, []);
+  return (
+    <div ref={root} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {TONE_ROWS.map(([tone, word, use]) => (
+        <div key={tone} className="min-w-0">
+          <div
+            data-swatch={tone}
+            className="flex h-14 items-center border-l-[3px] px-3 text-[13px] font-medium"
+            style={{
+              color: `var(--jvb-${tone})`,
+              background: `var(--jvb-${tone}-wash)`,
+              borderColor: `var(--jvb-${tone})`,
+            }}
+          >
+            {word}
+          </div>
+          <p className="mt-1 text-[12px] leading-[1.4] text-body">
+            {tone} / {tone}-wash: {use}
+          </p>
+          <p className="tabular text-[12px] leading-[1.4] text-meta">{ratios[tone] ?? "measuring…"}</p>
+        </div>
+      ))}
+    </div>
   );
 }

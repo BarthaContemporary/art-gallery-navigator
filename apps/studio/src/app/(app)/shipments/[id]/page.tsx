@@ -30,7 +30,7 @@ const labelCls = "label mb-1";
 type PieceLite = PieceSummary;
 type LinkRow = { piece: PieceLite | null; returned_at: string | null; closed_reason: string | null };
 
-const fmtDate = (d: string | null) => formatDate(d, "numeric");
+const fmtDate = (d: string | null) => formatDate(d, "short");
 
 export default async function ShipmentDetail({
   params,
@@ -402,7 +402,12 @@ export default async function ShipmentDetail({
 
         <section className="flex flex-wrap items-center justify-between gap-3 border-t border-rule-strong pt-3">
           <p className="text-[13px] text-ink">Delete this shipment</p>
-          <DeleteListButton action={deleteShipment} id={id} name={(KIND_LABEL[shipment.kind] ?? shipment.kind).toLowerCase()} />
+          <DeleteListButton
+            action={deleteShipment}
+            id={id}
+            name={(KIND_LABEL[shipment.kind] ?? shipment.kind).toLowerCase()}
+            standalone
+          />
         </section>
       </div>
     </div>

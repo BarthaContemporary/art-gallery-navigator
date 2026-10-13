@@ -6,9 +6,13 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { SegmentedLinks, ToggleChip } from "@/components/ui/chips";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Checkbox, Field, Input, Label, Radio, Select, Textarea } from "@/components/ui/field";
-import { ICONS, CloseIcon, DownloadIcon, PlusIcon, MoreIcon, SearchIcon } from "@/components/ui/icons";
+import { ICONS, CloseIcon, DownloadIcon, FileIcon, PlusIcon, MoreIcon, SearchIcon } from "@/components/ui/icons";
+import { Kbd } from "@/components/ui/kbd";
+import { MenuButton } from "@/components/ui/menu";
+import { menuItemClass } from "@/components/ui/menu-class";
 import { FlashNotice, Notice } from "@/components/ui/notice";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pager } from "@/components/ui/pager";
 import { Panel, Section } from "@/components/ui/section";
 import { Skeleton, SkeletonTable, SkeletonText } from "@/components/ui/skeleton";
 import { Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
@@ -17,12 +21,15 @@ import { StatusPill } from "@/components/status-pill";
 import { RegisterBadge } from "@/components/register-badge";
 import { STATUS_LABELS } from "@/lib/labels";
 import {
+  DismissibleNotice,
   EmptyTable,
+  LiveDeleteListButton,
   LiveWebsiteSwitch,
   ResizableSortableTable,
   SaveStatusLive,
   SaveStatusStates,
   ToggleChips,
+  ToneSwatches,
 } from "./kit-demos";
 
 /*
@@ -115,6 +122,10 @@ export default function UiKitPage() {
               ))}
             </div>
           </div>
+          <div className="mt-6">
+            <p className="label mb-2">State tones and washes</p>
+            <ToneSwatches />
+          </div>
           <div className="mt-6 space-y-2">
             {TYPE.map(([cls, text]) => (
               <p key={cls} className={`${cls} text-ink`}>
@@ -188,6 +199,11 @@ export default function UiKitPage() {
                   Open record
                 </ButtonLink>
               </Specimen>
+              <Specimen label="Wrapping label (wrap)" className="w-56">
+                <Button size="sm" wrap>
+                  Record: all imported contacts consented in the previous system
+                </Button>
+              </Specimen>
               <Specimen label="Text links">
                 <span className="flex h-[var(--jvb-control-h)] items-center gap-4 text-[13px]">
                   <a href="/ui-kit" className="link">
@@ -202,6 +218,38 @@ export default function UiKitPage() {
                 </span>
               </Specimen>
             </div>
+          </div>
+        </Section>
+
+        <Section
+          title="Destructive actions"
+          meta="The first step: danger on its own, quiet in danger inside a row. The confirm step that follows says what goes."
+        >
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+            <Specimen label="Standalone trigger">
+              <Button variant="danger" size="sm">
+                Delete list
+              </Button>
+            </Specimen>
+            <Specimen label="Row trigger (quiet, text-danger)">
+              <Button variant="quiet" size="sm" className="text-danger">
+                Delete
+              </Button>
+            </Specimen>
+            <Specimen label="Confirm step">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-[12px] leading-[1.4] text-body">Delete &ldquo;Autumn fair&rdquo;?</span>
+                <Button variant="danger" size="sm">
+                  Yes, delete
+                </Button>
+                <Button variant="quiet" size="sm">
+                  Cancel
+                </Button>
+              </span>
+            </Specimen>
+            <Specimen label="DeleteListButton (live)">
+              <LiveDeleteListButton />
+            </Specimen>
           </div>
         </Section>
 
@@ -246,6 +294,9 @@ export default function UiKitPage() {
             <Field label="Filter (small)">
               <Input fieldSize="sm" placeholder="Filter" />
             </Field>
+            <Field label="Native input (wired by Field)" hint="A named field stays a native <input>; Field gives it the id and hint.">
+              <input className="field" placeholder="e.g. Kyoto" />
+            </Field>
             <Field label="Description" className="sm:col-span-2">
               <Textarea defaultValue="Signed on the base; with a fitted wood box (tomobako) inscribed by the artist." />
             </Field>
@@ -282,7 +333,7 @@ export default function UiKitPage() {
                 An outlined group inside a page, for the VAT working, the bulk bar or the consignment calculation.
               </p>
             </Panel>
-            <Panel>
+            <Panel compact title="Panel, compact (12px)">
               <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-[13px]">
                 <dt className="text-meta">Sold price</dt>
                 <dd className="tabular text-right text-body">£14,500.00</dd>
@@ -314,6 +365,7 @@ export default function UiKitPage() {
                 Share must be 1 to 99
               </Notice>
             </div>
+            <DismissibleNotice />
             <p className="pt-2 text-[12px] text-meta">FlashNotice, from redirect parameters:</p>
             <FlashNotice searchParams={{ error: "A code is required." }} />
             <FlashNotice
@@ -423,12 +475,96 @@ export default function UiKitPage() {
               </tbody>
             </Table>
           </TableFrame>
+          <Specimen label="Compact density, tight cells, a wrapping head" className="mt-6">
+            <TableFrame>
+              <Table density="compact" className="min-w-[480px]">
+                <thead>
+                  <tr>
+                    <Th tight>Stock</Th>
+                    <Th tight>Description</Th>
+                    <Th tight wrap numeric className="w-24">
+                      Purchase £ incl. import VAT
+                    </Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <Tr>
+                    <Td tight className="tabular text-ink">2026-0014</Td>
+                    <Td tight className="text-body">Flower basket, &lsquo;Autumn Wind&rsquo;</Td>
+                    <Td tight numeric>
+                      4,460.00
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td tight className="tabular text-ink">2026-0013</Td>
+                    <Td tight className="text-body">Inlaid wooden box</Td>
+                    <Td tight numeric>
+                      860.00
+                    </Td>
+                  </Tr>
+                </tbody>
+              </Table>
+            </TableFrame>
+          </Specimen>
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <Specimen label="Resizable and sortable (client)">
               <ResizableSortableTable />
             </Specimen>
             <Specimen label="Empty">
               <EmptyTable />
+            </Specimen>
+          </div>
+        </Section>
+
+        <Section
+          title="Menus, paging and keys"
+          meta="A menu is a disclosure: a button with aria-expanded and a panel; Escape or a click outside closes it."
+        >
+          <div className="flex flex-wrap items-start gap-x-8 gap-y-6">
+            <Specimen label="Menu, open" className="min-h-[200px]">
+              <MenuButton label="Export" icon={<DownloadIcon size={14} />} align="left" title="Export 108 records" defaultOpen>
+                <a href="/ui-kit" className={menuItemClass()}>
+                  Spreadsheet (XLSX)
+                </a>
+                <a href="/ui-kit" className={menuItemClass()}>
+                  CSV
+                </a>
+                <a href="/ui-kit" className={menuItemClass()}>
+                  Fact sheets (PDF)
+                </a>
+              </MenuButton>
+            </Specimen>
+            <Specimen label="Menu, closed (icon only below lg)">
+              <MenuButton label="Documents" icon={<FileIcon size={14} />} collapse="lg">
+                <a href="/ui-kit" className={menuItemClass()}>
+                  Fact sheet
+                </a>
+                <a href="/ui-kit" className={menuItemClass()}>
+                  Certificate
+                </a>
+              </MenuButton>
+            </Specimen>
+            <div className="space-y-4">
+              <Specimen label="Pager, first page (start disabled)">
+                <Pager page={1} pages={9} href={(p) => `/ui-kit?page=${p}`} label="Pagination, first page" />
+              </Specimen>
+              <Specimen label="Pager, middle page">
+                <Pager page={4} pages={9} href={(p) => `/ui-kit?page=${p}`} label="Pagination, middle page" />
+              </Specimen>
+              <Specimen label="Pager, last page (end disabled)">
+                <Pager page={9} pages={9} href={(p) => `/ui-kit?page=${p}`} label="Pagination, last page" />
+              </Specimen>
+            </div>
+            <Specimen label="Keys">
+              <span className="flex h-[var(--jvb-control-h)] items-center gap-2 text-[12px] text-body">
+                <Kbd>j</Kbd>
+                <Kbd>k</Kbd>
+                <Kbd>x</Kbd>
+                <span className="text-meta">rows</span>
+                <Kbd boxed={false} className="ml-3 text-meta">
+                  Ctrl K
+                </Kbd>
+              </span>
             </Specimen>
           </div>
         </Section>
@@ -457,6 +593,11 @@ export default function UiKitPage() {
               <Badge variant="dot" hollow>
                 Not started
               </Badge>
+              <span className="w-36 text-[13px]">
+                <Badge variant="dot" tone="warn">
+                  Awaiting the shipper&rsquo;s reply (wraps)
+                </Badge>
+              </span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {Object.keys(STATUS_LABELS).map((s) => (

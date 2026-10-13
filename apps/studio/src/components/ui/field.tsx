@@ -14,6 +14,12 @@
  *     it as their id, add the hint and error ids to aria-describedby, and set
  *     aria-invalid when there is an error. Put `id` on the Field, not on the
  *     control, when you need a fixed one.
+ *     A native <input>, <select> or <textarea> as the Field's only child is
+ *     wired the same way (cloned with the id, aria-describedby and
+ *     aria-invalid; its own values win, and its own id becomes the label's
+ *     target when the Field has none). So a named field that must stay a
+ *     native element for the form-key guard needs no hand-written wiring:
+ *       <Field label="Email" hint="…"><input name="email" className="field" /></Field>
  *       error     a message: danger bottom rule on the control, text below.
  *       optional  adds "(optional)" after the label.
  *
@@ -29,7 +35,16 @@
  * Outside a Field the controls work alone (give them an aria-label or your own
  * <label htmlFor>).
  */
-import { createContext, useContext, useId, type ComponentPropsWithRef, type ReactNode } from "react";
+import {
+  cloneElement,
+  createContext,
+  isValidElement,
+  useContext,
+  useId,
+  type ComponentPropsWithRef,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { cx } from "./cx";
 
 type FieldWiring = { id: string; describedBy?: string; invalid: boolean };
@@ -53,17 +68,25 @@ export function Field({
   children: ReactNode;
 }) {
   const auto = useId();
-  const id = idProp ?? auto;
+  const native = nativeControl(children);
+  const id = idProp ?? native?.props.id ?? auto;
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+  const control = native
+    ? cloneElement(native, {
+        id: native.props.id ?? id,
+        "aria-describedby": joinIds(native.props["aria-describedby"], describedBy),
+        "aria-invalid": native.props["aria-invalid"] ?? (error ? true : undefined),
+      })
+    : children;
   return (
     <div className={cx("flex min-w-0 flex-col gap-1", className)}>
       <label htmlFor={id} className="label">
         {label}
         {optional ? <span className="font-normal normal-case tracking-normal"> (optional)</span> : null}
       </label>
-      <FieldContext.Provider value={{ id, describedBy, invalid: Boolean(error) }}>{children}</FieldContext.Provider>
+      <FieldContext.Provider value={{ id, describedBy, invalid: Boolean(error) }}>{control}</FieldContext.Provider>
       {hint ? (
         <p id={hintId} className="text-[12px] leading-[1.4] text-meta">
           {hint}
@@ -78,10 +101,28 @@ export function Field({
   );
 }
 
+type NativeProps = {
+  id?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: ComponentPropsWithRef<"input">["aria-invalid"];
+};
+
+/** The Field's child when it is a single native input, select or textarea. */
+function nativeControl(children: ReactNode): ReactElement<NativeProps> | null {
+  if (!isValidElement<NativeProps>(children)) return null;
+  return children.type === "input" || children.type === "select" || children.type === "textarea" ? children : null;
+}
+
+/** Space-separated ids without repeats ("a-hint" set by hand and by the Field). */
+function joinIds(...lists: (string | undefined)[]): string | undefined {
+  const ids = [...new Set(lists.join(" ").split(/\s+/).filter(Boolean))];
+  return ids.length ? ids.join(" ") : undefined;
+}
+
 /** id, aria-describedby and aria-invalid from the surrounding Field; the control's own win. */
 function useWiring(props: { id?: string; "aria-describedby"?: string; "aria-invalid"?: ComponentPropsWithRef<"input">["aria-invalid"] }) {
   const field = useContext(FieldContext);
-  const describedBy = [props["aria-describedby"], field?.describedBy].filter(Boolean).join(" ") || undefined;
+  const describedBy = joinIds(props["aria-describedby"], field?.describedBy);
   return {
     id: props.id ?? field?.id,
     "aria-describedby": describedBy,

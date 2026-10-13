@@ -147,6 +147,124 @@ function EditorBar({ doneHref, flushAll }: { doneHref: string; flushAll: () => P
   );
 }
 
+type PartStatus = "idle" | "saving" | "saved" | "error";
+
+/**
+ * Autosave for an editor part that posts its React state rather than a form
+ * (the consignment panel, the import VAT fields). The part calls `schedule()`
+ * after each edit; 700 ms later `send` posts the state.
+ *
+ * `send` builds the request from the state of the render that defined it, so
+ * it is always called through a ref: a debounce, a retry or Done sends what
+ * the part shows now, never the values of the render that set the timer.
+ * It returns the request's outcome, or null when the state is not valid to
+ * send (nothing goes out, and the line shows the error).
+ *
+ * Saves run one after another, so an older PATCH never lands after a newer
+ * one. A save superseded by a newer one before or while it is on the wire
+ * reports nothing: the newer one says what is true. A failure is tried again
+ * with a capped backoff (2s, 4s, 8s … 30s), sending the latest state; a new
+ * edit cancels that retry, since its own save follows.
+ */
+export function useStateAutosave(send: () => Promise<boolean> | null) {
+  const [status, setStatus] = useState<PartStatus>("idle");
+  const sendRef = useRef(send);
+  useEffect(() => {
+    sendRef.current = send;
+  });
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attempt = useRef(0);
+  // Edits made, and the edit the server holds (both counts).
+  const edits = useRef(0);
+  const held = useRef(0);
+  // The newest save asked for, and the chain the saves run along.
+  const latest = useRef(0);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+
+  const clearTimers = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    timer.current = null;
+    retryTimer.current = null;
+  }, []);
+
+  /** Save now. Resolves true once the server holds what the part shows. */
+  const save = useCallback((): Promise<boolean> => {
+    clearTimers();
+    const mine = ++latest.current;
+    const run = async (): Promise<boolean> => {
+      // A newer save was asked for while this one queued: it sends the newer state.
+      if (mine !== latest.current) return true;
+      const edit = edits.current;
+      if (edit === held.current && attempt.current === 0) {
+        setStatus("saved");
+        return true;
+      }
+      let request: Promise<boolean> | null;
+      try {
+        request = sendRef.current();
+      } catch {
+        request = Promise.resolve(false);
+      }
+      if (request === null) {
+        setStatus("error");
+        return false;
+      }
+      setStatus("saving");
+      let ok = false;
+      try {
+        ok = await request;
+      } catch {
+        ok = false;
+      }
+      if (ok && edit > held.current) held.current = edit;
+      // Superseded on the wire, or edited since: the newer save reports.
+      if (mine !== latest.current || edit !== edits.current) return ok;
+      if (ok) {
+        attempt.current = 0;
+        setStatus("saved");
+        return true;
+      }
+      setStatus("error");
+      attempt.current += 1;
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = setTimeout(
+        () => {
+          retryTimer.current = null;
+          void save();
+        },
+        Math.min(2000 * 2 ** (attempt.current - 1), 30000),
+      );
+      return false;
+    };
+    const result = queue.current.then(run, run);
+    queue.current = result;
+    return result;
+  }, [clearTimers]);
+
+  /** After an edit: save in a moment, replacing any wait or retry pending. */
+  const schedule = useCallback(() => {
+    edits.current += 1;
+    clearTimers();
+    setStatus("saving");
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      void save();
+    }, 700);
+  }, [clearTimers, save]);
+
+  /** For Done: save if anything is not on the server yet. */
+  const flush = useCallback(
+    () => (edits.current !== held.current || attempt.current > 0 ? save() : Promise.resolve(true)),
+    [save],
+  );
+
+  useEffect(() => clearTimers, [clearTimers]);
+
+  return { status, save, schedule, flush };
+}
+
 /**
  * Reports a server-action form into the editor's line: "Saving…" while it
  * posts, saved once it returns. Render it inside the <form>; it reads the

@@ -133,7 +133,7 @@ export default async function ShipmentsPage({
                     {labelOf(KIND_LABEL, r.kind)}
                   </Link>
                 </Td>
-                <Td className="tabular text-body">{formatDate(r.shipment_date, "numeric")}</Td>
+                <Td className="tabular whitespace-nowrap text-body">{formatDate(r.shipment_date, "short")}</Td>
                 <Td className="text-body">{r.reference ?? "—"}</Td>
                 <Td numeric className="text-body">
                   {r.piece_shipments?.[0]?.count ?? 0}

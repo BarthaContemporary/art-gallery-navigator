@@ -8,6 +8,7 @@ import { ColumnResizer, EmptyRow, SortMark, Table, TableFrame, Td, Tr, type Sort
 import { cx } from "@/components/ui/cx";
 import { Panel } from "@/components/ui/section";
 import { Notice } from "@/components/ui/notice";
+import { Badge } from "@/components/ui/badge";
 import { buttonClass } from "@/components/ui/button";
 import { ChevronDownIcon, ChevronRightIcon, ExternalIcon } from "@/components/ui/icons";
 import { useResizableColumns } from "@/hooks/use-resizable-columns";
@@ -101,6 +102,82 @@ function taxableMargin(r: StockBookRow): number | null {
   return r.margin_gbp == null ? null : r.margin_gbp - importVatCost(r);
 }
 
+/** A sale £ is on record. Without one there is no margin and no VAT to show. */
+function hasSale(r: StockBookRow): boolean {
+  return r.sold_price_gbp != null;
+}
+
+/**
+ * Sold with no purchase £. The views then work the margin as if the work cost
+ * nothing (or leave it empty), so the margin is not known, and nor is VAT due
+ * where it is worked from the margin.
+ */
+function needsPurchase(r: StockBookRow): boolean {
+  return hasSale(r) && r.purchase_cost_gbp == null;
+}
+
+/** VAT due follows from the cost only under the margin scheme, on a sale J.v.d.B. handled. */
+function vatFromMargin(r: StockBookRow): boolean {
+  return treatmentOf(r) === "margin_scheme" && r.sale_handled_by_jvb !== false;
+}
+
+/**
+ * What the Tax margin and VAT due cells show (screen only; the exports keep
+ * the views' figures): a figure, null ("—", nothing sold), or NEEDS_PURCHASE
+ * where the figure would rest on a purchase £ nobody has entered.
+ */
+const NEEDS_PURCHASE = "needs-purchase" as const;
+type Figure = number | null | typeof NEEDS_PURCHASE;
+
+function marginFigure(r: StockBookRow): Figure {
+  if (!hasSale(r)) return null;
+  if (needsPurchase(r)) return NEEDS_PURCHASE;
+  return taxableMargin(r);
+}
+
+function vatFigure(r: StockBookRow): Figure {
+  if (!hasSale(r)) return null;
+  if (needsPurchase(r) && vatFromMargin(r)) return NEEDS_PURCHASE;
+  return r.vat_due_gbp;
+}
+
+const NEEDS_PURCHASE_TITLE =
+  "No purchase £ is recorded, so this figure is not known. Enter it under Edit financials.";
+
+function NeedsPurchaseBadge() {
+  // Allowed to wrap: the VAT due column is narrower than the words.
+  return (
+    <Badge
+      tone="warn"
+      size="xs"
+      title={NEEDS_PURCHASE_TITLE}
+      className="h-auto min-h-4 whitespace-normal py-[3px] text-right leading-[1.2]"
+    >
+      Needs purchase £
+    </Badge>
+  );
+}
+
+function showFigure(f: Figure): ReactNode {
+  return f === NEEDS_PURCHASE ? <NeedsPurchaseBadge /> : gbp(f);
+}
+
+/**
+ * The sentence under the totals when they leave rows out. Every row the VAT
+ * total leaves out is also left out of the margin total, so vat <= margin.
+ */
+function leftOutNote(margin: number, vat: number): string {
+  const sold = (n: number) => `${n} sold ${n === 1 ? "item" : "items"}`;
+  if (vat === margin) return `The Tax margin and VAT due totals leave out ${sold(margin)} with no purchase £.`;
+  if (vat === 0) return `The Tax margin total leaves out ${sold(margin)} with no purchase £.`;
+  return `The Tax margin total leaves out ${sold(margin)} with no purchase £, and the VAT due total ${vat} of them.`;
+}
+
+/** A number for sorting and adding up: the figure, or null. */
+function numberOf(f: Figure): number | null {
+  return typeof f === "number" ? f : null;
+}
+
 /**
  * Purchase, restoration and other costs. Only vw_stock_book_all carries
  * total_cost_gbp; elsewhere sale less margin is the same figure, where purchase
@@ -166,9 +243,9 @@ function sortVal(r: StockBookRow, key: string): string | number | null {
     case "share": return r.consignment_share_pct;
     case "sold_date": return r.sold_date;
     case "sold_price_gbp": return r.sold_price_gbp;
-    case "margin_gbp": return taxableMargin(r);
+    case "margin_gbp": return numberOf(marginFigure(r));
     case "vat_treatment": return r.vat_treatment;
-    case "vat_due_gbp": return r.vat_due_gbp;
+    case "vat_due_gbp": return numberOf(vatFigure(r));
     default: return null;
   }
 }
@@ -188,28 +265,46 @@ function CalcSteps({ r }: { r: StockBookRow }) {
   const thirdParty = r.sale_handled_by_jvb === false;
   const importVat = importVatCost(r);
   const exported = exportOnRecord(r);
+  // The same rule as the table's cells: "—" until there is a sale, and no
+  // figure where it would rest on a missing purchase £.
+  const vat = showFigure(vatFigure(r));
+  const unsoldNote = hasSale(r) ? undefined : "Nothing to work out until there is a sale £.";
+  const missing = needsPurchase(r);
 
   steps.push({ label: "VAT treatment", value: labelOf(VAT_TREATMENT_LABELS, treatment) });
   if (thirdParty)
     steps.push({ label: "Sale handled by", value: "Third party", note: "No output VAT is due from J.v.d.B." });
 
   if (thirdParty) {
-    steps.push({ label: "VAT due", value: gbp(0), total: true });
+    steps.push({ label: "VAT due", value: vat, note: unsoldNote, total: true });
   } else if (treatment === "margin_scheme") {
     steps.push({ label: "Sold price", value: gbp(r.sold_price_gbp) });
-    steps.push({ label: "less total cost", value: gbp(totalCost(r)) });
+    steps.push({
+      label: "less total cost",
+      value: missing ? <NeedsPurchaseBadge /> : gbp(totalCost(r)),
+      note: missing ? "No purchase £ is recorded for this work." : undefined,
+    });
     if (importVat)
       steps.push({ label: "less import VAT paid", value: gbp(importVat), note: "Folded into cost under the margin scheme." });
-    steps.push({ label: "= taxable margin", value: gbp(taxableMargin(r)) });
-    steps.push({ label: "VAT due (1/6 of positive margin)", value: gbp(r.vat_due_gbp), total: true });
+    steps.push({ label: "= taxable margin", value: showFigure(marginFigure(r)) });
+    steps.push({
+      label: "VAT due (1/6 of positive margin)",
+      value: vat,
+      note: missing ? "Enter the purchase £ under Edit financials to work this out." : unsoldNote,
+      total: true,
+    });
   } else if (treatment === "standard") {
     steps.push({ label: "Sold price", value: gbp(r.sold_price_gbp) });
-    steps.push({ label: "VAT due (1/6 of sale)", value: gbp(r.vat_due_gbp), total: true });
+    steps.push({ label: "VAT due (1/6 of sale)", value: vat, note: unsoldNote, total: true });
   } else {
     steps.push({
       label: "VAT due",
-      value: gbp(0),
-      note: treatment === "zero_rated" ? "Zero-rated supply: no output VAT." : "Outside the scope of UK VAT: no output VAT.",
+      value: vat,
+      note: hasSale(r)
+        ? treatment === "zero_rated"
+          ? "Zero-rated supply: no output VAT."
+          : "Outside the scope of UK VAT: no output VAT."
+        : unsoldNote,
       total: true,
     });
   }
@@ -464,22 +559,32 @@ export function StockBookTable({
   const totals = useMemo(
     () =>
       rows.reduce(
-        (acc, r) => ({
-          purchase: acc.purchase + (r.purchase_cost_gbp ?? 0),
-          sold: acc.sold + (r.sold_price_gbp ?? 0),
-          // The column's own figure, so the total adds up the rows above it.
-          margin: acc.margin + (taxableMargin(r) ?? 0),
-          vat: acc.vat + (r.vat_due_gbp ?? 0),
-          reclaim: acc.reclaim + (r.reclaimable_import_vat_gbp ?? 0),
-          jvbShare: acc.jvbShare + (r.jvb_share_gbp ?? 0),
-        }),
-        { purchase: 0, sold: 0, margin: 0, vat: 0, reclaim: 0, jvbShare: 0 },
+        (acc, r) => {
+          // The columns' own figures, so each total adds up the rows above it
+          // and leaves out the ones that show "Needs purchase £".
+          const margin = marginFigure(r);
+          const vat = vatFigure(r);
+          return {
+            purchase: acc.purchase + (r.purchase_cost_gbp ?? 0),
+            sold: acc.sold + (r.sold_price_gbp ?? 0),
+            margin: acc.margin + (numberOf(margin) ?? 0),
+            marginLeftOut: acc.marginLeftOut + (margin === NEEDS_PURCHASE ? 1 : 0),
+            vat: acc.vat + (numberOf(vat) ?? 0),
+            vatLeftOut: acc.vatLeftOut + (vat === NEEDS_PURCHASE ? 1 : 0),
+            reclaim: acc.reclaim + (r.reclaimable_import_vat_gbp ?? 0),
+            jvbShare: acc.jvbShare + (r.jvb_share_gbp ?? 0),
+          };
+        },
+        { purchase: 0, sold: 0, margin: 0, marginLeftOut: 0, vat: 0, vatLeftOut: 0, reclaim: 0, jvbShare: 0 },
       ),
     [rows],
   );
 
-  // A second line under a cell's value: references, import type, share split.
+  // A second line under a cell's value: the share split.
   const sub = "block truncate text-[12px] leading-[1.4] text-body";
+  // References and destinations wrap rather than truncate: staff match the
+  // customs reference against the paperwork, so all of it has to show.
+  const subWrap = "block break-words text-[12px] leading-[1.4] text-body";
 
   function cell(key: string, r: StockBookRow, isOpen: boolean, detailId: string) {
     switch (key) {
@@ -528,9 +633,9 @@ export function StockBookTable({
         return (
           <span className="block min-w-0">
             <span className="tabular block text-body">{d(r.import_date)}</span>
-            {r.import_reference ? <span className={sub} title={r.import_reference}>{r.import_reference}</span> : null}
+            {r.import_reference ? <span className={subWrap} title={r.import_reference}>{r.import_reference}</span> : null}
             {r.import_type ? (
-              <span className={`${sub} tabular`}>
+              <span className={`${subWrap} tabular`}>
                 {IMPORT_TYPE_LABEL[r.import_type] ?? r.import_type}
                 {r.import_vat_gbp != null ? ` ${gbp(r.import_vat_gbp)}` : ""}
               </span>
@@ -543,8 +648,8 @@ export function StockBookTable({
         return (
           <span className="block min-w-0">
             <span className="tabular block text-body">{d(r.export_date)}</span>
-            {r.export_reference ? <span className={sub} title={r.export_reference}>{r.export_reference}</span> : null}
-            {r.export_destination ? <span className={sub}>to {r.export_destination}</span> : null}
+            {r.export_reference ? <span className={subWrap} title={r.export_reference}>{r.export_reference}</span> : null}
+            {r.export_destination ? <span className={subWrap}>to {r.export_destination}</span> : null}
             {exported === false ? <span className="block text-[12px] leading-[1.4] text-warn">No export recorded</span> : null}
           </span>
         );
@@ -565,28 +670,47 @@ export function StockBookTable({
       case "sold_price_gbp":
         return <span className="text-body">{gbp(r.sold_price_gbp)}</span>;
       case "margin_gbp":
-        return <span className="text-body">{gbp(taxableMargin(r))}</span>;
+        return <span className="text-body">{showFigure(marginFigure(r))}</span>;
       case "vat_treatment":
         return <span className="block truncate text-body">{r.vat_treatment ? labelOf(VAT_TREATMENT_LABELS, r.vat_treatment) : "—"}</span>;
-      case "vat_due_gbp":
-        return <span className="font-medium text-ink">{gbp(r.vat_due_gbp)}</span>;
+      case "vat_due_gbp": {
+        const vat = vatFigure(r);
+        return <span className={vat === null ? "text-body" : "font-medium text-ink"}>{showFigure(vat)}</span>;
+      }
       default:
         return null;
     }
   }
 
+  const items = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
+  // Under a total that leaves rows out, how many (the note row below says why).
+  const leftOut = (n: number) =>
+    n > 0 ? <span className="block text-[11.5px] font-normal text-body">{n} left out</span> : null;
+
   function footCell(key: string) {
     switch (key) {
       case "description":
-        return `Totals · ${rows.length} items`;
+        // On the Needs attention view these are the shown rows' sums, not the
+        // period's, and the label says so.
+        return showReasons ? `Totals of the ${items(rows.length)} needing attention` : `Totals · ${items(rows.length)}`;
       case "purchase_cost_gbp":
         return gbp(totals.purchase);
       case "sold_price_gbp":
         return gbp(totals.sold);
       case "margin_gbp":
-        return gbp(totals.margin);
+        return (
+          <>
+            {gbp(totals.margin)}
+            {leftOut(totals.marginLeftOut)}
+          </>
+        );
       case "vat_due_gbp":
-        return gbp(totals.vat);
+        return (
+          <>
+            {gbp(totals.vat)}
+            {leftOut(totals.vatLeftOut)}
+          </>
+        );
       case "import":
         return totals.reclaim > 0 ? <span className="text-[12px] font-normal">Reclaim {gbp(totals.reclaim)}</span> : null;
       case "share":
@@ -673,6 +797,13 @@ export function StockBookTable({
                 </td>
               ))}
             </tr>
+            {totals.marginLeftOut > 0 ? (
+              <tr className="bg-band">
+                <td colSpan={cols.length} className="pb-2.5 pt-0 text-[12px] leading-[1.4] text-body">
+                  {leftOutNote(totals.marginLeftOut, totals.vatLeftOut)}
+                </td>
+              </tr>
+            ) : null}
           </tfoot>
         </Table>
       </TableFrame>

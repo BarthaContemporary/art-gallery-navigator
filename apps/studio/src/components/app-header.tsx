@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonClass } from "@/components/ui/button";
 import { CloseIcon, SearchIcon } from "@/components/ui/icons";
+import { Kbd } from "@/components/ui/kbd";
 import { cx } from "@/components/ui/cx";
 
 type NavItem = { href: string; label: string; group?: string };
@@ -52,14 +53,38 @@ export function AppHeader({
     setShortcut(mac ? "⌘K" : "Ctrl K");
   }, []);
 
-  // While the menu is open: no page scroll behind it, focus inside it, and
-  // Escape closes it and hands focus back to the Menu button.
+  // While the menu is open: no page scroll behind it, focus inside it and
+  // kept there (it is a modal layer: Tab and Shift+Tab cycle through its
+  // controls and never reach the page behind), and Escape closes it and
+  // hands focus back to the Menu button.
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    overlayRef.current?.querySelector<HTMLElement>("a, button")?.focus();
+    const focusables = () =>
+      Array.from(
+        overlayRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+    focusables()[0]?.focus();
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        const items = focusables();
+        if (items.length === 0) return;
+        const first = items[0]!;
+        const last = items[items.length - 1]!;
+        const active = document.activeElement as HTMLElement | null;
+        const inside = Boolean(active && overlayRef.current?.contains(active));
+        if (e.shiftKey && (active === first || !inside)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (active === last || !inside)) {
+          e.preventDefault();
+          first.focus();
+        }
+        return;
+      }
       if (e.key !== "Escape") return;
       e.preventDefault();
       setOpen(false);
@@ -150,7 +175,9 @@ export function AppHeader({
                 <SearchIcon size={14} />
                 <span>Search</span>
                 {shortcut ? (
-                  <kbd className="ml-auto font-sans text-[11px] font-normal leading-none text-meta">{shortcut}</kbd>
+                  <Kbd boxed={false} className="ml-auto text-meta">
+                    {shortcut}
+                  </Kbd>
                 ) : null}
               </button>
               <ThemeToggle />
@@ -185,24 +212,26 @@ export function AppHeader({
             </div>
           </div>
 
-          {/* Row 2: desktop nav, wraps beneath the wordmark, flush-left with it */}
-          <nav aria-label="Main" className="-ml-2.5 mt-1.5 hidden flex-wrap items-center gap-x-0.5 md:flex">
+          {/* Row 2: desktop nav, wraps beneath the wordmark, flush-left with it.
+              Slightly tighter below xl, so the whole nav keeps to one row on
+              an iPad in landscape (1024). */}
+          <nav aria-label="Main" className="-ml-2 mt-1.5 hidden flex-wrap items-center md:flex xl:-ml-2.5 xl:gap-x-0.5">
             {items.map((n, i) => {
               const shown = isShownCurrent(n.href);
               const newGroup = i > 0 && n.group !== items[i - 1]?.group;
               return (
                 <span key={n.href} className="flex shrink-0 items-center">
-                  {newGroup ? <span aria-hidden className="mx-1.5 h-3.5 w-px bg-rule-strong" /> : null}
+                  {newGroup ? <span aria-hidden className="mx-1 h-3.5 w-px bg-rule-strong xl:mx-1.5" /> : null}
                   <Link
                     href={n.href}
                     onClick={() => choose(n.href)}
                     aria-current={isActive(n.href) ? "page" : undefined}
                     className={cx(
-                      "relative inline-flex h-9 shrink-0 items-center px-2.5 text-[13px] font-medium transition-[color]",
+                      "relative inline-flex h-9 shrink-0 items-center px-2 text-[13px] font-medium transition-[color] xl:px-2.5",
                       // The current page: ink, with a square accent rule along
                       // the header's bottom edge.
                       shown
-                        ? "text-ink after:absolute after:inset-x-2.5 after:bottom-0 after:h-0.5 after:bg-accent after:content-['']"
+                        ? "text-ink after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-accent after:content-[''] xl:after:inset-x-2.5"
                         : "text-meta hover:text-ink",
                     )}
                   >

@@ -536,7 +536,7 @@ export default async function EditPiecePage({
             <DocumentsPanel pieceId={piece.id} initial={pieceDocs} />
 
             <Section title="Delete this record" meta="Moves it to the trash for 30 days. You can reinstate it until then.">
-              <DeleteListButton action={deletePiece} id={piece.id} name={piece.stock_number} />
+              <DeleteListButton action={deletePiece} id={piece.id} name={piece.stock_number} standalone />
             </Section>
 
             {/* Original FileMaker record: kept at the bottom of the page */}

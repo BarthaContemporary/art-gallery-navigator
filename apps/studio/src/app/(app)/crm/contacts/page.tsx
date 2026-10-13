@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
+import { Pager } from "@/components/ui/pager";
 import { SearchIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "Contacts" };
@@ -150,9 +151,7 @@ export default async function ContactsPage({
         <ContactPager page={page} pages={pages} total={total} label="Pagination, top" className="mt-4" />
       )}
 
-      {/* relative: the frame contains the sr-only head words, which
-          otherwise sit outside the scroll and widen a phone page. */}
-      <TableFrame className="relative mt-3">
+      <TableFrame className="mt-3">
         <Table className="min-w-[720px]">
           <thead>
             <tr>
@@ -240,9 +239,10 @@ export default async function ContactsPage({
 }
 
 /**
- * "101–200 of 869" with Previous and Next, above and below the table (the
- * inventory's pattern: a full page is long to scroll back up). Search results
- * are not paged, so it only carries `page`.
+ * "101–200 of 869" and the shared Pager (First, Previous, Page n of m, Next,
+ * Last), above and below the table, as on the inventory: a full page is
+ * long to scroll back up. Search results are not paged, so the links carry
+ * `page` only, and page 1 is the bare /crm/contacts as before.
  */
 function ContactPager({
   page,
@@ -266,19 +266,7 @@ function ContactPager({
       <p className="tabular text-[12px] leading-[1.4] text-meta">
         {formatCount(first)}–{formatCount(last)} of {formatCount(total)}
       </p>
-      {pages > 1 ? (
-        <nav aria-label={label} className="flex items-center gap-1.5">
-          <ButtonLink href={href(page - 1)} size="sm" disabled={page === 1}>
-            Previous
-          </ButtonLink>
-          <span className="tabular px-1.5 text-[12px] text-meta">
-            Page {page} of {pages}
-          </span>
-          <ButtonLink href={href(page + 1)} size="sm" disabled={page >= pages}>
-            Next
-          </ButtonLink>
-        </nav>
-      ) : null}
+      <Pager page={page} pages={pages} href={href} label={label} />
     </div>
   );
 }

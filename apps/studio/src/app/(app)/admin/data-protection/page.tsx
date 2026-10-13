@@ -25,6 +25,11 @@ async function assertAdmin() {
 const field = "field";
 const cellField = "field field-sm";
 
+/** How many names a review queue lists before "Show all". */
+const QUEUE_SHOWN = 50;
+/** How many rows a queue reads; the heading's count is exact either way. */
+const QUEUE_FETCH = 500;
+
 const KIND_LABEL: Record<string, string> = {
   access: "Access", erasure: "Erasure", rectification: "Rectification", restriction: "Restriction",
   objection: "Objection", portability: "Portability", withdraw_consent: "Withdraw consent", other: "Other",
@@ -45,17 +50,28 @@ export default async function DataProtectionPage({
   if (!session || !hasRole(session.roles, "admin")) redirect("/");
   const svc = createServiceClient();
 
-  const [{ data: policies }, { data: requests }, { data: breaches }, { data: review }, { data: kycReview }, { data: weakBasis }] =
-    await Promise.all([
+  const [
+    { data: policies },
+    { data: requests },
+    { data: breaches },
+    { data: review, count: reviewCount },
+    { data: kycReview, count: kycCount },
+    { data: weakBasis },
+  ] = await Promise.all([
       svc.from("retention_policies").select("*").order("mode").order("label"),
       svc.from("dp_requests").select("*").order("completed_at", { nullsFirst: true }).order("due_at").limit(100),
       svc.from("dp_breach_log").select("*").order("discovered_at", { ascending: false }).limit(50),
-      svc.from("vw_contacts_for_review").select("*").order("updated_at").limit(100),
+      // The review queues: an exact count for the heading, and enough rows
+      // to list the whole queue (QUEUE_FETCH) behind "Show all".
+      svc.from("vw_contacts_for_review").select("*", { count: "exact" }).order("updated_at").limit(QUEUE_FETCH),
       svc
         .from("kyc_profiles")
-        .select("id, contact_id, status, verified_at, expires_at, contact:crm_contacts(first_name, last_name)")
+        .select("id, contact_id, status, verified_at, expires_at, contact:crm_contacts(first_name, last_name)", {
+          count: "exact",
+        })
         .lt("verified_at", new Date(Date.now() - 1825 * 86_400_000).toISOString())
-        .limit(50),
+        .order("verified_at")
+        .limit(QUEUE_FETCH),
       // Marketing to someone whose only consent record is the bulk import note
       // and who has never bought from the gallery: neither consent nor the
       // PECR soft opt-in is evidenced. These need a re-permission email or a
@@ -186,7 +202,7 @@ export default async function DataProtectionPage({
   // London dates: a timestamp late in a summer evening would otherwise print
   // as the previous day here (the server runs on UTC). Bare `date` values
   // (received_at, due_at) print as the day they name.
-  const fmtDate = (v: unknown) => (v ? formatDate(String(v), "numeric") : "—");
+  const fmtDate = (v: unknown) => (v ? formatDate(String(v), "short") : "—");
 
   type ReviewContact = { id: string; first_name: string | null; last_name: string | null; updated_at: string };
   type KycRow = {
@@ -196,9 +212,13 @@ export default async function DataProtectionPage({
     contact: { first_name: string | null; last_name: string | null } | { first_name: string | null; last_name: string | null }[] | null;
   };
   type WeakRow = { id: string; first_name: string | null; last_name: string | null; email: string | null };
-  const queueList = "max-h-64 overflow-y-auto text-[13px]";
   const queueItem = "border-b border-rule py-1.5";
   const nameLink = "link-plain text-ink";
+  const reviewRows = (review ?? []) as ReviewContact[];
+  const kycRows = (kycReview ?? []) as KycRow[];
+  const weakRows = (weakBasis ?? []) as WeakRow[];
+  const reviewTotal = reviewCount ?? reviewRows.length;
+  const kycTotal = kycCount ?? kycRows.length;
 
   return (
     <div className="max-w-[var(--jvb-measure-wide)]">
@@ -238,7 +258,7 @@ export default async function DataProtectionPage({
         >
           <p className="mb-3 text-[13px] text-body">
             {lastRun
-              ? `Last run ${formatDateTime(lastRun.ran_at, "numeric", { seconds: true })} (${lastRun.triggered_by === "cron" ? "scheduled" : lastRun.triggered_by}): ${describeRun(lastRun.result)}`
+              ? `Last run ${formatDateTime(lastRun.ran_at, "short")} (${lastRun.triggered_by === "cron" ? "scheduled" : lastRun.triggered_by}): ${describeRun(lastRun.result)}`
               : "Not run yet. The first scheduled run is tonight at 03:30 UTC."}
           </p>
           <TableFrame>
@@ -285,11 +305,13 @@ export default async function DataProtectionPage({
         {/* ---- review queues ---- */}
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
           <Section
-            title={`Contacts to review (${(review ?? []).length})`}
+            title={`Contacts to review (${reviewTotal})`}
             meta="No consent, no legal hold, nothing attached, untouched for the period above. Erase from the contact page, or keep by adding a note."
           >
-            <ul className={queueList}>
-              {((review ?? []) as ReviewContact[]).map((c) => (
+            <Queue
+              total={reviewTotal}
+              empty="Nothing due."
+              items={reviewRows.map((c) => (
                 <li key={c.id} className={queueItem}>
                   <Link href={`/crm/contacts/${c.id}`} className={nameLink}>
                     {[c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed"}
@@ -297,15 +319,16 @@ export default async function DataProtectionPage({
                   <span className="tabular text-[12px] text-meta"> · {fmtDate(c.updated_at)}</span>
                 </li>
               ))}
-              {(review ?? []).length === 0 ? <li className="py-1.5 text-body">Nothing due.</li> : null}
-            </ul>
+            />
           </Section>
           <Section
-            title={`AML records past five years (${(kycReview ?? []).length})`}
+            title={`AML records past five years (${kycTotal})`}
             meta="Verified more than five years ago. Keep only while the relationship continues; otherwise delete the documents and checks."
           >
-            <ul className={queueList}>
-              {((kycReview ?? []) as KycRow[]).map((k) => {
+            <Queue
+              total={kycTotal}
+              empty="Nothing due."
+              items={kycRows.map((k) => {
                 const c = Array.isArray(k.contact) ? k.contact[0] : k.contact;
                 return (
                   <li key={k.id} className={queueItem}>
@@ -316,27 +339,26 @@ export default async function DataProtectionPage({
                   </li>
                 );
               })}
-              {(kycReview ?? []).length === 0 ? <li className="py-1.5 text-body">Nothing due.</li> : null}
-            </ul>
+            />
           </Section>
           <Section
-            title={`Marketing without evidenced basis (${(weakBasis ?? []).length})`}
+            title={`Marketing without evidenced basis (${weakRows.length})`}
             meta="Emailable contacts whose only consent record is the import note and who have never bought from the gallery. Send a re-permission email, or untick marketing consent."
           >
             {attestedCount ? (
               <Notice tone="ok" className="mb-2">
                 Legacy consent recorded on {attestedCount} contacts
                 {attestation?.attested_by ? ` by ${attestation.attested_by}` : ""}
-                {attestation?.attested_at ? ` on ${formatDate(attestation.attested_at, "numeric")}` : ""}.
+                {attestation?.attested_at ? ` on ${formatDate(attestation.attested_at, "short")}` : ""}.
               </Notice>
             ) : null}
-            {(weakBasis ?? []).length > 0 ? (
+            {weakRows.length > 0 ? (
               <form action={attestLegacyConsent} className="mb-2">
-                {/* A long label: let it wrap inside the column rather than overflow. */}
+                {/* A long label: it wraps inside the column rather than overflowing. */}
                 <Button
                   type="submit"
                   size="sm"
-                  className="h-auto min-h-[var(--jvb-control-h-sm)] whitespace-normal py-1.5 text-left leading-[1.35]"
+                  wrap
                   title="Records, under your login and today's date, that these contacts consented in the previous system"
                   pendingLabel="Recording…"
                 >
@@ -344,16 +366,17 @@ export default async function DataProtectionPage({
                 </Button>
               </form>
             ) : null}
-            <ul className={queueList}>
-              {((weakBasis ?? []) as WeakRow[]).map((c) => (
+            <Queue
+              total={weakRows.length}
+              empty="None."
+              items={weakRows.map((c) => (
                 <li key={c.id} className={queueItem}>
                   <Link href={`/crm/contacts/${c.id}`} className={nameLink}>
                     {[c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "Unnamed"}
                   </Link>
                 </li>
               ))}
-              {(weakBasis ?? []).length === 0 ? <li className="py-1.5 text-body">None.</li> : null}
-            </ul>
+            />
           </Section>
         </div>
 
@@ -384,6 +407,10 @@ export default async function DataProtectionPage({
               Log request
             </Button>
           </form>
+          <p id="dp-outcome-hint" className="mb-2 text-[12px] leading-[1.4] text-meta">
+            To close a request, note its outcome (what was sent, erased or refused) and press Complete; left
+            blank, it is recorded as &ldquo;Completed&rdquo;.
+          </p>
           <TableFrame>
             <Table className="min-w-[680px]">
               <thead>
@@ -392,7 +419,7 @@ export default async function DataProtectionPage({
                   <Th>Request</Th>
                   <Th>Received</Th>
                   <Th>Due</Th>
-                  <Th>Status</Th>
+                  <Th>Outcome</Th>
                 </tr>
               </thead>
               <tbody>
@@ -414,10 +441,10 @@ export default async function DataProtectionPage({
                         {KIND_LABEL[String(r.kind)] ?? String(r.kind)}
                         {r.channel ? ` · ${r.channel}` : ""}
                       </Td>
-                      <Td className="tabular align-top text-body">{fmtDate(r.received_at)}</Td>
+                      <Td className="tabular whitespace-nowrap align-top text-body">{fmtDate(r.received_at)}</Td>
                       <Td className="align-top">
                         {/* Overdue is warn, with the word (spec R4). */}
-                        <span className={`tabular ${overdue ? "font-medium text-warn" : "text-body"}`}>
+                        <span className={`tabular whitespace-nowrap ${overdue ? "font-medium text-warn" : "text-body"}`}>
                           {fmtDate(r.due_at)}
                         </span>
                         {overdue ? (
@@ -437,8 +464,9 @@ export default async function DataProtectionPage({
                             <input type="hidden" name="id" value={String(r.id)} />
                             <input
                               name="outcome"
-                              placeholder="Outcome"
+                              placeholder="Optional"
                               aria-label={`Outcome: ${String(r.subject_name ?? "request")}`}
+                              aria-describedby="dp-outcome-hint"
                               className={`${cellField} w-36`}
                             />
                             <Button type="submit" size="sm" pendingLabel="Saving…">
@@ -523,6 +551,43 @@ export default async function DataProtectionPage({
           </ul>
         </Section>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A review queue: the whole list, the first QUEUE_SHOWN names at once and
+ * the rest behind "Show all" (a <details>, so no script and no URL state).
+ * When the queue is longer than what was read, the line says how many are
+ * listed of how many there are.
+ */
+function Queue({ items, total, empty }: { items: React.ReactNode[]; total: number; empty: string }) {
+  if (items.length === 0) return <p className="py-1.5 text-[13px] text-body">{empty}</p>;
+  const first = items.slice(0, QUEUE_SHOWN);
+  const rest = items.slice(QUEUE_SHOWN);
+  const listed = items.length < total ? (
+    <p className="pt-1.5 text-[12px] leading-[1.4] text-meta">
+      The first {items.length} of {total} are listed here.
+    </p>
+  ) : null;
+  return (
+    <div className="text-[13px]">
+      <ul>{first}</ul>
+      {rest.length > 0 ? (
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-1 py-1.5 text-[12px] leading-[1.4] text-body hover:text-ink [&::-webkit-details-marker]:hidden">
+            <span className="tabular text-meta group-open:hidden">
+              {first.length} of {items.length} shown ·
+            </span>
+            <span className="font-medium underline underline-offset-2 group-open:hidden">Show all</span>
+            <span className="hidden font-medium underline underline-offset-2 group-open:inline">
+              Show the first {first.length} only
+            </span>
+          </summary>
+          <ul>{rest}</ul>
+        </details>
+      ) : null}
+      {listed}
     </div>
   );
 }

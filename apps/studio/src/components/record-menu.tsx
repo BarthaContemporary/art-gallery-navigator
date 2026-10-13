@@ -5,9 +5,9 @@ import { buttonClass } from "@/components/ui/button-class";
 import { ChevronDownIcon } from "@/components/ui/icons";
 
 /**
- * "Documents ▾" on the record header: the fact sheet and certificate exports
- * and the add-to-list form behind one button, so the artwork leads the page
- * rather than a row of export links.
+ * A menu button on the record header ("Documents & lists"): the fact sheet
+ * and certificate exports and the add-to-list form behind one button, so the
+ * artwork leads the page rather than a row of export links.
  *
  * A disclosure (a button with aria-expanded and a panel), not an ARIA menu:
  * the panel holds a form as well as links, and Tab walks both. Escape or a

@@ -5,21 +5,35 @@
  *
  *   <TableFrame bordered? className?>   the scrolling wrapper. Carries
  *     data-inset-focus, so the focus ring draws inside cells instead of being
- *     clipped by the overflow. bordered adds a 1px rule-strong box.
- *   <Table className?>                  <table>: full width, collapsed
+ *     clipped by the overflow, and position: relative, so anything absolutely
+ *     positioned inside (an sr-only word, a resize handle) stays inside the
+ *     frame instead of widening the page. bordered adds a 1px rule-strong box.
+ *     A wide table scrolls sideways inside this frame; the page never does.
+ *   <Table density? className?>         <table>: full width, collapsed
  *     borders, 13px. Add style={{ tableLayout: "fixed", width }} for
- *     resizable columns.
- *   <Th sort? onSort? sortHref? numeric? sticky? …th props>
- *     A head cell in the label style over a rule-strong underline.
+ *     resizable columns. density "compact" sets this table's row padding to
+ *     6px (--jvb-row-py) whatever the page density; "comfortable" to 10px.
+ *     Leave it out to follow the page.
+ *   <Th sort? onSort? sortHref? numeric? sticky? wrap? tight? after? …th props>
+ *     A head cell in the label style over a rule-strong underline. Positioned
+ *     (relative), so a ColumnResizer or an sr-only word needs no extra class.
  *       sort      "asc" | "desc" | "none" makes the head sortable and sets
  *                 aria-sort; leave it out for a plain head.
  *       sortHref  sort by URL (server pages: keep the other query
  *                 parameters in it); onSort for client-side sorting.
  *       numeric   right-aligned, for money and counts.
- *       sticky    sticks under the app header (var(--app-header-h)).
- *   <Td numeric? …td props>             a cell on a rule hairline, padded by
+ *       sticky    sticks under the app header (var(--app-header-h)). "lg"
+ *                 sticks from the lg breakpoint only, for a frame that
+ *                 scrolls sideways below it (a sticky head inside a
+ *                 scrolling frame cannot follow the page).
+ *       wrap      lets a long head wrap (heads are one line by default).
+ *       tight     8px side padding instead of 12px, for dense tables.
+ *       after     content placed after the sort control, outside it: the
+ *                 column-resize handle (<ColumnResizer />), so a drag on the
+ *                 handle never sorts and no control nests in a <button>.
+ *   <Td numeric? tight? …td props>      a cell on a rule hairline, padded by
  *     --jvb-row-py (10px, 6px in compact density). numeric: right-aligned,
- *     tabular figures.
+ *     tabular figures. tight: 8px side padding, as on Th.
  *   <Tr selected? flagged? current? …tr props>  a body row with the shared
  *     states: hover band; selected accent wash with a 2px accent rule;
  *     current (the j/k keyboard row) band with the accent rule; flagged a
@@ -28,15 +42,16 @@
  *   <EmptyRow colSpan action?>{sentence}</EmptyRow>  the one empty row: a
  *     sentence and one next action.
  *   <ColumnResizer {...handleProps} />  the drag handle at a head's right
- *     edge; props from hooks/use-resizable-columns. Put it in a
- *     `relative` <th>.
+ *     edge; props from hooks/use-resizable-columns. Pass it as Th's `after`.
  *   <SortMark state />                  the sort glyph on its own.
+ *   thClass({ numeric, sticky, wrap, tight }, extra?)  the head cell's class
+ *     string, for a head you build yourself.
  *
  * Server-safe, except that onSort and ColumnResizer take handlers and so
  * belong in client components.
  */
 import Link from "next/link";
-import type { ComponentPropsWithRef, ReactNode } from "react";
+import type { ComponentPropsWithRef, CSSProperties, ReactNode } from "react";
 import { cx } from "./cx";
 import { ChevronDownIcon, ChevronUpIcon, SortIcon } from "./icons";
 
@@ -47,14 +62,31 @@ export function TableFrame({
   ...rest
 }: ComponentPropsWithRef<"div"> & { bordered?: boolean }) {
   return (
-    <div {...rest} data-inset-focus className={cx("overflow-x-auto", bordered && "border border-rule-strong", className)}>
+    <div
+      {...rest}
+      data-inset-focus
+      className={cx("relative overflow-x-auto", bordered && "border border-rule-strong", className)}
+    >
       {children}
     </div>
   );
 }
 
-export function Table({ className, ...rest }: ComponentPropsWithRef<"table">) {
-  return <table {...rest} className={cx("w-full border-collapse text-left text-[13px] leading-[1.45]", className)} />;
+const ROW_PY = { compact: "6px", comfortable: "10px" } as const;
+
+export function Table({
+  density,
+  className,
+  style,
+  ...rest
+}: ComponentPropsWithRef<"table"> & { density?: "compact" | "comfortable" }) {
+  return (
+    <table
+      {...rest}
+      style={density ? ({ "--jvb-row-py": ROW_PY[density], ...style } as CSSProperties) : style}
+      className={cx("w-full border-collapse text-left text-[13px] leading-[1.45]", className)}
+    />
+  );
 }
 
 export type SortState = "asc" | "desc" | "none";
@@ -67,23 +99,48 @@ export function SortMark({ state }: { state: SortState }) {
 
 const ARIA_SORT = { asc: "ascending", desc: "descending", none: "none" } as const;
 
+export type ThStyle = {
+  numeric?: boolean;
+  sticky?: boolean | "lg";
+  wrap?: boolean;
+  tight?: boolean;
+};
+
+/** The head cell's classes, for a <th> built by hand. */
+export function thClass({ numeric = false, sticky = false, wrap = false, tight = false }: ThStyle = {}, className?: string) {
+  return cx(
+    "border-b border-rule-strong bg-page py-2 align-bottom text-[11.5px] font-semibold uppercase leading-[1.3] tracking-[0.06em] text-meta",
+    wrap ? "whitespace-normal" : "whitespace-nowrap",
+    tight ? "px-2" : "px-3",
+    numeric ? "text-right" : "text-left",
+    // Positioned at every width, so absolutely placed children (a resize
+    // handle, an sr-only word) are held by the cell.
+    sticky === true ? "sticky z-10" : sticky === "lg" ? "relative lg:sticky lg:z-10" : "relative",
+    className,
+  );
+}
+
 export function Th({
   sort,
   onSort,
   sortHref,
   numeric = false,
   sticky = false,
+  wrap = false,
+  tight = false,
+  after,
   className,
   style,
   children,
   ...rest
-}: ComponentPropsWithRef<"th"> & {
-  sort?: SortState;
-  onSort?: () => void;
-  sortHref?: string;
-  numeric?: boolean;
-  sticky?: boolean;
-}) {
+}: ComponentPropsWithRef<"th"> &
+  ThStyle & {
+    sort?: SortState;
+    onSort?: () => void;
+    sortHref?: string;
+    /** Placed after the sort control, outside it (a ColumnResizer). */
+    after?: ReactNode;
+  }) {
   const sortable = sort !== undefined;
   const control = cx(
     "inline-flex items-center gap-1 uppercase tracking-[inherit] hover:text-ink",
@@ -104,12 +161,12 @@ export function Th({
       scope="col"
       {...rest}
       aria-sort={sortable ? ARIA_SORT[sort] : undefined}
-      style={sticky ? { top: "var(--app-header-h, 88px)", ...style } : style}
-      className={cx(
-        "whitespace-nowrap border-b border-rule-strong bg-page px-3 py-2 align-bottom text-[11.5px] font-semibold uppercase leading-[1.3] tracking-[0.06em] text-meta",
-        numeric ? "text-right" : "text-left",
-        sticky && "sticky z-10",
-        className,
+      // The offset under the app header only where the cell sticks: on a
+      // relative cell (sticky="lg" below lg) a top offset would move it.
+      style={sticky === true ? { top: "var(--app-header-h, 88px)", ...style } : style}
+      className={thClass(
+        { numeric, sticky, wrap, tight },
+        cx(sticky === "lg" && "lg:top-[var(--app-header-h,88px)]", className),
       )}
     >
       {sortable && sortHref ? (
@@ -123,16 +180,23 @@ export function Th({
       ) : (
         children
       )}
+      {after}
     </th>
   );
 }
 
-export function Td({ numeric = false, className, ...rest }: ComponentPropsWithRef<"td"> & { numeric?: boolean }) {
+export function Td({
+  numeric = false,
+  tight = false,
+  className,
+  ...rest
+}: ComponentPropsWithRef<"td"> & { numeric?: boolean; tight?: boolean }) {
   return (
     <td
       {...rest}
       className={cx(
-        "border-b border-rule px-3 py-[var(--jvb-row-py)] align-middle",
+        "border-b border-rule py-[var(--jvb-row-py)] align-middle",
+        tight ? "px-2" : "px-3",
         numeric && "tabular text-right",
         className,
       )}
@@ -178,7 +242,8 @@ export function EmptyRow({
 /**
  * The column-resize handle: a 16px hit area at the head's right edge with a
  * 2px divider that turns orange on hover and keyboard focus. Spread the
- * props from useResizableColumns().handleProps(key, label).
+ * props from useResizableColumns().handleProps(key, label), and pass it as
+ * Th's `after` so it sits beside the sort control, not inside it.
  */
 export function ColumnResizer(props: ComponentPropsWithRef<"span">) {
   return (

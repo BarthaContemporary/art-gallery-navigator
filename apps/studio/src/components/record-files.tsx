@@ -7,6 +7,9 @@ import { Dropzone } from "@/components/dropzone";
 import { FilePreviewLink } from "@/components/file-preview";
 import { DOCUMENTS_BUCKET, signDocumentUrl } from "@/lib/document-files";
 import { uploadDocument, type UploadScope } from "@/lib/upload-signed";
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { CloseIcon, DownloadIcon, UploadIcon } from "@/components/ui/icons";
 
 export type RecordFile = { id: string; title: string; storage_path: string };
 
@@ -34,6 +37,8 @@ export function RecordFiles({
   const [files, setFiles] = useState<RecordFile[]>(initial);
   const [staged, setStaged] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  // The file being removed, for its button's pending state.
+  const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function stage(list: FileList | null) {
@@ -59,8 +64,8 @@ export function RecordFiles({
         remaining.shift();
         uploadedAny = true;
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "Upload failed";
-        setError(`${file.name}: ${msg}`);
+        const msg = e instanceof Error ? e.message : "the upload failed";
+        setError(`Couldn’t upload ${file.name}: ${msg}`);
         setStaged(remaining);
         setBusy(false);
         // Files before the failure did save — the cache must not hide them.
@@ -80,79 +85,110 @@ export function RecordFiles({
     try {
       window.open(await signDocumentUrl(f.storage_path, 300), "_blank");
     } catch {
-      setError(`${f.title}: could not open — reload the page and try again.`);
+      setError(`Couldn’t open ${f.title}. Reload the page and try again.`);
     }
   }
 
   async function remove(f: RecordFile) {
     const supabase = createClient();
     setError(null);
-    // Row first, selected back: an RLS-filtered delete returns no error and
-    // removes nothing, and the old order destroyed the file before checking.
-    const { data, error: delErr } = await supabase
-      .from(table)
-      .delete()
-      .eq("id", f.id)
-      .select("id");
-    if (delErr) return setError(`${f.title}: ${delErr.message}`);
-    if (!data?.length)
-      return setError(`${f.title}: wasn’t removed — reload the page and try again.`);
-    await supabase.storage.from(DOCUMENTS_BUCKET).remove([f.storage_path]);
-    setFiles((x) => x.filter((y) => y.id !== f.id));
-    router.refresh();
+    setRemoving(f.id);
+    try {
+      // Row first, selected back: an RLS-filtered delete returns no error and
+      // removes nothing, and the old order destroyed the file before checking.
+      const { data, error: delErr } = await supabase
+        .from(table)
+        .delete()
+        .eq("id", f.id)
+        .select("id");
+      if (delErr) return setError(`Couldn’t remove ${f.title}: ${delErr.message}`);
+      if (!data?.length) return setError(`${f.title} wasn’t removed. Reload the page and try again.`);
+      await supabase.storage.from(DOCUMENTS_BUCKET).remove([f.storage_path]);
+      setFiles((x) => x.filter((y) => y.id !== f.id));
+      router.refresh();
+    } finally {
+      setRemoving(null);
+    }
   }
 
   return (
     <div>
-      <ul className="divide-y divide-line-soft">
+      <ul>
         {files.map((f) => (
-          <li key={f.id} className="flex items-center gap-2 py-2 text-[13px]">
+          <li key={f.id} className="flex items-center gap-2 border-t border-rule py-2 first:border-t-0 first:pt-0">
             <FilePreviewLink
               storagePath={f.storage_path}
               title={f.title}
-              className="min-w-0 flex-1 truncate text-left text-ink-body hover:text-ink-strong hover:underline"
+              className="link-plain min-w-0 flex-1 truncate text-left text-[13px] text-ink"
             >
               {f.title}
             </FilePreviewLink>
-            <button type="button" onClick={() => download(f)} className="text-[12px] font-medium text-[var(--jvb-ink-desc)]">
+            <Button variant="quiet" size="sm" icon={<DownloadIcon size={14} />} onClick={() => download(f)}>
               Download
-            </button>
-            <button type="button" onClick={() => remove(f)} className="text-[11px] text-ink-soft underline">
+            </Button>
+            {/* Removes the file for good; a row action, so quiet in the danger
+                colour. No confirm step, as before (F7 waits for the owner). */}
+            <Button
+              variant="quiet"
+              size="sm"
+              onClick={() => remove(f)}
+              pending={removing === f.id}
+              pendingLabel="Removing…"
+              disabled={removing !== null && removing !== f.id}
+              className="text-danger"
+            >
               Remove
-            </button>
+            </Button>
           </li>
         ))}
-        {files.length === 0 ? (
-          <li className="py-2 text-[12.5px] text-ink-soft">No files yet.</li>
-        ) : null}
+        {files.length === 0 ? <li className="text-[13px] text-body">No files yet.</li> : null}
       </ul>
 
-      <div className="mt-3">
+      <div className="mt-4 border-t border-rule pt-4">
         <Dropzone onFiles={stage} accept=".pdf,.jpg,.jpeg,.png,.tiff,.doc,.docx,.heic" multiple disabled={busy}>
-          <p className="text-[13px] font-medium text-ink-body">Drag files here, or click to choose</p>
+          <p className="text-[13px] font-medium text-ink">Drag files here, or click to choose</p>
+          <p className="mt-1 text-[12px] text-meta">PDF, image or Word.</p>
         </Dropzone>
       </div>
       {staged.length ? (
-        <ul className="mt-2 space-y-1.5">
+        <ul className="mt-3">
           {staged.map((f, i) => (
-            <li key={i} className="flex items-center gap-2 rounded-lg border border-line-soft bg-band/40 px-3 py-1.5 text-[12.5px]">
-              <span className="min-w-0 flex-1 truncate text-ink-body">{f.name}</span>
-              <button type="button" onClick={() => setStaged((p) => p.filter((_, idx) => idx !== i))} disabled={busy} className="shrink-0 text-ink-soft hover:text-accent-deep">
-                ✕
-              </button>
+            <li
+              key={`${f.name}-${i}`}
+              className="flex items-center gap-2 border-t border-rule py-1.5 text-[13px] first:border-t-0"
+            >
+              <span className="min-w-0 flex-1 truncate text-body">{f.name}</span>
+              <span className="tabular shrink-0 text-[12px] text-meta">{(f.size / 1024).toFixed(0)} KB</span>
+              <Button
+                variant="quiet"
+                size="sm"
+                iconOnly
+                label={`Remove ${f.name}`}
+                onClick={() => setStaged((p) => p.filter((_, idx) => idx !== i))}
+                disabled={busy}
+              >
+                <CloseIcon size={14} />
+              </Button>
             </li>
           ))}
         </ul>
       ) : null}
-      <button
-        type="button"
+      <Button
+        variant="primary"
+        icon={<UploadIcon size={14} />}
         onClick={upload}
-        disabled={busy || !staged.length}
-        className="mt-3 rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg disabled:opacity-50"
+        disabled={!staged.length}
+        pending={busy}
+        pendingLabel="Uploading…"
+        className="mt-3"
       >
-        {busy ? "Uploading…" : staged.length ? `Upload ${staged.length} file${staged.length === 1 ? "" : "s"}` : "Upload"}
-      </button>
-      {error ? <p className="mt-2 text-[12px] text-ink-body">Upload failed — {error}</p> : null}
+        {staged.length ? `Upload ${staged.length} file${staged.length === 1 ? "" : "s"}` : "Upload"}
+      </Button>
+      {error ? (
+        <Notice tone="danger" className="mt-3">
+          {error}
+        </Notice>
+      ) : null}
     </div>
   );
 }

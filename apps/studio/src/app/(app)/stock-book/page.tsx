@@ -5,6 +5,7 @@ import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
 import { StockBookTable, type StockBookRow } from "@/components/stock-book-table";
 import { londonDay } from "@/lib/caldav";
 import { formatCount, formatDate } from "@/lib/format";
+import { selectInChunks } from "@/lib/chunk";
 import { PageHeader } from "@/components/ui/page-header";
 import { buttonClass } from "@/components/ui/button";
 import { SegmentedLinks, chipClass } from "@/components/ui/chips";
@@ -83,19 +84,34 @@ export default async function StockBookPage({
   let query = supabase.from(view).select("*").order("stock_number");
   if (sp.from) query = query.gte("sold_date", sp.from);
   if (sp.to) query = query.lte("sold_date", sp.to);
-  // Status and the missing-purchase flag live on the work, not in the views.
-  // Only sold or flagged works can raise either reason, so the read stays
-  // small however long the book grows.
-  const [{ data: rows, error }, { data: works }] = await Promise.all([
-    query,
-    supabase
-      .from("vw_pieces_list")
-      .select("id, status, missing_purchase_gbp")
-      .or("status.eq.sold,missing_purchase_gbp.is.true"),
-  ]);
-  const workById = new Map(
-    ((works ?? []) as { id: string; status: string | null; missing_purchase_gbp: boolean | null }[]).map((w) => [w.id, w]),
-  );
+  const { data: rows, error } = await query;
+
+  // Status and the missing-purchase flag live on the work, not in the views,
+  // so they are read for the works on this page only, in chunks of ids (a
+  // read across every sold work would pass PostgREST's row cap as the book
+  // grows and miss works silently). Only two kinds of row can raise either
+  // reason: one with no sale date ("Marked sold with no sale date") or one
+  // with no purchase £ (the flag is only ever set then).
+  type WorkFlags = { id: string; status: string | null; missing_purchase_gbp: boolean | null };
+  const lookupIds = ((rows ?? []) as unknown as StockBookRow[])
+    .filter((r) => r.piece_id && (!r.sold_date || r.purchase_cost_gbp == null))
+    .map((r) => r.piece_id as string);
+  let works: WorkFlags[] = [];
+  let worksError: string | null = null;
+  if (!error) {
+    try {
+      works = await selectInChunks<WorkFlags>(lookupIds, (chunk) =>
+        supabase
+          .from("vw_pieces_list")
+          .select("id, status, missing_purchase_gbp")
+          .in("id", chunk)
+          .or("status.eq.sold,missing_purchase_gbp.is.true"),
+      );
+    } catch (e) {
+      worksError = e instanceof Error ? e.message : String(e);
+    }
+  }
+  const workById = new Map(works.map((w) => [w.id, w]));
 
   const showTreatment = scheme === "all";
   // Only the combined view has a vat_treatment column; a per-scheme view
@@ -257,6 +273,13 @@ export default async function StockBookPage({
           </p>
         </div>
       </div>
+
+      {worksError ? (
+        <Notice tone="danger" className="mt-5">
+          Could not check the works for Needs attention ({worksError}), so &ldquo;Marked sold with no sale
+          date&rdquo; and &ldquo;Needs purchase £&rdquo; are not counted. Reload the page to try again.
+        </Notice>
+      ) : null}
 
       {error ? (
         <Notice tone="danger" className="mt-5">

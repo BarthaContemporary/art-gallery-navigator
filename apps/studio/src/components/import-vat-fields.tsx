@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseAmount } from "@/lib/amount";
 import { AmountInput } from "@/components/amount-input";
 import { useEditFinancials } from "@/components/edit-financials-context";
 import { useSaveReporter } from "@/components/ui/save-status";
 import { Field } from "@/components/ui/field";
-import { useFlushForDone } from "@/components/editor-save";
+import { useFlushForDone, useStateAutosave } from "@/components/editor-save";
 
 const TYPES: [string, string][] = [
   ["", "—"],
@@ -30,14 +30,8 @@ export function ImportVatFields({
 }) {
   const [importType, setImportType] = useState(initial.importType);
   const [importVat, setImportVat] = useState(initial.importVatGbp);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const ctx = useEditFinancials();
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const attempt = useRef(0);
-  // An edit the server does not hold yet (waiting or failed).
-  const unsaved = useRef(false);
   const first = useRef(true);
 
   useEffect(() => {
@@ -48,64 +42,35 @@ export function ImportVatFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [importType, importVat]);
 
-  const save = useCallback(async (): Promise<boolean> => {
-    if (timer.current) clearTimeout(timer.current);
-    if (retryTimer.current) clearTimeout(retryTimer.current);
-    timer.current = null;
-    retryTimer.current = null;
-    setStatus("saving");
+  // The request for what the fields show now; the autosave calls it through
+  // a ref, so a retry sends the latest values.
+  const send = (): Promise<boolean> => {
     const body = new FormData();
     body.set("import_type", importType);
     body.set("import_vat_gbp", importType === "import_vat_paid" ? importVat : "");
-    let ok = false;
-    try {
-      const res = await fetch(`/api/inventory/${encodeURIComponent(stockNumber)}/import-vat`, {
-        method: "PATCH",
-        body,
-      });
-      ok = res.ok;
-    } catch {
-      ok = false;
-    }
-    if (ok) {
-      attempt.current = 0;
-      unsaved.current = false;
-      setStatus("saved");
-      return true;
-    }
-    // Capped backoff, as the main form: 2s, 4s, 8s … 30s.
-    setStatus("error");
-    attempt.current += 1;
-    retryTimer.current = setTimeout(() => void save(), Math.min(2000 * 2 ** (attempt.current - 1), 30000));
-    return false;
-  }, [importType, importVat, stockNumber]);
+    return fetch(`/api/inventory/${encodeURIComponent(stockNumber)}/import-vat`, {
+      method: "PATCH",
+      body,
+    }).then(
+      (res) => res.ok,
+      () => false,
+    );
+  };
+  const { status, save, schedule, flush } = useStateAutosave(send);
 
   useEffect(() => {
     if (first.current) {
       first.current = false;
       return;
     }
-    unsaved.current = true;
-    setStatus("saving");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void save(), 700);
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, [importType, importVat, save]);
-  useEffect(
-    () => () => {
-      if (retryTimer.current) clearTimeout(retryTimer.current);
-    },
-    [],
-  );
+    schedule();
+  }, [importType, importVat, schedule]);
 
   // Into the editor's one status line, and Done's list of parts to save.
   const report = useSaveReporter("import-vat");
   useEffect(() => {
     report({ state: status, what: "the import VAT", onRetry: status === "error" ? () => void save() : undefined });
   }, [report, status, save]);
-  const flush = useCallback(() => (unsaved.current ? save() : Promise.resolve(true)), [save]);
   useFlushForDone("import-vat", flush);
 
   return (

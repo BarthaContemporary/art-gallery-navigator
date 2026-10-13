@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
-import { NewDocument } from "@/components/new-document";
+import { NewDocumentPanel, NewDocumentScope, NewDocumentTrigger } from "@/components/new-document";
 import { formatCount, formatDate } from "@/lib/format";
 import { DOC_TYPE_LABELS as TYPE_LABELS, labelOf } from "@/lib/labels";
 import { PageHeader } from "@/components/ui/page-header";
@@ -42,7 +42,7 @@ export default async function DocumentsPage({
   ];
 
   return (
-    <div>
+    <NewDocumentScope>
       <PageHeader
         title="Documents"
         meta={
@@ -50,17 +50,17 @@ export default async function DocumentsPage({
             {formatCount(rows.length)} {rows.length === 1 ? "document" : "documents"}
           </span>
         }
+        actions={<NewDocumentTrigger />}
       >
         <p className="max-w-[var(--jvb-measure)] text-[13px] leading-[1.45] text-body">
           Invoices, provenance, correspondence, shipping and insurance. Upload once and link to
           every inventory item it covers.
         </p>
+        {/* The upload form opens here, full width, under the header's button. */}
+        <div className="mt-4 empty:hidden">
+          <NewDocumentPanel />
+        </div>
       </PageHeader>
-
-      {/* The upload panel opens in place, full width, above the list. */}
-      <div className="mb-4">
-        <NewDocument />
-      </div>
 
       <SegmentedLinks aria-label="Document type" items={filters} current={sp.type ?? ""} className="mb-3" />
 
@@ -84,7 +84,7 @@ export default async function DocumentsPage({
                   </Link>
                 </Td>
                 <Td className="text-body">{r.title ?? "—"}</Td>
-                <Td className="tabular whitespace-nowrap text-body">{formatDate(r.doc_date, "numeric")}</Td>
+                <Td className="tabular whitespace-nowrap text-body">{formatDate(r.doc_date, "short")}</Td>
                 <Td className="text-body">{r.reference ?? "—"}</Td>
                 <Td numeric className="text-body">
                   {r.document_pieces?.[0]?.count ?? 0}
@@ -108,6 +108,6 @@ export default async function DocumentsPage({
           </tbody>
         </Table>
       </TableFrame>
-    </div>
+    </NewDocumentScope>
   );
 }

@@ -10,7 +10,8 @@
  *   --match <regex>       only routes whose path or name matches (with
  *                         --areas, a route matching either is kept)
  *   --out <dir>           output directory (default .run/shots/<timestamp>)
- *   --widths 375,768,1440 viewport widths
+ *   --widths 375,768,1024,1440  viewport widths (up to 1024 a touch device;
+ *                         1024 is an iPad in landscape, 768 high)
  *   --schemes light,dark  colour schemes
  *   --role admin|staff    who is signed in (default admin)
  *   --full                full page, capped at 8000 px high
@@ -50,7 +51,7 @@ const flag = (name) => process.argv.includes(name);
 
 const routesArg = opt("--routes", path.join(HERE, "routes.json"));
 const outDir = path.resolve(opt("--out", path.join(HERE, ".run", "shots", new Date().toISOString().replace(/[:.]/g, "-"))));
-const widths = String(opt("--widths", "375,768,1440")).split(",").map(Number).filter(Boolean);
+const widths = String(opt("--widths", "375,768,1024,1440")).split(",").map(Number).filter(Boolean);
 const schemes = String(opt("--schemes", "light,dark")).split(",").filter((s) => s === "light" || s === "dark");
 const role = String(opt("--role", "admin"));
 const full = flag("--full");
@@ -150,10 +151,13 @@ function slug(r) {
   return (r.name ?? r.path).replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "") || "root";
 }
 
-const heightFor = (w) => (w < 600 ? 812 : w < 1024 ? 1024 : 900);
+// Phone portrait, tablet portrait, tablet landscape (1024 x 768), desktop.
+const heightFor = (w) => (w < 600 ? 812 : w < 1024 ? 1024 : w === 1024 ? 768 : 900);
 
 async function newContext(width, scheme, signedIn) {
-  const mobile = width < 1024;
+  // Up to 1024 the viewport is a touch device (an iPad in landscape is 1024
+  // wide), so pointer: coarse applies and controls take their touch sizes.
+  const mobile = width <= 1024;
   const context = await browser.newContext({
     viewport: { width, height: heightFor(width) },
     deviceScaleFactor: 1,
@@ -297,7 +301,10 @@ async function shootOne(context, route, width, scheme) {
     pageErrors: [...new Set(pageErrors)],
     failedRequests: [...new Set(failedRequests)],
     blockedExternalHosts: [...blocked],
-    overflow: { horizontal: probe.scrollWidth > probe.innerWidth, scrollWidth: probe.scrollWidth, innerWidth: probe.innerWidth },
+    // Against the width asked for, not innerWidth: on a touch viewport
+    // Chromium widens the layout viewport to fit content that overflows, so
+    // innerWidth grows with the overflow and would hide it.
+    overflow: { horizontal: probe.scrollWidth > width, scrollWidth: probe.scrollWidth, innerWidth: probe.innerWidth },
     pageHeight: probe.height,
     truncatedAt: full && probe.height > MAX_HEIGHT ? MAX_HEIGHT : null,
     title: probe.title,
@@ -422,7 +429,7 @@ report.summary = {
   ok: all.filter((x) => x.ok).length,
   failures: all.filter((x) => !x.ok).map((x) => `${x.path} ${x.width} ${x.scheme}: status ${x.status}${x.redirectedToLogin ? ", sent to /login" : ""}${x.errorBoundary ? ", error boundary" : ""}${x.notFound ? ", 404 page" : ""}${x.pageErrors.length ? `, ${x.pageErrors.length} uncaught` : ""}${x.navError ? `, ${x.navError}` : ""}`),
   withConsoleErrors: [...new Set(all.filter((x) => x.consoleErrors.length).map((x) => x.path))],
-  horizontalOverflow: all.filter((x) => x.overflow.horizontal).map((x) => `${x.path} ${x.width} ${x.scheme} (${x.overflow.scrollWidth} > ${x.overflow.innerWidth})`),
+  horizontalOverflow: all.filter((x) => x.overflow.horizontal).map((x) => `${x.path} ${x.width} ${x.scheme} (${x.overflow.scrollWidth} > ${x.width})`),
 };
 fs.writeFileSync(path.join(outDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
 console.log(`\n${report.summary.ok}/${report.summary.shots} shots ok. Report: ${path.join(outDir, "report.json")}`);

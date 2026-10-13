@@ -116,10 +116,20 @@ export default async function Dashboard() {
   // use): three in a row at every width, four as two by two until there is
   // room for one row. Literal class names, so Tailwind sees them.
   const statCols = stats.length === 4 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3";
+  // Hairlines between the figures, drawn as each tile's own left (and, for
+  // the second row of two by two, top) border. A 1px gap over a ruled
+  // background rounds unevenly when the width does not divide by the
+  // columns, and one seam draws 2px wide.
+  const statEdge = (i: number) =>
+    stats.length === 4
+      ? ["", "border-l", "border-t lg:border-l lg:border-t-0", "border-l border-t lg:border-t-0"][i]
+      : i > 0
+        ? "border-l"
+        : "";
 
   return (
     <div>
-      <PageHeader title="Dashboard" meta={formatDate(new Date(), "long", { weekday: true })} />
+      <PageHeader title="Dashboard" meta={formatDate(new Date(), "short", { weekday: true })} />
 
       {/* Needs attention: the few states that want a person. Hidden entirely
           when all is clear. */}
@@ -149,13 +159,13 @@ export default async function Dashboard() {
       ) : null}
 
       {/* Headline figures on hairlines: a row of four columns or three. */}
-      <div className={`grid gap-px border-y border-rule-strong bg-rule ${statCols}`}>
+      <div className={`grid border-y border-rule-strong ${statCols}`}>
         {stats.map((s, i) => (
           <Link
             key={s.label}
             href={s.href}
             style={{ "--jvb-stagger": `${triage.length * 60 + i * 60}ms` } as React.CSSProperties}
-            className="jvb-rise group bg-page px-4 py-4 transition-colors hover:bg-band"
+            className={`jvb-rise group border-rule bg-page px-4 py-4 transition-colors hover:bg-band ${statEdge(i)}`}
           >
             {/* body while hovered: meta is not readable on band (spec R3) */}
             <div className="label group-hover:text-body">{s.label}</div>

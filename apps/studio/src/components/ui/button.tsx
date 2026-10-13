@@ -12,16 +12,24 @@
  *              caller tracks itself (a fetch).
  *     iconOnly + label   a square icon button; label is required and becomes
  *              aria-label and title. <Button iconOnly label="Close"><CloseIcon /></Button>
+ *     wrap     a sentence-length label that may wrap: the button grows in
+ *              height rather than clipping (a narrow column's one action).
  *     Every other prop (name, value, form, formAction, onClick, aria-*) is
  *     passed to the native <button> untouched.
  *
- *   <ButtonLink href variant? size? icon? disabled? native? iconOnly+label …>
+ *   <ButtonLink href variant? size? icon? disabled? native? wrap? iconOnly+label …>
  *     A link that looks like a button (next/link). `native` renders a plain
  *     <a> for downloads, API routes and new tabs. `disabled` renders an inert
  *     <span aria-disabled> in the same look.
  *
- *   buttonClass({ variant, size, iconOnly }, extra?)  the class string, for
- *     elements these do not cover.
+ *   buttonClass({ variant, size, iconOnly, wrap }, extra?)  the class string,
+ *     for elements these do not cover.
+ *
+ * Destructive actions (spec R4): the first step of a standalone delete is
+ * <Button variant="danger" size="sm">; inside a table or list row it is
+ * <Button variant="quiet" size="sm" className="text-danger"> so a column of
+ * rows is not a column of red boxes. Either way the confirm step that
+ * follows keeps its own "Yes, delete" in danger.
  *
  *   SubmitButton (components/submit-button.tsx) is now a thin wrapper of
  *   Button; new code uses <Button type="submit"> directly.
@@ -47,6 +55,8 @@ export type ButtonLinkProps = Omit<ComponentPropsWithRef<"a">, "href" | "childre
     disabled?: boolean;
     /** A plain <a> rather than next/link: file downloads, API routes, new tabs. */
     native?: boolean;
+    /** Lets a long label wrap onto more lines (see buttonClass). */
+    wrap?: boolean;
     children?: ReactNode;
   } & Labelled;
 
@@ -58,6 +68,7 @@ export function ButtonLink({
   icon,
   disabled,
   native,
+  wrap,
   prefetch,
   replace,
   scroll,
@@ -67,7 +78,7 @@ export function ButtonLink({
   href,
   ...rest
 }: ButtonLinkProps) {
-  const cls = buttonClass({ variant, size, iconOnly }, className);
+  const cls = buttonClass({ variant, size, iconOnly, wrap }, className);
   const name = iconOnly ? label : rest["aria-label"];
   const tip = title ?? (iconOnly ? label : undefined);
   if (disabled) {

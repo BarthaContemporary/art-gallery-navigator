@@ -13,6 +13,8 @@
  *              most one primary.
  *     children anything that belongs to the header below that row (a toolbar
  *              or a notice).
+ *   On paper the back link and the actions are left out (print:hidden): a
+ *   printed page keeps its title and meta line only.
  *
  * Server-safe: no state, usable from any page.
  */
@@ -41,7 +43,7 @@ export function PageHeader({
       {back ? (
         <Link
           href={back.href}
-          className="mb-1 inline-flex items-center gap-1 text-[12px] leading-[1.4] text-meta hover:text-ink"
+          className="mb-1 inline-flex items-center gap-1 text-[12px] leading-[1.4] text-meta hover:text-ink print:hidden"
         >
           <ArrowLeftIcon size={14} />
           {back.label}
@@ -52,7 +54,7 @@ export function PageHeader({
           <h1 className="text-title text-ink">{title}</h1>
           {meta ? <p className="mt-1 text-[12px] leading-[1.4] text-meta">{meta}</p> : null}
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? <div className="flex flex-wrap items-center gap-2 print:hidden">{actions}</div> : null}
       </div>
       {children ? <div className="mt-4">{children}</div> : null}
     </header>

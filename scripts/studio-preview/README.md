@@ -47,7 +47,7 @@ any password, or set the session cookie `shoot.mjs` uses (see
 | `--areas a,b` | all | only routes with these area tags (`shell`, `inventory`, `record`, `crm`, `ops`, `ui-kit`) |
 | `--match <regex>` | | only routes whose path or name matches (with `--areas`: either) |
 | `--out <dir>` | `.run/shots/<time>` | where the JPEGs and `report.json` go |
-| `--widths` | `375,768,1440` | viewport widths (below 1024 the viewport is a touch device) |
+| `--widths` | `375,768,1024,1440` | viewport widths. Up to 1024 the viewport is a touch device (coarse pointer, touch-sized controls); 1024 is an iPad in landscape, 1024 × 768, where no page may scroll sideways and a wide table scrolls inside its own frame |
 | `--schemes` | `light,dark` | colour schemes; also written to the studio's `jvb-theme` storage |
 | `--role admin\|staff` | `admin` | who is signed in |
 | `--full` | off | full page, capped at 8000 px high |
@@ -66,7 +66,9 @@ animations, then saves a JPEG at quality 72. `report.json` records, per route
 and size: HTTP status, final URL (a redirect to `/login` fails the shot),
 console errors, uncaught errors, whether the error boundary or the 404 page
 rendered, failed same-origin requests, external hosts the page tried, and
-horizontal overflow (`scrollWidth > innerWidth`). A shot is `ok` when the
+horizontal overflow (the document's `scrollWidth` wider than the viewport
+width asked for; not `innerWidth`, which a touch viewport widens to fit
+whatever overflows). A shot is `ok` when the
 status is 200, it was not sent to sign-in, and nothing failed or threw.
 
 `next dev` restarts itself when its heap nears the limit, which a full set

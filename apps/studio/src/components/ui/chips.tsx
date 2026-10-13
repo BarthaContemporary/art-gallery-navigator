@@ -8,8 +8,9 @@
  *     chips rendered as next/link; the item whose value equals `current` gets
  *     aria-current="page". Build each href with the page's other query
  *     parameters kept, so a facet never wipes the rest of the filter.
- *       items  { value, label, href, count? }[]; count prints after the label
- *              in tabular figures.
+ *       items  { value, label, href, count?, title? }[]; count prints after
+ *              the label in tabular figures; title is a tooltip (a quarter's
+ *              date range), never the only place a meaning is given.
  *
  *   <ToggleChip pressed …button props>{label}</ToggleChip>
  *     An on/off filter: a native <button> with aria-pressed. type defaults to
@@ -29,7 +30,13 @@ export function chipClass(className?: string): string {
   return cx("chip", className);
 }
 
-export type SegmentedItem = { value: string; label: ReactNode; href: string; count?: number | string };
+export type SegmentedItem = {
+  value: string;
+  label: ReactNode;
+  href: string;
+  count?: number | string;
+  title?: string;
+};
 
 export function SegmentedLinks({
   items,
@@ -48,6 +55,7 @@ export function SegmentedLinks({
         <Link
           key={item.value}
           href={item.href}
+          title={item.title}
           aria-current={item.value === current ? "page" : undefined}
           className="chip"
         >

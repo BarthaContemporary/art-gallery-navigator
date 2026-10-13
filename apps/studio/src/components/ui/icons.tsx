@@ -53,6 +53,7 @@ import {
   IconPlus,
   IconPrinter,
   IconRefresh,
+  IconRotate,
   IconRotateClockwise,
   IconSearch,
   IconSelector,
@@ -116,6 +117,8 @@ export const UploadIcon = icon(IconUpload, "UploadIcon");
 export const DownloadIcon = icon(IconDownload, "DownloadIcon");
 export const RefreshIcon = icon(IconRefresh, "RefreshIcon");
 export const RotateIcon = icon(IconRotateClockwise, "RotateIcon");
+/** Anticlockwise (Tabler's plain "rotate"). */
+export const RotateLeftIcon = icon(IconRotate, "RotateLeftIcon");
 export const CopyIcon = icon(IconCopy, "CopyIcon");
 export const LinkIcon = icon(IconLink, "LinkIcon");
 export const PrintIcon = icon(IconPrinter, "PrintIcon");
@@ -162,6 +165,7 @@ export const ICONS = {
   DownloadIcon,
   RefreshIcon,
   RotateIcon,
+  RotateLeftIcon,
   CopyIcon,
   LinkIcon,
   PrintIcon,

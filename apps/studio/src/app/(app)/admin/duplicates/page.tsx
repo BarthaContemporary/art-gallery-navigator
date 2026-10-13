@@ -32,6 +32,12 @@ type Contact = {
   created_at: string;
 };
 
+/**
+ * One set of widths for every group's table, in px (Contact, Email and
+ * phone, Place, Tags, Purchases, Notes, Created). Notes takes what is left.
+ */
+const GROUP_COLUMNS = [72, 256, 136, 104, 104, null, 104] as const;
+
 function norm(c: Contact) {
   return `${c.first_name ?? ""} ${c.last_name ?? ""}`
     .toLowerCase()
@@ -106,7 +112,14 @@ export default async function DuplicateContactsPage() {
                 meta={`${g.length} records`}
               >
                 <TableFrame>
-                  <Table className="min-w-[720px]">
+                  {/* Fixed layout on one set of column widths, so every group's
+                      columns line up down the page and pairs compare at a glance. */}
+                  <Table className="min-w-[880px]" style={{ tableLayout: "fixed" }}>
+                    <colgroup>
+                      {GROUP_COLUMNS.map((w, i) => (
+                        <col key={i} style={w ? { width: w } : undefined} />
+                      ))}
+                    </colgroup>
                     <thead>
                       <tr>
                         <Th>Contact</Th>
@@ -126,7 +139,7 @@ export default async function DuplicateContactsPage() {
                               Open
                             </Link>
                           </Td>
-                          <Td className="align-top text-ink">
+                          <Td className="break-words align-top text-ink">
                             {c.email ?? "—"}
                             {c.phone ? <span className="block text-[12px] text-meta">{c.phone}</span> : null}
                           </Td>
@@ -137,11 +150,11 @@ export default async function DuplicateContactsPage() {
                           <Td numeric className="align-top text-ink">
                             {purchasesById.get(c.id) ?? 0}
                           </Td>
-                          <Td className="max-w-[220px] align-top text-[12px] text-body">
+                          <Td className="break-words align-top text-[12px] text-body">
                             {c.notes ? (c.notes.length > 120 ? `${c.notes.slice(0, 120)}…` : c.notes) : "—"}
                           </Td>
-                          <Td className="tabular align-top text-[12px] text-meta">
-                            {formatDate(c.created_at, "numeric")}
+                          <Td className="tabular whitespace-nowrap align-top text-[12px] text-meta">
+                            {formatDate(c.created_at, "short")}
                           </Td>
                         </Tr>
                       ))}

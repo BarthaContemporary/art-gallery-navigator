@@ -8,7 +8,7 @@ import { Field } from "./ui/field";
 import { Section } from "./ui/section";
 import { SaveStatus } from "./ui/save-status";
 import { CONTACT_TYPE_LABELS, KYC_STATUS_LABELS, labelOf } from "@/lib/labels";
-import { formatDate, gbpExact } from "@/lib/format";
+import { formatDate, gbpDisplay } from "@/lib/format";
 
 export type Purchase = {
   stock_number: string | null;
@@ -392,7 +392,8 @@ export function ContactEditor({
                   </div>
                   <span className="tabular shrink-0 text-[12px] leading-[1.4] text-meta">
                     {p.sold_date ? formatDate(p.sold_date) : ""}
-                    {showPrices && p.sold_price_gbp != null ? ` · ${gbpExact(p.sold_price_gbp)}` : ""}
+                    {/* Whole pounds, as this list always read ("£12,000"). */}
+                    {showPrices && p.sold_price_gbp != null ? ` · ${gbpDisplay(p.sold_price_gbp)}` : ""}
                   </span>
                 </li>
               );
@@ -432,7 +433,7 @@ export function ContactEditor({
                     </div>
                     <span className="tabular shrink-0 text-right text-[12px] leading-[1.4] text-meta">
                       {c.sold_date ? formatDate(c.sold_date) : "In stock"}
-                      {showPrices && c.co_owner_share_gbp != null ? ` · ${gbpExact(c.co_owner_share_gbp)}` : ""}
+                      {showPrices && c.co_owner_share_gbp != null ? ` · ${gbpDisplay(c.co_owner_share_gbp)}` : ""}
                     </span>
                   </li>
                 );
@@ -446,8 +447,12 @@ export function ContactEditor({
         </div>
       </Section>
 
-      {/* AML, at the bottom */}
+      {/* AML, at the bottom. id="aml": the sanctions notice above the editor
+          links here; scroll-mt keeps the heading clear of the sticky header
+          and save line. */}
       <Section
+        id="aml"
+        className="scroll-mt-[calc(var(--app-header-h,88px)+56px)]"
         title="AML (in-house)"
         meta="Recorded by the gallery with its AML adviser. Confirmed contacts are screened against the UK Sanctions List every two weeks."
       >

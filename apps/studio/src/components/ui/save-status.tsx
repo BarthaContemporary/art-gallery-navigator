@@ -14,6 +14,10 @@
  *   report({ state: "error", what: "the consignment", onRetry: save });
  *     state     "idle" | "saving" | "saved" | "error"
  *     what      what failed, for "Couldn’t save the consignment."
+ *     detail    replaces the second sentence of the error line (by default
+ *               "Your changes are kept and will be tried again."): the
+ *               reason for a validation error, or the truth for an editor
+ *               that does not retry by itself ("Press Retry to try again.").
  *     onRetry   shows a Retry button on the error line
  *     signedOut the session lapsed: says so and links to sign in
  *     The source's report is withdrawn when it unmounts.
@@ -33,6 +37,7 @@ export type SaveState = "idle" | "saving" | "saved" | "error";
 export type SaveReport = {
   state: SaveState;
   what?: string;
+  detail?: string;
   onRetry?: () => void;
   signedOut?: boolean;
 };
@@ -83,6 +88,7 @@ export function useSaveStatus(): SaveReport {
 export function SaveStatus({
   state,
   what,
+  detail,
   onRetry,
   signedOut,
   idleText = "Changes save automatically",
@@ -96,7 +102,7 @@ export function SaveStatus({
   children?: ReactNode;
 }) {
   const fromContext = useSaveStatus();
-  const r: SaveReport = state ? { state, what, onRetry, signedOut } : fromContext;
+  const r: SaveReport = state ? { state, what, detail, onRetry, signedOut } : fromContext;
   const text =
     r.state === "saving"
       ? "Saving…"
@@ -105,7 +111,7 @@ export function SaveStatus({
         : r.state === "error"
           ? r.signedOut
             ? "Signed out. Your changes are kept here and save once you sign in again."
-            : `Couldn’t save${r.what ? ` ${r.what}` : ""}. Your changes are kept and will be tried again.`
+            : `Couldn’t save${r.what ? ` ${r.what}` : ""}. ${r.detail ?? "Your changes are kept and will be tried again."}`
           : idleText;
   return (
     <div

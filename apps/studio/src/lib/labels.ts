@@ -122,6 +122,141 @@ export const VAT_TREATMENT_LABELS: Record<string, string> = {
   outside_scope: "Outside scope",
 };
 
+/** pieces.presentation: the editor's "Website square" select, in short. */
+export const PRESENTATION_LABELS: Record<string, string> = {
+  auto: "Auto",
+  flat: "Flat work",
+  object: "Object",
+  photo: "Photograph as taken",
+};
+
+/** pieces.ledger: the register a work is held in. */
+export const LEDGER_LABELS: Record<string, string> = {
+  jvb: "JvdB",
+  external: "Not JvdB",
+};
+
+/** piece_financials.import_type: the editor's "Type of import" select. */
+export const IMPORT_TYPE_LABELS: Record<string, string> = {
+  import_vat_paid: "Import VAT paid",
+  import_vat_deferred: "Import VAT deferred",
+  temporary_import: "Temporary import",
+};
+
+/** activity_log.action: what happened to a record. */
+export const ACTIVITY_ACTION_LABELS: Record<string, string> = {
+  INSERT: "Created",
+  UPDATE: "Edited",
+  DELETE: "Deleted",
+};
+
+/**
+ * Column names of a work (pieces, external_pieces) and its financials
+ * (piece_financials) in the words of the editor's fields, for the change
+ * history. A column missing here still reads as words through labelOf().
+ */
+export const FIELD_LABELS: Record<string, string> = {
+  // the record
+  stock_number: "Stock number",
+  legacy_stock_number: "Legacy stock number",
+  legacy_stock_number_conflict: "Legacy number conflict",
+  title: "Title",
+  year: "Year",
+  maker_id: "Maker",
+  attribution_qualifier: "Attribution",
+  category_id: "Category",
+  medium: "Medium",
+  period: "Period",
+  origin_region: "Origin / region",
+  status: "Status",
+  presentation: "Website square",
+  web_visible: "On website",
+  needs_completion: "Needs cataloguing",
+  description: "Description",
+  condition_report: "Condition",
+  signature_inscription: "Signature / inscription",
+  box_type: "Box (tomobako)",
+  box_notes: "Box notes",
+  framed: "Framed",
+  height_cm: "Height cm",
+  width_cm: "Width cm",
+  depth_cm: "Depth cm",
+  length_cm: "Length cm",
+  diameter_cm: "Diameter cm",
+  weight_g: "Weight g",
+  unframed_height_cm: "Unframed height cm",
+  unframed_width_cm: "Unframed width cm",
+  unframed_depth_cm: "Unframed depth cm",
+  unframed_length_cm: "Unframed length cm",
+  unframed_diameter_cm: "Unframed diameter cm",
+  unframed_weight_g: "Unframed weight g",
+  dimensions_display: "Dimensions as entered",
+  location_id: "Location",
+  comments: "Internal comments",
+  photographer: "Photographer",
+  tags: "Tags",
+  ai_suggestions: "Suggestions",
+  sold_to: "Buyer note",
+  source_note: "Source / acquired from",
+  purchased_from: "Purchased from",
+  publications: "Publications",
+  exhibitions: "Past exhibitions",
+  published_note: "Publication note",
+  document_note: "Document note",
+  shares_note: "Co-owner / consignee",
+  consignee_contact_id: "Co-owner / consignee contact",
+  consignment_details: "Consignment notes",
+  consignment_share_pct: "Share / commission (%)",
+  sale_handled_by_jvb: "Sale handled by J.v.d.B.",
+  ledger: "Register",
+  legacy_modified_at: "FileMaker last modified",
+  legacy_modified_by: "FileMaker modified by",
+  deleted_at: "Moved to trash",
+  created_at: "Created",
+  updated_at: "Updated",
+  created_by: "Created by",
+  updated_by: "Updated by",
+  // the financials
+  purchase_date: "Purchase date",
+  purchase_cost: "Purchase cost",
+  purchase_currency: "Purchase currency",
+  purchase_fx: "Purchase rate",
+  purchase_cost_gbp: "Purchase cost £",
+  purchase_invoice_document_id: "Purchase invoice",
+  seller_contact_id: "Seller",
+  restoration_cost_gbp: "Restoration £",
+  other_costs_gbp: "Other costs £",
+  total_cost_gbp: "Total cost £",
+  marked_price_gbp: "Marked price £",
+  sold_date: "Sold date",
+  sold_price: "Sold price",
+  sell_currency: "Sell currency",
+  sell_fx: "Sell rate",
+  sold_price_gbp: "Sold £",
+  sale_invoice_document_id: "Sale invoice",
+  buyer_contact_id: "Buyer",
+  vat_treatment: "VAT treatment",
+  vat_review_needed: "VAT review needed",
+  consignment_id: "Consignment",
+  margin_gbp: "Margin £",
+  import_type: "Type of import",
+  import_vat_gbp: "Import VAT paid £",
+  legacy_profit_gbp: "Legacy profit £",
+  net_profit_gbp: "Net profit £",
+};
+
+/**
+ * The word maps for columns that hold an enum value, so the change history
+ * prints "Available", not in_stock.
+ */
+export const FIELD_VALUE_LABELS: Record<string, Record<string, string>> = {
+  status: STATUS_LABELS,
+  vat_treatment: VAT_TREATMENT_LABELS,
+  presentation: PRESENTATION_LABELS,
+  ledger: LEDGER_LABELS,
+  import_type: IMPORT_TYPE_LABELS,
+};
+
 /** locations.type, in the order the Locations page offers them. */
 export const LOCATION_TYPE_LABELS: Record<string, string> = {
   gallery: "Gallery",

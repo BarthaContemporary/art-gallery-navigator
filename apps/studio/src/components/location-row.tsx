@@ -101,10 +101,12 @@ export function LocationTableRow({
         <Td className="text-body">{typeLabel(loc.type)}</Td>
         <Td numeric>
           {/* Both registers: the count includes works not owned by JvdB. */}
+          {/* Underlined at rest so it reads as a link, not a bare figure. */}
           <Link
             href={`/inventory?location=${loc.id}&ledger=all`}
-            className="link-plain text-ink underline decoration-rule-strong underline-offset-2"
+            className="link-plain text-ink underline decoration-meta underline-offset-2 hover:decoration-ink"
             title={`Show the ${loc.pieces === 1 ? "work" : "works"} at ${locationLabel(loc)}`}
+            aria-label={`Show ${formatCount(loc.pieces)} ${loc.pieces === 1 ? "work" : "works"} at ${loc.code} in the inventory`}
           >
             {formatCount(loc.pieces)}
           </Link>
@@ -114,7 +116,14 @@ export function LocationTableRow({
             <button type="button" onClick={() => setEditing(true)} className="link px-1.5 text-[12px]">
               Edit
             </button>
-            <Button size="sm" variant="quiet" aria-expanded={confirming} onClick={() => setConfirming((c) => !c)}>
+            {/* A row's destructive action: quiet, in the danger colour. */}
+            <Button
+              size="sm"
+              variant="quiet"
+              aria-expanded={confirming}
+              onClick={() => setConfirming((c) => !c)}
+              className="text-danger"
+            >
               Delete
             </Button>
           </span>

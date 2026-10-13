@@ -23,6 +23,8 @@ export type ButtonProps = Omit<ComponentPropsWithRef<"button">, "children"> & {
   pending?: boolean;
   /** Replaces the children while pending: "Saving…", "Sending…". */
   pendingLabel?: ReactNode;
+  /** Lets a long label wrap onto more lines (see buttonClass). */
+  wrap?: boolean;
   children?: ReactNode;
 } & Labelled;
 
@@ -41,6 +43,7 @@ export function Button({
   icon,
   pending,
   pendingLabel,
+  wrap,
   type = "button",
   disabled,
   className,
@@ -59,7 +62,7 @@ export function Button({
       aria-busy={busy || undefined}
       aria-label={iconOnly ? label : rest["aria-label"]}
       title={title ?? (iconOnly ? label : undefined)}
-      className={buttonClass({ variant, size, iconOnly }, className)}
+      className={buttonClass({ variant, size, iconOnly, wrap }, className)}
     >
       {icon}
       {busy && pendingLabel !== undefined && !iconOnly ? pendingLabel : children}

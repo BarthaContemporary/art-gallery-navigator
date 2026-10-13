@@ -2,17 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { previewKind, signDocumentUrl, type PreviewKind } from "@/lib/document-files";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { CloseIcon, ExternalIcon } from "@/components/ui/icons";
 
 /**
  * In-place preview for uploaded files. Click signs a short-lived URL and
  * opens a full-screen overlay: PDFs render in an iframe, images through the
  * storage image transform (a ~1600px JPEG instead of a multi-MB scan; it
  * also decodes HEIC/TIFF for browsers that can't); anything else (docx…)
- * gets a friendly fallback. Esc, the scrim, or ✕ closes it.
+ * gets a friendly fallback. Esc, the scrim, or the Close button closes it.
+ * The overlay is drawn as the spec's dialog: page fill, a rule-strong edge
+ * and the pop shadow over the scrim.
  */
-
-const actionBtn =
-  "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid transition-transform duration-100 hover:text-ink-strong active:scale-[0.97]";
 
 // Long enough that "Open in new tab" still works after a leisurely read.
 const URL_TTL_SECONDS = 1800;
@@ -25,8 +26,8 @@ function Overlay({ title, file, onClose }: { title: string; file: Signed; onClos
 
   useEffect(() => {
     // Esc reaches this listener while focus is on our own chrome. Once the
-    // user clicks into a cross-origin PDF iframe, key events stay inside it —
-    // the ✕ button and the scrim remain as the ways out.
+    // user clicks into a cross-origin PDF iframe, key events stay inside it;
+    // the Close button and the scrim remain as the ways out.
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -43,29 +44,30 @@ function Overlay({ title, file, onClose }: { title: string; file: Signed; onClos
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={`Preview: ${title}`}>
       <div
         className="jvb-scrim-enter absolute inset-0"
-        style={{ background: "var(--jvb-bg-overlay)", backdropFilter: "blur(2px)" }}
+        style={{ background: "var(--jvb-scrim)" }}
         onClick={onClose}
         aria-hidden
       />
-      <div className="jvb-pop-enter absolute inset-2 flex flex-col overflow-hidden border border-line bg-cell shadow-2xl sm:inset-6 lg:inset-10">
-        <div className="flex items-center gap-2 border-b border-line px-3 py-2 sm:px-4">
-          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-strong">
+      <div className="jvb-pop-enter absolute inset-2 flex flex-col overflow-hidden border border-rule-strong bg-page shadow-[var(--jvb-shadow-pop)] sm:inset-6 lg:inset-10">
+        <div className="flex items-center gap-2 border-b border-rule px-3 py-2 sm:px-4">
+          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold leading-[1.45] text-ink">
             {title}
           </span>
-          <a href={file.url} target="_blank" rel="noreferrer" className={actionBtn}>
-            Open in new tab ↗
-          </a>
-          <button
-            type="button"
-            onClick={onClose}
-            className={actionBtn}
-            aria-label="Close preview"
-            autoFocus
+          <ButtonLink
+            href={file.url}
+            native
+            target="_blank"
+            rel="noreferrer"
+            size="sm"
+            icon={<ExternalIcon size={14} />}
           >
-            Close ✕
-          </button>
+            Open in new tab
+          </ButtonLink>
+          <Button iconOnly label="Close preview" size="sm" onClick={onClose} autoFocus>
+            <CloseIcon size={14} />
+          </Button>
         </div>
-        <div className="min-h-0 flex-1 bg-band/40">
+        <div className="min-h-0 flex-1 bg-band">
           {file.kind === "pdf" ? (
             <iframe src={file.url} title={title} className="h-full w-full" />
           ) : file.kind === "image" && !imgFailed ? (
@@ -79,8 +81,8 @@ function Overlay({ title, file, onClose }: { title: string; file: Signed; onClos
               />
             </div>
           ) : (
-            <p className="flex h-full items-center justify-center p-6 text-center text-[13.5px] text-ink-body">
-              No in-browser preview for this file type — use “Open in new tab” above.
+            <p className="flex h-full items-center justify-center p-6 text-center text-[13.5px] leading-[1.5] text-body">
+              This type of file has no preview here. Use “Open in new tab” above.
             </p>
           )}
         </div>
@@ -117,7 +119,7 @@ export function FilePreviewLink({
           : url;
       setFile({ url, previewUrl, kind });
     } catch {
-      setError("Could not open the file — reload the page and try again.");
+      setError("Could not open the file. Reload the page and try again.");
     } finally {
       setBusy(false);
     }
@@ -130,10 +132,10 @@ export function FilePreviewLink({
         onClick={open}
         disabled={busy}
         className={className}
-        title={`${title} — click to preview`}
+        title={`Preview ${title}`}
       >
         {children}
-        {error ? <span className="block text-[11px] font-normal text-ink-soft">{error}</span> : null}
+        {error ? <span className="block text-[12px] font-normal leading-[1.4] text-danger">{error}</span> : null}
       </button>
       {file ? <Overlay title={title} file={file} onClose={close} /> : null}
     </>

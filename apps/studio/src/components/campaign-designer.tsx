@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PageHeader } from "./ui/page-header";
+import { Badge, type Tone } from "./ui/badge";
 import { Panel } from "./ui/section";
 import { Button } from "./ui/button";
 import { Field, Input, Select, Textarea } from "./ui/field";
@@ -76,6 +77,24 @@ function blankBlock(type: Block["type"]): Block {
       return { id, type: "text", text: "" };
   }
 }
+
+/**
+ * The status in the header, in the words and tones of the newsletters list
+ * (crm/campaigns): marked only where the newsletter needs someone.
+ */
+const SEND_STATE_BADGE: Record<Props["sendState"], { word: string; tone: Tone }> = {
+  draft: { word: "Draft", tone: "neutral" },
+  sending: { word: "Sending", tone: "info" },
+  partial: { word: "Part-sent", tone: "warn" },
+  stale: { word: "Part-sent", tone: "warn" },
+};
+
+/**
+ * Once sending has started the content is fixed, but it must still read
+ * back clearly: locked fields are read-only, in ink on the page ground with
+ * a quiet rule, rather than disabled (faint text on band, below AA).
+ */
+const LOCKED = "bg-page hover:bg-page border-b-rule-strong cursor-default resize-none";
 
 /** The palette's words, for the block headings too. */
 const BLOCK_LABELS = Object.fromEntries(BLOCK_PALETTE.map((p) => [p.type, p.label])) as Record<
@@ -255,7 +274,7 @@ export function CampaignDesigner(props: Props) {
       <PageHeader
         back={{ href: "/crm/campaigns", label: "All newsletters" }}
         title={name.trim() || "Untitled newsletter"}
-        meta={busy ? "Being sent" : resuming ? "Part-sent" : "Draft"}
+        meta={<Badge tone={SEND_STATE_BADGE[props.sendState].tone}>{SEND_STATE_BADGE[props.sendState].word}</Badge>}
       >
         {/* Test and send: the test address on the left, the one send on the
             right with how many it would reach. */}
@@ -345,7 +364,7 @@ export function CampaignDesigner(props: Props) {
               the rest exactly what the others received.
             </Notice>
           ) : null}
-          <fieldset disabled={locked} className="m-0 min-w-0 space-y-4 border-0 p-0">
+          <div className="min-w-0 space-y-4">
             {/* settings */}
             <Panel>
               <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
@@ -353,24 +372,47 @@ export function CampaignDesigner(props: Props) {
                   <Input
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    placeholder="A new selection of Japanese works"
+                    readOnly={locked}
+                    className={locked ? LOCKED : undefined}
+                    placeholder={locked ? undefined : "A new selection of Japanese works"}
                   />
                 </Field>
                 <Field label="Preview text" hint="Shown after the subject in most inboxes.">
-                  <Input value={preview} onChange={(e) => setPreview(e.target.value)} />
+                  <Input
+                    value={preview}
+                    onChange={(e) => setPreview(e.target.value)}
+                    readOnly={locked}
+                    className={locked ? LOCKED : undefined}
+                  />
                 </Field>
                 <Field label="Audience list">
-                  <Select value={listId} onChange={(e) => setListId(e.target.value)}>
-                    <option value="">Choose a list</option>
-                    {props.lists.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name} ({l.count})
-                      </option>
-                    ))}
-                  </Select>
+                  {locked ? (
+                    // A select cannot be read-only, so the fixed choice is
+                    // shown as a read-only field with the same words.
+                    <Input
+                      readOnly
+                      className={LOCKED}
+                      value={selectedList ? `${selectedList.name} (${selectedList.count})` : "No list chosen"}
+                    />
+                  ) : (
+                    <Select value={listId} onChange={(e) => setListId(e.target.value)}>
+                      <option value="">Choose a list</option>
+                      {props.lists.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name} ({l.count})
+                        </option>
+                      ))}
+                    </Select>
+                  )}
                 </Field>
                 <Field label="From address" hint="Leave empty for the gallery’s usual sender, shown in the box.">
-                  <Input value={from} onChange={(e) => setFrom(e.target.value)} placeholder={props.defaultFrom} />
+                  <Input
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                    readOnly={locked}
+                    className={locked ? LOCKED : undefined}
+                    placeholder={props.defaultFrom}
+                  />
                 </Field>
               </div>
             </Panel>
@@ -383,7 +425,9 @@ export function CampaignDesigner(props: Props) {
                     <h3 className="text-[13px] font-semibold leading-[1.45] text-ink">
                       {BLOCK_LABELS[b.type] ?? b.type}
                     </h3>
-                    <div className="flex items-center gap-1">
+                    {/* The arrangement is fixed once sending has started, so
+                        the controls that change it are left out. */}
+                    <div className={locked ? "hidden" : "flex items-center gap-1"}>
                       <Button
                         iconOnly
                         label="Move up"
@@ -409,7 +453,7 @@ export function CampaignDesigner(props: Props) {
                       </Button>
                     </div>
                   </div>
-                  <BlockEditor block={b} onChange={(patch) => patchBlock(b.id, patch)} />
+                  <BlockEditor block={b} locked={locked} onChange={(patch) => patchBlock(b.id, patch)} />
                 </div>
               ))}
               {blocks.length === 0 ? (
@@ -420,7 +464,11 @@ export function CampaignDesigner(props: Props) {
             </div>
 
             {/* palette */}
-            <div role="group" aria-labelledby={`add-block-${props.campaignId}`} className="flex flex-wrap items-center gap-1.5">
+            <div
+              role="group"
+              aria-labelledby={`add-block-${props.campaignId}`}
+              className={locked ? "hidden" : "flex flex-wrap items-center gap-1.5"}
+            >
               <span id={`add-block-${props.campaignId}`} className="label mr-1">
                 Add a block
               </span>
@@ -430,7 +478,7 @@ export function CampaignDesigner(props: Props) {
                 </Button>
               ))}
             </div>
-          </fieldset>
+          </div>
         </div>
 
         {/* ---- live preview ----
@@ -450,26 +498,35 @@ export function CampaignDesigner(props: Props) {
 
 function BlockEditor({
   block,
+  locked,
   onChange,
 }: {
   block: Block;
+  /** Sending has started: every field is read-only. */
+  locked: boolean;
   onChange: (patch: Partial<Block>) => void;
 }) {
+  // What every text field of a locked block takes.
+  const ro = locked ? { readOnly: true, className: LOCKED } : {};
   switch (block.type) {
     case "heading":
       return (
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
           <Field label="Heading text">
-            <Input value={block.text} onChange={(e) => onChange({ text: e.target.value } as Partial<Block>)} />
+            <Input {...ro} value={block.text} onChange={(e) => onChange({ text: e.target.value } as Partial<Block>)} />
           </Field>
           <Field label="Size">
-            <Select
-              value={block.level ?? 1}
-              onChange={(e) => onChange({ level: Number(e.target.value) as 1 | 2 } as Partial<Block>)}
-            >
-              <option value={1}>Large</option>
-              <option value={2}>Small</option>
-            </Select>
+            {locked ? (
+              <Input {...ro} value={(block.level ?? 1) === 2 ? "Small" : "Large"} />
+            ) : (
+              <Select
+                value={block.level ?? 1}
+                onChange={(e) => onChange({ level: Number(e.target.value) as 1 | 2 } as Partial<Block>)}
+              >
+                <option value={1}>Large</option>
+                <option value={2}>Small</option>
+              </Select>
+            )}
           </Field>
         </div>
       );
@@ -480,7 +537,8 @@ function BlockEditor({
             value={block.text}
             onChange={(e) => onChange({ text: e.target.value } as Partial<Block>)}
             rows={4}
-            className="font-serif leading-relaxed"
+            readOnly={locked}
+            className={locked ? `font-serif leading-relaxed ${LOCKED}` : "font-serif leading-relaxed"}
           />
         </Field>
       );
@@ -489,16 +547,17 @@ function BlockEditor({
         <div className="grid grid-cols-1 gap-x-2 gap-y-3 sm:grid-cols-2">
           <Field label="Image URL" className="sm:col-span-2">
             <Input
+              {...ro}
               value={block.url}
               onChange={(e) => onChange({ url: e.target.value } as Partial<Block>)}
-              placeholder="https://"
+              placeholder={locked ? undefined : "https://"}
             />
           </Field>
           <Field label="Alt text">
-            <Input value={block.alt ?? ""} onChange={(e) => onChange({ alt: e.target.value } as Partial<Block>)} />
+            <Input {...ro} value={block.alt ?? ""} onChange={(e) => onChange({ alt: e.target.value } as Partial<Block>)} />
           </Field>
           <Field label="Link URL" optional>
-            <Input value={block.href ?? ""} onChange={(e) => onChange({ href: e.target.value } as Partial<Block>)} />
+            <Input {...ro} value={block.href ?? ""} onChange={(e) => onChange({ href: e.target.value } as Partial<Block>)} />
           </Field>
         </div>
       );
@@ -506,10 +565,10 @@ function BlockEditor({
       return (
         <div className="grid grid-cols-1 gap-x-2 gap-y-3 sm:grid-cols-2">
           <Field label="Button label">
-            <Input value={block.label} onChange={(e) => onChange({ label: e.target.value } as Partial<Block>)} />
+            <Input {...ro} value={block.label} onChange={(e) => onChange({ label: e.target.value } as Partial<Block>)} />
           </Field>
           <Field label="Link URL">
-            <Input value={block.href} onChange={(e) => onChange({ href: e.target.value } as Partial<Block>)} />
+            <Input {...ro} value={block.href} onChange={(e) => onChange({ href: e.target.value } as Partial<Block>)} />
           </Field>
         </div>
       );
@@ -524,16 +583,19 @@ function BlockEditor({
               max={80}
               value={block.size ?? 20}
               onChange={(e) => onChange({ size: Number(e.target.value) } as Partial<Block>)}
+              disabled={locked}
               className="w-full"
             />
-            <span className="tabular w-10 shrink-0 text-[12px] text-meta">{block.size ?? 20}px</span>
+            <span className="tabular w-10 shrink-0 text-[12px] text-body">{block.size ?? 20}px</span>
           </div>
         </Field>
       );
     case "divider":
       return <p className="text-[13px] leading-[1.45] text-body">A horizontal rule.</p>;
     case "works":
-      return <WorksEditor items={block.items} onChange={(items) => onChange({ items } as Partial<Block>)} />;
+      return (
+        <WorksEditor items={block.items} locked={locked} onChange={(items) => onChange({ items } as Partial<Block>)} />
+      );
     default:
       return null;
   }
@@ -541,11 +603,14 @@ function BlockEditor({
 
 function WorksEditor({
   items,
+  locked,
   onChange,
 }: {
   items: WorkItem[];
+  locked: boolean;
   onChange: (items: WorkItem[]) => void;
 }) {
+  const ro = locked ? { readOnly: true, className: LOCKED } : {};
   const patch = (i: number, p: Partial<WorkItem>) =>
     onChange(items.map((it, j) => (j === i ? { ...it, ...p } : it)));
   return (
@@ -554,22 +619,22 @@ function WorksEditor({
         <div key={i} className="border-t border-rule pt-2">
           <div className="grid grid-cols-1 gap-x-2 gap-y-3 sm:grid-cols-2">
             <Field label="Title">
-              <Input value={it.title} onChange={(e) => patch(i, { title: e.target.value })} />
+              <Input {...ro} value={it.title} onChange={(e) => patch(i, { title: e.target.value })} />
             </Field>
             <Field label="Maker">
-              <Input value={it.maker ?? ""} onChange={(e) => patch(i, { maker: e.target.value })} />
+              <Input {...ro} value={it.maker ?? ""} onChange={(e) => patch(i, { maker: e.target.value })} />
             </Field>
             <Field label="Image URL">
-              <Input value={it.imageUrl ?? ""} onChange={(e) => patch(i, { imageUrl: e.target.value })} />
+              <Input {...ro} value={it.imageUrl ?? ""} onChange={(e) => patch(i, { imageUrl: e.target.value })} />
             </Field>
             <Field label="Link URL">
-              <Input value={it.url ?? ""} onChange={(e) => patch(i, { url: e.target.value })} />
+              <Input {...ro} value={it.url ?? ""} onChange={(e) => patch(i, { url: e.target.value })} />
             </Field>
             <Field label="Price or POA" optional>
-              <Input value={it.price ?? ""} onChange={(e) => patch(i, { price: e.target.value })} />
+              <Input {...ro} value={it.price ?? ""} onChange={(e) => patch(i, { price: e.target.value })} />
             </Field>
           </div>
-          <div className="mt-1.5 text-right">
+          <div className={locked ? "hidden" : "mt-1.5 text-right"}>
             <Button
               variant="quiet"
               size="sm"
@@ -581,9 +646,15 @@ function WorksEditor({
           </div>
         </div>
       ))}
-      <Button size="sm" icon={<PlusIcon size={14} />} onClick={() => onChange([...items, { title: "", maker: "", imageUrl: "", url: "" }])}>
-        Add work
-      </Button>
+      {locked ? null : (
+        <Button
+          size="sm"
+          icon={<PlusIcon size={14} />}
+          onClick={() => onChange([...items, { title: "", maker: "", imageUrl: "", url: "" }])}
+        >
+          Add work
+        </Button>
+      )}
     </div>
   );
 }

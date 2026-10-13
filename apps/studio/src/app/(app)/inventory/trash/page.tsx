@@ -101,14 +101,18 @@ export default async function TrashPage() {
       <TableFrame>
         <Table>
           <thead>
+            {/* Fixed widths from lg only. Between sm and lg the stock, date
+                and countdown columns take their content's width (one line
+                each) and the title keeps at least 200px, rather than being
+                squeezed to a word a line by columns sized for a desktop. */}
             <tr>
-              <Th className="hidden w-36 sm:table-cell">Stock</Th>
-              <Th>Title</Th>
-              <Th className="hidden w-32 sm:table-cell">Deleted</Th>
-              <Th className="hidden w-40 sm:table-cell" numeric>
+              <Th className="hidden sm:table-cell lg:w-36">Stock</Th>
+              <Th className="sm:min-w-[200px]">Title</Th>
+              <Th className="hidden sm:table-cell lg:w-32">Deleted</Th>
+              <Th className="hidden sm:table-cell lg:w-40" numeric>
                 Auto-removed in
               </Th>
-              <Th className="w-28 sm:w-44">
+              <Th className="w-28 sm:w-auto lg:w-44">
                 <span className="sr-only">Actions</span>
               </Th>
             </tr>
@@ -116,7 +120,7 @@ export default async function TrashPage() {
           <tbody>
             {rows.map((r) => (
               <Tr key={r.id}>
-                <Td className="hidden sm:table-cell">
+                <Td className="hidden whitespace-nowrap sm:table-cell">
                   <StockNumber row={r} />
                 </Td>
                 <Td className="text-ink">
@@ -127,15 +131,18 @@ export default async function TrashPage() {
                   </span>
                   {r.title ?? "Untitled"}
                   <span className="tabular mt-0.5 block text-[12px] leading-[1.4] text-meta sm:hidden">
-                    Deleted {formatDate(r.deleted_at, "numeric")}, {daysLeft(r.deleted_at)} days left
+                    Deleted {formatDate(r.deleted_at, "short")}, {daysLeft(r.deleted_at)} days left
                   </span>
                 </Td>
-                <Td className="tabular hidden text-body sm:table-cell">{formatDate(r.deleted_at, "numeric")}</Td>
-                <Td numeric className="hidden text-body sm:table-cell">
+                <Td className="tabular hidden whitespace-nowrap text-body sm:table-cell">
+                  {formatDate(r.deleted_at, "short")}
+                </Td>
+                <Td numeric className="hidden whitespace-nowrap text-body sm:table-cell">
                   {daysLeft(r.deleted_at)} days
                 </Td>
                 <Td>
-                  <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                  {/* One line from sm: Reinstate and Delete side by side. */}
+                  <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 sm:flex-nowrap">
                     <form action={reinstate}>
                       <input type="hidden" name="id" value={r.id} />
                       <input type="hidden" name="table" value={r.table} />
@@ -164,7 +171,7 @@ export default async function TrashPage() {
 function StockNumber({ row }: { row: TrashRow }) {
   return (
     <span className="flex flex-wrap items-center gap-1.5">
-      <span className="tabular text-ink">{row.stock_number}</span>
+      <span className="tabular whitespace-nowrap text-ink">{row.stock_number}</span>
       {row.ledger === "external" ? (
         <Badge caps size="xs">
           {LEDGER_LABEL.external}

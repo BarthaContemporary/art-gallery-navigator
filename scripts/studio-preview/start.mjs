@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /*
  * Start the preview: the mock Supabase on 127.0.0.1:54321 and the studio
- * under `next dev` on port 3011, both detached so they outlive this shell.
+ * under `next dev` on 127.0.0.1:3011 (loopback only, never the network),
+ * both detached so they outlive this shell.
  * Idempotent: a server already started by this script and still answering
  * is left alone. Waits until both answer, then says how to stop them.
  *
@@ -111,7 +112,10 @@ if (!(await waitFor("mock", `${MOCK_URL}/__preview/health`, 20_000))) process.ex
 
 const nextBin = path.join(STUDIO, "node_modules", ".bin", process.platform === "win32" ? "next.cmd" : "next");
 const studio = await ensure("studio", `${STUDIO_URL}/login`, () =>
-  launch("studio", nextBin, ["dev", "-p", String(PORT)], {
+  // Loopback only: the preview signs anyone in with any password, so it must
+  // not be reachable from the network (next dev listens on 0.0.0.0 unless
+  // told otherwise). The mock binds 127.0.0.1 for the same reason.
+  launch("studio", nextBin, ["dev", "-p", String(PORT), "-H", "127.0.0.1"], {
     cwd: STUDIO,
     env: {
       ...baseEnv(),

@@ -1,12 +1,11 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { buildContactExport } from "@/lib/contact-export";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { ArrowLeftIcon, DownloadIcon, PrintIcon } from "@/components/ui/icons";
+import { DownloadIcon, PrintIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "Personal data" };
 
@@ -28,7 +27,10 @@ export default async function ContactDataPage({ params }: { params: Promise<{ id
     if (typeof v === "object") return JSON.stringify(v);
     // Timestamps in London time, as the gallery recorded them; the server runs
     // on UTC, which put summer entries an hour out on the copy the person gets.
-    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T/.test(v)) return formatDateTime(v, "numeric", { seconds: true });
+    // Dates read as everywhere in the studio ("3 Oct 2026, 14:05"); the
+    // JSON download keeps the stored values as they are.
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T/.test(v)) return formatDateTime(v, "short");
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return formatDate(v, "short");
     return String(v);
   };
   // Each record as label-value pairs. Not the shared Section component: that
@@ -61,27 +63,20 @@ export default async function ContactDataPage({ params }: { params: Promise<{ id
 
   return (
     <div className="max-w-[var(--jvb-measure-wide)]">
-      {/* The back link and the actions stay off the printed copy, so the
-          person receives the record and nothing of the studio around it.
-          PageHeader's own back link cannot be hidden in print, hence this
-          one above it. */}
-      <Link
-        href={`/crm/contacts/${id}`}
-        className="mb-1 inline-flex items-center gap-1 text-[12px] leading-[1.4] text-meta hover:text-ink print:hidden"
-      >
-        <ArrowLeftIcon size={14} />
-        {name}
-      </Link>
+      {/* PageHeader leaves the back link and the actions off the printed
+          copy, so the person receives the record and nothing of the studio
+          around it. */}
       <PageHeader
+        back={{ href: `/crm/contacts/${id}`, label: name }}
         title={`Personal data held about ${name}`}
-        meta={`Prepared ${formatDateTime(data.exported_at, "numeric", { seconds: true })}`}
+        meta={`Prepared ${formatDateTime(data.exported_at, "short")}`}
         actions={
-          <div className="flex flex-wrap gap-2 print:hidden">
+          <>
             <ButtonLink href={`/api/crm/contacts/${id}/export`} native icon={<DownloadIcon size={14} />}>
               Download JSON
             </ButtonLink>
             <PrintButton />
-          </div>
+          </>
         }
       >
         <div className="max-w-[var(--jvb-measure)] space-y-2 text-[13px] leading-[1.45] text-body">

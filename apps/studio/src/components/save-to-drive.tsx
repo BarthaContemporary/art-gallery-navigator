@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { CheckIcon } from "@/components/ui/icons";
 
 /**
  * Export control: instead of a browser download, the document is saved onto
@@ -44,9 +45,25 @@ export function SaveToDriveLink({
     }
   }
 
+  // The label is the report: it is a live region, so the outcome is read
+  // out where it is shown. The tick is the shared icon, not a glyph.
   return (
     <a href={href} onClick={save} className={className} title={detail || "Saves onto the shared drive"}>
-      {state === "saving" ? "Saving…" : state === "saved" ? "Saved to drive ✓" : state === "error" ? "Failed — retry?" : children}
+      {/* Plain inline, so the link's own underline still reaches the words. */}
+      <span aria-live="polite">
+        {state === "saving" ? (
+          "Saving…"
+        ) : state === "saved" ? (
+          <>
+            <CheckIcon size={14} className="mr-1 inline-block align-[-2px] text-ok" />
+            Saved to drive
+          </>
+        ) : state === "error" ? (
+          <span className="text-danger">Save failed. Retry?</span>
+        ) : (
+          children
+        )}
+      </span>
     </a>
   );
 }
