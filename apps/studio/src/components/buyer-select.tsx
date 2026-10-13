@@ -138,13 +138,13 @@ export function BuyerSelect({
 
       {id && !searching ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-line-control px-2.5 py-0.5 text-[12px] text-ink-body">
+          <span className="inline-flex items-center gap-1.5 border border-line-control px-2.5 py-0.5 text-[12px] text-ink-body">
             {name || "Selected contact"}
-            <button type="button" onClick={clear} aria-label="Clear buyer" className="text-ink-muted hover:text-oranje">
+            <button type="button" onClick={clear} aria-label="Clear buyer" className="text-ink-muted hover:text-accent-deep">
               ×
             </button>
           </span>
-          <button type="button" onClick={() => setSearching(true)} className="text-[12px] text-oranje">
+          <button type="button" onClick={() => setSearching(true)} className="text-[12px] text-accent-deep">
             change
           </button>
         </div>
@@ -178,7 +178,7 @@ export function BuyerSelect({
             <p className="mt-1 text-[12px] text-ink-muted">No matches.</p>
           ) : null}
           {id ? (
-            <button type="button" onClick={() => setSearching(false)} className="mt-1 text-[12px] text-ink-muted hover:text-oranje">
+            <button type="button" onClick={() => setSearching(false)} className="mt-1 text-[12px] text-ink-muted hover:text-accent-deep">
               cancel
             </button>
           ) : null}
@@ -195,7 +195,7 @@ export function BuyerSelect({
             if (e.target === e.currentTarget) setPrompt(null);
           }}
         >
-          <div className="jvb-pop-enter w-full max-w-sm rounded-[13px] border border-line bg-cell p-5 shadow-xl">
+          <div className="jvb-pop-enter w-full max-w-sm border border-line bg-cell p-5 shadow-xl">
             <h2 className="text-[15px] font-semibold text-ink-strong">Update the status?</h2>
             <p className="mt-1.5 text-[13px] text-ink-muted">
               This work has a buyer but its status is “{label(prompt.current)}”. Would you like to

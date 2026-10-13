@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
 import { createServiceClient } from "@jvb/db/server";
 import { safeEqual } from "@/lib/secret";
+import { sendEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -138,6 +138,7 @@ export async function GET(request: Request) {
 
   // Alert on any potential match.
   let emailed = false;
+  let emailError: string | null = null;
   if (matches.length > 0) {
     const apiKey = process.env.RESEND_API_KEY;
     const to =
@@ -161,15 +162,23 @@ export async function GET(request: Request) {
         "These are name-similarity flags only and must be reviewed with your AML adviser. Open each contact in the studio to confirm or clear.",
       ].join("\n");
       try {
-        await new Resend(apiKey).emails.send({
-          from,
-          to,
-          subject: `AML alert: ${matches.length} sanctions match${matches.length === 1 ? "" : "es"} to review`,
-          text: body,
-        });
+        await sendEmail(
+          apiKey,
+          {
+            from,
+            to,
+            subject: `AML alert: ${matches.length} sanctions match${matches.length === 1 ? "" : "es"} to review`,
+            text: body,
+          },
+          "Sanctions alert",
+        );
         emailed = true;
-      } catch {
-        // screening still recorded even if the email fails
+      } catch (e) {
+        // The screening is still recorded even if the email fails, but a
+        // refused alert must read as not sent (it used to report emailed:
+        // true), and the reason goes to the log and the cron's response.
+        emailError = e instanceof Error ? e.message : String(e);
+        console.error("[sanctions-screen] alert email failed:", emailError);
       }
     }
   }
@@ -180,5 +189,6 @@ export async function GET(request: Request) {
     contactsFlagged: matchedContactIds.size,
     listGenerated: dateGenerated,
     emailed,
+    ...(emailError ? { emailError } : {}),
   });
 }

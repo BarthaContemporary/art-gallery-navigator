@@ -107,7 +107,7 @@ export default async function ShipmentsPage({
             href={v ? `/shipments?kind=${v}` : "/shipments"}
             className={`rounded-lg border px-3 py-1.5 font-medium ${
               (sp.kind ?? "") === v
-                ? "border-oranje text-oranje"
+                ? "border-oranje text-accent-deep"
                 : "border-line-control bg-control text-ink-mid"
             }`}
           >
@@ -116,7 +116,7 @@ export default async function ShipmentsPage({
         ))}
       </div>
 
-      <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">
+      <div className="mt-3 overflow-x-auto border border-line">
         <table className="w-full min-w-[640px] bg-cell text-left text-[13px]">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">

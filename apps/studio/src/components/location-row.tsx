@@ -83,7 +83,7 @@ export function LocationTableRow({
           </a>
         </td>
         <td className="px-4 py-2.5 text-right">
-          <button type="button" onClick={() => setEditing(true)} className="text-[12px] font-medium text-oranje hover:underline">
+          <button type="button" onClick={() => setEditing(true)} className="text-[12px] font-medium text-accent-deep hover:underline">
             Edit
           </button>
           <button

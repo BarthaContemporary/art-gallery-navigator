@@ -51,7 +51,7 @@ type Contact = {
 const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
 const input =
   "mt-1 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
-const box = "rounded-[11px] border border-line bg-cell p-5";
+const box = "border border-line bg-cell p-5";
 
 const AML_OPTIONS: [string, string][] = [
   ["not_started", "Not started"],
@@ -186,11 +186,14 @@ export function ContactEditor({
       }}
       className="mt-6 space-y-6"
     >
-      {/* autosave status */}
+      {/* autosave status. Pinned below the header's measured height (it wraps
+          to about 88px on desktop), not a fixed 64px that slid the line and
+          its Retry button under the header. */}
       <p
-        className={`sticky top-[64px] z-10 flex items-center gap-2 text-[12px] ${
+        style={{ top: "var(--app-header-h, 88px)" }}
+        className={`sticky z-10 flex items-center gap-2 text-[12px] ${
           status === "error"
-            ? "text-oranje"
+            ? "text-danger"
             : status === "saved"
               ? "text-status-green"
               : "text-ink-soft"
@@ -205,7 +208,7 @@ export function ContactEditor({
               attempt.current = 0;
               void save();
             }}
-            className="rounded-md border border-oranje/40 px-2 py-0.5 text-[11px] font-medium text-oranje hover:bg-oranje/10"
+            className="rounded-md border border-oranje/40 px-2 py-0.5 text-[11px] font-medium text-accent-deep hover:bg-oranje/10"
           >
             Retry now
           </button>
@@ -362,7 +365,7 @@ export function ContactEditor({
                     <div className="min-w-0">
                       <a
                         href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
-                        className="block min-w-0 hover:text-oranje"
+                        className="block min-w-0 hover:text-accent-deep"
                       >
                         <span className="font-mono text-[12px] text-ink-muted">
                           {p.stock_number ?? "—"}
@@ -410,7 +413,7 @@ export function ContactEditor({
                     <div className="min-w-0">
                       <a
                         href={`/inventory/${encodeURIComponent(c.stock_number ?? "")}`}
-                        className="block min-w-0 hover:text-oranje"
+                        className="block min-w-0 hover:text-accent-deep"
                       >
                         <span className="font-mono text-[12px] text-ink-muted">
                           {c.stock_number ?? "—"}

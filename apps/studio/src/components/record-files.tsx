@@ -137,7 +137,7 @@ export function RecordFiles({
           {staged.map((f, i) => (
             <li key={i} className="flex items-center gap-2 rounded-lg border border-line-soft bg-band/40 px-3 py-1.5 text-[12.5px]">
               <span className="min-w-0 flex-1 truncate text-ink-body">{f.name}</span>
-              <button type="button" onClick={() => setStaged((p) => p.filter((_, idx) => idx !== i))} disabled={busy} className="shrink-0 text-ink-soft hover:text-oranje">
+              <button type="button" onClick={() => setStaged((p) => p.filter((_, idx) => idx !== i))} disabled={busy} className="shrink-0 text-ink-soft hover:text-accent-deep">
                 ✕
               </button>
             </li>

@@ -1,34 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { countListMembers } from "@/lib/list-members";
 import { FoldPanel } from "@/components/fold-panel";
 import { NewDocument } from "@/components/new-document";
+import { formatDate } from "@/lib/format";
+import { DOC_TYPE_LABELS, SHIPMENT_KIND_LABELS, labelOf } from "@/lib/labels";
 
 export const metadata = { title: "Inventory Lists & Docs" };
 
-const KIND_LABEL: Record<string, string> = {
-  import: "Import",
-  export: "Export",
-  temporary_import: "Temporary import",
-  temporary_export: "Temporary export",
-};
-const TYPE_LABEL: Record<string, string> = {
-  purchase_invoice: "Purchase invoice",
-  sale_invoice: "Sale invoice",
-  provenance_document: "Provenance",
-  correspondence: "Correspondence",
-  shipping: "Shipping",
-  insurance: "Insurance",
-  certificate: "Certificate",
-  condition_report: "Condition report",
-  export_licence: "Export licence",
-  import_document: "Import documents",
-  other: "Other",
-};
-
 const rowCls = "flex items-center justify-between gap-3 border-b border-line-soft py-2 text-[13px] last:border-0";
 const manageCls = "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid";
-const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB") : "—");
+// shipment_date and doc_date are `date` columns: printed as the day they name.
+const fmt = (d: string | null) => formatDate(d, "numeric");
 
 export default async function LibraryPage() {
   const supabase = await getSupabase();
@@ -79,37 +63,17 @@ export default async function LibraryPage() {
 
   // A live list has no rows in piece_list_items — its membership is the saved
   // filters, re-run on read. Counting the join table therefore reported 0 for
-  // every live list ("Works at auction" showed 0 while holding 65). Re-run the
-  // rules here so the number means the same thing for both kinds of list.
+  // every live list ("Works at auction" showed 0 while holding 65). The shared
+  // counter re-runs the rules the way the list page resolves them (exclusions
+  // such as "not Sold", register, framed, pinned-out works), so the number
+  // means the same thing here, on the Lists page and on the list itself.
   const listRows = await Promise.all(
-    rawLists.map(async (l) => {
-      if (!l.is_dynamic) {
-        return { id: l.id, name: l.name, isDynamic: false, count: l.piece_list_items?.[0]?.count ?? 0 };
-      }
-      const rules = l.filter_rules ?? {};
-      const q = (rules.q ?? "").trim();
-      if (q) {
-        // Text rules go through the ranked search RPC, then the facets are
-        // applied to the hits — same as the list detail page does.
-        const { data: hits } = await supabase.rpc("pieces_search", { q });
-        let f = (hits ?? []) as Array<{
-          id: string;
-          status: string;
-          category_id: string | null;
-          location_id: string | null;
-        }>;
-        if (rules.status) f = f.filter((h) => h.status === rules.status);
-        if (rules.category) f = f.filter((h) => h.category_id === rules.category);
-        if (rules.location) f = f.filter((h) => h.location_id === rules.location);
-        return { id: l.id, name: l.name, isDynamic: true, count: f.length };
-      }
-      let cq = supabase.from("vw_pieces_list").select("id", { count: "exact", head: true });
-      if (rules.status) cq = cq.eq("status", rules.status);
-      if (rules.category) cq = cq.eq("category_id", rules.category);
-      if (rules.location) cq = cq.eq("location_id", rules.location);
-      const { count } = await cq;
-      return { id: l.id, name: l.name, isDynamic: true, count: count ?? 0 };
-    }),
+    rawLists.map(async (l) => ({
+      id: l.id,
+      name: l.name,
+      isDynamic: Boolean(l.is_dynamic),
+      count: await countListMembers(supabase, l),
+    })),
   );
   const shipRows = (shipments.data ?? []) as unknown as {
     id: string; kind: string; shipment_date: string | null; reference: string | null; piece_shipments: { count: number }[];
@@ -137,12 +101,12 @@ export default async function LibraryPage() {
             <div>
               {listRows.map((l) => (
                 <div key={l.id} className={rowCls}>
-                  <Link href={`/inventory/lists/${l.id}`} className="min-w-0 truncate text-ink-body hover:text-oranje">
+                  <Link href={`/inventory/lists/${l.id}`} className="min-w-0 truncate text-ink-body hover:text-accent-deep">
                     {l.name}
                   </Link>
                   <span className="flex shrink-0 items-center gap-1.5">
                     {l.isDynamic ? (
-                      <span className="rounded-full bg-oranje/10 px-1.5 text-[10px] font-medium uppercase tracking-[0.06em] text-oranje">
+                      <span className="bg-oranje/10 px-1.5 text-[10px] font-medium uppercase tracking-[0.06em] text-accent-deep">
                         Live
                       </span>
                     ) : null}
@@ -166,7 +130,7 @@ export default async function LibraryPage() {
               <form action={createShipment}><input type="hidden" name="kind" value="temporary_import" /><button className={manageCls}>New temporary import</button></form>
               <form action={createShipment}><input type="hidden" name="kind" value="export" /><button className={manageCls}>New export</button></form>
               <form action={createShipment}><input type="hidden" name="kind" value="temporary_export" /><button className={manageCls}>New temporary export</button></form>
-              <Link href="/shipments" className="text-[12px] text-oranje hover:underline">All →</Link>
+              <Link href="/shipments" className="text-[12px] text-accent-deep hover:underline">All →</Link>
             </>
           }
         >
@@ -174,8 +138,8 @@ export default async function LibraryPage() {
             <div>
               {shipRows.map((s) => (
                 <div key={s.id} className={rowCls}>
-                  <Link href={`/shipments/${s.id}`} className="min-w-0 truncate text-ink-body hover:text-oranje">
-                    <span className="font-medium">{KIND_LABEL[s.kind] ?? s.kind}</span>
+                  <Link href={`/shipments/${s.id}`} className="min-w-0 truncate text-ink-body hover:text-accent-deep">
+                    <span className="font-medium">{labelOf(SHIPMENT_KIND_LABELS, s.kind)}</span>
                     <span className="text-ink-muted"> · {fmt(s.shipment_date)}{s.reference ? ` · ${s.reference}` : ""}</span>
                   </Link>
                   <span className="font-mono text-[12px] text-ink-soft">{s.piece_shipments?.[0]?.count ?? 0} items</span>
@@ -188,13 +152,13 @@ export default async function LibraryPage() {
         </FoldPanel>
 
         {/* Documents */}
-        <FoldPanel title="Documents" count={docRows.length} action={<><NewDocument /><Link href="/documents" className="text-[12px] text-oranje hover:underline">All →</Link></>}>
+        <FoldPanel title="Documents" count={docRows.length} action={<><NewDocument /><Link href="/documents" className="text-[12px] text-accent-deep hover:underline">All →</Link></>}>
           {docRows.length ? (
             <div>
               {docRows.map((d) => (
                 <div key={d.id} className={rowCls}>
-                  <Link href={`/documents/${d.id}`} className="min-w-0 truncate text-ink-body hover:text-oranje">
-                    <span className="font-medium">{TYPE_LABEL[d.doc_type] ?? d.doc_type.replace(/_/g, " ")}</span>
+                  <Link href={`/documents/${d.id}`} className="min-w-0 truncate text-ink-body hover:text-accent-deep">
+                    <span className="font-medium">{labelOf(DOC_TYPE_LABELS, d.doc_type)}</span>
                     {d.title ? <span className="text-ink-muted"> · {d.title}</span> : null}
                     <span className="text-ink-muted"> · {fmt(d.doc_date)}</span>
                   </Link>

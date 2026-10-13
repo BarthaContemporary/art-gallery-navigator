@@ -7,6 +7,7 @@ import {
   londonTime,
   zonedToUtc,
 } from "@/lib/caldav";
+import { formatDate } from "@/lib/format";
 
 const WINDOW_DAYS = 10;
 
@@ -20,6 +21,18 @@ type Row = {
   detail: string | null;
   color: string | null;
   kind: "event" | "appointment";
+  /**
+   * A booking still at `requested` (every website Visit booking starts there)
+   * has not been agreed yet. Without a mark it read exactly like a confirmed
+   * one, so staff could expect a visitor nobody had confirmed.
+   */
+  toConfirm: boolean;
+  /**
+   * Appointments link to the appointments page, where Confirm lives. That page
+   * does not read `focus` yet; it names the booking so the page can pick it
+   * out later without this link changing.
+   */
+  href: string | null;
 };
 
 function addDaysIso(day: string, delta: number): string {
@@ -30,13 +43,9 @@ function addDaysIso(day: string, delta: number): string {
 function dayHeading(day: string, today: string): string {
   if (day === today) return "Today";
   if (day === addDaysIso(today, 1)) return "Tomorrow";
-  const [y, m, d] = isoDayParts(day);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
+  // "Mon 12 Oct". `day` is already a London calendar day (YYYY-MM-DD), which
+  // formatDate prints as that day without shifting it by a zone.
+  return formatDate(day, "short", { weekday: true, year: false });
 }
 
 /** Dashboard card: shared-calendar events + appointments over the next 10 days. */
@@ -76,6 +85,8 @@ export async function UpcomingEventsPanel() {
         detail: [ev.location, runsOn].filter(Boolean).join(" · ") || null,
         color: ev.color,
         kind: "event",
+        toConfirm: false,
+        href: null,
       });
     }
   }
@@ -83,6 +94,7 @@ export async function UpcomingEventsPanel() {
     const r = raw as unknown as {
       id: string;
       starts_at: string;
+      status: string;
       name: string | null;
       contact: { first_name: string | null; last_name: string | null } | null;
       type: { name: string | null } | null;
@@ -104,6 +116,8 @@ export async function UpcomingEventsPanel() {
       detail: type?.name ?? "Appointment",
       color: null,
       kind: "appointment",
+      toConfirm: r.status === "requested",
+      href: `/appointments?focus=${encodeURIComponent(r.id)}`,
     });
   }
 
@@ -116,7 +130,7 @@ export async function UpcomingEventsPanel() {
   }
 
   return (
-    <div className="rounded-[11px] border border-line bg-cell p-4">
+    <div className="border border-line bg-cell p-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-[13px] font-semibold text-ink-strong">Next 10 days</h2>
         <Link
@@ -157,7 +171,7 @@ export async function UpcomingEventsPanel() {
                     ) : (
                       <span
                         aria-hidden
-                        className="mt-[5px] inline-block h-[6px] w-[6px] shrink-0 rounded-[2px] border border-line bg-cell"
+                        className="mt-[5px] inline-block h-[6px] w-[6px] shrink-0 border border-line bg-cell"
                         title="Appointment"
                       />
                     )}
@@ -167,7 +181,19 @@ export async function UpcomingEventsPanel() {
                           {row.time}{" "}
                         </span>
                       ) : null}
-                      <span className="font-medium">{row.label}</span>
+                      {row.href ? (
+                        <Link href={row.href} className="font-medium hover:underline">
+                          {row.label}
+                        </Link>
+                      ) : (
+                        <span className="font-medium">{row.label}</span>
+                      )}
+                      {/* A word, not colour alone: warn text on its own wash. */}
+                      {row.toConfirm ? (
+                        <span className="ml-1.5 whitespace-nowrap bg-warn-wash px-1 py-px text-micro font-medium text-warn">
+                          to confirm
+                        </span>
+                      ) : null}
                       {row.detail ? (
                         <span className="text-[11.5px] text-ink-muted"> · {row.detail}</span>
                       ) : null}

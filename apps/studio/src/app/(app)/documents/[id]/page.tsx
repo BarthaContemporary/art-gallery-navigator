@@ -5,6 +5,7 @@ import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { FilePreviewLink } from "@/components/file-preview";
 import { loadPieceSummaries } from "@/lib/piece-store";
+import { DOC_TYPE_LABELS, labelOf } from "@/lib/labels";
 
 export const metadata = { title: "Document" };
 
@@ -12,19 +13,9 @@ const field = "mt-1 block w-full rounded-lg border border-line-control bg-contro
 const labelCls = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
 const btnGhost = "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid";
 
-const DOC_TYPES: [string, string][] = [
-  ["purchase_invoice", "Purchase invoice"],
-  ["sale_invoice", "Sale invoice"],
-  ["provenance_document", "Provenance document"],
-  ["correspondence", "Correspondence"],
-  ["shipping", "Shipping document"],
-  ["insurance", "Insurance document"],
-  ["certificate", "Certificate"],
-  ["condition_report", "Condition report"],
-  ["export_licence", "Export licence"],
-  ["import_document", "Import documents"],
-  ["other", "Other"],
-];
+// The same eleven values in the same order as before; the words are the
+// shared ones, so this select matches the Documents filters.
+const DOC_TYPES = Object.entries(DOC_TYPE_LABELS);
 
 type PieceLite = { id: string; stock_number: string | null; title: string | null };
 
@@ -126,10 +117,10 @@ export default async function DocumentDetail({
     <div className="max-w-[900px]">
       <Link href="/documents" className="text-[12.5px] text-ink-soft">← All documents</Link>
       <h1 className="mt-2 text-[22px] font-semibold text-ink-strong">
-        {DOC_TYPES.find(([v]) => v === doc.doc_type)?.[1] ?? doc.doc_type.replace(/_/g, " ")}
+        {labelOf(DOC_TYPE_LABELS, doc.doc_type)}
       </h1>
 
-      <form action={updateDoc} className="mt-5 grid grid-cols-1 gap-4 rounded-[11px] border border-line bg-cell p-5 sm:grid-cols-2">
+      <form action={updateDoc} className="mt-5 grid grid-cols-1 gap-4 border border-line bg-cell p-5 sm:grid-cols-2">
         <label className={labelCls}>
           Type
           <select name="doc_type" defaultValue={doc.doc_type} className={field}>
@@ -171,7 +162,7 @@ export default async function DocumentDetail({
         </div>
       </form>
 
-      <section className="mt-6 rounded-[11px] border border-line bg-cell p-5">
+      <section className="mt-6 border border-line bg-cell p-5">
         <h2 className="text-[13px] font-semibold text-ink-strong">Inventory items ({attached.length})</h2>
         <div className="mt-3 space-y-1.5">
           {attached.map((p) => (
@@ -206,7 +197,7 @@ export default async function DocumentDetail({
         ) : null}
       </section>
 
-      <div className="mt-8 flex items-center justify-between rounded-[11px] border border-line-soft bg-band px-4 py-3">
+      <div className="mt-8 flex items-center justify-between border border-line-soft bg-band px-4 py-3">
         <p className="text-[13px] text-ink-strong">Delete this document</p>
         <DeleteListButton action={deleteDoc} id={id} name="document" />
       </div>

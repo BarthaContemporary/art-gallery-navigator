@@ -3,7 +3,6 @@ import { SubmitButton } from "@/components/submit-button";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { Resend } from "resend";
 import { OfferEmail } from "@jvb/emails";
 import { getSupabase } from "@/lib/supabase";
 import { sanitizeFilterTerm } from "@/lib/search";
@@ -11,6 +10,17 @@ import { OfferItemsEditor } from "@/components/offer-items-editor";
 import { resolveListPieceIds, countListMembers, type ListRules } from "@/lib/list-members";
 import { loadPieceSummaries } from "@/lib/piece-store";
 import { resolveListContactIds } from "@/lib/crm-list-members";
+import { selectInChunks } from "@/lib/chunk";
+import {
+  sendEmail,
+  emailIdempotencyKey,
+  emailErrorCode,
+  emailErrorDetail,
+  describeEmailError,
+} from "@/lib/email";
+import { parseAmount } from "@/lib/amount";
+// London time: this page renders on the server, where the zone is UTC.
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Offer" };
 
@@ -18,6 +28,17 @@ export const metadata = { title: "Offer" };
 const OFFER_BASE =
   process.env.OFFER_LINK_BASE_URL ?? "https://jvb-web.vercel.app";
 const GALLERY_NAME = "Joost van den Bergh";
+
+/*
+ * Matching a client's reply note to their recipient row. The website's
+ * offer-response route sets responded_at and, in the same request, writes the
+ * note as an enquiry (channel "offer") that carries the contact but no link to
+ * the offer. The enquiry nearest to responded_at, within this window (room
+ * for the web server's and the database's clocks to differ), is the reply.
+ */
+const REPLY_MATCH_MS = 10 * 60_000;
+/** The enquiry text the route writes when the client left no note. */
+const AUTO_REPLY_TEXT = /^Interested in offer "[\s\S]*"\.$/;
 
 const gbp = (n: number | null | undefined) =>
   n == null
@@ -85,7 +106,14 @@ export default async function OfferDetail({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ add?: string; rc?: string; sent?: string; skipped?: string }>;
+  searchParams: Promise<{
+    add?: string;
+    rc?: string;
+    sent?: string;
+    skipped?: string;
+    failed?: string;
+    reason?: string;
+  }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -154,6 +182,60 @@ export default async function OfferDetail({
     (r) => ({ ...r, piece: itemPieces.get(r.piece_id) ?? null }),
   ) as unknown as Item[];
   const recipients = (recipientsData ?? []) as unknown as Recipient[];
+
+  // The note a client left with "I'm interested", shown under their status.
+  const replyNotes = new Map<string, string>();
+  const interested = recipients.filter(
+    (r) => r.response === "interested" && r.responded_at && r.contact?.id,
+  );
+  if (interested.length > 0) {
+    const enquiries = await selectInChunks<{
+      contact_id: string;
+      message: string | null;
+      created_at: string;
+    }>(
+      interested.map((r) => r.contact!.id),
+      (chunk) =>
+        supabase
+          .from("enquiries")
+          .select("contact_id, message, created_at")
+          .eq("channel", "offer")
+          .in("contact_id", chunk),
+    ).catch(() => []);
+    for (const r of interested) {
+      const at = Date.parse(r.responded_at!);
+      let best: { message: string | null; gap: number } | null = null;
+      for (const e of enquiries) {
+        if (e.contact_id !== r.contact!.id) continue;
+        const gap = Math.abs(Date.parse(e.created_at) - at);
+        if (gap <= REPLY_MATCH_MS && (!best || gap < best.gap)) best = { message: e.message, gap };
+      }
+      const note = best?.message?.trim();
+      if (note && !AUTO_REPLY_TEXT.test(note)) replyNotes.set(r.id, note);
+    }
+  }
+
+  // Why the last send to a still-unsent recipient was refused (sendOffer
+  // records each refusal as an email_events "failed" row), newest first.
+  // email_events is admin-only under RLS, so other roles see "not sent"
+  // (true, just without the reason); the banner after a send shows it to all.
+  const sendFailures = new Map<string, string>();
+  if (recipients.some((r) => !r.sent_at)) {
+    const { data: fails } = await supabase
+      .from("email_events")
+      .select("offer_recipient_id, payload, created_at, offer_recipients!inner ( offer_id )")
+      .eq("event_type", "failed")
+      .eq("offer_recipients.offer_id", id)
+      .order("created_at", { ascending: false });
+    for (const f of (fails ?? []) as unknown as {
+      offer_recipient_id: string;
+      payload: { error?: string } | null;
+    }[]) {
+      if (!sendFailures.has(f.offer_recipient_id)) {
+        sendFailures.set(f.offer_recipient_id, f.payload?.error ?? "");
+      }
+    }
+  }
   const existingPieceIds = new Set(items.map((i) => i.piece?.id).filter(Boolean));
   const existingContactIds = new Set(
     recipients.map((r) => r.contact?.id).filter(Boolean),
@@ -271,11 +353,12 @@ export default async function OfferDetail({
     "use server";
     const db = await getSupabase();
     const itemId = String(formData.get("item_id") ?? "");
-    const priceRaw = String(formData.get("price_override_gbp") ?? "").trim();
+    // parseAmount, not Number(): Number("12,000") is NaN, which was stored as
+    // null, so typing a price the way people write it cleared it.
     await db
       .from("offer_items")
       .update({
-        price_override_gbp: priceRaw ? Number(priceRaw) : null,
+        price_override_gbp: parseAmount(formData.get("price_override_gbp")),
         note: String(formData.get("note") ?? "").trim() || null,
       })
       .eq("id", itemId);
@@ -376,7 +459,6 @@ export default async function OfferDetail({
       .eq("offer_id", id)
       .is("sent_at", null);
 
-    const resend = new Resend(apiKey);
     const from =
       process.env.OFFERS_FROM_EMAIL ??
       process.env.EMAIL_FROM ??
@@ -385,6 +467,8 @@ export default async function OfferDetail({
 
     let sent = 0;
     let skipped = 0;
+    let failed = 0;
+    let reason = "";
     for (const r of (recs ?? []) as unknown as Recipient[]) {
       const email = r.contact?.email;
       if (!email || r.contact?.unsubscribed_at) {
@@ -393,42 +477,61 @@ export default async function OfferDetail({
       }
       const recipientName =
         r.contact?.first_name ?? r.contact?.salutation ?? "collector";
+      const props = {
+        recipientName,
+        offerTitle: off?.title ?? "A selection of works",
+        intro: off?.intro ?? undefined,
+        offerUrl: `${OFFER_BASE}/o/${r.token}`,
+        galleryName: GALLERY_NAME,
+        expiresAt,
+        accessPassword: off?.access_password ?? undefined,
+      };
+      const subject = off?.title ?? "A private selection";
+      let resendId: string;
       try {
-        const { data: res } = await resend.emails.send({
-          from,
-          to: email,
-          subject: off?.title ?? "A private selection",
-          react: OfferEmail({
-            recipientName,
-            offerTitle: off?.title ?? "A selection of works",
-            intro: off?.intro ?? undefined,
-            offerUrl: `${OFFER_BASE}/o/${r.token}`,
-            galleryName: GALLERY_NAME,
-            expiresAt,
-            accessPassword: off?.access_password ?? undefined,
-          }),
+        // The key makes a second press of Send (or two tabs) a no-op at
+        // Resend for anyone the first press already reached.
+        resendId = await sendEmail(
+          apiKey,
+          { from, to: email, subject, react: OfferEmail(props) },
+          "Offer",
+          { idempotencyKey: emailIdempotencyKey(`offer-${r.id}`, { from, to: email, subject, props }) },
+        );
+      } catch (e) {
+        // Refused: sent_at stays empty, so the recipient is still counted as
+        // ready to send and pressing Send again retries them. The reason is
+        // kept for the recipients table.
+        failed++;
+        reason ||= emailErrorCode(e);
+        await db.from("email_events").insert({
+          event_type: "failed",
+          offer_recipient_id: r.id,
+          payload: { error: emailErrorCode(e), message: emailErrorDetail(e) },
         });
-        await db
-          .from("offer_recipients")
-          .update({
-            sent_at: new Date().toISOString(),
-            resend_email_id: res?.id ?? null,
-          })
-          .eq("id", r.id);
-        await db
-          .from("email_events")
-          .insert({
-            event_type: "sent",
-            offer_recipient_id: r.id,
-            payload: { resend_id: res?.id ?? null },
-          });
-        sent++;
-      } catch {
-        skipped++;
+        continue;
       }
+      await db
+        .from("offer_recipients")
+        .update({
+          sent_at: new Date().toISOString(),
+          resend_email_id: resendId,
+        })
+        .eq("id", r.id);
+      await db
+        .from("email_events")
+        .insert({
+          event_type: "sent",
+          offer_recipient_id: r.id,
+          payload: { resend_id: resendId },
+        });
+      sent++;
     }
     revalidatePath(`/offers/${id}`);
-    redirect(`/offers/${id}?sent=${sent}&skipped=${skipped}`);
+    redirect(
+      `/offers/${id}?sent=${sent}&skipped=${skipped}${
+        failed ? `&failed=${failed}&reason=${encodeURIComponent(reason)}` : ""
+      }`,
+    );
   }
 
   // ---- send banner --------------------------------------------------------
@@ -440,6 +543,10 @@ export default async function OfferDetail({
   else if (sp.sent)
     banner = `Sent ${sp.sent} email${sp.sent === "1" ? "" : "s"}${
       sp.skipped && sp.skipped !== "0" ? ` · ${sp.skipped} skipped` : ""
+    }${
+      sp.failed && sp.failed !== "0"
+        ? ` · ${sp.failed} failed (${describeEmailError(sp.reason)}). They are still unsent: press Send again to retry them`
+        : ""
     }.`;
 
   const expiryValue = offer.expires_at
@@ -479,7 +586,7 @@ export default async function OfferDetail({
       {/* Settings */}
       <form
         action={updateOffer}
-        className="mt-6 grid grid-cols-1 gap-4 rounded-[11px] border border-line bg-cell p-5 sm:grid-cols-2"
+        className="mt-6 grid grid-cols-1 gap-4 border border-line bg-cell p-5 sm:grid-cols-2"
       >
         <label className={labelCls}>
           Title
@@ -625,7 +732,7 @@ export default async function OfferDetail({
         <h2 className="text-[15px] font-semibold text-ink-strong">
           Recipients ({recipients.length})
         </h2>
-        <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">
+        <div className="mt-3 overflow-x-auto border border-line">
           <table className="w-full min-w-[640px] bg-cell text-left text-[13px]">
             <thead>
               <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
@@ -642,13 +749,17 @@ export default async function OfferDetail({
                   [r.contact?.first_name, r.contact?.last_name]
                     .filter(Boolean)
                     .join(" ") || "—";
+                const failure = r.sent_at ? undefined : sendFailures.get(r.id);
                 const status = r.response
                   ? r.response
                   : r.first_viewed_at
                     ? "viewed"
                     : r.sent_at
                       ? "sent"
-                      : "not sent";
+                      : failure !== undefined
+                        ? `send failed (${describeEmailError(failure)})`
+                        : "not sent";
+                const note = replyNotes.get(r.id);
                 return (
                   <tr key={r.id} className="border-b border-line-soft last:border-0">
                     <td className="px-4 py-2 text-ink-body">{name}</td>
@@ -660,7 +771,17 @@ export default async function OfferDetail({
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-4 py-2 text-ink-muted">{status}</td>
+                    <td className="px-4 py-2 text-ink-muted">
+                      {status}
+                      {r.response && r.responded_at
+                        ? ` · ${formatDate(r.responded_at)}`
+                        : null}
+                      {note ? (
+                        <p className="mt-0.5 max-w-[360px] whitespace-pre-line text-[12.5px] text-ink-body">
+                          “{note}”
+                        </p>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-2 font-mono text-[12px] text-ink-muted">
                       {r.view_count ?? 0}
                     </td>
@@ -756,13 +877,13 @@ export default async function OfferDetail({
       </section>
 
       {/* Send */}
-      <section className="mt-8 rounded-[11px] border border-line bg-band p-5">
+      <section className="mt-8 border border-line bg-band p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-[15px] font-semibold text-ink-strong">
               Send private links
             </h2>
-            <p className="mt-1 text-[12.5px] text-ink-muted">
+            <p className="mt-1 text-[12.5px] text-body">
               {sendable > 0
                 ? `${sendable} recipient${sendable === 1 ? "" : "s"} ready to send (unsent, with an email address).`
                 : "No unsent recipients with an email address."}

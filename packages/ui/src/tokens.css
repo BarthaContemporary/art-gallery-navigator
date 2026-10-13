@@ -1,66 +1,115 @@
 /*
- * JVB design tokens — from the Piece Detail design handoff.
+ * JVB design tokens (studio design spec v1, section 1).
  *
- * The surface is a disciplined greyscale oklch ramp. Chromatic values are held
- * to a small, deliberate set: the Dutch-orange accent (active nav + focus), the
- * status-green dot, and a muted semantic palette (warn / danger / info) for the
- * states the product genuinely has to signal — kept low-chroma so they sit
- * inside the greyscale calm rather than reading as bright SaaS. A dark ramp
- * lives at the bottom of this file.
+ * Imported by the studio and by the capture app (apps/capture), which reads
+ * the older --jvb-* names below; both follow these values.
+ *
+ * Three layers, in this order:
+ *   A. The shared core: the public website's own values (white ground, four
+ *      inks, one orange, Noto Sans, its easing and layout). The website keeps
+ *      these as literals in apps/web/src/app/globals.css and does not import
+ *      this file yet; when it does, the values must stay identical.
+ *   B. The studio's operational layer, which the website does not need:
+ *      hairline rules, state colours with their washes, control sizing,
+ *      elevation for floating layers.
+ *   C. A dark ramp for the studio (data-theme="dark" on <html>, set before
+ *      first paint by the root layout and by the theme toggle).
+ *
+ * Usage rules (spec section 1E), kept here because they decide which token a
+ * new component reaches for:
+ *   - accent marks place, selection, focus and progress only, never status,
+ *     error or decoration, and is never text under 18px (3.58:1 on white).
+ *     accent-deep is the only orange text (5.46:1).
+ *   - meta (#767676) is for text on the page ground only: 4.54:1 on white but
+ *     4.09:1 on band or form. On band/form use body. light is for disabled or
+ *     decorative marks, never for text that must be read.
+ *   - A state colour always comes with a word. Radius is 0 everywhere except
+ *     status dots and switch knobs.
+ *
+ * The old --jvb-* names at the bottom of each block are aliases kept for one
+ * release so every existing class and var() keeps working while pages move
+ * onto the new names (C14 removes them).
  */
 :root {
-  /* surfaces */
-  --jvb-bg-page: oklch(0.985 0 0);
-  --jvb-bg-cell: oklch(0.99 0 0);
-  --jvb-bg-band: oklch(0.963 0 0);
-  --jvb-bg-placeholder: oklch(0.935 0 0);
-  --jvb-bg-chip: oklch(0.9 0 0);
-  --jvb-bg-pill: oklch(0.94 0 0);
-  --jvb-bg-control: oklch(0.98 0 0);
-  --jvb-bg-control-active: oklch(0.92 0 0);
-  --jvb-bg-primary: oklch(0.24 0 0);
-  --jvb-bg-tag-dark: oklch(0.28 0 0);
-  --jvb-bg-header: oklch(0.985 0 0 / 0.9);
-  --jvb-bg-overlay: oklch(0.99 0 0 / 0.85);
+  color-scheme: light;
 
-  /* borders */
-  --jvb-border: oklch(0.9 0 0);
-  --jvb-border-soft: oklch(0.92 0 0);
-  --jvb-border-control: oklch(0.88 0 0);
-  --jvb-border-control-active: oklch(0.8 0 0);
-  --jvb-border-ring: oklch(0.32 0 0);
+  /* A. Shared core: website values ------------------------------------- */
 
-  /* ink */
-  --jvb-ink-strong: oklch(0.19 0 0);
-  --jvb-ink-heading: oklch(0.2 0 0);
-  --jvb-ink-primary-fg: oklch(0.97 0 0);
-  --jvb-ink: oklch(0.27 0 0);
-  --jvb-ink-body: oklch(0.31 0 0);
-  --jvb-ink-desc: oklch(0.33 0 0);
-  --jvb-ink-label: oklch(0.36 0 0);
-  --jvb-ink-mid: oklch(0.4 0 0);
-  --jvb-ink-cost: oklch(0.45 0 0);
-  --jvb-ink-muted: oklch(0.5 0 0);
-  --jvb-ink-soft: oklch(0.55 0 0);
-  --jvb-ink-faint: oklch(0.58 0 0);
-  --jvb-ink-label-soft: oklch(0.6 0 0);
-  --jvb-ink-separator: oklch(0.78 0 0);
+  /* grounds */
+  --jvb-page: #ffffff;
+  --jvb-overlay: #faf9f6; /* search overlay, fold-out ground */
+  --jvb-band: #f3f3f3;
+  --jvb-form: #f3f3f3; /* field fill */
+  --jvb-form-hover: #e9e9e9;
+  --jvb-placeholder: #ebe8e2; /* image placeholder (the website's "field") */
 
-  /* the single chromatic value */
-  --jvb-status-green: oklch(0.62 0.12 150);
+  /* inks */
+  --jvb-ink: #1a1a1a; /* headings, values, input text */
+  --jvb-body: #444444; /* running text, secondary values */
+  --jvb-meta: #767676; /* meta lines and labels, on the page ground only */
+  --jvb-light: #999999; /* disabled and decorative marks only */
 
-  /* Semantic state palette — deliberately muted so it sits inside the
-     greyscale calm rather than reading as bright SaaS. Each state has a
-     foreground (text/dot/icon) and a soft surface tint for badges. */
-  --jvb-warn: oklch(0.58 0.1 75);            /* muted ochre — overdue, review-needed */
-  --jvb-warn-soft: oklch(0.94 0.04 80);
-  --jvb-danger: oklch(0.52 0.16 27);         /* muted terracotta — errors, missing, off */
-  --jvb-danger-soft: oklch(0.94 0.04 27);
-  --jvb-info: oklch(0.55 0.07 240);          /* muted slate — neutral notice */
-  --jvb-info-soft: oklch(0.94 0.03 240);
+  /* accent */
+  --jvb-accent: #e8590c;
+  --jvb-accent-deep: #b8430a;
+  /* The brand seal orange lives only in the app icons and favicon artwork;
+     no interface surface or text uses it. Listed so nobody re-derives it. */
+  --jvb-brand-seal: #fc6600;
 
-  /* Categorical ramp for charts (nationality pie, etc.) — restrained,
-     evenly-spaced hues at a common muted chroma so no slice shouts. */
+  /* type: one family, the website's stack. Noto Sans JP (or the platform's
+     Japanese face, listed after the Latin fallbacks so it never draws arrows
+     or ticks) renders makers' native names; numerals reuse the sans with
+     tabular figures. */
+  --jvb-font-sans: "Noto Sans", "Noto Sans JP", "Helvetica Neue", Helvetica, Arial, "Hiragino Sans", "Yu Gothic", sans-serif;
+  /* The studio still sets two short prose areas in Newsreader (AI drafts,
+     newsletter designer). Dropping it is an owner decision (owner decisions
+     2026-10, item 23), so the face stays until that answer. */
+  --jvb-font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --jvb-font-mono: var(--jvb-font-sans);
+
+  /* motion */
+  --jvb-ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* strong ease-out for UI */
+  --jvb-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen movement */
+  --jvb-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* long, settling tail */
+  --jvb-dur-fast: 140ms;
+  --jvb-dur: 200ms;
+  --jvb-fold-ms: 520ms; /* opening: deliberate */
+  --jvb-fold-close-ms: 280ms; /* closing: the system's response snaps */
+
+  /* layout */
+  --jvb-page-max: 1440px;
+  --jvb-measure: 640px;
+  --jvb-gutter: 14px; /* image grid gutter */
+
+  /* B. Operational layer: studio only ---------------------------------- */
+
+  /* layout */
+  --jvb-measure-wide: 960px; /* record and detail pages */
+  --jvb-pad: 16px; /* page side padding; 32px from 768px, below */
+
+  /* rules */
+  --jvb-rule: #e6e6e6; /* row hairlines */
+  --jvb-rule-strong: #d4d4d4; /* table-head underline, Section top rule, panel and button edges */
+  --jvb-field-edge: #767676; /* input bottom rule: 4.54:1 on white, 4.09:1 on the field fill */
+
+  /* accent wash: selected rows and tiles (with a 2px accent rule, never alone).
+     The washes are written out rather than color-mix()ed: where color-mix is
+     missing, the compiled fallback is the tone itself, which would put state
+     text on a fill of its own colour. This is accent 9% over the page. */
+  --jvb-accent-wash: #fdf0e9;
+
+  /* states: each tone reads 4.73 to 5.70:1 as text on its own wash */
+  --jvb-ok: #2f7a46;
+  --jvb-ok-wash: #ecf5ef;
+  --jvb-warn: #8a5a00;
+  --jvb-warn-wash: #fbf3e2;
+  --jvb-danger: #b3261e;
+  --jvb-danger-wash: #fbeceb;
+  --jvb-info: #3d6a8c;
+  --jvb-info-wash: #edf2f7;
+
+  /* Categorical ramp for charts (nationality pie and the like): evenly
+     spaced hues at a common muted chroma so no slice shouts. */
   --jvb-cat-1: oklch(0.55 0.09 40);
   --jvb-cat-2: oklch(0.58 0.08 150);
   --jvb-cat-3: oklch(0.55 0.08 250);
@@ -71,86 +120,141 @@
   --jvb-cat-8: oklch(0.62 0.07 130);
   --jvb-cat-9: oklch(0.52 0.06 280);
 
-  /* activity-dot recency scale */
-  --jvb-dot-recent: oklch(0.35 0 0);
-  --jvb-dot-mid: oklch(0.55 0 0);
-  --jvb-dot-old: oklch(0.72 0 0);
+  /* elevation: only floating layers over a scrim carry a shadow */
+  --jvb-shadow-pop: 0 12px 32px -16px rgb(0 0 0 / 0.28);
+  --jvb-scrim: rgb(26 26 26 / 0.32);
 
-  /* radii */
-  --jvb-radius-card: 14px;
-  --jvb-radius-hero: 12px;
-  --jvb-radius-grid: 11px;
-  --jvb-radius-thumb-related: 9px;
-  --jvb-radius-control: 8px;
-  --jvb-radius-chip: 6px;
-  --jvb-radius-tag: 5px;
+  /* sizing: 44px / 36px under a coarse pointer, below */
+  --jvb-control-h: 32px;
+  --jvb-control-h-sm: 28px;
+  --jvb-row-py: 10px; /* 6px in compact density, below */
 
-  /* Fallbacks; next/font sets --jvb-font-sans / --jvb-font-serif on <html>.
-     Structure = Noto Sans, voice = Newsreader (roman). Numerals reuse the
-     sans with tabular figures — no separate monospace family. */
-  --jvb-font-sans: "Noto Sans", ui-sans-serif, system-ui, sans-serif;
-  --jvb-font-serif: "Newsreader", Georgia, "Times New Roman", serif;
-  --jvb-font-mono: var(--jvb-font-sans);
+  /* sticky header ground: the page at 92%, under a backdrop blur */
+  --jvb-header-bg: color-mix(in srgb, var(--jvb-page) 92%, transparent);
+
+  /* Legacy aliases (one release) ---------------------------------------- */
+  /* Declared on :root next to the values they point at, so the dark block
+     below only has to redefine the new names: a var() in a custom property
+     resolves on the element, where the dark values already apply. */
+
+  /* grounds */
+  --jvb-bg-page: var(--jvb-page);
+  --jvb-bg-cell: var(--jvb-page);
+  --jvb-bg-band: var(--jvb-band);
+  --jvb-bg-pill: var(--jvb-band);
+  --jvb-bg-placeholder: var(--jvb-placeholder);
+  --jvb-bg-chip: var(--jvb-form-hover);
+  --jvb-bg-control: var(--jvb-form);
+  --jvb-bg-control-active: var(--jvb-form-hover);
+  --jvb-bg-primary: var(--jvb-ink);
+  --jvb-bg-tag-dark: var(--jvb-ink);
+  --jvb-bg-header: var(--jvb-header-bg);
+  /* Stays translucent: modals and image badges blur what is underneath. */
+  --jvb-bg-overlay: color-mix(in srgb, var(--jvb-overlay) 85%, transparent);
+
+  /* borders */
+  --jvb-border: var(--jvb-rule-strong);
+  --jvb-border-soft: var(--jvb-rule);
+  --jvb-border-control: var(--jvb-rule-strong);
+  --jvb-border-control-active: var(--jvb-meta);
+  --jvb-border-ring: var(--jvb-ink);
+
+  /* inks: fourteen greys fold into the website's four */
+  --jvb-ink-strong: var(--jvb-ink);
+  --jvb-ink-heading: var(--jvb-ink);
+  --jvb-ink-primary-fg: var(--jvb-page);
+  --jvb-ink-body: var(--jvb-body);
+  --jvb-ink-desc: var(--jvb-body);
+  --jvb-ink-label: var(--jvb-body);
+  --jvb-ink-mid: var(--jvb-body);
+  --jvb-ink-cost: var(--jvb-body);
+  --jvb-ink-muted: var(--jvb-meta);
+  --jvb-ink-soft: var(--jvb-meta);
+  --jvb-ink-faint: var(--jvb-meta);
+  --jvb-ink-label-soft: var(--jvb-light); /* non-text marks only */
+  --jvb-ink-separator: var(--jvb-light); /* non-text marks only */
+
+  /* states */
+  --jvb-status-green: var(--jvb-ok);
+  --jvb-warn-soft: var(--jvb-warn-wash);
+  --jvb-danger-soft: var(--jvb-danger-wash);
+  --jvb-info-soft: var(--jvb-info-wash);
+
+  /* activity-dot recency scale: decorative, on the inks */
+  --jvb-dot-recent: var(--jvb-body);
+  --jvb-dot-mid: var(--jvb-meta);
+  --jvb-dot-old: var(--jvb-light);
+
+  /* radii: square corners everywhere (rounded-full stays for dots) */
+  --jvb-radius-card: 0;
+  --jvb-radius-hero: 0;
+  --jvb-radius-grid: 0;
+  --jvb-radius-thumb-related: 0;
+  --jvb-radius-control: 0;
+  --jvb-radius-chip: 0;
+  --jvb-radius-tag: 0;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --jvb-pad: 32px;
+  }
+}
+
+/* Touch: controls grow to a 44px target (36px for the small size). */
+@media (pointer: coarse) {
+  :root {
+    --jvb-control-h: 44px;
+    --jvb-control-h-sm: 36px;
+  }
+}
+
+:root[data-density="compact"] {
+  --jvb-row-py: 6px;
 }
 
 /*
- * Dark theme — a second oklch ramp, not a refactor: the L channel inverts
- * while the accent (oranje), status-green and the muted semantic hues carry
- * over (nudged lighter for contrast on dark surfaces). Applied when the studio
- * sets data-theme="dark" on <html> (see the theme toggle + no-flash script).
+ * C. Dark ramp. Only the new names are redefined; the aliases above follow.
+ * meta stays readable here (7.43:1 on the page), light does not and stays
+ * decorative. The accent holds its hue (5.23:1 on the page); accent-deep
+ * turns lighter so orange text keeps its contrast (6.74:1).
  */
 :root[data-theme="dark"] {
-  /* surfaces */
-  --jvb-bg-page: oklch(0.17 0 0);
-  --jvb-bg-cell: oklch(0.195 0 0);
-  --jvb-bg-band: oklch(0.225 0 0);
-  --jvb-bg-placeholder: oklch(0.26 0 0);
-  --jvb-bg-chip: oklch(0.3 0 0);
-  --jvb-bg-pill: oklch(0.28 0 0);
-  --jvb-bg-control: oklch(0.225 0 0);
-  --jvb-bg-control-active: oklch(0.31 0 0);
-  --jvb-bg-primary: oklch(0.9 0 0);
-  --jvb-bg-tag-dark: oklch(0.34 0 0);
-  --jvb-bg-header: oklch(0.17 0 0 / 0.9);
-  --jvb-bg-overlay: oklch(0.2 0 0 / 0.85);
+  color-scheme: dark;
 
-  /* borders */
-  --jvb-border: oklch(0.32 0 0);
-  --jvb-border-soft: oklch(0.28 0 0);
-  --jvb-border-control: oklch(0.36 0 0);
-  --jvb-border-control-active: oklch(0.46 0 0);
-  --jvb-border-ring: oklch(0.72 0 0);
+  /* grounds */
+  --jvb-page: #121212;
+  --jvb-overlay: #161616;
+  --jvb-band: #1c1c1c;
+  --jvb-form: #232323;
+  --jvb-form-hover: #2a2a2a;
+  --jvb-placeholder: #262420;
 
-  /* ink (light on dark) */
-  --jvb-ink-strong: oklch(0.96 0 0);
-  --jvb-ink-heading: oklch(0.95 0 0);
-  --jvb-ink-primary-fg: oklch(0.2 0 0);
-  --jvb-ink: oklch(0.9 0 0);
-  --jvb-ink-body: oklch(0.87 0 0);
-  --jvb-ink-desc: oklch(0.84 0 0);
-  --jvb-ink-label: oklch(0.8 0 0);
-  --jvb-ink-mid: oklch(0.72 0 0);
-  --jvb-ink-cost: oklch(0.68 0 0);
-  --jvb-ink-muted: oklch(0.63 0 0);
-  --jvb-ink-soft: oklch(0.57 0 0);
-  --jvb-ink-faint: oklch(0.53 0 0);
-  --jvb-ink-label-soft: oklch(0.5 0 0);
-  --jvb-ink-separator: oklch(0.4 0 0);
+  /* inks */
+  --jvb-ink: #ededed;
+  --jvb-body: #c8c8c8;
+  --jvb-meta: #a3a3a3;
+  --jvb-light: #6b6b6b;
 
-  --jvb-status-green: oklch(0.7 0.13 150);
+  /* accent */
+  --jvb-accent: #e8590c;
+  --jvb-accent-deep: #f07a3a;
+  --jvb-accent-wash: #251811; /* accent 9% over the dark page */
 
-  /* activity-dot recency — inverted so "recent" is bright */
-  --jvb-dot-recent: oklch(0.82 0 0);
-  --jvb-dot-mid: oklch(0.6 0 0);
-  --jvb-dot-old: oklch(0.42 0 0);
+  /* rules */
+  --jvb-rule: #262626;
+  --jvb-rule-strong: #3a3a3a;
+  --jvb-field-edge: #8f8f8f;
 
-  /* semantic — brightened for dark surfaces */
-  --jvb-warn: oklch(0.74 0.11 75);
-  --jvb-warn-soft: oklch(0.3 0.05 75);
-  --jvb-danger: oklch(0.66 0.16 27);
-  --jvb-danger-soft: oklch(0.3 0.06 27);
-  --jvb-info: oklch(0.7 0.08 240);
-  --jvb-info-soft: oklch(0.3 0.04 240);
+  /* states: each tone reads 5.88 to 7.04:1 on its wash */
+  --jvb-ok: #6cc28a;
+  --jvb-ok-wash: #202e25; /* each wash: its tone 16% over the dark page */
+  --jvb-warn: #e0b25c;
+  --jvb-warn-wash: #332c1e;
+  --jvb-danger: #f2857d;
+  --jvb-danger-wash: #362423;
+  --jvb-info: #8db4d6;
+  --jvb-info-wash: #262c31;
 
   --jvb-cat-1: oklch(0.66 0.09 40);
   --jvb-cat-2: oklch(0.68 0.08 150);
@@ -161,4 +265,6 @@
   --jvb-cat-7: oklch(0.62 0.08 20);
   --jvb-cat-8: oklch(0.72 0.07 130);
   --jvb-cat-9: oklch(0.64 0.06 280);
+
+  --jvb-shadow-pop: 0 12px 32px -16px rgb(0 0 0 / 0.7);
 }

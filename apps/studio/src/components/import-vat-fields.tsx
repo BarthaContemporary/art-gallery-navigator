@@ -76,7 +76,7 @@ export function ImportVatFields({
     <div className="mt-3 border-t border-line-soft pt-3">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">Import VAT (stock book)</span>
-        <span className={`text-[10.5px] ${status === "error" ? "text-oranje" : "text-ink-soft"}`}>
+        <span className={`text-[10.5px] ${status === "error" ? "text-danger" : "text-ink-soft"}`}>
           {status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "error" ? "Couldn’t save" : ""}
         </span>
       </div>

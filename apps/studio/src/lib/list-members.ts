@@ -158,5 +158,7 @@ export async function countListMembers(
   cq = applyFacet(cq, "location_id", rules.location, { nullable: true });
   if (rules.framed) cq = cq.eq("framed", true);
   const { count } = await cq;
-  return count ?? 0;
+  // The resolver stops a live list at LIVE_LIMIT works, so the list page never
+  // shows more; the count stops there too, so the two always agree.
+  return Math.min(count ?? 0, LIVE_LIMIT);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { nativeFieldLang } from "@/lib/script-lang";
 
 export type MakerFields = {
   display_name: string;
@@ -249,7 +250,7 @@ export function MakerProfileEditor({
       {/* Details */}
       <div className="flex items-center justify-between">
         <p className={HEADING}>Details</p>
-        <span className={`text-[11px] ${status === "error" ? "text-oranje" : "text-ink-soft"}`}>
+        <span className={`text-[11px] ${status === "error" ? "text-danger" : "text-ink-soft"}`}>
           {status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "error" ? "Couldn’t save" : "Autosave on"}
         </span>
       </div>
@@ -260,6 +261,7 @@ export function MakerProfileEditor({
             <input
               value={fields[key]}
               placeholder={ph}
+              lang={key === "native_name" ? nativeFieldLang(fields[key]) : undefined}
               onChange={(e) => setField(key, e.target.value)}
               onBlur={flushFields}
               className="mt-1 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body"
@@ -271,7 +273,7 @@ export function MakerProfileEditor({
             type="checkbox"
             checked={webVisible}
             onChange={(e) => void toggleWebVisible(e.target.checked)}
-            className="h-4 w-4 accent-[var(--oranje)]"
+            className="h-4 w-4"
           />
           Artist page on the website
           <span className="text-[11px] text-ink-soft">(on for every maker — untick to hide this one)</span>
@@ -299,7 +301,7 @@ export function MakerProfileEditor({
             type="button"
             disabled={aiBusy}
             onClick={() => void draftWithAi()}
-            className="rounded-lg border border-oranje/40 bg-control px-3 py-1.5 text-[12px] font-medium text-oranje hover:border-oranje disabled:opacity-60"
+            className="rounded-lg border border-oranje/40 bg-control px-3 py-1.5 text-[12px] font-medium text-accent-deep hover:border-oranje disabled:opacity-60"
             title="Research this maker and write a draft biography with AI"
           >
             {aiBusy ? "Researching… (can take a minute)" : "✦ Draft with AI"}
@@ -336,7 +338,7 @@ export function MakerProfileEditor({
               setDragOver(false);
               if (!busy) onPick(e.dataTransfer.files);
             }}
-            className={`aspect-[3/4] w-full cursor-pointer overflow-hidden rounded-[11px] border transition-colors ${
+            className={`aspect-[3/4] w-full cursor-pointer overflow-hidden border transition-colors ${
               url
                 ? "border-line bg-band"
                 : `border-2 border-dashed ${dragOver ? "border-oranje bg-oranje/5" : "border-line-control bg-band/60"}`
@@ -369,7 +371,7 @@ export function MakerProfileEditor({
               </p>
             </div>
           ) : null}
-          {uploadError ? <p className="mt-1.5 text-[11.5px] text-oranje">{uploadError}</p> : null}
+          {uploadError ? <p className="mt-1.5 text-[11.5px] text-danger">{uploadError}</p> : null}
 
           {url && !busy ? (
             <div className="mt-2 flex items-center gap-3">
@@ -402,12 +404,12 @@ export function MakerProfileEditor({
               if (timer.current) clearTimeout(timer.current);
               void save();
             }}
-            className="prose-maker min-h-[280px] w-full rounded-[11px] border border-line-control bg-control px-4 py-3 text-[14px] leading-[1.6] text-ink-body focus:outline-none focus:ring-1 focus:ring-oranje/50 [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+            className="prose-maker min-h-[280px] w-full border border-line-control bg-control px-4 py-3 text-[14px] leading-[1.6] text-ink-body [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
           />
           <p className="mt-1.5 text-[11px] text-ink-soft">
             Autosaves as you type. This text feeds the maker profile PDF and website page.
           </p>
-          {aiError ? <p className="mt-1.5 text-[11.5px] text-oranje">AI draft: {aiError}</p> : null}
+          {aiError ? <p className="mt-1.5 text-[11.5px] text-danger">AI draft: {aiError}</p> : null}
           {aiSources.length > 0 ? (
             <div className="mt-2 rounded-lg border border-line-soft bg-band/50 px-3 py-2">
               <p className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint">
@@ -416,7 +418,7 @@ export function MakerProfileEditor({
               <ul className="mt-1 space-y-0.5">
                 {aiSources.map((s) => (
                   <li key={s.url} className="truncate text-[11.5px]">
-                    <a href={s.url} target="_blank" rel="noreferrer" className="text-ink-muted hover:text-oranje">
+                    <a href={s.url} target="_blank" rel="noreferrer" className="text-ink-muted hover:text-accent-deep">
                       {s.title || s.url}
                     </a>
                   </li>

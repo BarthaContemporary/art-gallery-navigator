@@ -115,7 +115,7 @@ export function NationalityPie() {
   }, [slices, total]);
 
   return (
-    <section className="rounded-[11px] border border-line bg-cell p-5">
+    <section className="border border-line bg-cell p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[13px] font-semibold text-ink-strong">Contacts by nationality</h2>
         <select
@@ -206,7 +206,7 @@ export function NationalityPie() {
               >
                 <span
                   aria-hidden
-                  className="inline-block h-[10px] w-[10px] shrink-0 rounded-[3px]"
+                  className="inline-block h-[10px] w-[10px] shrink-0"
                   style={{ background: w.color }}
                 />
                 <span className="min-w-0 flex-1 truncate text-ink-body">{w.label}</span>

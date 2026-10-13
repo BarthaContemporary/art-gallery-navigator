@@ -13,6 +13,8 @@ import { ContactEditor, type Purchase, type Consignment } from "@/components/con
 import { DataProtectionPanel } from "@/components/data-protection-panel";
 import { consignmentSplit } from "@/lib/consignment";
 import { loadPieceRows } from "@/lib/piece-store";
+// London dates: this page renders on the server, where the zone is UTC.
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Contact" };
 
@@ -244,7 +246,7 @@ export default async function ContactProfile({
 
       {/* header */}
       <div className="mt-2 flex flex-wrap items-start gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-band text-[18px] text-ink-soft">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-band text-[18px] text-body">
           {(contact.first_name?.[0] ?? contact.last_name?.[0] ?? "?").toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
@@ -254,13 +256,13 @@ export default async function ContactProfile({
             {contact.email ? ` · ${contact.email}` : ""}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <span className="rounded-full border border-line-control px-2.5 py-0.5 text-[11px] text-ink-mid">
+            <span className="border border-line-control px-2.5 py-0.5 text-[11px] text-ink-mid">
               AML: {AML_OPTIONS[contact.kyc_status] ?? contact.kyc_status}
               {amlDate ? ` · ${amlDate}` : ""}
             </span>
             {contact.sanctions_status ? (
               <span
-                className={`rounded-full px-2.5 py-0.5 text-[11px] ${
+                className={`px-2.5 py-0.5 text-[11px] ${
                   contact.sanctions_status === "potential_match"
                     ? "bg-tag-dark text-primary-fg"
                     : "border border-line-control text-ink-mid"
@@ -268,7 +270,7 @@ export default async function ContactProfile({
               >
                 Sanctions: {contact.sanctions_status.replace(/_/g, " ")}
                 {contact.last_screened_at
-                  ? ` · ${new Date(contact.last_screened_at).toLocaleDateString("en-GB")}`
+                  ? ` · ${formatDate(contact.last_screened_at, "numeric")}`
                   : ""}
               </span>
             ) : null}

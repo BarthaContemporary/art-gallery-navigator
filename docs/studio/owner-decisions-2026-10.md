@@ -12,18 +12,22 @@ Nothing in Part 2 or 3 is built until you answer.
 
 ## Part 1: under way now (no decision needed)
 
-I will confirm each of these once it is live.
+Live from 13 October 2026 (see "After the release" at the end for the one
+step left to you).
 
 - **One design with the website.** White ground, the website's four text
   greys, Noto Sans, square corners. The orange becomes the website's orange
   and is used only to show where you are, what is selected and keyboard
   focus, never for warnings or decoration. Dark mode stays. This is done
   through the shared colour and type settings, so every page changes at
-  once and no page loses a field or a button.
+  once and no page loses a field or a button. The phone capture app takes
+  the same colours. Small orange text uses the website's darker orange so
+  it stays readable, and error messages are red.
 - **London time.** Some studio pages show times in UTC, so appointments read
   an hour early until the clocks change on 25 October.
 - **Trash and the website.** A work moved to Trash stays on the website until
-  the 30-day purge. It will come off at once, and return if restored.
+  the 30-day purge. It now comes off at once, and returns if restored. Works
+  already in the Trash come off when Admin → Resync is pressed once.
 - **Failed emails.** When Resend refuses an offer, newsletter, test email or
   invitation, the studio reports success. It will say it failed.
 - **Newsletter sent twice.** A double click or a retry can mail everyone
@@ -39,7 +43,6 @@ I will confirm each of these once it is live.
   - The flag pills clear the other filters.
   - The "Finish" badge cannot be cleared; a "Mark catalogued" control is
     added.
-  - The record header can show the back photograph.
   - The record page downloads full-size images for small thumbnails, which
     is slow on a phone.
   - A double tap creates two drafts.
@@ -57,8 +60,12 @@ I will confirm each of these once it is live.
   unsaved edits, and an expired sign-in will say so. After signing in you
   return to the page you asked for. Password forms will say 12 characters,
   as the server already requires.
-- **Stock book CSV.** Negative figures turn into text in Excel, and the
-  margin working line does not add up.
+- **Stock book.** In the CSV, a loss turned into text that Excel does not
+  add up; it is now a number. The columns and headers of the CSV are
+  unchanged. On screen, the VAT working for a margin-scheme work with import
+  VAT paid did not add up: the "Tax. Margin" column now takes that import
+  VAT off, as the VAT due beside it always has. Only those rows change, and
+  the VAT due figures do not. Worth telling the accountant.
 - **Dashboard.** Unconfirmed booking requests are shown as if confirmed.
 - **Safety net.** A check now fails the build if any form field's name
   changes, because autosave depends on those names and a renamed field would
@@ -261,8 +268,8 @@ live.*
 
 **23. No serif in the studio.** The studio uses the Newsreader serif in a few
 places (AI drafts, the newsletter designer preview); the website uses none.
-It is being replaced with Noto Sans. Client-facing PDFs and emails keep
-their own fonts. *Say if you would rather keep it.*
+Proposed: Noto Sans there too. Client-facing PDFs and emails keep their own
+fonts. *Recommend: yes. It stays as it is until you answer.*
 
 **24. One form reader.** The work form is read by two pieces of code that must
 be kept in step; one is unused. It is removed and the project notes updated.
@@ -380,3 +387,9 @@ order by v.sold_date nulls last, v.stock_number;
 ```
 
 No rows means the stock book totals do not change.
+
+## After the release
+
+Press **Admin → Resync all web-visible works** once. It takes works that were
+already in the Trash off the website; works trashed from now on come off by
+themselves.

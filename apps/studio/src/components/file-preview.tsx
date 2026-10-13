@@ -47,7 +47,7 @@ function Overlay({ title, file, onClose }: { title: string; file: Signed; onClos
         onClick={onClose}
         aria-hidden
       />
-      <div className="jvb-pop-enter absolute inset-2 flex flex-col overflow-hidden rounded-[13px] border border-line bg-cell shadow-2xl sm:inset-6 lg:inset-10">
+      <div className="jvb-pop-enter absolute inset-2 flex flex-col overflow-hidden border border-line bg-cell shadow-2xl sm:inset-6 lg:inset-10">
         <div className="flex items-center gap-2 border-b border-line px-3 py-2 sm:px-4">
           <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-strong">
             {title}

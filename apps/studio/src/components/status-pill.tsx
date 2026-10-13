@@ -1,16 +1,9 @@
-// Single source of truth for status labels — import everywhere a status
-// string is shown (pill, filters, the buyer-select prompt) so one state never
-// reads as three different words.
-export const STATUS_LABELS: Record<string, string> = {
-  in_stock: "Available",
-  reserved: "Reserved",
-  consigned_in: "Consigned in",
-  consigned_out: "Consigned out",
-  sold: "Sold",
-  gifted: "Gifted",
-  returned: "Returned",
-  written_off: "Written off",
-};
+import { STATUS_LABELS } from "@/lib/labels";
+
+// The status words live in lib/labels.ts with the studio's other enum labels.
+// Re-exported here so the existing `from "@/components/status-pill"` imports
+// (filters, table, palette, buyer select) keep working.
+export { STATUS_LABELS };
 const LABELS = STATUS_LABELS;
 
 // Semantic dot colour per status — greyscale for settled/terminal states,
@@ -50,7 +43,7 @@ export function StatusPill({
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-pill px-2.5 py-0.5 text-[11.5px] font-semibold text-[var(--jvb-ink-label)]">
+    <span className="inline-flex items-center gap-1.5 border border-line bg-pill px-2.5 py-0.5 text-[11.5px] font-semibold text-[var(--jvb-ink-label)]">
       <span aria-hidden className="inline-block h-[6px] w-[6px] rounded-full" style={{ background: dot }} />
       {label}
     </span>

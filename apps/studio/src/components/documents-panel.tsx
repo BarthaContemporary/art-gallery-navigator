@@ -127,19 +127,19 @@ export function DocumentsPanel({
   }
 
   return (
-    <section className="rounded-[11px] border border-line bg-cell p-5">
+    <section className="border border-line bg-cell p-5">
       <h2 className="text-[13px] font-semibold text-ink-strong">Piece documents</h2>
       <p className="mt-0.5 text-[12px] text-ink-muted">
         Certificates, condition reports and other item-specific files. Invoices, provenance,
         shipping, insurance and correspondence live in{" "}
-        <a href="/documents" className="text-oranje hover:underline">Documents</a>; import/export
+        <a href="/documents" className="text-accent-deep hover:underline">Documents</a>; import/export
         paperwork lives on the shipment.
       </p>
 
       <ul className="mt-3 divide-y divide-line-soft">
         {docs.map((d) => (
           <li key={d.id} className="flex items-center gap-2 py-2">
-            <span className="rounded-[5px] bg-chip px-1.5 py-0.5 text-[10px] uppercase tracking-[0.05em] text-ink-mid">
+            <span className="bg-chip px-1.5 py-0.5 text-[10px] uppercase tracking-[0.05em] text-ink-mid">
               {docLabel(d.doc_type)}
             </span>
             <FilePreviewLink
@@ -215,7 +215,7 @@ export function DocumentsPanel({
                   onClick={() => unstage(i)}
                   disabled={busy}
                   aria-label={`Remove ${f.name}`}
-                  className="shrink-0 text-ink-soft hover:text-oranje"
+                  className="shrink-0 text-ink-soft hover:text-accent-deep"
                 >
                   ✕
                 </button>

@@ -4,39 +4,48 @@ import { getSupabase } from "@/lib/supabase";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { Turnstile } from "@/components/turnstile";
 import { PasskeyLogin } from "@/components/passkey-login";
-
-async function signIn(formData: FormData) {
-  "use server";
-  const email = String(formData.get("email") ?? "");
-  const password = String(formData.get("password") ?? "");
-
-  // Bot mitigation: verify the Turnstile token before touching auth.
-  const h = await headers();
-  const turnstile = await verifyTurnstile(
-    String(formData.get("cf-turnstile-response") ?? ""),
-    h.get("cf-connecting-ip") ?? h.get("x-forwarded-for"),
-  );
-  if (!turnstile.ok) {
-    redirect(`/login?error=${encodeURIComponent(turnstile.error ?? "Security check failed")}`);
-  }
-
-  const supabase = await getSupabase();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`);
-  redirect("/");
-}
+import { safeNextPath } from "@/lib/auth-rules";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, next: rawNext } = await searchParams;
+  // The page that sent the user here (middleware ?next=), if it is a plain
+  // path on this site; anything else signs in to the dashboard as before.
+  const next = safeNextPath(rawNext);
+
+  // Declared here so it carries `next` without a new form field; Next.js
+  // encrypts the captured value into the action.
+  async function signIn(formData: FormData) {
+    "use server";
+    const email = String(formData.get("email") ?? "");
+    const password = String(formData.get("password") ?? "");
+    const back = safeNextPath(next);
+    const keepNext = back ? `&next=${encodeURIComponent(back)}` : "";
+
+    // Bot mitigation: verify the Turnstile token before touching auth.
+    const h = await headers();
+    const turnstile = await verifyTurnstile(
+      String(formData.get("cf-turnstile-response") ?? ""),
+      h.get("cf-connecting-ip") ?? h.get("x-forwarded-for"),
+    );
+    if (!turnstile.ok) {
+      redirect(`/login?error=${encodeURIComponent(turnstile.error ?? "Security check failed")}${keepNext}`);
+    }
+
+    const supabase = await getSupabase();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) redirect(`/login?error=${encodeURIComponent(error.message)}${keepNext}`);
+    redirect(back ?? "/");
+  }
+
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
       <form
         action={signIn}
-        className="w-full max-w-sm rounded-[14px] border border-line bg-cell p-8"
+        className="w-full max-w-sm border border-line bg-cell p-8"
       >
         <h1 className="text-[22px] font-bold tracking-[-0.01em] text-ink-strong">
           Joost van den Bergh
@@ -50,7 +59,7 @@ export default async function LoginPage({
           </p>
         ) : null}
         <div className="mt-6">
-          <PasskeyLogin />
+          <PasskeyLogin next={next} />
         </div>
         <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
           Email

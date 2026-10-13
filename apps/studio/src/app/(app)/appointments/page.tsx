@@ -20,6 +20,7 @@ import {
   type CalendarAppointment,
 } from "@/components/appointments-calendar";
 import { EventEditor } from "@/components/event-editor";
+import { formatDateTime } from "@/lib/format";
 
 export const metadata = { title: "Appointments" };
 
@@ -144,7 +145,7 @@ function AppointmentStatusPill({ status }: { status: string }) {
   const label = STATUS_LABELS[status] ?? status;
   if (status === "confirmed") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-pill px-2.5 py-0.5 text-[11.5px] font-semibold text-[var(--jvb-ink-label)]">
+      <span className="inline-flex items-center gap-1.5 border border-line bg-pill px-2.5 py-0.5 text-[11.5px] font-semibold text-[var(--jvb-ink-label)]">
         <span aria-hidden className="inline-block h-[6px] w-[6px] rounded-full bg-status-green" />
         {label}
       </span>
@@ -152,35 +153,31 @@ function AppointmentStatusPill({ status }: { status: string }) {
   }
   if (status === "cancelled" || status === "no_show") {
     return (
-      <span className="inline-flex items-center rounded-full border border-line-soft bg-pill px-2.5 py-0.5 text-[11.5px] font-medium text-ink-faint line-through">
+      <span className="inline-flex items-center border border-line-soft bg-pill px-2.5 py-0.5 text-[11.5px] font-medium text-body line-through">
         {label}
       </span>
     );
   }
   if (status === "completed") {
     return (
-      <span className="inline-flex items-center rounded-full border border-line-soft bg-pill px-2.5 py-0.5 text-[11.5px] font-medium text-ink-muted">
+      <span className="inline-flex items-center border border-line-soft bg-pill px-2.5 py-0.5 text-[11.5px] font-medium text-body">
         {label}
       </span>
     );
   }
   // requested / fallback — neutral
   return (
-    <span className="inline-flex items-center rounded-full border border-line bg-pill px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-mid">
+    <span className="inline-flex items-center border border-line bg-pill px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-mid">
       {label}
     </span>
   );
 }
 
+// "Mon, 12 Oct 2026, 14:00" in London time. This page renders on the server
+// (UTC on Vercel), so a bare toLocaleString listed every summer appointment an
+// hour early, out of step with the calendar grid above it.
 function fmt(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDateTime(iso, "short", { weekday: true });
 }
 
 async function setStatus(formData: FormData) {
@@ -285,7 +282,7 @@ function AppointmentsTable({
   withActions: boolean;
 }) {
   return (
-    <div className="mt-2 overflow-x-auto rounded-[11px] border border-line">
+    <div className="mt-2 overflow-x-auto border border-line">
       <table className="w-full min-w-[880px] bg-cell text-left text-[13px]">
         <thead>
           <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">

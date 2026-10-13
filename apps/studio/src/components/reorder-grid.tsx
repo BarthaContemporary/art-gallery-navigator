@@ -248,7 +248,7 @@ export function ReorderGrid({
               if (el) cellRefs.current.set(id, el);
               else cellRefs.current.delete(id);
             }}
-            className={`relative rounded-[9px] ${dragId === id ? "z-10 opacity-60" : ""}`}
+            className={`relative ${dragId === id ? "z-10 opacity-60" : ""}`}
           >
             <span className={`${gripClassName} flex items-center gap-1`}>
               <button

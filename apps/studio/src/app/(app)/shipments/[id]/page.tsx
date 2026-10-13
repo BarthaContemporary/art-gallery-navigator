@@ -213,7 +213,7 @@ export default async function ShipmentDetail({
       <h1 className="mt-2 text-[22px] font-semibold text-ink-strong">{KIND_LABEL[shipment.kind]}</h1>
 
       <AutosaveForm endpoint={`/api/shipments/${id}`} className="mt-5">
-        <div className="grid grid-cols-1 gap-4 rounded-[11px] border border-line bg-cell p-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 border border-line bg-cell p-5 sm:grid-cols-2">
           <label className={labelCls}>
             {`${KIND_LABEL[shipment.kind] ?? "Shipment"} date`}
             <input type="date" name="shipment_date" defaultValue={dateValue} className={field} />
@@ -240,7 +240,7 @@ export default async function ShipmentDetail({
         </div>
       </AutosaveForm>
 
-      <section className="mt-6 rounded-[11px] border border-line bg-cell p-5">
+      <section className="mt-6 border border-line bg-cell p-5">
         <h2 className="text-[13px] font-semibold text-ink-strong">Documents</h2>
         <p className="mt-0.5 text-[12px] text-ink-muted">
           Upload the paperwork once here — it applies to every item below.
@@ -252,7 +252,7 @@ export default async function ShipmentDetail({
 
       {/* Bulk return (temporary exports only) */}
       {isTemp && stillOut > 0 ? (
-        <section className="mt-6 rounded-[11px] border border-oranje/30 bg-oranje/5 p-5">
+        <section className="mt-6 border border-oranje/30 bg-oranje/5 p-5">
           <h2 className="text-[13px] font-semibold text-ink-strong">Record return</h2>
           <p className="mt-0.5 text-[12px] text-ink-muted">
             Pick a date and preview which of the {stillOut} item{stillOut === 1 ? "" : "s"} still
@@ -264,7 +264,7 @@ export default async function ShipmentDetail({
         </section>
       ) : null}
 
-      <section className="mt-6 rounded-[11px] border border-line bg-cell p-5">
+      <section className="mt-6 border border-line bg-cell p-5">
         <h2 className="text-[13px] font-semibold text-ink-strong">Inventory items ({links.length})</h2>
         <div className="mt-3 space-y-1.5">
           {links.map((l) => {
@@ -335,7 +335,7 @@ export default async function ShipmentDetail({
         ) : null}
       </section>
 
-      <div className="mt-8 flex items-center justify-between rounded-[11px] border border-line-soft bg-band px-4 py-3">
+      <div className="mt-8 flex items-center justify-between border border-line-soft bg-band px-4 py-3">
         <p className="text-[13px] text-ink-strong">Delete this shipment</p>
         <DeleteListButton action={deleteShipment} id={id} name={(KIND_LABEL[shipment.kind] ?? shipment.kind).toLowerCase()} />
       </div>

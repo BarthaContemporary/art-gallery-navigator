@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { StatusPill } from "@/components/status-pill";
+import { ReorderGrid } from "@/components/reorder-grid";
+import { AmountInput } from "@/components/amount-input";
+import { parseAmount } from "@/lib/amount";
 
 export type OfferItem = {
   id: string;
@@ -21,6 +24,11 @@ export type OfferItem = {
  * Editable offer works list. Each row autosaves its price/note on blur (no
  * Save button to remember), and rows can be dragged to reorder — the new order
  * persists via the reorder action. Server actions are passed from the page.
+ *
+ * Reordering goes through ReorderGrid (a grip per row, Pointer Events, and
+ * ← → on the focused grip). It used HTML5 draggable, which never fires on an
+ * iPad and has no keyboard path, so the order could only be changed with a
+ * mouse.
  */
 export function OfferItemsEditor({
   items,
@@ -33,42 +41,25 @@ export function OfferItemsEditor({
   removeItem: (formData: FormData) => Promise<void>;
   reorderItems: (orderedIds: string[]) => Promise<void>;
 }) {
-  const [order, setOrder] = useState(items);
-  const dragId = useRef<string | null>(null);
-
-  useEffect(() => setOrder(items), [items]);
-
-  function onDrop(targetId: string) {
-    const from = dragId.current;
-    dragId.current = null;
-    if (!from || from === targetId) return;
-    const next = [...order];
-    const fromIdx = next.findIndex((i) => i.id === from);
-    const toIdx = next.findIndex((i) => i.id === targetId);
-    if (fromIdx < 0 || toIdx < 0) return;
-    const [moved] = next.splice(fromIdx, 1);
-    next.splice(toIdx, 0, moved!);
-    setOrder(next);
-    void reorderItems(next.map((i) => i.id));
-  }
-
-  if (order.length === 0) {
+  if (items.length === 0) {
     return <p className="text-[13px] text-ink-muted">No works added yet.</p>;
   }
 
   return (
-    <div className="mt-3 space-y-2">
-      {order.map((it) => (
-        <Row
-          key={it.id}
-          item={it}
-          updateItem={updateItem}
-          removeItem={removeItem}
-          onDragStart={() => (dragId.current = it.id)}
-          onDrop={() => onDrop(it.id)}
-        />
-      ))}
-    </div>
+    <ReorderGrid
+      order={items.map((it) => it.id)}
+      onReorder={reorderItems}
+      className="space-y-2"
+      hint="Drag a grip to reorder, or focus it and use ← →."
+      gripClassName="absolute left-2 top-1/2 z-20 -translate-y-1/2"
+      showPosition={false}
+      tiles={Object.fromEntries(
+        items.map((it) => [
+          it.id,
+          <Row key={it.id} item={it} updateItem={updateItem} removeItem={removeItem} />,
+        ]),
+      )}
+    />
   );
 }
 
@@ -76,14 +67,10 @@ function Row({
   item,
   updateItem,
   removeItem,
-  onDragStart,
-  onDrop,
 }: {
   item: OfferItem;
   updateItem: (formData: FormData) => Promise<void>;
   removeItem: (formData: FormData) => Promise<void>;
-  onDragStart: () => void;
-  onDrop: () => void;
 }) {
   const [price, setPrice] = useState(item.price_override_gbp?.toString() ?? "");
   const [note, setNote] = useState(item.note ?? "");
@@ -92,7 +79,13 @@ function Row({
   const persisted = useRef({ price, note });
 
   async function save() {
-    if (price === persisted.current.price && note === persisted.current.note) return;
+    // Compared as amounts: the field reformats "12000" to "12,000" on blur,
+    // which is the same price and not worth a save.
+    if (
+      parseAmount(price) === parseAmount(persisted.current.price) &&
+      note === persisted.current.note
+    )
+      return;
     const fd = new FormData();
     fd.set("item_id", item.id);
     fd.set("price_override_gbp", price.trim());
@@ -104,20 +97,8 @@ function Row({
   }
 
   return (
-    <div
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={onDrop}
-      className="flex flex-wrap items-center gap-3 rounded-lg border border-line-soft bg-cell px-4 py-2.5"
-    >
-      <span
-        aria-hidden
-        title="Drag to reorder"
-        className="cursor-grab select-none text-ink-faint active:cursor-grabbing"
-      >
-        ⠿
-      </span>
+    // pl-11 leaves room for the grip ReorderGrid lays over the row's left edge.
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line-soft bg-cell py-2.5 pl-11 pr-4">
       <div className="min-w-0 flex-1">
         <p className="text-[13.5px] text-ink-body">
           <span className="font-mono text-[12px] text-ink-muted">
@@ -132,11 +113,11 @@ function Row({
       </div>
       <label className="text-[11px] text-ink-faint">
         Price £
-        <input
+        {/* A text field that accepts "12,000"; the page parses it with parseAmount. */}
+        <AmountInput
           value={price}
           onChange={(e) => setPrice(e.target.value)}
           onBlur={() => void save()}
-          inputMode="numeric"
           placeholder="override"
           className="ml-1 w-24 rounded-md border border-line-control bg-control px-2 py-1 font-mono text-[12px]"
         />

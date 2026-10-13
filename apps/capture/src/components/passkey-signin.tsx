@@ -55,7 +55,7 @@ export function PasskeySignIn() {
         <IconKey className="h-[18px] w-[18px]" />
         {busy ? "Waiting for passkey…" : "Sign in with passkey"}
       </button>
-      {err ? <p className="mt-2 text-center text-[12px] text-oranje">{err}</p> : null}
+      {err ? <p className="mt-2 text-center text-[12px] text-danger">{err}</p> : null}
       <div className="my-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.06em] text-ink-faint">
         <span className="h-px flex-1 bg-line-soft" /> or <span className="h-px flex-1 bg-line-soft" />
       </div>

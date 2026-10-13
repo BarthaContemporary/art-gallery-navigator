@@ -188,7 +188,7 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
       aria-modal="true"
       aria-label="Command palette"
     >
-      <div className="jvb-pop-enter w-full max-w-lg overflow-hidden rounded-[14px] border border-line bg-cell shadow-2xl">
+      <div className="jvb-pop-enter w-full max-w-lg overflow-hidden border border-line bg-cell shadow-2xl">
         <input
           ref={inputRef}
           type="text"

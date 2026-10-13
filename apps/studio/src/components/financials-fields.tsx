@@ -9,7 +9,7 @@ import { consignmentSplit } from "@/lib/consignment";
 /** Small customs/import glyph shown when import VAT is folded into costs. */
 function ImportVatIcon({ title }: { title: string }) {
   return (
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="inline-block align-[-1px] text-oranje" aria-label={title}>
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="inline-block align-[-1px] text-accent-deep" aria-label={title}>
       <title>{title}</title>
       <path d="M5 14v3.5A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5V14" />
       <path d="M12 4v9" />
@@ -235,7 +235,7 @@ export function FinancialsFields({
           </span>
           <AmountInput name="other_costs_gbp" value={otherGbp} onChange={(e) => setOtherGbp(e.target.value)} className={field} />
           {importVatCost > 0 ? (
-            <span className="mt-1 block text-[10.5px] text-oranje">+ import VAT {gbp(importVatCost)}</span>
+            <span className="mt-1 block text-[10.5px] text-accent-deep">+ import VAT {gbp(importVatCost)}</span>
           ) : null}
         </label>
         <label className={`${label} sm:col-span-2`}>
@@ -309,7 +309,7 @@ export function FinancialsFields({
             {soldNum > 0 ? gbp(netAmount) : "—"}
           </p>
           {reclaimableImportVat > 0 ? (
-            <p className="mt-1 text-[10.5px] font-medium text-oranje">
+            <p className="mt-1 text-[10.5px] font-medium text-accent-deep">
               Import VAT of {gbp(reclaimableImportVat)} is reclaimable on this item — noted in the stock book.
             </p>
           ) : null}

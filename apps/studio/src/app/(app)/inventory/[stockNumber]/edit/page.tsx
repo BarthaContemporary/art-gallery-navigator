@@ -56,6 +56,8 @@ export default async function EditPiecePage({
         .select("storage_path_display")
         .eq("piece_id", piece.id)
         .not("storage_path_display", "is", null)
+        // Front first: image_role is an enum declared front, back, side, …,
+        // so it sorts in that order, as the inventory thumbnail does.
         .order("role", { ascending: true })
         .order("sort_order")
         .limit(1)
@@ -298,6 +300,7 @@ export default async function EditPiecePage({
           ledger={store.ledger}
           imageCount={imageCount.count ?? 0}
           webVisible={Boolean(piece.web_visible)}
+          needsCompletion={Boolean(piece.needs_completion)}
         />
         <EditSectionRail />
         <div className="mt-6">
@@ -324,11 +327,11 @@ export default async function EditPiecePage({
           const current = shipmentByKind.get(kind);
           const opts = shipmentOptions.filter((s) => s.kind === kind);
           return (
-            <section key={kind} className="rounded-[11px] border border-line bg-cell p-5">
+            <section key={kind} className="border border-line bg-cell p-5">
               <h2 className="text-[13px] font-semibold capitalize text-ink-strong">{kind} shipment</h2>
               {current ? (
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  <Link href={`/shipments/${current.id}`} className="text-[13px] text-ink-body hover:text-oranje">
+                  <Link href={`/shipments/${current.id}`} className="text-[13px] text-ink-body hover:text-accent-deep">
                     {current.shipment_date ? new Date(current.shipment_date).toLocaleDateString("en-GB") : "No date"}
                     {current.reference ? ` · ${current.reference}` : ""}
                     {kind === "export" && current.destination_country ? ` · → ${current.destination_country}` : ""}
@@ -354,7 +357,7 @@ export default async function EditPiecePage({
                 </select>
                 <button className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid">Link</button>
               </form>
-              <Link href="/shipments" className="mt-2 inline-block text-[11.5px] text-oranje hover:underline">
+              <Link href="/shipments" className="mt-2 inline-block text-[11.5px] text-accent-deep hover:underline">
                 Manage shipments →
               </Link>
               {kind === "import" && showFinancials ? (
@@ -374,7 +377,7 @@ export default async function EditPiecePage({
       {/* Temporary imports / exports — half-width like the import/export panels */}
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
       {/* Temporary imports — many per piece (e.g. a UK exhibition/fair) */}
-      <section className="rounded-[11px] border border-line bg-cell p-5">
+      <section className="border border-line bg-cell p-5">
         <h2 className="text-[13px] font-semibold text-ink-strong">Temporary imports</h2>
         <p className="mt-0.5 text-[12px] text-ink-muted">
           Goods brought in temporarily (e.g. for a UK exhibition or fair).
@@ -382,7 +385,7 @@ export default async function EditPiecePage({
         <div className="mt-3 space-y-1.5">
           {tempImports.map((t) => (
             <div key={t.shipment!.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2 text-[12.5px]">
-              <Link href={`/shipments/${t.shipment!.id}`} className="text-ink-body hover:text-oranje">
+              <Link href={`/shipments/${t.shipment!.id}`} className="text-ink-body hover:text-accent-deep">
                 In {t.shipment!.shipment_date ? new Date(t.shipment!.shipment_date).toLocaleDateString("en-GB") : "—"}
                 {t.shipment!.reference ? ` · ${t.shipment!.reference}` : ""}
               </Link>
@@ -406,13 +409,13 @@ export default async function EditPiecePage({
           </select>
           <button className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid">Link</button>
         </form>
-        <Link href="/shipments?kind=temporary_import" className="mt-2 inline-block text-[11.5px] text-oranje hover:underline">
+        <Link href="/shipments?kind=temporary_import" className="mt-2 inline-block text-[11.5px] text-accent-deep hover:underline">
           Manage temporary imports →
         </Link>
       </section>
 
       {/* Temporary exports (carnets) — many per piece, chronological */}
-      <section className="rounded-[11px] border border-line bg-cell p-5">
+      <section className="border border-line bg-cell p-5">
         <h2 className="text-[13px] font-semibold text-ink-strong">Temporary exports</h2>
         <p className="mt-0.5 text-[12px] text-ink-muted">
           Exhibition / fair loans abroad. A work can be on several over time.
@@ -420,7 +423,7 @@ export default async function EditPiecePage({
         <div className="mt-3 space-y-1.5">
           {tempExports.map((t) => (
             <div key={t.shipment!.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2 text-[12.5px]">
-              <Link href={`/shipments/${t.shipment!.id}`} className="text-ink-body hover:text-oranje">
+              <Link href={`/shipments/${t.shipment!.id}`} className="text-ink-body hover:text-accent-deep">
                 Out {t.shipment!.shipment_date ? new Date(t.shipment!.shipment_date).toLocaleDateString("en-GB") : "—"}
                 {t.shipment!.reference ? ` · ${t.shipment!.reference}` : ""}
                 {t.shipment!.destination_country ? ` · → ${t.shipment!.destination_country}` : ""}
@@ -458,7 +461,7 @@ export default async function EditPiecePage({
           </select>
           <button className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid">Link</button>
         </form>
-        <Link href="/shipments?kind=temporary_export" className="mt-2 inline-block text-[11.5px] text-oranje hover:underline">
+        <Link href="/shipments?kind=temporary_export" className="mt-2 inline-block text-[11.5px] text-accent-deep hover:underline">
           Manage temporary exports →
         </Link>
       </section>
@@ -491,10 +494,10 @@ export default async function EditPiecePage({
         <DocumentsPanel pieceId={piece.id} initial={pieceDocs} />
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-[11px] border border-line-soft bg-band px-4 py-3">
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border border-line-soft bg-band px-4 py-3">
         <div>
           <p className="text-[13px] font-medium text-ink-strong">Delete this record</p>
-          <p className="text-[12px] text-ink-soft">
+          <p className="text-[12px] text-body">
             Moves it to the trash for 30 days — you can reinstate it until then.
           </p>
         </div>

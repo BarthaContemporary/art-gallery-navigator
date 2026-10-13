@@ -91,7 +91,7 @@ export default async function AnalyticsPage({
               href={`/analytics?range=${r.key}`}
               className={`rounded-lg border px-2.5 py-1 text-[12px] font-medium ${
                 r.key === range
-                  ? "border-oranje/40 bg-oranje/10 text-oranje"
+                  ? "border-oranje/40 bg-oranje/10 text-accent-deep"
                   : "border-line-control bg-control text-ink-mid hover:text-ink-strong"
               }`}
             >
@@ -116,7 +116,7 @@ export default async function AnalyticsPage({
               ["Avg. visit", fmtDuration(data.totals.visitDuration)],
               ["Bounce rate", `${Math.round(data.totals.bounceRate)}%`],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-[11px] border border-line bg-cell p-4">
+              <div key={label} className="border border-line bg-cell p-4">
                 <dt className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
                   {label}
                 </dt>
@@ -131,7 +131,7 @@ export default async function AnalyticsPage({
               { title: "Top sources", rows: data.topSources, empty: "No referrer data yet." },
               { title: "Top countries", rows: data.topCountries, empty: "No location data yet." },
             ].map((panel) => (
-              <div key={panel.title} className="overflow-hidden rounded-[11px] border border-line bg-cell">
+              <div key={panel.title} className="overflow-hidden border border-line bg-cell">
                 <p className="border-b border-line px-4 py-2.5 text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
                   {panel.title}
                 </p>

@@ -46,7 +46,7 @@ export function EventEditor({
       : "11:00";
 
   return (
-    <div className="mt-3 rounded-[11px] border border-line bg-cell p-4">
+    <div className="mt-3 border border-line bg-cell p-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-[13px] font-semibold text-ink-strong">
           {mode === "new" ? "New event" : "Edit event"}
@@ -106,7 +106,7 @@ export function EventEditor({
                 name="allDay"
                 value="1"
                 defaultChecked={event?.allDay ?? false}
-                className="h-4 w-4 accent-[var(--jvb-ink-label)]"
+                className="h-4 w-4"
               />
               All day <span className="text-[11.5px] text-ink-faint">(times ignored)</span>
             </label>

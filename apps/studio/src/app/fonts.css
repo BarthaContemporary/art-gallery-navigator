@@ -1,9 +1,10 @@
 /* Self-hosted Google Fonts slices (latin + latin-ext), so the build never depends on fonts.googleapis.com. Regenerate from the Google CSS when updating. */
 
-:root {
-  --jvb-font-sans: "Noto Sans", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
-  --jvb-font-serif: "Newsreader", Georgia, "Times New Roman", serif;
-}
+/* The font stacks themselves (--jvb-font-sans, --jvb-font-serif) live only in
+   packages/ui/src/tokens.css. A second :root copy here used to win or lose on
+   stylesheet order alone. Japanese makers' names use the platform's Japanese
+   face (Hiragino Sans, Yu Gothic) through that stack; the website's Noto Sans
+   JP slices are not copied into the studio. */
 
 /* latin-ext */
 @font-face {

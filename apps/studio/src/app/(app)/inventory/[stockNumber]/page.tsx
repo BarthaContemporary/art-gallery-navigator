@@ -1,5 +1,5 @@
 import { SaveToDriveLink } from "@/components/save-to-drive";
-import { signedThumbnail, THUMB_WIDTH } from "@/lib/thumbnails";
+import { signedThumbnail, PREVIEW_WIDTH, THUMB_WIDTH } from "@/lib/thumbnails";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -22,6 +22,9 @@ import { cmToInchesFraction } from "@/lib/measure";
 import { titleWithYear } from "@jvb/db";
 import { formatDimensionsCm } from "@jvb/db";
 import { consignmentSplit } from "@/lib/consignment";
+// London time and the shared money format; this page renders on the server,
+// where a bare toLocaleString prints UTC.
+import { formatCount, formatDate, formatDateTime, gbpDisplay } from "@/lib/format";
 
 export const metadata = { title: "Piece detail" };
 
@@ -37,14 +40,9 @@ const ROLE_CAPTIONS: Record<string, string> = {
   other: "Other",
 };
 
-function gbp(n: number | null | undefined) {
-  if (n == null) return "—";
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
+// Whole pounds, as before: the record's price and margin summary. The
+// accountant's figures to the penny live in the editor and the stock book.
+const gbp = gbpDisplay;
 
 export default async function PieceDetail({
   params,
@@ -95,6 +93,11 @@ export default async function PieceDetail({
     historyRes,
     documentsRes,
     enquiriesRes,
+    prevRes,
+    nextRes,
+    { data: expShipments },
+    { data: flagRow },
+    { data: pieceLists },
   ] = await Promise.all([
     supabase
       .from("piece_images")
@@ -113,12 +116,15 @@ export default async function PieceDetail({
       .eq("user_id", user.id)
       .maybeSingle(),
     // Record position counts within this work's own register — the two series
-    // are separate, so "12 of 240" across both would mean nothing.
+    // are separate, so "12 of 240" across both would mean nothing. Trashed
+    // works are left out here and in prev/next below: the record page reads
+    // through vw_pieces_list, so a trashed neighbour would open as a 404.
     supabase
       .from(ref.table)
       .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
       .gte("stock_number", piece.stock_number),
-    supabase.from(ref.table).select("id", { count: "exact", head: true }),
+    supabase.from(ref.table).select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase
       .from("activity_log")
       .select(
@@ -162,13 +168,13 @@ export default async function PieceDetail({
       .eq("piece_id", piece.id)
       .order("created_at", { ascending: false })
       .limit(1),
-  ]);
-
-  // adjacent records for prev/next (by stock number ordering)
-  const [prevRes, nextRes] = await Promise.all([
+    // The queries below used to run one after another once this batch had
+    // finished; none depends on another, so they ride along with it.
+    // Adjacent records for prev/next (by stock number ordering).
     supabase
       .from(ref.table)
       .select("stock_number")
+      .is("deleted_at", null)
       .lt("stock_number", piece.stock_number)
       .order("stock_number", { ascending: false })
       .limit(1)
@@ -176,18 +182,32 @@ export default async function PieceDetail({
     supabase
       .from(ref.table)
       .select("stock_number")
+      .is("deleted_at", null)
       .gt("stock_number", piece.stock_number)
       .order("stock_number", { ascending: true })
       .limit(1)
       .maybeSingle(),
+    // Export / temporary-export destination country (shown in the spec grid).
+    supabase
+      .from("piece_shipments")
+      .select("kind, shipment:shipments ( shipment_date, destination_country )")
+      .eq("piece_id", piece.id)
+      .in("kind", ["export", "temporary_export"]),
+    // Temporary flag (per user) — the record-page form of the overview's ⚑.
+    supabase
+      .from("piece_flags")
+      .select("piece_id")
+      .eq("piece_id", piece.id)
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("piece_lists")
+      .select("id, name")
+      .eq("is_dynamic", false)
+      .order("sort_order")
+      .order("name"),
   ]);
 
-  // Export / temporary-export destination country (shown in the spec grid).
-  const { data: expShipments } = await supabase
-    .from("piece_shipments")
-    .select("kind, shipment:shipments ( shipment_date, destination_country )")
-    .eq("piece_id", piece.id)
-    .in("kind", ["export", "temporary_export"]);
   let exportDest: string | null = null;
   let tempExportDest: string | null = null;
   for (const r of (expShipments ?? []) as unknown as {
@@ -199,19 +219,31 @@ export default async function PieceDetail({
     else if (r.kind === "temporary_export") tempExportDest = r.shipment.destination_country;
   }
 
+  // Display masters run to 4096 px, so the hero is signed at PREVIEW_WIDTH and
+  // the strip at THUMB_WIDTH through the storage transform; the gallery loads
+  // the master itself only when someone zooms in.
   const imageRows = imagesRes.data ?? [];
   const images: GalleryImage[] = await Promise.all(
     imageRows.map(async (img) => {
       let url: string | null = null;
+      let preview: string | null = null;
+      let thumb: string | null = null;
       if (img.storage_path_display) {
-        const { data } = await supabase.storage
-          .from("piece-derivatives")
-          .createSignedUrl(img.storage_path_display, 3600);
-        url = data?.signedUrl ?? null;
+        const path = img.storage_path_display;
+        const [master, previewUrl, thumbUrl] = await Promise.all([
+          supabase.storage.from("piece-derivatives").createSignedUrl(path, 3600),
+          signedThumbnail(supabase, "piece-derivatives", path, PREVIEW_WIDTH),
+          signedThumbnail(supabase, "piece-derivatives", path, THUMB_WIDTH),
+        ]);
+        url = master.data?.signedUrl ?? null;
+        preview = previewUrl;
+        thumb = thumbUrl;
       }
       return {
         id: img.id,
         url,
+        preview,
+        thumb,
         caption: img.caption || ROLE_CAPTIONS[img.role] || "Image",
       };
     }),
@@ -252,13 +284,6 @@ export default async function PieceDetail({
   }
 
   const watching = Boolean(watchRes.data);
-  // Temporary flag (per user) — the record-page form of the overview's ⚑.
-  const { data: flagRow } = await supabase
-    .from("piece_flags")
-    .select("piece_id")
-    .eq("piece_id", piece.id)
-    .eq("user_id", user.id)
-    .maybeSingle();
   const flagged = Boolean(flagRow);
   const fin = financialsRes.data;
   const total = totalRes.count ?? 0;
@@ -338,13 +363,6 @@ export default async function PieceDetail({
         sharePct: consignSharePct as number,
       }).jvbNetProfit
     : null;
-
-  const { data: pieceLists } = await supabase
-    .from("piece_lists")
-    .select("id, name")
-    .eq("is_dynamic", false)
-    .order("sort_order")
-    .order("name");
 
   async function addToList(formData: FormData) {
     "use server";
@@ -511,7 +529,7 @@ export default async function PieceDetail({
       : []),
     ["Weight", piece.weight_g ? `${(piece.weight_g / 1000).toFixed(1)} kg` : "—"],
     ["Location", piece.location?.code ?? "—"],
-    ["Acquired", fin?.purchase_date ? new Date(fin.purchase_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"],
+    ["Acquired", formatDate(fin?.purchase_date, "short")],
     ["Reference", piece.legacy_stock_number ? `Legacy ${piece.legacy_stock_number}` : piece.stock_number],
     ...(exportDest ? ([["Exported to", exportDest]] as [string, React.ReactNode][]) : []),
     ...(tempExportDest ? ([["Temp. export to", tempExportDest]] as [string, React.ReactNode][]) : []),
@@ -555,7 +573,7 @@ export default async function PieceDetail({
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
           <span className="hidden font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint md:inline">
-            Record {position} / {total.toLocaleString("en-GB")}
+            Record {position} / {formatCount(total)}
           </span>
           <span className="flex items-center gap-1">
             {prevRes.data ? (
@@ -673,7 +691,7 @@ export default async function PieceDetail({
             ) : (
               <span className="text-ink-muted">
                 No lists yet —{" "}
-                <Link href="/inventory/lists" className="text-oranje hover:underline">
+                <Link href="/inventory/lists" className="text-accent-deep hover:underline">
                   create one
                 </Link>
                 .
@@ -737,7 +755,7 @@ export default async function PieceDetail({
           </p>
 
           {/* spec grid */}
-          <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-[11px] border border-line bg-line sm:grid-cols-3">
+          <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden border border-line bg-line sm:grid-cols-3">
             {specs.map(([label, value]) => (
               <div key={label} className="bg-cell px-4 py-[13px]">
                 <dt className="text-[11px] uppercase tracking-[0.06em] text-ink-label">
@@ -832,11 +850,11 @@ export default async function PieceDetail({
                     : "—"}
               </span>
               {useJvbMargin ? (
-                <span className="mt-0.5 block font-mono text-[12px] text-ink-muted">
+                <span className="mt-0.5 block font-mono text-[12px] text-body">
                   {consignSharePct}% share
                 </span>
               ) : marginPct ? (
-                <span className="mt-0.5 block font-mono text-[12px] text-ink-muted">
+                <span className="mt-0.5 block font-mono text-[12px] text-body">
                   {marginPct}%
                 </span>
               ) : null}
@@ -846,8 +864,8 @@ export default async function PieceDetail({
                 {enquiryCount}
               </span>
               {lastEnquiry ? (
-                <span className="mt-0.5 block font-mono text-[12px] text-ink-muted">
-                  last {new Date(lastEnquiry).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                <span className="mt-0.5 block font-mono text-[12px] text-body">
+                  last {formatDate(lastEnquiry, "short", { year: false })}
                 </span>
               ) : null}
             </Stat>
@@ -863,12 +881,12 @@ export default async function PieceDetail({
                   <span className="text-[15px] font-semibold text-ink-strong">
                     {onConsignment ? "Consigned" : "Owned outright"}
                   </span>
-                  <span className="rounded-[6px] bg-chip px-2 py-0.5 text-[11px] text-ink-body">
+                  <span className="bg-chip px-2 py-0.5 text-[11px] text-ink-body">
                     {onConsignment ? "Consignment" : "Not consigned"}
                   </span>
                 </div>
                 {onConsignment ? (
-                  <p className="mt-1.5 text-[13px] text-ink-muted">
+                  <p className="mt-1.5 text-[13px] text-body">
                     {consignCoOwner ? `Co-owner / consignee: ${consignCoOwner}. ` : ""}
                     {consignSharePct != null ? `J.v.d.B. share ${consignSharePct}%. ` : ""}
                     {consignSaleHandled === false
@@ -876,7 +894,7 @@ export default async function PieceDetail({
                       : `${consignSaleHandled === true ? "Sale handled by J.v.d.B. · " : ""}VAT: ${vatText}.`}
                   </p>
                 ) : (
-                  <p className="mt-1.5 text-[13px] text-ink-muted">
+                  <p className="mt-1.5 text-[13px] text-body">
                     {`100% JVB stock · no revenue split. VAT: ${vatText}.`}
                   </p>
                 )}
@@ -911,7 +929,7 @@ export default async function PieceDetail({
                       href={`/inventory/${encodeURIComponent(r.stock_number)}`}
                       className="group"
                     >
-                      <div className="jvb-hatch relative aspect-square overflow-hidden rounded-[9px]">
+                      <div className="jvb-hatch relative aspect-square overflow-hidden">
                         {thumb ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={thumb} alt={r.title ?? r.stock_number} className="h-full w-full object-cover" />
@@ -920,7 +938,7 @@ export default async function PieceDetail({
                           {r.stock_number}
                         </span>
                         {r.status === "sold" ? (
-                          <span className="absolute right-2 top-2 rounded-[5px] bg-tag-dark px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.05em] text-primary-fg">
+                          <span className="absolute right-2 top-2 bg-tag-dark px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.05em] text-primary-fg">
                             Sold
                           </span>
                         ) : null}
@@ -946,7 +964,7 @@ export default async function PieceDetail({
                   .map((r) => r.doc)
                   .filter((d): d is NonNullable<typeof d> => Boolean(d))).map((d) => (
                   <li key={d.id} className="flex items-baseline gap-2 text-[13px] text-ink-body">
-                    <span className="rounded-[5px] bg-chip px-1.5 py-0.5 text-[10px] uppercase tracking-[0.05em] text-ink-mid">
+                    <span className="bg-chip px-1.5 py-0.5 text-[10px] uppercase tracking-[0.05em] text-ink-mid">
                       {d.doc_type === "import_document" ? "Import Documents" : d.doc_type.replace(/_/g, " ")}
                     </span>
                     <span className="truncate">{d.title}</span>
@@ -965,7 +983,7 @@ export default async function PieceDetail({
                 {(historyRes.data ?? []).map((h) => (
                   <li key={h.id} className="text-[13px] text-ink-body">
                     <span className="font-mono text-[11px] text-ink-soft">
-                      {new Date(h.moved_at).toLocaleDateString("en-GB")}
+                      {formatDate(h.moved_at, "numeric")}
                     </span>{" "}
                     {(h.from_loc as unknown as { code: string } | null)?.code ?? "—"} →{" "}
                     {(h.to_loc as unknown as { code: string } | null)?.code ?? "—"}
@@ -1011,7 +1029,7 @@ export default async function PieceDetail({
                   <div>
                     <p className="text-[13.5px] text-ink-body">{a.action}</p>
                     <p className="font-mono text-[11px] text-ink-soft">
-                      {new Date(a.created_at).toLocaleString("en-GB")}
+                      {formatDateTime(a.created_at, "numeric", { seconds: true })}
                     </p>
                   </div>
                 </li>
@@ -1027,10 +1045,12 @@ export default async function PieceDetail({
   );
 }
 
+// Stats sit on the commercial band, where meta grey reads only 4.09:1, so the
+// label and the secondary lines in that band use body (tokens.css usage rules).
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[11px] text-ink-faint">{label}</div>
+      <div className="text-[11px] text-body">{label}</div>
       <div className="mt-1">{children}</div>
     </div>
   );

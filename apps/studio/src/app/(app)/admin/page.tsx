@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
-import { Resend } from "resend";
 import {
   getSession,
   getSupabase,
@@ -11,13 +10,20 @@ import {
 } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { PasskeyManager } from "@/components/passkey-manager";
+import { sendEmail } from "@/lib/email";
+import { PASSWORD_MIN } from "@/lib/auth-rules";
+// London time: this page renders on the server, where the zone is UTC.
+import { formatDate, formatDateTime } from "@/lib/format";
 
 export const metadata = { title: "Admin" };
 
 const NOTICE_COOKIE = "admin_notice";
 
 function genPassword() {
-  const bytes = new Uint8Array(12);
+  // 18 bytes make 24 base64 characters, plenty for 16 once + and / are
+  // stripped. 12 bytes made exactly 16, and stripping could leave fewer than
+  // PASSWORD_MIN, which the auth server refuses.
+  const bytes = new Uint8Array(18);
   crypto.getRandomValues(bytes);
   return Buffer.from(bytes).toString("base64").replace(/[+/=]/g, "").slice(0, 16);
 }
@@ -48,7 +54,8 @@ async function changePassword(formData: FormData) {
   await requireSession();
   const next = String(formData.get("password") ?? "");
   const confirm = String(formData.get("confirm") ?? "");
-  if (next.length < 12) redirect("/admin?error=Password+must+be+at+least+12+characters");
+  if (next.length < PASSWORD_MIN)
+    redirect(`/admin?error=${encodeURIComponent(`Password must be at least ${PASSWORD_MIN} characters`)}`);
   if (next !== confirm) redirect("/admin?error=Passwords+do+not+match");
   const supabase = await getSupabase();
   const { error } = await supabase.auth.updateUser({ password: next });
@@ -80,6 +87,10 @@ export default async function AdminPage({
       redirect("/admin");
     }
     const pw = String(formData.get("password") ?? "").trim() || genPassword();
+    if (pw.length < PASSWORD_MIN) {
+      await flashNotice(`Password must be at least ${PASSWORD_MIN} characters`);
+      redirect("/admin");
+    }
     const admin = createServiceClient();
     const { data, error } = await admin.auth.admin.createUser({
       email,
@@ -105,6 +116,10 @@ export default async function AdminPage({
     const userId = String(formData.get("user_id") ?? "");
     const email = String(formData.get("email") ?? "");
     const pw = String(formData.get("password") ?? "").trim() || genPassword();
+    if (pw.length < PASSWORD_MIN) {
+      await flashNotice(`Password must be at least ${PASSWORD_MIN} characters`);
+      redirect("/admin");
+    }
     const admin = createServiceClient();
     const { error } = await admin.auth.admin.updateUserById(userId, { password: pw });
     if (error) {
@@ -147,16 +162,22 @@ export default async function AdminPage({
       await flashNotice(`Email not configured. Send this link to ${email}: ${link}`);
       redirect("/admin");
     }
+    // sendEmail throws when Resend refuses the email (the SDK only returns
+    // the error), so a refused invitation reaches the catch and the admin
+    // gets the link to pass on, instead of "Invitation sent".
     try {
-      const resend = new Resend(apiKey);
-      await resend.emails.send({
-        from,
-        to: email,
-        subject: "Set your password — Joost van den Bergh Studio",
-        html: `<p>You've been given access to the Joost van den Bergh studio.</p>
+      await sendEmail(
+        apiKey,
+        {
+          from,
+          to: email,
+          subject: "Set your password — Joost van den Bergh Studio",
+          html: `<p>You've been given access to the Joost van den Bergh studio.</p>
 <p><a href="${link}">Click here to set your password</a>. This link expires in 24 hours.</p>
 <p>If you didn't expect this, you can ignore this email.</p>`,
-      });
+        },
+        "Studio invitation",
+      );
       await flashNotice(`Invitation sent to ${email}.`);
     } catch (e) {
       await flashNotice(`Email failed (${e instanceof Error ? e.message : "error"}). Link: ${link}`);
@@ -176,11 +197,12 @@ export default async function AdminPage({
     const admin = createServiceClient();
     const rows: { entity_type: string; entity_id: string; op: string }[] = [];
     for (const table of ["pieces", "external_pieces"] as const) {
+      // Trashed works are queued too: the route takes them off the website,
+      // which also clears any that were trashed while it still republished them.
       const { data, error } = await admin
         .from(table)
         .select("id")
-        .eq("web_visible", true)
-        .is("deleted_at", null);
+        .eq("web_visible", true);
       if (error) {
         await flashNotice(`Could not list web-visible works: ${error.message}`);
         redirect("/admin");
@@ -309,7 +331,7 @@ export default async function AdminPage({
       </p>
 
       {/* Password — available to everyone */}
-      <form action={changePassword} className="mt-6 max-w-md rounded-[11px] border border-line bg-cell p-5">
+      <form action={changePassword} className="mt-6 max-w-md border border-line bg-cell p-5">
         <h2 className="text-[13px] font-semibold text-ink-strong">Change your password</h2>
         {pwError ? (
           <p className="mt-3 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
@@ -323,18 +345,20 @@ export default async function AdminPage({
         ) : null}
         <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
           New password
-          <input name="password" type="password" required minLength={10} autoComplete="new-password"
+          <input name="password" type="password" required minLength={PASSWORD_MIN} autoComplete="new-password"
             className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px]" />
         </label>
         <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
           Confirm new password
-          <input name="confirm" type="password" required minLength={10} autoComplete="new-password"
+          <input name="confirm" type="password" required minLength={PASSWORD_MIN} autoComplete="new-password"
             className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px]" />
         </label>
         <button type="submit" className="mt-5 rounded-lg bg-primary px-4 py-2 text-[12.5px] font-semibold text-primary-fg">
           Update password
         </button>
-        <p className="mt-3 text-[12px] text-ink-soft">Minimum 10 characters. You stay signed in after changing it.</p>
+        <p className="mt-3 text-[12px] text-ink-soft">
+          Minimum {PASSWORD_MIN} characters. You stay signed in after changing it.
+        </p>
       </form>
 
       {/* Passkeys — available to everyone */}
@@ -349,23 +373,23 @@ export default async function AdminPage({
           ) : null}
 
           <div className="mt-8 flex flex-col gap-2 text-[12.5px]">
-            <a href="/migration" className="text-ink-mid hover:text-oranje">
+            <a href="/migration" className="text-ink-mid hover:text-accent-deep">
               Data review — flagged import records (duplicates, unconverted currency…) →
             </a>
-            <a href="/analytics" className="text-ink-mid hover:text-oranje">
+            <a href="/analytics" className="text-ink-mid hover:text-accent-deep">
               Analytics — public website visitor results (cookieless) →
             </a>
-            <a href="/admin/duplicates" className="text-ink-mid hover:text-oranje">
+            <a href="/admin/duplicates" className="text-ink-mid hover:text-accent-deep">
               Duplicate contacts — review &amp; merge pairs found during the legacy import →
             </a>
-            <a href="/admin/data-protection" className="text-ink-mid hover:text-oranje">
+            <a href="/admin/data-protection" className="text-ink-mid hover:text-accent-deep">
               Data protection — retention, subject requests, breach register, review queues →
             </a>
           </div>
 
           <section className="mt-6">
             <h2 className="text-[13px] font-semibold text-ink-strong">Users</h2>
-            <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">
+            <div className="mt-3 overflow-x-auto border border-line">
               <table className="w-full min-w-[560px] bg-cell text-left">
                 <thead>
                   <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
@@ -382,7 +406,7 @@ export default async function AdminPage({
                       <td className="px-4 py-2.5 text-[13.5px] text-ink-body">{u.email}</td>
                       <td className="px-4 py-2.5 text-[12.5px] text-ink-muted">{u.roles.join(", ") || "—"}</td>
                       <td className="px-4 py-2.5 font-mono text-[12px] text-ink-soft">
-                        {new Date(u.created_at).toLocaleDateString("en-GB")}
+                        {formatDate(u.created_at, "numeric")}
                       </td>
                       <td className="px-4 py-2">
                         <form action={resetPassword} className="flex items-center gap-1.5">
@@ -390,6 +414,7 @@ export default async function AdminPage({
                           <input type="hidden" name="email" value={u.email} />
                           <input
                             name="password"
+                            minLength={PASSWORD_MIN}
                             placeholder="new (blank = generate)"
                             className="w-40 rounded-md border border-line-control bg-control px-2 py-1 text-[12px]"
                           />
@@ -423,7 +448,8 @@ export default async function AdminPage({
           <section className="mt-8">
             <h2 className="text-[13px] font-semibold text-ink-strong">Add user</h2>
             <p className="mt-1 text-[12.5px] text-ink-muted">
-              Creates the account immediately. Leave the password blank to auto-generate one (shown once above).
+              Creates the account immediately. Leave the password blank to auto-generate one (shown once above);
+              one you choose needs at least {PASSWORD_MIN} characters, as does a reset.
             </p>
             <form action={createUser} className="mt-3 flex flex-wrap items-end gap-2">
               <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
@@ -440,7 +466,7 @@ export default async function AdminPage({
               </label>
               <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
                 Password (optional)
-                <input name="password" className="mt-1 block w-48 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
+                <input name="password" minLength={PASSWORD_MIN} className="mt-1 block w-48 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
               </label>
               <button type="submit" className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">
                 Create user
@@ -482,7 +508,7 @@ export default async function AdminPage({
                       {a.action} {a.entity_type}
                     </span>
                     <span className="ml-2 font-mono text-[11px] text-ink-soft">
-                      {new Date(a.created_at).toLocaleString("en-GB")}
+                      {formatDateTime(a.created_at, "numeric", { seconds: true })}
                     </span>
                   </div>
                 </li>

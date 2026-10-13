@@ -4,19 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dropzone } from "@/components/dropzone";
 import { uploadDocument } from "@/lib/upload-signed";
+import { DOC_TYPE_LABELS } from "@/lib/labels";
 
-const DOC_TYPES: [string, string][] = [
-  ["purchase_invoice", "Purchase invoice"],
-  ["sale_invoice", "Sale invoice"],
-  ["provenance_document", "Provenance document"],
-  ["correspondence", "Correspondence"],
-  ["shipping", "Shipping document"],
-  ["insurance", "Insurance document"],
-  ["certificate", "Certificate"],
-  ["condition_report", "Condition report"],
-  ["export_licence", "Export licence"],
-  ["other", "Other"],
-];
+// The shared words, with the same ten choices as before: this upload picker
+// has never offered "Import documents" (import paperwork is filed on the
+// shipment), and it still does not.
+const DOC_TYPES = Object.entries(DOC_TYPE_LABELS).filter(([v]) => v !== "import_document");
 
 /**
  * Create a shared document: upload one file, set its type / date / reference,
@@ -79,7 +72,7 @@ export function NewDocument() {
   }
 
   return (
-    <div className="w-full rounded-[11px] border border-line bg-cell p-5">
+    <div className="w-full border border-line bg-cell p-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className={label}>
           Type

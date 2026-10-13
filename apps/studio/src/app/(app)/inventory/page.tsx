@@ -8,22 +8,17 @@ import { NewRecordButton } from "@/components/new-record-button";
 import { InventoryFilters } from "@/components/inventory-filters";
 import { STATUS_LABELS } from "@/components/status-pill";
 import { createDraftPiece } from "./actions";
-import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
-import { selectInChunks } from "@/lib/chunk";
-import { applyFacet, facetMatches, parseFacet } from "@/lib/facet";
-import { FLAG_FILTERS, activeFlags, applyFlagFilters } from "@/lib/inventory-query";
+import { applyFacet, parseFacet } from "@/lib/facet";
+import {
+  FLAG_FILTERS,
+  SCREEN_ORDER,
+  applyFlagFilters,
+  inventoryOrder,
+  resolveInventoryIds,
+  selectInventoryRows,
+} from "@/lib/inventory-query";
 
 const PAGE_SIZE = 100;
-
-// Columns the user may sort by → the underlying view column.
-const SORTABLE: Record<string, string> = {
-  stock_number: "stock_number",
-  title: "title",
-  maker_name: "maker_name",
-  category_name: "category_name",
-  location_code: "location_code",
-  status: "status",
-};
 
 type Search = {
   q?: string;
@@ -53,8 +48,10 @@ export default async function InventoryPage({
 }) {
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
-  const sortCol = SORTABLE[sp.sort ?? ""] ?? "stock_number";
-  const ascending = sp.dir === "asc";
+  // The URL as the shared resolver and the exports read it. The sort is null
+  // only while a search ranks by relevance with no column chosen.
+  const params = new URLSearchParams(strip(sp));
+  const order = inventoryOrder(params, SCREEN_ORDER);
   const supabase = await getSupabase();
 
   const [{ data: categories }, { data: locations }, { data: pieceLists }, { data: flagRows }] = await Promise.all([
@@ -65,31 +62,6 @@ export default async function InventoryPage({
     supabase.from("piece_flags").select("piece_id"),
   ]);
   const flaggedIds = new Set(((flagRows ?? []) as { piece_id: string }[]).map((f) => f.piece_id));
-
-  // When filtering by a list, resolve its member piece ids up front. Static
-  // lists come from piece_list_items; dynamic (saved-view) lists have no rows
-  // there, so their membership is re-run live from filter_rules — the same way
-  // the list detail page resolves them.
-  let listMemberIds: Set<string> | null = null;
-  if (sp.list) {
-    const { data: listRow } = await supabase
-      .from("piece_lists")
-      .select("id, is_dynamic, filter_rules")
-      .eq("id", sp.list)
-      .maybeSingle();
-    if (listRow) {
-      // One implementation of "what is in this list", shared with the list
-      // detail page, the Library and the offers picker.
-      listMemberIds = new Set(await resolveListPieceIds(supabase, listRow as ListLike));
-    }
-  }
-  // "Flagged only" narrows to the user's flags — on top of a list filter if
-  // one is active. An empty set is a real answer: nothing flagged, no rows.
-  if (sp.flagged) {
-    listMemberIds = listMemberIds
-      ? new Set([...flaggedIds].filter((id) => listMemberIds!.has(id)))
-      : new Set(flaggedIds);
-  }
   const locNameById = new Map(
     ((locations ?? []) as { id: string; name: string | null; code: string }[]).map((l) => [
       l.id,
@@ -152,100 +124,31 @@ export default async function InventoryPage({
   let total = 0;
   let error: { message: string } | null = null;
 
-  if (searching) {
-    // Ranked omnisearch: FTS (weighted tsvector) + pg_trgm fuzzy + maker-name
-    // matching, all in the pieces_search() RPC. Facets are applied to the
-    // ranked hits, then only the current page's ids are hydrated through
-    // vw_pieces_list (keeps the request URL short and preserves rank order).
-    const { data: hits, error: rpcErr } = await supabase.rpc("pieces_search", {
-      q,
-    });
-    error = rpcErr;
-    let filtered = (hits ?? []) as Array<{
-      id: string;
-      status: string;
-      category_id: string | null;
-      location_id: string | null;
-      ledger: string;
-    }>;
-    if (ledgerFilter) filtered = filtered.filter((h) => h.ledger === ledgerFilter);
-    if (sp.status) filtered = filtered.filter((h) => facetMatches(sp.status, h.status));
-    if (sp.category)
-      filtered = filtered.filter((h) => facetMatches(sp.category, h.category_id));
-    if (sp.location)
-      filtered = filtered.filter((h) => facetMatches(sp.location, h.location_id));
-    if (listMemberIds) filtered = filtered.filter((h) => listMemberIds!.has(h.id));
-
-    // The boolean flags (on loan / needs completion / needs purchase £) live
-    // on the view, not on the search hits, so resolve them through the view
-    // for the matching ids before paging.
-    if (activeFlags(sp).length > 0 && filtered.length > 0) {
-      const flagged = await selectInChunks<{ id: string }>(
-        filtered.map((h) => h.id),
-        (chunk) => {
-          let q = supabase.from("vw_pieces_list").select("id").in("id", chunk);
-          q = applyFlagFilters(q, sp);
-          return q;
-        },
+  // A search, a list or the flags pick their works in code; the resolver is
+  // shared with the three exports, so an export is exactly these rows in this
+  // order. A search ranks by relevance unless a column is chosen; a list sorts
+  // by the chosen column. Only the current page's rows are hydrated.
+  let ids: string[] | null = null;
+  try {
+    ids = await resolveInventoryIds(supabase, params, order, { flaggedIds });
+    if (ids) {
+      total = ids.length;
+      rows = await selectInventoryRows<ListRow>(
+        supabase,
+        ids.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
       );
-      const keep = new Set(flagged.map((r) => r.id));
-      filtered = filtered.filter((h) => keep.has(h.id));
     }
+  } catch (e) {
+    error = { message: e instanceof Error ? e.message : "Could not load the inventory" };
+  }
 
-    total = filtered.length;
-    const pageIds = filtered
-      .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-      .map((h) => h.id);
-
-    if (pageIds.length > 0) {
-      const { data: viewRows, error: vErr } = await supabase
-        .from("vw_pieces_list")
-        .select("*")
-        .in("id", pageIds);
-      error = error ?? vErr;
-      const byId = new Map(
-        ((viewRows ?? []) as ListRow[]).map((r) => [r.id, r]),
-      );
-      rows = pageIds
-        .map((id) => byId.get(id))
-        .filter((r): r is ListRow => Boolean(r));
-    }
-  } else if (listMemberIds) {
-    // Filtering by a list. A single `.in()` with the whole membership lives in
-    // the request URL and 414s somewhere past ~200 ids (see lib/chunk.ts) — a
-    // 500-work list took the whole inventory page down. Fetch the members in
-    // chunks with the facet filters applied, then sort and page here: a list
-    // is capped at 500 live (and rarely more static), so the rows fit
-    // comfortably in one server render.
-    try {
-      const fetched = await selectInChunks<ListRow>([...listMemberIds], (chunk) => {
-        let q = supabase.from("vw_pieces_list").select("*").in("id", chunk);
-        if (ledgerFilter) q = q.eq("ledger", ledgerFilter);
-        q = applyFacet(q, "status", sp.status);
-        q = applyFacet(q, "category_id", sp.category, { nullable: true });
-        q = applyFacet(q, "location_id", sp.location, { nullable: true });
-        return applyFlagFilters(q, sp);
-      });
-      // Mirror the SQL ordering: chosen column, chosen direction, nulls last.
-      const dir = ascending ? 1 : -1;
-      fetched.sort((a, b) => {
-        const av = (a as Record<string, unknown>)[sortCol] ?? null;
-        const bv = (b as Record<string, unknown>)[sortCol] ?? null;
-        if (av === null && bv === null) return 0;
-        if (av === null) return 1;
-        if (bv === null) return -1;
-        return av < bv ? -dir : av > bv ? dir : 0;
-      });
-      total = fetched.length;
-      rows = fetched.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-    } catch (e) {
-      error = { message: e instanceof Error ? e.message : "Could not load the list" };
-    }
-  } else {
+  // Everything else counts, sorts and pages in SQL.
+  if (!ids && !error) {
+    const by = order ?? SCREEN_ORDER;
     let query = supabase
       .from("vw_pieces_list")
       .select("*", { count: "exact" })
-      .order(sortCol, { ascending, nullsFirst: false })
+      .order(by.column, { ascending: by.ascending, nullsFirst: false })
       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
     if (ledgerFilter) query = query.eq("ledger", ledgerFilter);
@@ -300,6 +203,13 @@ export default async function InventoryPage({
     }
   }
 
+  // Filters on screen that a live list's rules cannot hold (see saveAsList).
+  const notSaved = [
+    ...FLAG_FILTERS.filter(([param]) => sp[param]).map(([, , label]) => label),
+    ...(sp.flagged ? ["Flagged only"] : []),
+    ...(sp.list ? ["List filter"] : []),
+  ];
+
   return (
     <div className="jvb-content-enter">
       {sp.error ? (
@@ -322,12 +232,14 @@ export default async function InventoryPage({
           >
             ⚑ Flagged{flaggedIds.size > 0 ? ` (${flaggedIds.size})` : ""}
           </Link>
+          {/* Each pill toggles its own flag and keeps every other filter, like
+              the Flagged pill beside it (it used to reset the whole URL). */}
           {FLAG_FILTERS.map(([param, , label]) => (
             <Link
               key={param}
-              href={sp[param] ? "/inventory" : `/inventory?${param}=1`}
+              href={qs({ ...sp, [param]: sp[param] ? undefined : "1", page: undefined }) || "/inventory"}
               className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
-                sp[param] ? "border-oranje text-oranje" : "border-line-control bg-control text-ink-mid"
+                sp[param] ? "border-oranje text-accent-deep" : "border-line-control bg-control text-ink-mid"
               }`}
             >
               {label}
@@ -399,6 +311,9 @@ export default async function InventoryPage({
         if (fLoc && locName) chips.push({ key: "location", label: not(fLoc, locName) });
         if (sp.list && listName) chips.push({ key: "list", label: `List: ${listName}` });
         if (sp.flagged) chips.push({ key: "flagged", label: "⚑ Flagged only" });
+        for (const [param, , label] of FLAG_FILTERS) {
+          if (sp[param]) chips.push({ key: param, label });
+        }
         if (chips.length === 0) return null;
         return (
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -406,7 +321,7 @@ export default async function InventoryPage({
               <a
                 key={chip.key}
                 href={qs({ ...sp, [chip.key]: undefined, page: undefined }) || "/inventory"}
-                className="inline-flex items-center gap-1.5 rounded-full border border-line-control bg-control px-2.5 py-1 text-[11.5px] text-ink-mid hover:text-ink-strong"
+                className="inline-flex items-center gap-1.5 border border-line-control bg-control px-2.5 py-1 text-[11.5px] text-ink-mid hover:text-ink-strong"
                 title={`Remove ${chip.key} filter`}
               >
                 {chip.label}
@@ -453,6 +368,14 @@ export default async function InventoryPage({
           <span className="text-[11px] text-ink-soft">
             Membership stays live — it re-runs these filters each time you open it.
           </span>
+          {/* A live list keeps the search, register and facets only, so say
+              which of the screen's filters it will not carry rather than
+              quietly saving a wider list than the one on screen. */}
+          {notSaved.length > 0 ? (
+            <span className="text-[11px] text-warn">
+              Not saved in a live list: {notSaved.join(", ")}.
+            </span>
+          ) : null}
         </form>
       ) : null}
 
@@ -462,7 +385,23 @@ export default async function InventoryPage({
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint">
           {total.toLocaleString("en-GB")} records · page {page} of {pages}
-          {searching ? " · ranked by relevance" : ""}
+          {searching ? (
+            order ? (
+              <>
+                {" · "}
+                <Link
+                  href={qs({ ...sp, sort: undefined, dir: undefined, page: undefined })}
+                  className="underline hover:text-ink-strong"
+                >
+                  Rank by relevance
+                </Link>
+              </>
+            ) : (
+              " · ranked by relevance"
+            )
+          ) : (
+            ""
+          )}
         </p>
         <Pager sp={sp} page={page} pages={pages} label="Pagination, top" />
       </div>

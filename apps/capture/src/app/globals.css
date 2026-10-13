@@ -29,7 +29,12 @@
   --color-ink-faint: var(--jvb-ink-faint);
 
   --color-status-green: var(--jvb-status-green);
-  --color-oranje: #fc6600;
+  /* The website's orange, as in the studio: accent for fills, borders and
+     selection; accent-deep for orange text, which must stay readable at
+     12px; danger for errors. #fc6600 is now only the icons' brand seal. */
+  --color-oranje: var(--jvb-accent);
+  --color-accent-deep: var(--jvb-accent-deep);
+  --color-danger: var(--jvb-danger);
 }
 
 html {

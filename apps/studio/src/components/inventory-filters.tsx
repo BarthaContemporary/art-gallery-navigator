@@ -113,8 +113,8 @@ export function InventoryFilters({
         }
         className={`rounded-md border px-1.5 py-2 font-mono text-[11px] leading-none ${
           exclude
-            ? "border-oranje/50 bg-oranje/10 font-semibold text-oranje"
-            : "border-line-control bg-control text-ink-soft"
+            ? "border-oranje/50 bg-oranje/10 font-semibold text-accent-deep"
+            : "border-line-control bg-control text-body"
         } disabled:opacity-40`}
       >
         {exclude ? "not" : "is"}

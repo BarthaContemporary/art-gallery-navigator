@@ -497,7 +497,7 @@ export function InventoryTable({
       {/* Mobile: a card list. The table is a fixed ~1100px grid with drag
           handles — on a phone that is three viewports of sideways scrolling and
           the handles are unusable by touch. Same data, one column, tappable. */}
-      <ul className="overflow-hidden rounded-[11px] border border-line md:hidden">
+      <ul className="overflow-hidden border border-line md:hidden">
         {rows.map((r) => (
           <li
             key={r.id}
@@ -512,7 +512,7 @@ export function InventoryTable({
                   type="checkbox"
                   checked={selected.has(r.id)}
                   onChange={() => toggleRow(r.id)}
-                  className="h-4 w-4 accent-[var(--jvb-bg-primary)]"
+                  className="h-4 w-4"
                 />
               </label>
               <Link href={href(r)} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
@@ -537,7 +537,7 @@ export function InventoryTable({
                     <span className="font-mono text-[11.5px] text-ink-muted">{r.stock_number}</span>
                     <RegisterBadge ledger={r.ledger} size="xs" />
                     {r.needs_completion ? (
-                      <span className="rounded-full bg-warn-soft px-1.5 text-[10px] font-medium text-warn">
+                      <span className="bg-warn-soft px-1.5 text-[10px] font-medium text-warn">
                         Finish
                       </span>
                     ) : null}
@@ -565,7 +565,9 @@ export function InventoryTable({
         ) : null}
       </ul>
 
-      <div className="hidden overflow-x-auto rounded-[11px] border border-line md:block lg:overflow-x-visible">
+      {/* data-inset-focus: the frame scrolls sideways and would clip an outer
+          focus ring, so cells draw it inside (globals.css). */}
+      <div data-inset-focus className="hidden overflow-x-auto border border-line md:block lg:overflow-x-visible">
         <table
           ref={tableRef}
           style={{ width: totalWidth(), tableLayout: "fixed" }}
@@ -837,7 +839,7 @@ function AddToListBar({
         {stale ? (
           <span
             title="This selection was started a while ago — worth checking it is still what you meant."
-            className="rounded-full bg-warn-soft px-2 py-0.5 text-[11.5px] font-medium text-warn"
+            className="bg-warn-soft px-2 py-0.5 text-[11.5px] font-medium text-warn"
           >
             gathered {ageLabel(age)}
           </span>
@@ -1186,7 +1188,7 @@ function FlagBar({
               type="checkbox"
               checked={clearAfter}
               onChange={(e) => setClearAfter(e.target.checked)}
-              className="h-3.5 w-3.5 accent-[var(--jvb-warn)]"
+              className="h-3.5 w-3.5"
             />
             Clear the flags afterwards
           </label>
@@ -1196,7 +1198,7 @@ function FlagBar({
       {done ? (
         <p className="text-[12px] text-ink-body">
           Added {done.added} work{done.added === 1 ? "" : "s"} to{" "}
-          <Link href={`/inventory/lists/${done.listId}`} className="font-medium text-oranje hover:underline">
+          <Link href={`/inventory/lists/${done.listId}`} className="font-medium text-accent-deep hover:underline">
             {done.name}
           </Link>
           {done.skipped > 0 ? (

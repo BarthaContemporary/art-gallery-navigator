@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireSession, hasRole, getSupabase } from "@/lib/supabase";
+// London dates: this page renders on the server, where the zone is UTC.
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Duplicate contacts" };
 export const dynamic = "force-dynamic";
@@ -84,7 +86,7 @@ export default async function DuplicateContactsPage() {
         {groups.map((g) => {
           const first = g[0]!;
           return (
-          <div key={first.id} className="rounded-[11px] border border-line bg-cell p-4">
+          <div key={first.id} className="border border-line bg-cell p-4">
             <p className="text-[13px] font-semibold text-ink-strong">
               {first.first_name} {first.last_name}
               <span className="ml-2 font-normal text-ink-soft">({g.length} records)</span>
@@ -106,7 +108,7 @@ export default async function DuplicateContactsPage() {
                   {g.map((c) => (
                     <tr key={c.id} className="border-b border-line-soft align-top last:border-0">
                       <td className="py-2 pr-3">
-                        <Link href={`/crm/contacts/${c.id}`} className="text-[13px] font-medium text-oranje hover:underline">
+                        <Link href={`/crm/contacts/${c.id}`} className="text-[13px] font-medium text-accent-deep hover:underline">
                           Open →
                         </Link>
                       </td>
@@ -123,7 +125,7 @@ export default async function DuplicateContactsPage() {
                         {c.notes ? (c.notes.length > 120 ? `${c.notes.slice(0, 120)}…` : c.notes) : "—"}
                       </td>
                       <td className="py-2 font-mono text-[11.5px] text-ink-soft">
-                        {new Date(c.created_at).toLocaleDateString("en-GB")}
+                        {formatDate(c.created_at, "numeric")}
                       </td>
                     </tr>
                   ))}

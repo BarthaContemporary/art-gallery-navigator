@@ -6,7 +6,7 @@ export const metadata = { title: "Data review" };
 
 type PieceRef = { stock_number: string; title: string | null } | null;
 
-const box = "mt-4 overflow-x-auto rounded-[11px] border border-line";
+const box = "mt-4 overflow-x-auto border border-line";
 const th = "px-4 py-2.5 font-medium";
 const td = "px-4 py-2.5 text-[13px]";
 
@@ -15,7 +15,7 @@ function StockLink({ piece }: { piece: PieceRef }) {
   return (
     <Link
       href={`/inventory/${encodeURIComponent(piece.stock_number)}`}
-      className="font-mono text-[12px] text-ink hover:text-oranje"
+      className="font-mono text-[12px] text-ink hover:text-accent-deep"
     >
       {piece.stock_number}
     </Link>

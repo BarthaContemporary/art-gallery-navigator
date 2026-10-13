@@ -22,7 +22,7 @@ export async function LegacyRecordPanel({ pieceId }: { pieceId: string }) {
   if (entries.length === 0) return null;
 
   return (
-    <details className="mt-6 rounded-[11px] border border-line bg-cell p-5">
+    <details className="mt-6 border border-line bg-cell p-5">
       <summary className="cursor-pointer text-[13px] font-semibold text-ink-strong">
         Original FileMaker record{" "}
         <span className="font-normal text-ink-muted">

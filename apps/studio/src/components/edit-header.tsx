@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RegisterBadge } from "@/components/register-badge";
 import { titleWithYear as formatTitleWithYear } from "@jvb/db";
@@ -26,6 +26,7 @@ export function EditHeader({
   imageCount,
   webVisible,
   ledger,
+  needsCompletion = false,
 }: {
   thumbUrl: string | null;
   stockNumber: string;
@@ -36,6 +37,8 @@ export function EditHeader({
   imageCount: number;
   webVisible: boolean;
   ledger?: "jvb" | "external";
+  /** Captured on mobile and not yet catalogued (pieces.needs_completion). */
+  needsCompletion?: boolean;
 }) {
   const titleWithYear = formatTitleWithYear(title, year);
   const imagesHref = `/inventory/${encodeURIComponent(stockNumber)}/images`;
@@ -50,6 +53,27 @@ export function EditHeader({
       webInputRef.current?.dispatchEvent(new Event("input", { bubbles: true })),
     );
   }
+
+  // --- "Needs completion" (set by the capture app; nothing else cleared it) ---
+  // The routes touch the column only when the key is posted, and the hidden
+  // field appears only once the button has been pressed here. So ordinary
+  // saves never write it: a record marked catalogued in another tab, or
+  // re-flagged by the capture app, is not reset by an editor left open.
+  // Undo stays available until the page is left.
+  const [needsFinish, setNeedsFinish] = useState(needsCompletion);
+  const [finishTouched, setFinishTouched] = useState(false);
+  const finishInputRef = useRef<HTMLInputElement>(null);
+  function toggleFinish() {
+    setFinishTouched(true);
+    setNeedsFinish((v) => !v);
+  }
+  // After the commit, so the field exists (and holds the new value) when the
+  // autosave form hears about it.
+  useEffect(() => {
+    if (finishTouched) {
+      finishInputRef.current?.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }, [needsFinish, finishTouched]);
 
   // --- AI analysis ---
   const [state, setState] = useState<"idle" | "loading" | "done" | "unconfigured" | "error">("idle");
@@ -112,7 +136,7 @@ export function EditHeader({
   const draft = (l: string, val: string) =>
     val ? (
       <div className="mt-3">
-        <p className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint">{l}</p>
+        <p className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-body">{l}</p>
         <p className="mt-0.5 font-serif text-[13.5px] text-ink-body">{val}</p>
       </div>
     ) : null;
@@ -120,6 +144,14 @@ export function EditHeader({
   return (
     <div>
       <input ref={webInputRef} type="hidden" name="web_visible" value={visible ? "on" : ""} />
+      {needsCompletion && finishTouched ? (
+        <input
+          ref={finishInputRef}
+          type="hidden"
+          name="needs_completion"
+          value={needsFinish ? "on" : ""}
+        />
+      ) : null}
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         {/* preview image (→ image management) + title + record number */}
@@ -145,6 +177,32 @@ export function EditHeader({
                 <span className="text-ink-soft">
                   · Legacy {legacyStock}
                   {legacyConflict ? " (dup)" : ""}
+                </span>
+              ) : null}
+              {needsCompletion ? (
+                <span className="inline-flex items-center gap-2 font-sans">
+                  {needsFinish ? (
+                    <span
+                      title="Captured on mobile and not yet catalogued"
+                      className="bg-warn-wash px-1.5 py-0.5 text-[11px] font-medium text-warn"
+                    >
+                      Needs completion
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-medium text-ok">Catalogued</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={toggleFinish}
+                    className="text-[11px] font-medium text-ink-mid underline hover:text-ink-strong"
+                    title={
+                      needsFinish
+                        ? "Clears the Finish badge in the inventory and the dashboard count"
+                        : "Put the Finish badge back"
+                    }
+                  >
+                    {needsFinish ? "Mark catalogued" : "Undo"}
+                  </button>
                 </span>
               ) : null}
             </p>
@@ -188,8 +246,8 @@ export function EditHeader({
         <p className="mt-3 text-[12.5px] text-ink-muted">{message}</p>
       ) : null}
       {suggestions ? (
-        <section className="mt-4 rounded-[11px] border border-line bg-band p-5">
-          <p className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint">
+        <section className="mt-4 border border-line bg-band p-5">
+          <p className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-body">
             AI hashtags — tap to include
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -207,7 +265,7 @@ export function EditHeader({
                       return n;
                     })
                   }
-                  className={`rounded-full border px-2.5 py-1 text-[11.5px] ${
+                  className={`border px-2.5 py-1 text-[11.5px] ${
                     on ? "border-ink-strong bg-tag-dark text-primary-fg" : "border-line-control bg-control text-ink-mid"
                   }`}
                 >
@@ -232,7 +290,7 @@ export function EditHeader({
           {draft("Suggested period", suggestions.suggested_period)}
           {draft("Materials / techniques / motifs", [...suggestions.materials, ...suggestions.techniques, ...suggestions.motifs].join(" · "))}
           {draft("Draft description", suggestions.description_draft)}
-          <p className="mt-3 text-[11px] text-ink-soft">
+          <p className="mt-3 text-[11px] text-body">
             Field drafts are suggestions — copy anything useful into the form. Only tags are written.
           </p>
         </section>

@@ -5,7 +5,12 @@ import Link from "next/link";
 
 export type GalleryImage = {
   id: string;
+  /** The display master (up to 4096 px); loaded only once the hero is zoomed. */
   url: string | null;
+  /** PREVIEW_WIDTH rendition for the hero at rest; falls back to the master. */
+  preview?: string | null;
+  /** THUMB_WIDTH rendition for the strip; falls back to the preview. */
+  thumb?: string | null;
   caption: string;
 };
 
@@ -60,12 +65,14 @@ export function PieceGallery({
     <div>
       <div
         ref={frameRef}
-        className="group relative aspect-square w-full overflow-hidden rounded-[12px] bg-band"
+        className="group relative aspect-square w-full overflow-hidden bg-band"
       >
         {hero?.url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={hero.url}
+            // The preview at rest; the master only when zoomed, where its
+            // detail shows (the preview stays on screen while it loads).
+            src={zoomed ? hero.url : hero.preview ?? hero.url}
             alt={hero.caption}
             onClick={(e) => {
               originFromEvent(e.clientX, e.clientY);
@@ -172,7 +179,7 @@ export function PieceGallery({
               {img.url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={img.url}
+                  src={img.thumb ?? img.preview ?? img.url}
                   alt=""
                   className={`h-full w-full object-cover ${i === heroIndex ? "opacity-90" : ""}`}
                 />

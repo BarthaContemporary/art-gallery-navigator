@@ -33,7 +33,7 @@ export default async function NewPiecePage({
         numbering from the outset and never holds a JvdB number even briefly.
       */}
       <form action={createDraftPiece} className="mt-6">
-        <fieldset className="rounded-[10px] border border-line p-4">
+        <fieldset className="border border-line p-4">
           <legend className="px-1 text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
             Register
           </legend>

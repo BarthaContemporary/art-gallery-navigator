@@ -4,13 +4,13 @@ import { getSupabase, getSession, createServiceClient, canSeeFinancials } from "
 import { GALLERY_NAME, GALLERY_ADDRESS } from "@/lib/site";
 import { loadPieceRows } from "@/lib/piece-store";
 import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
+import { gbpDisplay } from "@/lib/format";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function gbp(n: number): string {
-  return `£${n.toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
-}
+// Offer prices in whole pounds ("£12,000"), the same format the studio shows.
+const gbp = gbpDisplay;
 
 /**
  * Editable DOCX presentation of an offer: one work per page with its display

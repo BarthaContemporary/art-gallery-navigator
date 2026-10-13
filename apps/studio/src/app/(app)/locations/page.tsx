@@ -168,7 +168,7 @@ export default async function LocationsPage({
           Add location
         </button>
       </form>
-      <div className="mt-5 overflow-x-auto rounded-[11px] border border-line">
+      <div className="mt-5 overflow-x-auto border border-line">
         <table className="w-full min-w-[560px] bg-cell text-left">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">

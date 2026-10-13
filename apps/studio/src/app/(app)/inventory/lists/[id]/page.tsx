@@ -441,9 +441,9 @@ export default async function InventoryListDetail({
           <div className="flex items-center gap-2">
             <h1 className="text-[24px] font-semibold text-ink-strong">{list.name}</h1>
             <span
-              className={`rounded-full px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-[0.06em] ${
+              className={`px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-[0.06em] ${
                 isDynamic
-                  ? "bg-oranje/10 text-oranje"
+                  ? "bg-oranje/10 text-accent-deep"
                   : "border border-line-control text-ink-soft"
               }`}
             >
@@ -475,7 +475,7 @@ export default async function InventoryListDetail({
               aria-checked={listOnWebsite}
               title={listOnWebsite ? "Events on the website can use this list — click to withdraw it" : "Not available on the website — click to let events use it"}
               className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[12px] font-medium ${
-                listOnWebsite ? "border-status-green/60 bg-control text-ink-mid" : "border-line-control bg-control text-ink-muted"
+                listOnWebsite ? "border-status-green/60 bg-control text-ink-mid" : "border-line-control bg-control text-body"
               }`}
             >
               <span aria-hidden className="inline-block h-2 w-2 rounded-full" style={{ background: listOnWebsite ? "var(--jvb-status-green)" : "var(--jvb-danger)" }} />
@@ -584,7 +584,7 @@ export default async function InventoryListDetail({
       )}
 
       {/* Works in the list */}
-      <div className="mt-4 overflow-x-auto rounded-[11px] border border-line">
+      <div className="mt-4 overflow-x-auto border border-line">
         {/* No min-width: on a phone this forced 560px of sideways scrolling.
             The stock column hides below sm (it is already in the row's link)
             and the title wraps instead. */}
@@ -624,7 +624,7 @@ export default async function InventoryListDetail({
                 <td className="hidden px-4 py-2 font-mono text-[12px] text-ink sm:table-cell">
                   <Link
                     href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
-                    className="hover:text-oranje"
+                    className="hover:text-accent-deep"
                   >
                     {p.stock_number ?? "—"}
                   </Link>
@@ -640,7 +640,7 @@ export default async function InventoryListDetail({
                   ) : null}
                   <Link
                     href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
-                    className="hover:text-oranje"
+                    className="hover:text-accent-deep"
                   >
                     {titleWithYear(p.title, p.year)}
                   </Link>
@@ -714,7 +714,7 @@ export default async function InventoryListDetail({
               >
                 <Link
                   href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
-                  className="flex min-w-0 items-center gap-3 text-[13px] text-ink-muted hover:text-oranje"
+                  className="flex min-w-0 items-center gap-3 text-[13px] text-ink-muted hover:text-accent-deep"
                 >
                   <Thumb src={thumbByPiece.get(p.id)} />
                   <span className="min-w-0 truncate">
@@ -741,7 +741,7 @@ export default async function InventoryListDetail({
         <p className="mt-3 text-[12.5px] text-ink-muted">
           This is a saved view. Works appear and disappear automatically as their
           details change — to edit which works are shown, adjust the{" "}
-          <Link href="/inventory" className="text-oranje hover:underline">
+          <Link href="/inventory" className="text-accent-deep hover:underline">
             inventory filters
           </Link>{" "}
           and save a new list.
@@ -751,7 +751,7 @@ export default async function InventoryListDetail({
       <form action={deleteList} className="mt-8">
         <button
           type="submit"
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-soft hover:text-ink-strong"
+          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-body hover:text-ink-strong"
         >
           Delete list
         </button>

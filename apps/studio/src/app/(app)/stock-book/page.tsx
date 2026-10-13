@@ -36,6 +36,14 @@ export default async function StockBookPage({
   const { data: rows, error } = await query;
 
   const showTreatment = scheme === "all";
+  // Only the combined view has a vat_treatment column; a per-scheme view
+  // implies it. Without it the table took every row for margin scheme: a
+  // standard row's VAT working read as a margin working, and its taxable
+  // margin would lose import VAT that is reclaimable under that treatment.
+  const implied = scheme === "all" ? null : scheme === "margin" ? "margin_scheme" : scheme;
+  const tableRows = ((rows ?? []) as unknown as StockBookRow[]).map((r) =>
+    implied && r.vat_treatment == null ? { ...r, vat_treatment: implied } : r,
+  );
 
   const qs = new URLSearchParams(
     Object.entries(sp).filter(([, v]) => v) as [string, string][],
@@ -101,7 +109,7 @@ export default async function StockBookPage({
         <p className="mt-4 text-[13px] text-ink-body">Could not load: {error.message}</p>
       ) : (
         <div className="mt-5">
-          <StockBookTable rows={(rows ?? []) as unknown as StockBookRow[]} showTreatment={showTreatment} />
+          <StockBookTable rows={tableRows} showTreatment={showTreatment} />
         </div>
       )}
     </div>

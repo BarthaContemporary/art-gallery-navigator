@@ -93,7 +93,7 @@ export function DimensionsFields({
           name="framed"
           checked={framed}
           onChange={(e) => setFramed(e.target.checked)}
-          className="h-4 w-4 accent-[var(--jvb-bg-primary)]"
+          className="h-4 w-4"
         />
         Framed
         {framed ? (

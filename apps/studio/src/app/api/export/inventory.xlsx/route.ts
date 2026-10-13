@@ -3,7 +3,7 @@ import ExcelJS from "exceljs";
 import { getSupabase } from "@/lib/supabase";
 import { prettyHeader, cellValue, columnWidth, styleSheet } from "@/lib/xlsx-clean";
 import { fetchExportThumbnails, IMAGE_CAP } from "@/lib/export-images";
-import { applyInventoryFilters, EXPORT_COLUMNS, toExportRow } from "@/lib/inventory-query";
+import { EXPORT_COLUMNS, loadInventoryExportRows, toExportRow } from "@/lib/inventory-query";
 
 export const runtime = "nodejs";
 // Embedding imagery makes this slow; give it room.
@@ -18,13 +18,15 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
 
+  // The screen's rows in the screen's order: search, list, flagged, register,
+  // facets, flag pills and sort, resolved exactly as the inventory page does.
   const url = new URL(request.url);
-  const query = applyInventoryFilters(
-    supabase.from("vw_pieces_list").select("*").order("stock_number"),
-    url.searchParams,
-  );
-  const { data: rows, error } = await query;
-  if (error) return new Response(error.message, { status: 500 });
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await loadInventoryExportRows(supabase, url.searchParams);
+  } catch (e) {
+    return new Response(e instanceof Error ? e.message : "Export failed", { status: 500 });
+  }
 
   const pieces = (rows ?? []).map((r) =>
     toExportRow(r as Record<string, unknown>),

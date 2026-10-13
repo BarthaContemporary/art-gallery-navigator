@@ -24,7 +24,7 @@ export function RegisterBadge({
   return (
     <span
       title="Held and handled like stock, but not JvdB property. Never enters the stock book."
-      className={`inline-flex shrink-0 items-center rounded-full border border-line bg-pill font-semibold uppercase tracking-[0.05em] text-ink-soft ${
+      className={`inline-flex shrink-0 items-center rounded-full border border-line bg-pill font-semibold uppercase tracking-[0.05em] text-body ${
         size === "xs" ? "px-1.5 py-0 text-[9.5px]" : "px-2 py-0.5 text-[10px]"
       }`}
     >

@@ -62,7 +62,7 @@ export function SourceBar({
             {source.name || source.address || "Location not set"}
           </p>
         </div>
-        <button onClick={() => setOpen((o) => !o)} className="shrink-0 text-[12px] font-medium text-oranje">
+        <button onClick={() => setOpen((o) => !o)} className="shrink-0 text-[12px] font-medium text-accent-deep">
           {open ? "Close" : "Edit"}
         </button>
       </div>
@@ -82,7 +82,7 @@ export function SourceBar({
                 onClick={() => save({ type: t.v })}
                 className={`rounded-full border px-3 py-1 text-[12px] ${
                   source.type === t.v
-                    ? "border-oranje bg-oranje/10 text-oranje"
+                    ? "border-oranje bg-oranje/10 text-accent-deep"
                     : "border-line-control bg-cell text-ink-mid"
                 }`}
               >
@@ -111,7 +111,7 @@ export function SourceBar({
                   onClick={() => save({ ledger: r.v })}
                   className={`min-h-[44px] rounded-full border px-3.5 text-[12px] ${
                     (source.ledger ?? "jvb") === r.v
-                      ? "border-oranje bg-oranje/10 text-oranje"
+                      ? "border-oranje bg-oranje/10 text-accent-deep"
                       : "border-line-control bg-cell text-ink-mid"
                   }`}
                 >

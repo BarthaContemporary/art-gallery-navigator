@@ -2,6 +2,8 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
+// London dates: this page renders on the server, where the zone is UTC.
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Offers" };
 
@@ -87,7 +89,7 @@ export default async function OffersPage() {
         </button>
       </form>
 
-      <div className="mt-5 overflow-x-auto rounded-[11px] border border-line">
+      <div className="mt-5 overflow-x-auto border border-line">
         <table className="w-full min-w-[640px] bg-cell text-left">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
@@ -111,7 +113,7 @@ export default async function OffersPage() {
                 <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">{count(o.offer_items)}</td>
                 <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">{(o.offer_recipients ?? []).length}</td>
                 <td className="px-4 py-2.5 font-mono text-[12px] text-ink-soft">
-                  {new Date(o.created_at).toLocaleDateString("en-GB")}
+                  {formatDate(o.created_at, "numeric")}
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <DeleteListButton action={deleteOffer} id={o.id} name={o.title} />

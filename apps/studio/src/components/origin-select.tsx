@@ -102,7 +102,7 @@ export function OriginSelect({
             type="button"
             disabled={busy}
             onClick={() => void add()}
-            className="rounded-md border border-oranje bg-oranje/10 px-2.5 py-1 text-[12px] font-semibold text-oranje disabled:opacity-60"
+            className="rounded-md border border-oranje bg-oranje/10 px-2.5 py-1 text-[12px] font-semibold text-accent-deep disabled:opacity-60"
           >
             {busy ? "Adding…" : "Add"}
           </button>
@@ -122,7 +122,7 @@ export function OriginSelect({
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="mt-1.5 text-[12px] font-medium text-oranje"
+          className="mt-1.5 text-[12px] font-medium text-accent-deep"
         >
           + Add region
         </button>

@@ -74,7 +74,7 @@ export function WebsitePanel() {
   }));
 
   return (
-    <div className="rounded-[11px] border border-line bg-cell p-4">
+    <div className="border border-line bg-cell p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
           Website

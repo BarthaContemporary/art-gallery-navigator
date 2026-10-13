@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession, hasRole, createServiceClient } from "@/lib/supabase";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 export const metadata = { title: "Data protection" };
 
@@ -174,7 +175,10 @@ export default async function DataProtectionPage({
   const today = new Date().toISOString().slice(0, 10);
   const openRequests = ((requests ?? []) as Record<string, unknown>[]).filter((r) => !r.completed_at);
   const closedRequests = ((requests ?? []) as Record<string, unknown>[]).filter((r) => r.completed_at);
-  const fmtDate = (v: unknown) => (v ? new Date(String(v)).toLocaleDateString("en-GB") : "—");
+  // London dates: a timestamp late in a summer evening would otherwise print
+  // as the previous day here (the server runs on UTC). Bare `date` values
+  // (received_at, due_at) print as the day they name.
+  const fmtDate = (v: unknown) => (v ? formatDate(String(v), "numeric") : "—");
 
   return (
     <div className="max-w-[1000px]">
@@ -197,7 +201,7 @@ export default async function DataProtectionPage({
       ) : null}
 
       {/* ---- retention ---- */}
-      <section className="mt-6 rounded-[11px] border border-line bg-cell p-4">
+      <section className="mt-6 border border-line bg-cell p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-[13px] font-semibold text-ink-strong">Retention schedule</h2>
           <form action={runRetention}>
@@ -209,7 +213,7 @@ export default async function DataProtectionPage({
         </p>
         <p className="mt-1 text-[12px] text-ink-body">
           {lastRun
-            ? `Last run ${new Date(lastRun.ran_at).toLocaleString("en-GB")} (${lastRun.triggered_by === "cron" ? "scheduled" : lastRun.triggered_by}): ${describeRun(lastRun.result)}`
+            ? `Last run ${formatDateTime(lastRun.ran_at, "numeric", { seconds: true })} (${lastRun.triggered_by === "cron" ? "scheduled" : lastRun.triggered_by}): ${describeRun(lastRun.result)}`
             : "Not run yet — the first scheduled run is tonight at 03:30 UTC."}
         </p>
         <table className="mt-3 w-full text-left text-[12.5px]">
@@ -243,13 +247,13 @@ export default async function DataProtectionPage({
 
       {/* ---- review queues ---- */}
       <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-[11px] border border-line bg-cell p-4">
+        <div className="border border-line bg-cell p-4">
           <h2 className="text-[13px] font-semibold text-ink-strong">Contacts to review ({(review ?? []).length})</h2>
           <p className="mt-1 text-[12px] text-ink-soft">No consent, no legal hold, nothing attached, untouched for the period above. Erase from the contact page or keep by adding a note.</p>
           <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-[12.5px]">
             {((review ?? []) as { id: string; first_name: string | null; last_name: string | null; updated_at: string }[]).map((c) => (
               <li key={c.id}>
-                <Link href={`/crm/contacts/${c.id}`} className="text-ink-body hover:text-oranje">
+                <Link href={`/crm/contacts/${c.id}`} className="text-ink-body hover:text-accent-deep">
                   {[c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed"}
                 </Link>
                 <span className="text-ink-faint"> · {fmtDate(c.updated_at)}</span>
@@ -258,7 +262,7 @@ export default async function DataProtectionPage({
             {(review ?? []).length === 0 ? <li className="text-ink-soft">Nothing due.</li> : null}
           </ul>
         </div>
-        <div className="rounded-[11px] border border-line bg-cell p-4">
+        <div className="border border-line bg-cell p-4">
           <h2 className="text-[13px] font-semibold text-ink-strong">AML records past five years ({(kycReview ?? []).length})</h2>
           <p className="mt-1 text-[12px] text-ink-soft">Verified more than five years ago. Keep only while the relationship continues; otherwise delete the documents and checks.</p>
           <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-[12.5px]">
@@ -266,7 +270,7 @@ export default async function DataProtectionPage({
               const c = Array.isArray(k.contact) ? k.contact[0] : k.contact;
               return (
                 <li key={k.id}>
-                  <Link href={`/crm/contacts/${k.contact_id}`} className="text-ink-body hover:text-oranje">
+                  <Link href={`/crm/contacts/${k.contact_id}`} className="text-ink-body hover:text-accent-deep">
                     {[c?.first_name, c?.last_name].filter(Boolean).join(" ") || "Contact"}
                   </Link>
                   <span className="text-ink-faint"> · verified {fmtDate(k.verified_at)}</span>
@@ -276,7 +280,7 @@ export default async function DataProtectionPage({
             {(kycReview ?? []).length === 0 ? <li className="text-ink-soft">Nothing due.</li> : null}
           </ul>
         </div>
-        <div className="rounded-[11px] border border-line bg-cell p-4">
+        <div className="border border-line bg-cell p-4">
           <h2 className="text-[13px] font-semibold text-ink-strong">Marketing without evidenced basis ({(weakBasis ?? []).length})</h2>
           <p className="mt-1 text-[12px] text-ink-soft">
             Emailable contacts whose only consent record is the import note and who have never bought from the gallery. Send a re-permission email, or untick marketing consent.
@@ -285,7 +289,7 @@ export default async function DataProtectionPage({
             <p className="mt-2 rounded-lg border border-line-soft bg-band/60 px-2.5 py-1.5 text-[12px] text-ink-body">
               ✓ Legacy consent recorded on {attestedCount} contacts
               {attestation?.attested_by ? ` by ${attestation.attested_by}` : ""}
-              {attestation?.attested_at ? ` on ${new Date(attestation.attested_at).toLocaleDateString("en-GB")}` : ""}.
+              {attestation?.attested_at ? ` on ${formatDate(attestation.attested_at, "numeric")}` : ""}.
             </p>
           ) : null}
           {(weakBasis ?? []).length > 0 ? (
@@ -298,7 +302,7 @@ export default async function DataProtectionPage({
           <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-[12.5px]">
             {((weakBasis ?? []) as { id: string; first_name: string | null; last_name: string | null; email: string | null }[]).map((c) => (
               <li key={c.id}>
-                <Link href={`/crm/contacts/${c.id}`} className="text-ink-body hover:text-oranje">
+                <Link href={`/crm/contacts/${c.id}`} className="text-ink-body hover:text-accent-deep">
                   {[c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "Unnamed"}
                 </Link>
               </li>
@@ -309,7 +313,7 @@ export default async function DataProtectionPage({
       </section>
 
       {/* ---- requests ---- */}
-      <section className="mt-6 rounded-[11px] border border-line bg-cell p-4">
+      <section className="mt-6 border border-line bg-cell p-4">
         <h2 className="text-[13px] font-semibold text-ink-strong">Data-subject requests</h2>
         <p className="mt-1 text-[12px] text-ink-soft">One month to respond from the day received (extendable by two months for complex requests — note it here). Requests tied to a contact are logged from the contact page.</p>
         <form action={addRequest} className="mt-3 flex flex-wrap items-end gap-2">
@@ -336,7 +340,7 @@ export default async function DataProtectionPage({
               return (
                 <tr key={String(r.id)} className="border-b border-line-soft last:border-0 align-top">
                   <td className="py-2 pr-3 text-ink-body">
-                    {r.contact_id ? <Link href={`/crm/contacts/${r.contact_id}`} className="hover:text-oranje">{String(r.subject_name ?? "Contact")}</Link> : String(r.subject_name ?? "—")}
+                    {r.contact_id ? <Link href={`/crm/contacts/${r.contact_id}`} className="hover:text-accent-deep">{String(r.subject_name ?? "Contact")}</Link> : String(r.subject_name ?? "—")}
                     {r.notes ? <span className="block text-[11.5px] text-ink-soft">{String(r.notes)}</span> : null}
                   </td>
                   <td className="py-2 pr-3 text-ink-muted">{KIND_LABEL[String(r.kind)] ?? String(r.kind)}{r.channel ? ` · ${r.channel}` : ""}</td>
@@ -362,7 +366,7 @@ export default async function DataProtectionPage({
       </section>
 
       {/* ---- breaches ---- */}
-      <section className="mt-6 rounded-[11px] border border-line bg-cell p-4">
+      <section className="mt-6 border border-line bg-cell p-4">
         <h2 className="text-[13px] font-semibold text-ink-strong">Breach register</h2>
         <p className="mt-1 text-[12px] text-ink-soft">
           Record every personal-data breach, reportable or not (Art. 33(5)). A breach likely to risk people’s rights must be reported to the ICO within 72 hours of discovery; if the risk is high, tell the people affected as well.

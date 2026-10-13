@@ -288,18 +288,9 @@
     "app/(app)/crm/campaigns/[id]/page.tsx": {
       "forms": [
         "CampaignDesigner",
-        "form action={sendCampaign}",
-        "form action={sendTest}"
+        "form action={sendCampaign}"
       ],
-      "fields": [
-        {
-          "name": "test_email",
-          "tag": "input",
-          "type": "email",
-          "hidden": false,
-          "in": "form action={sendTest}"
-        }
-      ],
+      "fields": [],
       "payloads": []
     },
     "app/(app)/crm/campaigns/page.tsx": {
@@ -1365,8 +1356,7 @@
           "kind": "fetch",
           "method": "PATCH",
           "url": "{endpoint}",
-          "body": "form",
-          "source": "{formRef.current}"
+          "body": "{body}"
         }
       ]
     },
@@ -1383,8 +1373,19 @@
       "payloads": []
     },
     "components/campaign-designer.tsx": {
-      "forms": [],
-      "fields": [],
+      "forms": [
+        "form action={() => afterSave(props.sendCampaign)}",
+        "form action={(formData) => afterSave(() => props.sendTest(formData))}"
+      ],
+      "fields": [
+        {
+          "name": "test_email",
+          "tag": "input",
+          "type": "email",
+          "hidden": false,
+          "in": "form action={(formData) => afterSave(() => props.sendTest(formData))}"
+        }
+      ],
       "payloads": [
         {
           "kind": "fetch",
@@ -1957,6 +1958,12 @@
       "forms": [],
       "fields": [
         {
+          "name": "needs_completion",
+          "tag": "input",
+          "type": "hidden",
+          "hidden": true
+        },
+        {
           "name": "web_visible",
           "tag": "input",
           "type": "hidden",
@@ -2435,7 +2442,8 @@
           "keys": [
             "display_name",
             "life_dates",
-            "native_name"
+            "native_name",
+            "separate"
           ]
         }
       ]

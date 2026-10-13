@@ -126,7 +126,7 @@ export default async function Dashboard() {
                 key={t.label}
                 href={t.href}
                 style={{ "--jvb-stagger": `${i * 60}ms` } as React.CSSProperties}
-                className="jvb-rise jvb-lift group min-w-[200px] flex-1 basis-[220px] rounded-[11px] border border-warn-soft bg-warn-soft/40 px-4 py-3.5 transition-colors hover:border-warn"
+                className="jvb-rise jvb-lift group min-w-[200px] flex-1 basis-[220px] border border-warn-soft bg-warn-soft/40 px-4 py-3.5 transition-colors hover:border-warn"
               >
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-[12.5px] font-medium text-ink-strong">{t.label}</span>
@@ -142,7 +142,7 @@ export default async function Dashboard() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-[11px] border border-line bg-line sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-px overflow-hidden border border-line bg-line sm:grid-cols-3">
         {stats.map((s, i) => (
           <Link
             key={s.label}
@@ -200,7 +200,7 @@ export default async function Dashboard() {
         {/* Streams in so a slow calendar server never holds up the dashboard. */}
         <Suspense
           fallback={
-            <div className="rounded-[11px] border border-line bg-cell p-4">
+            <div className="border border-line bg-cell p-4">
               <h2 className="text-[13px] font-semibold text-ink-strong">Next 10 days</h2>
               <p className="mt-3 text-[12.5px] text-ink-muted">Loading…</p>
             </div>

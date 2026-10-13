@@ -123,7 +123,7 @@ export function CategoryTableRow({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="text-[12px] font-medium text-oranje hover:underline"
+            className="text-[12px] font-medium text-accent-deep hover:underline"
           >
             Edit
           </button>

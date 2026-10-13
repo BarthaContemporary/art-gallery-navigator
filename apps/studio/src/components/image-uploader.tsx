@@ -121,7 +121,7 @@ export function ImageUploader({ pieceId, nextSortOrder }: { pieceId: string; nex
   };
 
   return (
-    <div className="rounded-[11px] border border-line bg-cell p-4">
+    <div className="border border-line bg-cell p-4">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <label className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">Role</label>
         <select
@@ -155,7 +155,7 @@ export function ImageUploader({ pieceId, nextSortOrder }: { pieceId: string; nex
                 <span
                   className={`shrink-0 text-[11px] ${
                     it.phase === "error"
-                      ? "text-oranje"
+                      ? "text-danger"
                       : it.phase === "done"
                         ? "text-status-green"
                         : "text-ink-soft"
@@ -175,7 +175,7 @@ export function ImageUploader({ pieceId, nextSortOrder }: { pieceId: string; nex
                 </div>
               ) : null}
               {it.phase === "error" && it.error ? (
-                <p className="mt-1 text-[11px] text-oranje">{it.error}</p>
+                <p className="mt-1 text-[11px] text-danger">{it.error}</p>
               ) : null}
             </li>
           ))}

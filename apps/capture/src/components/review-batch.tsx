@@ -86,7 +86,7 @@ export function ReviewBatch({ batchId, initialWorks }: { batchId: string; initia
             ))}
           </div>
         ) : null}
-        {done.errors ? <p className="mt-3 text-[12px] text-oranje">{done.errors} could not be pushed.</p> : null}
+        {done.errors ? <p className="mt-3 text-[12px] text-danger">{done.errors} could not be pushed.</p> : null}
         <div className="mt-6 flex flex-col gap-2">
           <Link href="/review" className="tap flex items-center justify-center rounded-xl bg-primary font-semibold text-primary-fg">
             Back to review

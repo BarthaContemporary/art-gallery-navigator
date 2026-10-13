@@ -2,6 +2,10 @@
 
 /** Admin-only per-object change log rendered from the activity_log diff. */
 
+// Pinned to London time: the server render (UTC) and the browser (local) used
+// to print different times for the same entry, an hour apart in summer.
+import { formatDateTime } from "@/lib/format";
+
 type Change = { old?: unknown; new?: unknown };
 
 export type HistoryEntry = {
@@ -53,7 +57,7 @@ export function ChangeHistory({
             ? Object.keys(e.changes).filter((k) => k !== "new" && k !== "old")
             : [];
         return (
-          <div key={e.id} className="rounded-[9px] border border-line-soft bg-cell px-3 py-2.5">
+          <div key={e.id} className="border border-line-soft bg-cell px-3 py-2.5">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <span className="text-[12.5px] font-medium text-ink-body">
                 {ACTION_LABEL[e.action] ?? e.action}
@@ -63,7 +67,7 @@ export function ChangeHistory({
                 </span>
               </span>
               <span className="font-mono text-[11px] text-ink-soft">
-                {new Date(e.created_at).toLocaleString("en-GB")}
+                {formatDateTime(e.created_at, "numeric", { seconds: true })}
               </span>
             </div>
             <p className="mt-0.5 text-[11.5px] text-ink-soft">
@@ -103,7 +107,7 @@ export function ChangeHistory({
                 <input type="hidden" name="entry_id" value={String(e.id)} />
                 <button
                   type="submit"
-                  className="text-[11.5px] font-medium text-oranje hover:underline"
+                  className="text-[11.5px] font-medium text-accent-deep hover:underline"
                 >
                   ↩ Reinstate previous values
                 </button>

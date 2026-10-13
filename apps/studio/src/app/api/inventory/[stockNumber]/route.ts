@@ -196,6 +196,12 @@ export async function PATCH(
       web_visible: fd.get("web_visible") === "on",
       // Website square; mirrors pieceSchema in the save action.
       presentation: presentationOf(fd.get("presentation")),
+      // "Mark catalogued" in the editor header. The field is posted only for a
+      // record that arrived flagged, so absence leaves the column alone rather
+      // than meaning false (mirrored in savePiece).
+      ...(fd.has("needs_completion")
+        ? { needs_completion: fd.get("needs_completion") === "on" }
+        : {}),
       updated_by: session.user.id,
     })
     .eq("id", ref.id);
@@ -233,7 +239,10 @@ export async function PATCH(
         }
       }
 
-      await supabase
+      // A failed financial write must fail the request: the autosave client
+      // skips resending a form it was told is saved, so a silent 200 here
+      // would lose the edit for good.
+      const { error: finErr } = await supabase
         .from("piece_financials")
         .update({
           purchase_date: purchaseDate,
@@ -253,6 +262,8 @@ export async function PATCH(
           buyer_contact_id: str("buyer_contact_id"),
         })
         .eq("piece_id", pieceRow.id);
+      if (finErr)
+        return NextResponse.json({ error: finErr.message }, { status: 500 });
 
       // Sold to a contact → auto-tag their related area(s) of interest.
       const buyerId = str("buyer_contact_id");

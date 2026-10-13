@@ -75,7 +75,7 @@ export function EditSectionRail() {
             key={s.id}
             type="button"
             onClick={() => jump(s.id)}
-            className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors ${
+            className={`whitespace-nowrap px-3 py-1.5 text-[12px] font-medium transition-colors ${
               active === s.id
                 ? "bg-primary text-primary-fg"
                 : "text-ink-mid hover:text-ink-strong"

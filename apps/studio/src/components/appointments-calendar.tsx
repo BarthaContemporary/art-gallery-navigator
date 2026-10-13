@@ -275,7 +275,7 @@ export function AppointmentsCalendar({
         />
       </div>
 
-      <div className="mt-2 hidden overflow-x-auto rounded-[11px] border border-line sm:block">
+      <div className="mt-2 hidden overflow-x-auto border border-line sm:block">
         <div className="min-w-[880px] bg-cell">
           <div className="grid grid-cols-7 border-b border-line">
             {WEEKDAYS.map((d) => (
@@ -358,7 +358,7 @@ export function AppointmentsCalendar({
             </span>
           ))}
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="inline-block h-[7px] w-[7px] rounded-[2px] border border-line-soft bg-cell" />
+            <span aria-hidden className="inline-block h-[7px] w-[7px] border border-line-soft bg-cell" />
             Studio appointment
           </span>
         </div>

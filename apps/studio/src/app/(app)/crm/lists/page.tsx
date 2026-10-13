@@ -120,9 +120,9 @@ export default async function ListsPage() {
         tiles={Object.fromEntries(
           custom.map((l) => [
             l.id,
-            <div key={l.id} className="h-full rounded-[11px] border border-line bg-cell p-4 pl-9">
+            <div key={l.id} className="h-full border border-line bg-cell p-4 pl-9">
             <a href={`/crm/lists/${l.id}`} className="block">
-              <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-oranje">
+              <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-accent-deep">
                 {l.name}
               </h2>
               {l.description ? (
@@ -163,14 +163,14 @@ export default async function ListsPage() {
             {auto.map((l) => (
               <li
                 key={l.id}
-                className="rounded-[11px] border border-oranje/25 bg-oranje/5 p-4"
+                className="border border-oranje/25 bg-oranje/5 p-4"
               >
                 <a href={`/crm/lists/${l.id}`} className="block">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-oranje">
+                    <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-accent-deep">
                       {l.name}
                     </h2>
-                    <span className="rounded-full bg-oranje/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-oranje">
+                    <span className="bg-oranje/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-accent-deep">
                       Interest
                     </span>
                   </div>

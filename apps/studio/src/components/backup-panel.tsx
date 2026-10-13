@@ -50,10 +50,10 @@ export async function BackupPanel() {
         : "var(--jvb-danger)";
 
   return (
-    <div className="rounded-[11px] border border-line bg-cell p-4">
+    <div className="border border-line bg-cell p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-[13px] font-semibold text-ink-strong">Backups</h2>
-        <span className={`text-[11px] ${worst ? "text-oranje" : "text-ink-soft"}`}>
+        <span className={`text-[11px] ${worst ? "text-accent-deep" : "text-ink-soft"}`}>
           {worst ? "Needs attention" : "All healthy"}
         </span>
       </div>

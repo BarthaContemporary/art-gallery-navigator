@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { scriptLang } from "@/lib/script-lang";
 
 export type Maker = {
   id: string;
@@ -54,11 +55,11 @@ export function MakerRow({
   return (
     <tr className="border-b border-line-soft last:border-0">
       <td className={`${td} text-[13.5px] text-ink-body`}>
-        <a href={`/makers/${maker.id}`} className="hover:text-oranje" title="Open maker profile">
+        <a href={`/makers/${maker.id}`} className="hover:text-accent-deep" title="Open maker profile">
           {maker.display_name}
         </a>
       </td>
-      <td className={`${td} text-[13.5px] text-ink-muted`}>{maker.native_name ?? "—"}</td>
+      <td lang={scriptLang(maker.native_name)} className={`${td} text-[13.5px] text-ink-muted`}>{maker.native_name ?? "—"}</td>
       <td className={`${td} font-mono text-[12px] text-ink-muted`}>{maker.life_dates ?? "—"}</td>
       <td className={`${td} text-[13px] text-ink-muted`}>{maker.region ?? "—"}</td>
       <td className={`${td} text-[13px] text-ink-muted`}>{maker.school_or_workshop ?? "—"}</td>
@@ -71,7 +72,7 @@ export function MakerRow({
           onClick={toggleVisible}
           title={visible ? "Artist page is on the website — click to take it off" : "Not on the website — click to publish the artist page"}
           className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-[12px] font-medium disabled:opacity-60 ${
-            visible ? "border-status-green/60 bg-control text-ink-mid" : "border-line-control bg-control text-ink-muted"
+            visible ? "border-status-green/60 bg-control text-ink-mid" : "border-line-control bg-control text-body"
           }`}
         >
           <span
@@ -81,7 +82,7 @@ export function MakerRow({
           />
           {visible ? "On website" : "Off"}
         </button>
-        {failed ? <span className="ml-2 text-[11px] text-oranje">Couldn’t save</span> : null}
+        {failed ? <span className="ml-2 text-[11px] text-danger">Couldn’t save</span> : null}
       </td>
       <td className={`${td} whitespace-nowrap text-right`}>
         <a
@@ -104,7 +105,7 @@ export function MakerRow({
           }}
         >
           <input type="hidden" name="id" value={maker.id} />
-          <button type="submit" className="text-[12px] leading-none text-ink-soft hover:text-oranje">
+          <button type="submit" className="text-[12px] leading-none text-ink-soft hover:text-accent-deep">
             Delete
           </button>
         </form>

@@ -5,6 +5,7 @@ import { OriginSelect } from "@/components/origin-select";
 import { DimensionsFields } from "@/components/dimensions-fields";
 import { FinancialsFields } from "@/components/financials-fields";
 import { RepeatableList } from "@/components/repeatable-list";
+import { STATUS_LABELS } from "@/lib/labels";
 
 type Option = { id: string; label: string };
 
@@ -12,7 +13,7 @@ const field =
   "mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink";
 const label =
   "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const panel = "rounded-[11px] border border-line bg-cell p-5";
+const panel = "border border-line bg-cell p-5";
 
 export function PieceFormFields({
   piece,
@@ -104,8 +105,10 @@ export function PieceFormFields({
           <label className={label}>
             Status
             <select name="status" defaultValue={v("status") || "in_stock"} className={field}>
-              {["in_stock", "reserved", "consigned_in", "consigned_out", "sold", "gifted", "returned", "written_off"].map((st) => (
-                <option key={st} value={st}>{st.replace(/_/g, " ")}</option>
+              {/* Same eight values in the same order as before; the words now
+                  match the status pill and filters ("Available", not "in stock"). */}
+              {Object.entries(STATUS_LABELS).map(([st, text]) => (
+                <option key={st} value={st}>{text}</option>
               ))}
             </select>
           </label>
@@ -174,7 +177,7 @@ export function PieceFormFields({
       </div>
 
       {showFinancials ? (
-        <section className="rounded-[11px] border border-line bg-band p-5">
+        <section className="border border-line bg-band p-5">
           <h2 className="text-[13px] font-semibold text-ink-strong">Financials</h2>
           <FinancialsFields
             defaults={finDefaults}

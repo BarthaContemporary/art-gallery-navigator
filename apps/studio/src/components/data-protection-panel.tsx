@@ -24,7 +24,7 @@ export function DataProtectionPanel({
   const btn = "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong";
 
   return (
-    <section className="mt-8 rounded-[11px] border border-line bg-cell p-4">
+    <section className="mt-8 border border-line bg-cell p-4">
       <h2 className="text-[13px] font-semibold text-ink-strong">Data protection</h2>
       <p className="mt-1 text-[12px] text-ink-soft">
         Requests must be answered within one month (UK GDPR Arts. 12–22). Log the request first so the deadline is tracked in Admin → Data protection.

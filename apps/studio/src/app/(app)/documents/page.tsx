@@ -1,22 +1,10 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import { NewDocument } from "@/components/new-document";
+import { formatDate } from "@/lib/format";
+import { DOC_TYPE_LABELS as TYPE_LABELS, labelOf } from "@/lib/labels";
 
 export const metadata = { title: "Documents" };
-
-const TYPE_LABELS: Record<string, string> = {
-  purchase_invoice: "Purchase invoice",
-  sale_invoice: "Sale invoice",
-  provenance_document: "Provenance",
-  correspondence: "Correspondence",
-  shipping: "Shipping",
-  insurance: "Insurance",
-  certificate: "Certificate",
-  condition_report: "Condition report",
-  export_licence: "Export licence",
-  import_document: "Import documents",
-  other: "Other",
-};
 
 type Row = {
   id: string;
@@ -60,7 +48,7 @@ export default async function DocumentsPage({
       <div className="mt-4 flex flex-wrap gap-1.5 text-[12px]">
         <Link
           href="/documents"
-          className={`rounded-lg border px-3 py-1.5 font-medium ${!sp.type ? "border-oranje text-oranje" : "border-line-control bg-control text-ink-mid"}`}
+          className={`rounded-lg border px-3 py-1.5 font-medium ${!sp.type ? "border-oranje text-accent-deep" : "border-line-control bg-control text-ink-mid"}`}
         >
           All
         </Link>
@@ -68,14 +56,14 @@ export default async function DocumentsPage({
           <Link
             key={v}
             href={`/documents?type=${v}`}
-            className={`rounded-lg border px-3 py-1.5 font-medium ${sp.type === v ? "border-oranje text-oranje" : "border-line-control bg-control text-ink-mid"}`}
+            className={`rounded-lg border px-3 py-1.5 font-medium ${sp.type === v ? "border-oranje text-accent-deep" : "border-line-control bg-control text-ink-mid"}`}
           >
             {l}
           </Link>
         ))}
       </div>
 
-      <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">
+      <div className="mt-3 overflow-x-auto border border-line">
         <table className="w-full min-w-[640px] bg-cell text-left text-[13px]">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
@@ -91,12 +79,12 @@ export default async function DocumentsPage({
               <tr key={r.id} className="border-b border-line-soft last:border-0 hover:bg-control">
                 <td className="px-4 py-2.5">
                   <Link href={`/documents/${r.id}`} className="font-medium text-ink-body">
-                    {TYPE_LABELS[r.doc_type] ?? r.doc_type.replace(/_/g, " ")}
+                    {labelOf(TYPE_LABELS, r.doc_type)}
                   </Link>
                 </td>
                 <td className="px-4 py-2.5 text-ink-muted">{r.title ?? "—"}</td>
                 <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">
-                  {r.doc_date ? new Date(r.doc_date).toLocaleDateString("en-GB") : "—"}
+                  {formatDate(r.doc_date, "numeric")}
                 </td>
                 <td className="px-4 py-2.5 text-ink-muted">{r.reference ?? "—"}</td>
                 <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { emptyDesign } from "@/lib/newsletter";
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Newsletters" };
 
@@ -15,13 +16,10 @@ type CampaignRow = {
   crm_campaign_recipients: { count: number }[];
 };
 
+// "12 Oct 2026", the London day. This page renders on the server (UTC), so a
+// send just after midnight in summer used to show the day before.
 function fmt(d: string | null) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDate(d, "short");
 }
 
 export default async function CampaignsPage() {
@@ -61,7 +59,7 @@ export default async function CampaignsPage() {
         </form>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-[11px] border border-line">
+      <div className="mt-4 overflow-x-auto border border-line">
         <table className="w-full min-w-[640px] bg-cell text-left text-[13px]">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
@@ -79,7 +77,7 @@ export default async function CampaignsPage() {
               return (
                 <tr key={c.id} className="border-b border-line-soft last:border-0 hover:bg-control">
                   <td className="px-4 py-2.5 text-ink-body">
-                    <Link href={`/crm/campaigns/${c.id}`} className="hover:text-oranje">
+                    <Link href={`/crm/campaigns/${c.id}`} className="hover:text-accent-deep">
                       {c.name}
                     </Link>
                   </td>
@@ -88,9 +86,9 @@ export default async function CampaignsPage() {
                   </td>
                   <td className="px-4 py-2.5">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-[0.06em] ${
+                      className={`px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-[0.06em] ${
                         sent
-                          ? "bg-oranje/10 text-oranje"
+                          ? "bg-oranje/10 text-accent-deep"
                           : "border border-line-control text-ink-soft"
                       }`}
                     >

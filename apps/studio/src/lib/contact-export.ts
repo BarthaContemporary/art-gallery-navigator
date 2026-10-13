@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadPieceRows } from "@/lib/piece-store";
+import { resolveListContactIds, type CrmListLike } from "@/lib/crm-list-members";
 
 /**
  * Everything the system holds about one contact, assembled for a subject
@@ -16,6 +17,8 @@ export type ContactExport = {
   lists: string[];
   newsletters: Record<string, unknown>[];
   offers: Record<string, unknown>[];
+  /** Each opening of a private-offer page: when, from which IP, in which browser. */
+  offer_views: Record<string, unknown>[];
   enquiries: Record<string, unknown>[];
   appointments: Record<string, unknown>[];
   purchases: Record<string, unknown>[];
@@ -40,14 +43,19 @@ export async function buildContactExport(svc: SupabaseClient, id: string): Promi
   const row = c as Record<string, unknown>;
 
   const [
-    { data: interactions }, { data: lists }, { data: recips }, { data: offers },
+    { data: interactions }, { data: lists }, { data: liveLists }, { data: recips }, { data: offers },
     { data: enquiries }, { data: appointments }, { data: purchases }, { data: sales },
     { data: consignments }, { data: kyc }, { data: requests }, { data: holds },
   ] = await Promise.all([
     svc.from("crm_interactions").select("kind, note, happened_at").eq("contact_id", id).order("happened_at"),
+    // Curated lists only: a live list (the areas of interest among them)
+    // stores no member rows, so its membership is resolved below.
     svc.from("crm_list_members").select("list:crm_lists(name)").eq("contact_id", id),
+    svc.from("crm_lists").select("id, name, is_dynamic, filter_rules").eq("is_dynamic", true).order("name"),
     svc.from("crm_campaign_recipients").select("status, created_at, opened_at, clicked_at, bounced_at, campaign:crm_campaigns(subject, sent_at)").eq("contact_id", id).order("created_at"),
-    svc.from("offer_recipients").select("sent_at, first_viewed_at, view_count, response, responded_at, offer:offers(title, created_at)").eq("contact_id", id).order("sent_at"),
+    // offer_views logs IP and browser per page opening (retention row
+    // 'offer_views'), so it is personal data and belongs in the export.
+    svc.from("offer_recipients").select("sent_at, first_viewed_at, view_count, response, responded_at, offer:offers(title, created_at), views:offer_views(viewed_at, ip, user_agent)").eq("contact_id", id).order("sent_at"),
     svc.from("enquiries").select("channel, message, status, created_at, piece_id").eq("contact_id", id).order("created_at"),
     svc.from("appointments").select("starts_at, ends_at, status, notes, created_at").eq("contact_id", id).order("starts_at"),
     svc.from("piece_financials").select("piece_id, sold_date, sold_price_gbp, sell_currency, sold_price").eq("buyer_contact_id", id),
@@ -74,6 +82,37 @@ export async function buildContactExport(svc: SupabaseClient, id: string): Promi
   const contact: Record<string, unknown> = {};
   for (const k of CONTACT_FIELDS) if (row[k] !== null && row[k] !== undefined) contact[k] = row[k];
 
+  const curatedNames = ((lists ?? []) as { list: { name: string } | { name: string }[] | null }[])
+    .map((l) => (Array.isArray(l.list) ? l.list[0]?.name : l.list?.name))
+    .filter((n): n is string => Boolean(n));
+  // Live lists the contact currently falls in, resolved through the same
+  // module every list page uses, so the export names exactly the lists the
+  // studio shows them in. One list at a time: a handful of reads, and a SAR
+  // is rare. A failed read throws rather than leaving a list out unnoticed.
+  const liveNames: string[] = [];
+  for (const l of (liveLists ?? []) as (CrmListLike & { name: string })[]) {
+    if ((await resolveListContactIds(svc, l)).includes(id)) liveNames.push(l.name);
+  }
+
+  // Views are split out of the offer rows into one flat, dated list.
+  type OfferView = { viewed_at: string; ip: string | null; user_agent: string | null };
+  type OfferRow = Record<string, unknown> & {
+    offer: { title: string | null } | { title: string | null }[] | null;
+    views?: OfferView[] | null;
+  };
+  const offerRows = (offers ?? []) as OfferRow[];
+  const offerViews = offerRows
+    .flatMap((o) => {
+      const title = (Array.isArray(o.offer) ? o.offer[0]?.title : o.offer?.title) ?? null;
+      return (o.views ?? []).map((v) => ({
+        offer: title,
+        viewed_at: v.viewed_at,
+        ip_address: v.ip,
+        browser: v.user_agent,
+      }));
+    })
+    .sort((a, b) => a.viewed_at.localeCompare(b.viewed_at));
+
   return {
     exported_at: new Date().toISOString(),
     contact,
@@ -87,11 +126,10 @@ export async function buildContactExport(svc: SupabaseClient, id: string): Promi
       evidence: row.consent_evidence ?? null,
     },
     interactions: (interactions ?? []) as Record<string, unknown>[],
-    lists: ((lists ?? []) as { list: { name: string } | { name: string }[] | null }[])
-      .map((l) => (Array.isArray(l.list) ? l.list[0]?.name : l.list?.name))
-      .filter((n): n is string => Boolean(n)),
+    lists: [...new Set([...curatedNames, ...liveNames])],
     newsletters: (recips ?? []) as Record<string, unknown>[],
-    offers: (offers ?? []) as Record<string, unknown>[],
+    offers: offerRows.map((o) => ({ ...o, views: undefined })),
+    offer_views: offerViews,
     enquiries: ((enquiries ?? []) as Record<string, unknown>[]).map((e) => ({ ...e, work: work(e.piece_id as string | null), piece_id: undefined })),
     appointments: (appointments ?? []) as Record<string, unknown>[],
     purchases: ((purchases ?? []) as Record<string, unknown>[]).map((p) => ({ ...p, work: work(p.piece_id as string), piece_id: undefined })),

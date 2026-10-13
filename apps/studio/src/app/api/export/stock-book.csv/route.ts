@@ -4,7 +4,10 @@ import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
 function csvCell(v: unknown): string {
   if (v == null) return "";
   let s = String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // block spreadsheet formula injection
+  // Block spreadsheet formula injection in text (a description starting "=").
+  // Only text: numbers come from numeric columns and cannot carry a formula,
+  // and the apostrophe turned a loss of -150 into text that SUM skips.
+  if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
@@ -38,6 +41,8 @@ export async function GET(request: Request) {
   if (error) return new Response(error.message, { status: 500 });
 
   const first = (rows ?? [])[0];
+  // Columns and headers are the views' own, as the accountant's file has
+  // always had them.
   const cols = first ? Object.keys(first) : ["stock_number"];
   const lines = [
     cols.join(","),

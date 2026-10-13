@@ -67,7 +67,7 @@ export function RepeatableList({
                 type="button"
                 onClick={() => remove(i)}
                 aria-label="Remove"
-                className="shrink-0 rounded-lg border border-line-control px-2.5 py-2 text-[13px] text-ink-soft hover:text-oranje"
+                className="shrink-0 rounded-lg border border-line-control px-2.5 py-2 text-[13px] text-ink-soft hover:text-accent-deep"
               >
                 ✕
               </button>

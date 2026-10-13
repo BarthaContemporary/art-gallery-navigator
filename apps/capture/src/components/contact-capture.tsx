@@ -217,7 +217,7 @@ export function ContactCapture({ recentContacts = [] }: { recentContacts?: Recen
                 key={v}
                 onClick={() => set("contact_type", v)}
                 className={`rounded-full border px-3 py-1 text-[12px] ${
-                  f.contact_type === v ? "border-oranje bg-oranje/10 text-oranje" : "border-line-control bg-cell text-ink-mid"
+                  f.contact_type === v ? "border-oranje bg-oranje/10 text-accent-deep" : "border-line-control bg-cell text-ink-mid"
                 }`}
               >
                 {l}

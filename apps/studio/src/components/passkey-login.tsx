@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { createClient } from "@jvb/db/browser";
+import { safeNextPath } from "@/lib/auth-rules";
 
 /**
  * Passkey sign-in for the login page. Two paths, both Apple-friendly:
@@ -11,7 +12,7 @@ import { createClient } from "@jvb/db/browser";
  *  - conditional UI: Safari/iOS offers the passkey directly in the email
  *    field's autofill, thanks to autocomplete="username webauthn".
  */
-export function PasskeyLogin() {
+export function PasskeyLogin({ next = null }: { next?: string | null } = {}) {
   const [state, setState] = useState<"idle" | "busy" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const conditionalStarted = useRef(false);
@@ -30,7 +31,8 @@ export function PasskeyLogin() {
       type: "magiclink",
     });
     if (otpErr) throw new Error(otpErr.message);
-    window.location.href = "/";
+    // Back to the page that asked for sign-in, when it is a path on this site.
+    window.location.href = safeNextPath(next) ?? "/";
   }
 
   async function getOptions() {
@@ -87,7 +89,7 @@ export function PasskeyLogin() {
         <span aria-hidden>🔑</span>
         {state === "busy" ? "Waiting for Face ID / Touch ID…" : "Sign in with passkey"}
       </button>
-      {error ? <p className="mt-2 text-[12px] text-oranje">{error}</p> : null}
+      {error ? <p className="mt-2 text-[12px] text-danger">{error}</p> : null}
       <div className="mt-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.06em] text-ink-faint">
         <span className="h-px flex-1 bg-line" />
         or with password

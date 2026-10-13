@@ -14,7 +14,7 @@ export default function InventoryLoading() {
       </div>
 
       {/* table */}
-      <div className="mt-4 overflow-hidden rounded-[11px] border border-line">
+      <div className="mt-4 overflow-hidden border border-line">
         <div className="border-b border-line bg-cell px-4 py-2.5">
           <div className="h-3 w-40 rounded bg-placeholder" />
         </div>

@@ -21,7 +21,7 @@ export function FoldPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="overflow-hidden rounded-[11px] border border-line bg-cell">
+    <div className="overflow-hidden border border-line bg-cell">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

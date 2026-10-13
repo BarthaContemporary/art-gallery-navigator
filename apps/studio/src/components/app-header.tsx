@@ -100,10 +100,10 @@ export function AppHeader({
                 type="button"
                 onClick={() => window.dispatchEvent(new Event("jvb:command-palette"))}
                 aria-label="Search (⌘K)"
-                className="flex items-center gap-2 rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-muted hover:text-ink-strong"
+                className="flex items-center gap-2 rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-body hover:text-ink-strong"
               >
                 <span>Search</span>
-                <kbd className="rounded border border-line-control bg-band px-1.5 py-px font-mono text-[10.5px] text-ink-faint">
+                <kbd className="rounded border border-line-control bg-band px-1.5 py-px font-mono text-[10.5px] text-body">
                   ⌘K
                 </kbd>
               </button>
@@ -159,7 +159,7 @@ export function AppHeader({
                     aria-current={active ? "page" : undefined}
                     className={`relative shrink-0 px-2.5 py-1.5 text-[12.5px] font-medium transition-colors ${
                       active
-                        ? "text-oranje after:absolute after:inset-x-2.5 after:-bottom-px after:h-0.5 after:rounded-full after:bg-oranje after:content-['']"
+                        ? "text-accent-deep after:absolute after:inset-x-2.5 after:-bottom-px after:h-0.5 after:rounded-full after:bg-oranje after:content-['']"
                         : "text-ink-mid hover:text-ink-strong"
                     }`}
                   >
@@ -205,8 +205,8 @@ export function AppHeader({
                 href={n.href}
                 onClick={() => setPending(n.href)}
                 aria-current={isActive(n.href) ? "page" : undefined}
-                className={`text-[18px] font-semibold tracking-[-0.01em] transition-colors duration-150 active:text-oranje ${
-                  isActive(n.href) || pending === n.href ? "text-oranje" : "text-ink-mid"
+                className={`text-[18px] font-semibold tracking-[-0.01em] transition-colors duration-150 active:text-accent-deep ${
+                  isActive(n.href) || pending === n.href ? "text-accent-deep" : "text-ink-mid"
                 }`}
               >
                 {n.label}

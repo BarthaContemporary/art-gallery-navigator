@@ -46,7 +46,7 @@ function Dot({ color, kind }: { color: string | null; kind: "event" | "appointme
     return (
       <span
         aria-hidden
-        className="inline-block h-[5px] w-[5px] shrink-0 rounded-[1.5px] border border-ink-faint"
+        className="inline-block h-[5px] w-[5px] shrink-0 border border-ink-faint"
       />
     );
   }
@@ -80,7 +80,7 @@ export function MobileMonthCalendar({
 
   return (
     <div>
-      <div className="rounded-[11px] border border-line bg-cell px-1 pb-1 pt-2">
+      <div className="border border-line bg-cell px-1 pb-1 pt-2">
         <div className="grid grid-cols-7">
           {WEEKDAY_INITIALS.map((d, i) => (
             <div
@@ -149,7 +149,7 @@ export function MobileMonthCalendar({
         {items.length === 0 ? (
           <p className="mt-2 text-[12.5px] text-ink-muted">Nothing on this day.</p>
         ) : (
-          <ul className="mt-2 overflow-hidden rounded-[11px] border border-line bg-cell">
+          <ul className="mt-2 overflow-hidden border border-line bg-cell">
             {items.map((it) => {
               const row = (
                 <span className="flex min-h-[44px] items-center gap-2.5 px-3 py-2">

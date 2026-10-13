@@ -347,7 +347,7 @@ function WorkCard({
           </>
         ) : null}
 
-        <button onClick={onToggleMore} className="text-[12.5px] font-medium text-oranje">
+        <button onClick={onToggleMore} className="text-[12.5px] font-medium text-accent-deep">
           {work.more ? "Fewer fields" : "More fields"}
         </button>
       </div>

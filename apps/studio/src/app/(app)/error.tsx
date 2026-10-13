@@ -30,21 +30,21 @@ export default function AppError({
 
       <div className="mt-5 space-y-3">
         <div className="rounded-lg border border-line bg-band px-3 py-2">
-          <p className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">Message</p>
+          <p className="text-[10.5px] uppercase tracking-[0.06em] text-body">Message</p>
           <p className="mt-1 break-words font-mono text-[12.5px] text-ink-body">
             {error?.message || String(error) || "(no message)"}
           </p>
         </div>
         {error?.digest ? (
           <div className="rounded-lg border border-line bg-band px-3 py-2">
-            <p className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">Digest</p>
+            <p className="text-[10.5px] uppercase tracking-[0.06em] text-body">Digest</p>
             <p className="mt-1 font-mono text-[12.5px] text-ink-body">{error.digest}</p>
           </div>
         ) : null}
         {error?.stack ? (
           <div className="rounded-lg border border-line bg-band px-3 py-2">
-            <p className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">Stack</p>
-            <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-ink-soft">
+            <p className="text-[10.5px] uppercase tracking-[0.06em] text-body">Stack</p>
+            <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-body">
               {error.stack.split("\n").slice(0, 12).join("\n")}
             </pre>
           </div>

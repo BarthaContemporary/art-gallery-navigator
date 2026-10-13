@@ -3,54 +3,121 @@
 
 @theme {
   --font-sans: var(--jvb-font-sans);
+  /* Kept until the owner decides on dropping Newsreader (see tokens.css). */
   --font-serif: var(--jvb-font-serif);
-  /* Numerals (stock #, prices, dates) reuse the sans with tabular figures —
-     no third typeface; see the .font-mono rule below. */
+  /* Numerals (stock #, prices, dates) reuse the sans with tabular figures:
+     no monospace family; see the .font-mono / .tabular rule below. */
   --font-mono: var(--jvb-font-sans);
 
-  --color-page: var(--jvb-bg-page);
-  --color-cell: var(--jvb-bg-cell);
-  --color-band: var(--jvb-bg-band);
-  --color-placeholder: var(--jvb-bg-placeholder);
-  --color-chip: var(--jvb-bg-chip);
-  --color-pill: var(--jvb-bg-pill);
-  --color-control: var(--jvb-bg-control);
-  --color-control-active: var(--jvb-bg-control-active);
-  --color-primary: var(--jvb-bg-primary);
-  --color-primary-fg: var(--jvb-ink-primary-fg);
-  --color-tag-dark: var(--jvb-bg-tag-dark);
+  /*
+   * Colour aliases (spec section 1D). Every existing class name keeps working
+   * and now resolves to the website's palette, so all pages change at once
+   * with no component edits. "ink" maps to ink, not body: inputs and values
+   * need the website's #1a1a1a.
+   */
+  --color-page: var(--jvb-page);
+  --color-cell: var(--jvb-page);
+  --color-band: var(--jvb-band);
+  --color-pill: var(--jvb-band);
+  --color-placeholder: var(--jvb-placeholder);
+  --color-chip: var(--jvb-form-hover);
+  --color-control: var(--jvb-form);
+  --color-control-active: var(--jvb-form-hover);
+  --color-primary: var(--jvb-ink);
+  --color-primary-fg: var(--jvb-page);
+  --color-tag-dark: var(--jvb-ink);
 
-  --color-line: var(--jvb-border);
-  --color-line-soft: var(--jvb-border-soft);
-  --color-line-control: var(--jvb-border-control);
-  --color-ring-active: var(--jvb-border-ring);
+  --color-line: var(--jvb-rule-strong);
+  --color-line-soft: var(--jvb-rule);
+  --color-line-control: var(--jvb-rule-strong);
+  --color-line-control-active: var(--jvb-meta);
+  --color-ring-active: var(--jvb-ink);
 
   --color-ink: var(--jvb-ink);
-  --color-ink-strong: var(--jvb-ink-strong);
-  --color-ink-body: var(--jvb-ink-body);
-  --color-ink-mid: var(--jvb-ink-mid);
-  --color-ink-muted: var(--jvb-ink-muted);
-  --color-ink-soft: var(--jvb-ink-soft);
-  --color-ink-faint: var(--jvb-ink-faint);
+  --color-ink-strong: var(--jvb-ink);
+  --color-ink-heading: var(--jvb-ink);
+  --color-ink-body: var(--jvb-body);
+  --color-ink-desc: var(--jvb-body);
+  --color-ink-label: var(--jvb-body);
+  --color-ink-mid: var(--jvb-body);
+  /* meta: readable on the page ground only (4.54:1); on band or form use body. */
+  --color-ink-muted: var(--jvb-meta);
+  --color-ink-soft: var(--jvb-meta);
+  --color-ink-faint: var(--jvb-meta);
 
-  --color-status-green: var(--jvb-status-green);
-
-  /* Semantic state palette (muted). */
+  --color-status-green: var(--jvb-ok);
   --color-warn: var(--jvb-warn);
-  --color-warn-soft: var(--jvb-warn-soft);
+  --color-warn-soft: var(--jvb-warn-wash);
   --color-danger: var(--jvb-danger);
-  --color-danger-soft: var(--jvb-danger-soft);
+  --color-danger-soft: var(--jvb-danger-wash);
   --color-info: var(--jvb-info);
-  --color-info-soft: var(--jvb-info-soft);
+  --color-info-soft: var(--jvb-info-wash);
 
-  --color-ink-heading: var(--jvb-ink-heading);
-  --color-ink-desc: var(--jvb-ink-desc);
-  --color-ink-label: var(--jvb-ink-label);
-  --color-line-control-active: var(--jvb-border-control-active);
+  /* The single accent, now the website's orange (#e8590c, not the old
+     #fc6600, which stays only in the app icons). It marks place, selection
+     and focus; orange text belongs to accent-deep. */
+  --color-oranje: var(--jvb-accent);
 
-  /* Single accent — matches the public site's Dutch orange. Used for the
-     active navigation item and, as its "attention" extension, focus rings. */
-  --color-oranje: #fc6600;
+  /* New names (spec section 1D), for pages as they move over. */
+  --color-accent: var(--jvb-accent);
+  --color-accent-deep: var(--jvb-accent-deep);
+  --color-accent-wash: var(--jvb-accent-wash);
+  --color-body: var(--jvb-body);
+  --color-meta: var(--jvb-meta);
+  --color-light: var(--jvb-light);
+  --color-form: var(--jvb-form);
+  --color-form-hover: var(--jvb-form-hover);
+  --color-rule: var(--jvb-rule);
+  --color-rule-strong: var(--jvb-rule-strong);
+  --color-field-edge: var(--jvb-field-edge);
+  --color-ok: var(--jvb-ok);
+  --color-ok-wash: var(--jvb-ok-wash);
+  --color-warn-wash: var(--jvb-warn-wash);
+  --color-danger-wash: var(--jvb-danger-wash);
+  --color-info-wash: var(--jvb-info-wash);
+
+  /* Square corners (spec R6). Every named radius, and bare "rounded", is 0;
+     rounded-full stays for status dots and switch knobs. */
+  --radius: 0;
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
+
+  /*
+   * Type scale (spec section 2). small and ui match the website (copy keeps
+   * the website's size at a denser 1.6 line height); the
+   * rest are denser studio steps. Names avoid the colour names (body, meta,
+   * light) so text-<size> never collides with text-<colour>. Pages adopt
+   * these in the C-items; nothing uses them yet.
+   */
+  --text-micro: 11px; /* counters, kbd */
+  --text-micro--line-height: 1.3;
+  --text-label: 11.5px; /* field labels, table heads: add uppercase and text-meta */
+  --text-label--line-height: 1.3;
+  --text-label--letter-spacing: 0.06em;
+  --text-label--font-weight: 600;
+  --text-caption: 12px; /* secondary lines, small buttons */
+  --text-caption--line-height: 1.4;
+  --text-row: 13px; /* body default, cells, buttons */
+  --text-row--line-height: 1.45;
+  --text-small: 13.5px; /* desktop inputs, descriptions */
+  --text-small--line-height: 1.5;
+  --text-ui: 14.5px; /* section headings at 600, key values */
+  --text-ui--line-height: 1.45;
+  --text-copy: 16px; /* touch inputs, long prose */
+  --text-copy--line-height: 1.6;
+  --text-title: 22px; /* every page h1 (the website's .t-title) */
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.005em;
+  --text-title--font-weight: 300;
+  --text-display: 28px; /* record names */
+  --text-display--line-height: 1.15;
+  --text-display--font-weight: 300;
 }
 
 /* Theme changes ease rather than snap (respecting reduced-motion). */
@@ -61,13 +128,94 @@
   }
 }
 
-/* Keyboard focus — one global, on-brand ring. The ring token existed but was
-   never consumed; wire it to every interactive element so the studio is fully
-   keyboard-navigable and reads as finished. Pointer clicks stay ring-free. */
-:where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
-  outline: 2px solid var(--color-oranje);
+/* Keyboard focus (spec section 4): one square 2px ring in the accent, 3.58:1
+   on white and 5.23:1 on the dark page. No radius: corners are square and
+   the ring follows the element's own box. Deliberately outside any @layer:
+   unlayered rules beat every utility, so a stray outline-none class cannot
+   remove the ring (as before this change). Pointer clicks stay ring-free. */
+:focus-visible {
+  outline: 2px solid var(--jvb-accent);
   outline-offset: 2px;
-  border-radius: var(--jvb-radius-control);
+}
+/* Inside scrolling table and grid frames (overflow clips anything drawn
+   outside a cell), draw the ring inside the focused element instead. */
+[data-inset-focus] :focus-visible {
+  outline-offset: -2px;
+}
+
+/* iOS Safari zooms the page when a text field under 16px takes focus. On
+   touch screens every text-entry control is at least 16px; desktop keeps the
+   denser sizes. Unlayered for the same reason as the focus ring: the fields
+   carry text-[13.5px]-style utilities that would otherwise win. That also
+   means the rule cannot see a field's own size, so a field set larger than
+   16px (the newsletter name, 18px) opts out with data-keep-font-size rather
+   than shrinking to 16px on an iPad. */
+@media (pointer: coarse) {
+  :is(
+      input:not(
+          [type="checkbox"],
+          [type="radio"],
+          [type="range"],
+          [type="button"],
+          [type="submit"],
+          [type="reset"],
+          [type="file"],
+          [type="color"],
+          [type="image"],
+          [type="hidden"]
+        ),
+      select,
+      textarea,
+      [contenteditable]:not([contenteditable="false"])
+    ):not([data-keep-font-size]) {
+    font-size: max(16px, 1em);
+  }
+}
+
+@layer base {
+  /* Native checkboxes, radios and range thumbs in ink, the website's
+     control colour, rather than the browser blue. */
+  :root {
+    accent-color: var(--jvb-ink);
+  }
+
+  ::selection {
+    background-color: var(--jvb-ink);
+    color: var(--jvb-page);
+  }
+
+  /* Studio body type: 13px/1.45 (spec section 2, "row"), kerned, with
+     standard ligatures. */
+  body {
+    background: var(--jvb-page);
+    color: var(--jvb-ink);
+    font-family: var(--jvb-font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    font-kerning: normal;
+    font-variant-ligatures: common-ligatures;
+  }
+
+  /* Dates and figures line up in columns. .tabular is the name new code
+     uses; .font-mono (below) does the same for existing cells. */
+  time,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+  p,
+  li,
+  dd,
+  figcaption,
+  blockquote {
+    text-wrap: pretty;
+  }
 }
 
 /* Press feedback — buttons respond on pointer-down, not just after the
@@ -182,7 +330,7 @@
   }
 }
 .jvb-shimmer {
-  background-color: var(--jvb-bg-placeholder);
+  background-color: var(--jvb-placeholder);
   background-image: linear-gradient(
     90deg,
     transparent 0%,
@@ -277,12 +425,6 @@
   --jvb-lift-shadow: oklch(0 0 0 / 0.6);
 }
 
-body {
-  background: var(--jvb-bg-page);
-  color: var(--jvb-ink);
-  font-family: var(--jvb-font-sans);
-}
-
 /* Native date/time inputs carry an intrinsic min-width (pronounced on iOS
    Safari) that pushes them past grid/flex cells. Force them to respect their
    container so forms stay on the design grid on mobile. */
@@ -298,15 +440,16 @@ input[type="date"]::-webkit-date-and-time-value {
   text-align: left;
 }
 
-/* Voice: Newsreader for catalogue prose (descriptions, condition, provenance).
-   Roman only — the serif never appears in dense UI chrome. */
+/* Newsreader, roman only, in the two places that still ask for it (the AI
+   draft preview and the newsletter designer's text). Whether the studio keeps
+   it is an owner decision; see --jvb-font-serif in tokens.css. */
 .font-serif {
   font-family: var(--jvb-font-serif);
   font-style: normal;
 }
 
 /* Former monospace numeric cells keep their tabular alignment while using the
-   sans, so the studio holds to two typefaces (Noto Sans + Newsreader). */
+   sans: numerals never get a typeface of their own. */
 .font-mono {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
@@ -314,7 +457,7 @@ input[type="date"]::-webkit-date-and-time-value {
 
 /* diagonal-hatch placeholder for missing artwork imagery, per the design handoff */
 .jvb-hatch {
-  background-color: var(--jvb-bg-placeholder);
+  background-color: var(--jvb-placeholder);
   background-image: repeating-linear-gradient(
     45deg,
     transparent,

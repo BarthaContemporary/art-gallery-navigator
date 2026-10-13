@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { nativeFieldLang } from "@/lib/script-lang";
 
 type Option = { id: string; label: string };
 
@@ -30,6 +31,11 @@ export function MakerSelect({
   const [newNative, setNewNative] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The API links an existing maker of the same name (and dates) rather than
+  // making a twin; say so, since otherwise "Add maker" looked like it had
+  // created one. `separate` reopens the form to add a distinct maker instead.
+  const [reused, setReused] = useState<{ name: string; label: string } | null>(null);
+  const [separate, setSeparate] = useState(false);
 
   const selected = opts.find((o) => o.id === id) ?? null;
 
@@ -59,6 +65,8 @@ export function MakerSelect({
     setSearching(false);
     setQ("");
     setAdding(false);
+    setReused(null);
+    setSeparate(false);
   };
 
   async function addMaker() {
@@ -74,9 +82,12 @@ export function MakerSelect({
           display_name: name,
           life_dates: newDates.trim() || undefined,
           native_name: newNative.trim() || undefined,
+          // Only an explicit "Add a separate maker instead" may create a
+          // second maker of the same name.
+          separate: separate || undefined,
         }),
       });
-      const json = (await res.json()) as { maker?: Option; error?: string };
+      const json = (await res.json()) as { maker?: Option; reused?: boolean; error?: string };
       if (!res.ok || !json.maker) throw new Error(json.error ?? "Could not add maker");
       const opt = json.maker;
       setOpts((p) =>
@@ -87,6 +98,7 @@ export function MakerSelect({
       setNewDates("");
       setNewNative("");
       pick(opt);
+      if (json.reused) setReused({ name, label: opt.label });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not add maker");
     } finally {
@@ -100,7 +112,7 @@ export function MakerSelect({
 
       {id && selected && !searching ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-line-control px-2.5 py-0.5 text-[12.5px] text-ink-body">
+          <span className="inline-flex items-center gap-1.5 border border-line-control px-2.5 py-0.5 text-[12.5px] text-ink-body">
             {selected.label}
             <button
               type="button"
@@ -109,7 +121,7 @@ export function MakerSelect({
                 setSearching(true);
               }}
               aria-label="Clear maker"
-              className="text-ink-muted hover:text-oranje"
+              className="text-ink-muted hover:text-accent-deep"
             >
               ×
             </button>
@@ -117,10 +129,28 @@ export function MakerSelect({
           <button
             type="button"
             onClick={() => setSearching(true)}
-            className="text-[12px] text-oranje"
+            className="text-[12px] text-accent-deep"
           >
             change
           </button>
+          {reused ? (
+            <p role="status" className="w-full text-[12px] text-ink-mid">
+              Linked to the existing maker “{reused.label}”.{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setQ(reused.name);
+                  setSearching(true);
+                  setAdding(true);
+                  setSeparate(true);
+                  setReused(null);
+                }}
+                className="font-medium text-ink-strong underline"
+              >
+                Add a separate maker instead
+              </button>
+            </p>
+          ) : null}
         </div>
       ) : (
         <div>
@@ -158,6 +188,12 @@ export function MakerSelect({
                   <p className="text-[12.5px] text-ink-body">
                     Add <strong>{q.trim()}</strong> as a new maker
                   </p>
+                  {separate ? (
+                    <p className="mt-1 text-[12px] text-ink-mid">
+                      A maker of this name is already on file. Give this one its
+                      life dates so the two can be told apart.
+                    </p>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">
                     <input
                       value={newDates}
@@ -168,6 +204,7 @@ export function MakerSelect({
                     <input
                       value={newNative}
                       onChange={(e) => setNewNative(e.target.value)}
+                      lang={nativeFieldLang(newNative)}
                       placeholder="Name in original script (optional)"
                       className="min-w-0 flex-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[13px] text-ink-body"
                     />
@@ -177,7 +214,7 @@ export function MakerSelect({
                       type="button"
                       disabled={busy}
                       onClick={() => void addMaker()}
-                      className="rounded-md border border-oranje bg-oranje/10 px-2.5 py-1 text-[12px] font-semibold text-oranje disabled:opacity-60"
+                      className="rounded-md border border-oranje bg-oranje/10 px-2.5 py-1 text-[12px] font-semibold text-accent-deep disabled:opacity-60"
                     >
                       {busy ? "Adding…" : "Add maker"}
                     </button>
@@ -185,6 +222,7 @@ export function MakerSelect({
                       type="button"
                       onClick={() => {
                         setAdding(false);
+                        setSeparate(false);
                         setError(null);
                       }}
                       className="text-[12px] text-ink-muted hover:text-ink-strong"
@@ -200,7 +238,7 @@ export function MakerSelect({
                 <button
                   type="button"
                   onClick={() => setAdding(true)}
-                  className="mt-1.5 text-[12px] font-medium text-oranje"
+                  className="mt-1.5 text-[12px] font-medium text-accent-deep"
                 >
                   + Add “{q.trim()}” as a new maker
                 </button>
@@ -212,7 +250,7 @@ export function MakerSelect({
             <button
               type="button"
               onClick={() => setSearching(false)}
-              className="mt-1 text-[12px] text-ink-muted hover:text-oranje"
+              className="mt-1 text-[12px] text-ink-muted hover:text-accent-deep"
             >
               cancel
             </button>

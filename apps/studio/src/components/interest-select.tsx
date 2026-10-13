@@ -76,7 +76,7 @@ export function InterestSelect({
           <button
             type="button"
             onClick={selectAll}
-            className="text-[11.5px] font-medium text-oranje"
+            className="text-[11.5px] font-medium text-accent-deep"
           >
             {allSelected ? "Clear all" : "Select all"}
           </button>
@@ -92,9 +92,9 @@ export function InterestSelect({
               type="button"
               onClick={() => toggle(o.name)}
               aria-pressed={on}
-              className={`rounded-full border px-2.5 py-1 text-[12px] transition-colors ${
+              className={`border px-2.5 py-1 text-[12px] transition-colors ${
                 on
-                  ? "border-oranje bg-oranje/10 text-oranje"
+                  ? "border-oranje bg-oranje/10 text-accent-deep"
                   : "border-line-control text-ink-mid hover:text-ink-strong"
               }`}
             >

@@ -52,7 +52,7 @@ export function InventoryLinkPicker({
             <button
               key={s.id}
               onClick={() => toggle(s)}
-              className="flex items-center gap-1.5 rounded-full border border-oranje bg-oranje/10 px-2.5 py-1 text-[12px] text-oranje"
+              className="flex items-center gap-1.5 rounded-full border border-oranje bg-oranje/10 px-2.5 py-1 text-[12px] text-accent-deep"
             >
               <span className="font-mono">{s.stock_number}</span>
               <IconClose className="h-3 w-3" />

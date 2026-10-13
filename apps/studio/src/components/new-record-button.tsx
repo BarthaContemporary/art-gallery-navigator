@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useFormStatus } from "react-dom";
 
 /**
  * "New record" with a hold-to-vary accelerator.
@@ -22,6 +23,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 /** How long the button must be held before it switches register. */
 const HOLD_MS = 500;
+/**
+ * A second release this soon after a submit is the same tap landing twice
+ * (a double tap, or a bounce), not a request for a second draft. It covers the
+ * moment before the form reports itself pending; after that the button is
+ * disabled until the action finishes. Every draft takes a stock number.
+ */
+const REPEAT_MS = 600;
 
 export function NewRecordButton({
   action,
@@ -30,8 +38,29 @@ export function NewRecordButton({
   action: (formData: FormData) => void;
   className?: string;
 }) {
-  const formRef = useRef<HTMLFormElement>(null);
   const ledgerRef = useRef<HTMLInputElement>(null);
+  return (
+    <form action={action}>
+      <input type="hidden" name="ledger" defaultValue="jvb" ref={ledgerRef} />
+      <HoldButton ledgerRef={ledgerRef} className={className} />
+    </form>
+  );
+}
+
+/**
+ * The button itself, inside the form so useFormStatus can see the submit in
+ * flight.
+ */
+function HoldButton({
+  ledgerRef,
+  className,
+}: {
+  ledgerRef: RefObject<HTMLInputElement | null>;
+  className?: string;
+}) {
+  const { pending } = useFormStatus();
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const lastSubmit = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // `armed` is what the release acts on; `holding` only drives the fill.
@@ -49,10 +78,20 @@ export function NewRecordButton({
     setArmed(false);
   }, []);
 
+  // Set the field imperatively and submit in the same tick — going through
+  // state would risk submitting the previous value.
+  function submit(ledger: "jvb" | "external") {
+    const now = Date.now();
+    if (pending || now - lastSubmit.current < REPEAT_MS) return;
+    lastSubmit.current = now;
+    if (ledgerRef.current) ledgerRef.current.value = ledger;
+    buttonRef.current?.form?.requestSubmit();
+  }
+
   function onPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
     if (e.button !== 0 && e.pointerType === "mouse") return; // left button only
     // Capture so the release is still delivered here if the pointer has moved
-    // off the button. Moving off cancels the hold (see onPointerLeave), so the
+    // off the button. Moving off cancels the hold (see onPointerMove), so the
     // captured release lands on holding === false and submits nothing — which
     // is the escape hatch: slide away to back out.
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -66,22 +105,29 @@ export function NewRecordButton({
     }, HOLD_MS);
   }
 
+  // While the pointer is captured the browser keeps reporting it as over the
+  // button, so pointerleave never fires mid-hold; test the position instead.
+  function onPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!holding) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) reset();
+  }
+
   function onPointerUp() {
     if (!holding) return;
     const external = armed;
     reset();
-    if (ledgerRef.current) ledgerRef.current.value = external ? "external" : "jvb";
-    // Set the field imperatively and submit in the same tick — going through
-    // state would risk submitting the previous value.
-    formRef.current?.requestSubmit();
+    submit(external ? "external" : "jvb");
   }
 
   return (
-    <form action={action} ref={formRef}>
-      <input type="hidden" name="ledger" defaultValue="jvb" ref={ledgerRef} />
+    <>
       <button
+        ref={buttonRef}
         type="button"
+        disabled={pending}
         onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={reset}
         onPointerLeave={reset}
@@ -91,12 +137,11 @@ export function NewRecordButton({
           // Keyboard gets the plain action; there is no held-key equivalent.
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            if (ledgerRef.current) ledgerRef.current.value = "jvb";
-            formRef.current?.requestSubmit();
+            submit("jvb");
           }
         }}
         aria-describedby="new-record-hold-hint"
-        className={`relative isolate overflow-hidden touch-none select-none ${
+        className={`relative isolate overflow-hidden touch-none select-none disabled:opacity-60 ${
           className ??
           "rounded-lg bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-fg"
         }`}
@@ -119,7 +164,7 @@ export function NewRecordButton({
             transition: holding ? `width ${HOLD_MS}ms linear` : "width 120ms ease-out",
           }}
         />
-        {armed ? "New non-JvdB record" : "New record"}
+        {pending ? "Creating…" : armed ? "New non-JvdB record" : "New record"}
       </button>
 
       {/*
@@ -134,6 +179,6 @@ export function NewRecordButton({
         Creates a JvdB stock record. Hold the button to create a non-JvdB record
         instead.
       </span>
-    </form>
+    </>
   );
 }

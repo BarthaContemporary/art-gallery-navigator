@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { LEDGER_LABEL, type Ledger, type PieceRef } from "@/lib/piece-store";
+// London dates: this page renders on the server, where the zone is UTC.
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Trash" };
 
@@ -87,14 +89,16 @@ export default async function TrashPage() {
           <h1 className="text-[22px] font-semibold text-ink-strong">Trash</h1>
           <p className="mt-1 text-[13px] text-ink-muted">
             Deleted records are kept for {RETENTION_DAYS} days, then permanently removed.
+            A work shown on the website is taken off it straight away, and returns if
+            you reinstate the record.
           </p>
         </div>
-        <Link href="/inventory" className="text-[12.5px] text-ink-mid hover:text-oranje">
+        <Link href="/inventory" className="text-[12.5px] text-ink-mid hover:text-accent-deep">
           ← Inventory
         </Link>
       </div>
 
-      <div className="mt-5 overflow-x-auto rounded-[11px] border border-line">
+      <div className="mt-5 overflow-x-auto border border-line">
         <table className="w-full bg-cell text-left">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
@@ -119,12 +123,12 @@ export default async function TrashPage() {
                 <td className="px-4 py-2.5 text-[13.5px] text-ink-body">
                   {r.title ?? "Untitled"}
                   <span className="mt-0.5 block font-mono text-[11.5px] text-ink-muted sm:hidden">
-                    deleted {new Date(r.deleted_at).toLocaleDateString("en-GB")} ·{" "}
+                    deleted {formatDate(r.deleted_at, "numeric")} ·{" "}
                     {daysLeft(r.deleted_at)} days left
                   </span>
                 </td>
                 <td className="hidden px-4 py-2.5 font-mono text-[12px] text-ink-soft sm:table-cell">
-                  {new Date(r.deleted_at).toLocaleDateString("en-GB")}
+                  {formatDate(r.deleted_at, "numeric")}
                 </td>
                 <td className="hidden px-4 py-2.5 font-mono text-[12px] text-ink-muted sm:table-cell">
                   {daysLeft(r.deleted_at)} days

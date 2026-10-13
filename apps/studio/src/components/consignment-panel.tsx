@@ -173,10 +173,10 @@ export function ConsignmentPanel({
     status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "error" ? (pctInvalid ? "Share must be 1–99" : "Couldn’t save") : "";
 
   return (
-    <section className="mt-4 rounded-[11px] border border-line bg-cell p-5">
+    <section className="mt-4 border border-line bg-cell p-5">
       <div className="flex items-center justify-between">
         <h2 className="text-[13px] font-semibold text-ink-strong">Consignment</h2>
-        <span className={`text-[11px] ${status === "error" ? "text-oranje" : "text-ink-soft"}`}>{statusText}</span>
+        <span className={`text-[11px] ${status === "error" ? "text-danger" : "text-ink-soft"}`}>{statusText}</span>
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -189,13 +189,13 @@ export function ConsignmentPanel({
             className={field}
           />
           {coOwnerContactId ? (
-            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-line-control px-2.5 py-0.5 text-[11.5px] text-ink-body">
+            <span className="mt-1.5 inline-flex items-center gap-1.5 border border-line-control px-2.5 py-0.5 text-[11.5px] text-ink-body">
               Linked contact
               <button
                 type="button"
                 onClick={unlinkContact}
                 aria-label="Unlink contact"
-                className="text-ink-muted hover:text-oranje"
+                className="text-ink-muted hover:text-accent-deep"
               >
                 ×
               </button>

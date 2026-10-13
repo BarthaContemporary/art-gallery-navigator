@@ -148,6 +148,12 @@ export async function savePiece(
     parsed.data.unframed_weight_g = null;
   }
 
+  // "Mark catalogued" (EditHeader). Posted only for a record that arrived
+  // flagged, so absence leaves the column alone; mirrors the autosave route.
+  const completion = formData.has("needs_completion")
+    ? { needs_completion: formData.get("needs_completion") === "on" }
+    : {};
+
   let targetStockNumber = stockNumber;
   let targetId: string | null = null;
 
@@ -156,7 +162,7 @@ export async function savePiece(
     if (!ref) redirect(`/inventory?error=${encodeURIComponent("Record not found")}`);
     const { error } = await supabase
       .from(ref.table)
-      .update({ ...parsed.data, updated_by: user.id })
+      .update({ ...parsed.data, ...completion, updated_by: user.id })
       .eq("id", ref.id);
     if (error) redirect(`/inventory/${encodeURIComponent(stockNumber)}/edit?error=${encodeURIComponent(error.message)}`);
     targetStockNumber = ref.stockNumber;
@@ -166,7 +172,7 @@ export async function savePiece(
     // whichever register's series this table belongs to.
     const { data, error } = await supabase
       .from("pieces")
-      .insert({ ...parsed.data, created_by: user.id, updated_by: user.id })
+      .insert({ ...parsed.data, ...completion, created_by: user.id, updated_by: user.id })
       .select("id, stock_number")
       .single();
     if (error || !data) redirect(`/inventory/new?error=${encodeURIComponent(error?.message ?? "Insert failed")}`);

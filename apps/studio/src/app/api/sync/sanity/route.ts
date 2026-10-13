@@ -43,7 +43,7 @@ const RENDER_BUDGET_MS = 24_000;
  * and by a Vercel cron as the fallback drain. Pushes web-visible pieces as
  * read-only `work` documents with their display images, and makers as
  * `artist` documents (every maker, unless switched off); unpublishes
- * pieces and makers that are no longer web-visible.
+ * pieces and makers that are no longer web-visible, and pieces in the trash.
  */
 type Db = Parameters<typeof ensureImageAsset>[0];
 
@@ -259,10 +259,19 @@ async function processBatch(
     description: string | null;
     status: string;
     web_visible: boolean;
+    /** Set while the work is in the trash (soft delete); web_visible is left as it was. */
+    deleted_at: string | null;
     presentation: string | null;
     maker_id: string | null;
     maker: { display_name: string; romanized_name: string | null; native_name: string | null; life_dates: string | null; web_visible: boolean } | null;
   };
+  // A trashed work keeps web_visible so reinstating it republishes it, but it
+  // must leave the website the moment it is trashed, not at the 30-day purge.
+  // The pieces trigger queues the row on both edits; this decides the outcome.
+  const pieceLive = (p: PieceRow | null) => !!p && p.web_visible && !p.deleted_at;
+  // Trashed works drop out of the union view, so they resolve to no ref and
+  // are read from `pieces` below (a trashed external work reads as missing,
+  // which unpublishes it just the same).
   const refs = await resolvePieces(supabase, pieceIds);
   const pieces = new Map<string, PieceRow | null>();
   for (const pieceId of pieceIds) {
@@ -271,7 +280,7 @@ async function processBatch(
       .from(ref?.table ?? "pieces")
       .select(
         `id, stock_number, title, medium, period, year, origin_region, description,
-         ${DIMENSION_COLUMNS}, status, web_visible, presentation, maker_id,
+         ${DIMENSION_COLUMNS}, status, web_visible, deleted_at, presentation, maker_id,
          maker:makers(display_name, romanized_name, native_name, life_dates, web_visible)`,
       )
       .eq("id", pieceId)
@@ -281,7 +290,7 @@ async function processBatch(
     pieces.set(pieceId, (data as unknown as PieceRow | null) ?? null);
   }
 
-  const livePieceIds = [...pieces.entries()].filter(([, p]) => p?.web_visible).map(([id]) => id);
+  const livePieceIds = [...pieces.entries()].filter(([, p]) => pieceLive(p)).map(([id]) => id);
 
   // Provenance: only entries marked public, oldest first, as one line each.
   const provenanceByPiece = new Map<string, string>();
@@ -418,7 +427,7 @@ async function processBatch(
   for (const pieceId of pieceIds) {
     const piece = pieces.get(pieceId) ?? null;
     const docId = workDocId(pieceId);
-    if (!piece || !piece.web_visible) {
+    if (!piece || !pieceLive(piece)) {
       deletes.push({ delete: { id: docId } });
       continue;
     }

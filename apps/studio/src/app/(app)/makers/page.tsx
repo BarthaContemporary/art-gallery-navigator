@@ -47,7 +47,7 @@ export default async function MakersPage({
         ].map(([name, label, ph]) => (
           <label key={name} className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
             {label}
-            <input name={name} placeholder={ph} className="mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
+            <input name={name} placeholder={ph} lang={name === "native_name" ? "ja" : undefined} className="mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
           </label>
         ))}
         <button type="submit" className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">
@@ -67,7 +67,7 @@ export default async function MakersPage({
           Search
         </button>
         {q ? (
-          <a href="/makers" className="text-[12.5px] text-oranje">
+          <a href="/makers" className="text-[12.5px] text-accent-deep">
             Clear
           </a>
         ) : null}
@@ -82,7 +82,7 @@ export default async function MakersPage({
         website — every maker does unless switched off here. Changes reach the site within a minute.
       </p>
 
-      <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">
+      <div className="mt-3 overflow-x-auto border border-line">
         <table className="w-full min-w-[560px] bg-cell text-left">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">

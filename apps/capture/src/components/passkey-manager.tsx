@@ -107,7 +107,7 @@ export function PasskeyManager() {
                       {k.last_used_at ? `Last used ${new Date(k.last_used_at).toLocaleDateString("en-GB")}` : "Never used"}
                     </span>
                   </span>
-                  <button onClick={() => remove(k.id)} className="shrink-0 text-[12px] text-oranje">Remove</button>
+                  <button onClick={() => remove(k.id)} className="shrink-0 text-[12px] text-accent-deep">Remove</button>
                 </li>
               ))}
             </ul>

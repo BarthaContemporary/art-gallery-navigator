@@ -52,13 +52,32 @@ export async function PATCH(
     });
   }
 
+  // Once a send has started (status sending, partial or sent), only the name
+  // may change: the rest must reach those still to be mailed exactly as it
+  // reached the others, and each email's idempotency key is derived from it.
+  // The designer locks these fields; this is the server-side guard.
+  let locked = false;
+  if (Object.keys(patch).some((k) => k !== "name")) {
+    const { data: current, error: readErr } = await supabase
+      .from("crm_campaigns")
+      .select("status")
+      .eq("id", id)
+      .maybeSingle();
+    if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
+    if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (current.status !== "draft") {
+      locked = true;
+      for (const k of Object.keys(patch)) if (k !== "name") delete patch[k];
+    }
+  }
+
   if (Object.keys(patch).length === 0) {
-    return NextResponse.json({ ok: true, unchanged: true });
+    return NextResponse.json({ ok: true, unchanged: true, locked });
   }
 
   const { error } = await supabase.from("crm_campaigns").update(patch).eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, savedAt: new Date().toISOString() });
+  return NextResponse.json({ ok: true, locked, savedAt: new Date().toISOString() });
 }

@@ -15,10 +15,10 @@ export default function PieceDetailLoading() {
       <div className="grid grid-cols-1 gap-8 px-5 py-4 md:px-8 lg:grid-cols-[minmax(0,640px)_1fr]">
         {/* gallery */}
         <div>
-          <div className="jvb-hatch aspect-[4/5] w-full rounded-[12px]" />
+          <div className="jvb-hatch aspect-[4/5] w-full" />
           <div className="mt-3 flex gap-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="jvb-hatch h-16 w-16 rounded-[9px]" />
+              <div key={i} className="jvb-hatch h-16 w-16" />
             ))}
           </div>
         </div>
@@ -29,7 +29,7 @@ export default function PieceDetailLoading() {
           <div className="mt-3 h-8 w-3/4 rounded bg-placeholder" />
           <div className="mt-2 h-4 w-40 rounded bg-placeholder" />
 
-          <div className="mt-6 grid grid-cols-3 gap-px overflow-hidden rounded-[11px] border border-line bg-line">
+          <div className="mt-6 grid grid-cols-3 gap-px overflow-hidden border border-line bg-line">
             {Array.from({ length: 9 }).map((_, i) => (
               <div key={i} className="bg-cell px-3 py-3">
                 <div className="h-2.5 w-12 rounded bg-placeholder" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { formatDate, gbpExact } from "@/lib/format";
 
 export type StockBookRow = {
   piece_id: string | null;
@@ -59,12 +60,49 @@ const TREATMENT_LABEL: Record<string, string> = {
   outside_scope: "Outside scope",
 };
 
-function gbp(n: number | null | undefined) {
-  if (n == null) return "—";
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
-}
+// The accountant reads every figure here, so money stays to the penny
+// ("£1,234.56", "—" when empty). The dates are `date` columns and print as the
+// day they name ("12/10/2026") in any browser's time zone.
+const gbp = gbpExact;
 function d(s: string | null | undefined) {
-  return s ? new Date(s).toLocaleDateString("en-GB") : "—";
+  return formatDate(s, "numeric");
+}
+
+/** Only vw_stock_book_all has the column; the page fills it in for the per-scheme views. */
+function treatmentOf(r: StockBookRow): string {
+  return r.vat_treatment ?? "margin_scheme";
+}
+
+/**
+ * Import VAT paid on a margin-scheme work is part of its cost (Notice 718), so
+ * the views take it off the margin before working out VAT due. Mirrors their
+ * import_vat_cost.
+ */
+function importVatCost(r: StockBookRow): number {
+  return r.import_type === "import_vat_paid" && treatmentOf(r) === "margin_scheme" ? (r.import_vat_gbp ?? 0) : 0;
+}
+
+/**
+ * The margin VAT is worked on: margin_gbp (sale less total cost) less any
+ * margin-scheme import VAT. margin_gbp alone leaves that VAT in, so the
+ * working's margin line did not follow from the lines above it and the
+ * Tax. Margin column did not match the VAT due beside it. Display only: the
+ * views' VAT figures are unchanged. Not floored at zero, so a loss still reads
+ * as a loss; VAT due is 1/6 of it only when positive.
+ */
+function taxableMargin(r: StockBookRow): number | null {
+  return r.margin_gbp == null ? null : r.margin_gbp - importVatCost(r);
+}
+
+/**
+ * Purchase, restoration and other costs. Only vw_stock_book_all carries
+ * total_cost_gbp; elsewhere sale less margin is the same figure, where purchase
+ * cost alone left restoration out of the working.
+ */
+function totalCost(r: StockBookRow): number | null {
+  if (r.total_cost_gbp != null) return r.total_cost_gbp;
+  if (r.sold_price_gbp != null && r.margin_gbp != null) return r.sold_price_gbp - r.margin_gbp;
+  return r.purchase_cost_gbp;
 }
 
 type Col = {
@@ -108,7 +146,7 @@ function sortVal(r: StockBookRow, key: string): string | number | null {
     case "share": return r.consignment_share_pct;
     case "sold_date": return r.sold_date;
     case "sold_price_gbp": return r.sold_price_gbp;
-    case "margin_gbp": return r.margin_gbp;
+    case "margin_gbp": return taxableMargin(r);
     case "vat_treatment": return r.vat_treatment;
     case "vat_due_gbp": return r.vat_due_gbp;
     default: return null;
@@ -139,10 +177,9 @@ function SortIcon({ state }: { state: "asc" | "desc" | "none" }) {
  */
 function CalcSteps({ r }: { r: StockBookRow }) {
   const steps: { label: string; value: string; note?: string }[] = [];
-  const treatment = r.vat_treatment ?? "margin_scheme";
+  const treatment = treatmentOf(r);
   const thirdParty = r.sale_handled_by_jvb === false;
-  const importVatCost =
-    r.import_type === "import_vat_paid" && treatment === "margin_scheme" ? r.import_vat_gbp ?? 0 : 0;
+  const importVat = importVatCost(r);
 
   steps.push({ label: "VAT treatment", value: TREATMENT_LABEL[treatment] ?? treatment });
   if (thirdParty)
@@ -152,10 +189,10 @@ function CalcSteps({ r }: { r: StockBookRow }) {
     steps.push({ label: "VAT due", value: gbp(0) });
   } else if (treatment === "margin_scheme") {
     steps.push({ label: "Sold price", value: gbp(r.sold_price_gbp) });
-    steps.push({ label: "less total cost", value: gbp(r.total_cost_gbp ?? r.purchase_cost_gbp) });
-    if (importVatCost)
-      steps.push({ label: "less import VAT paid", value: gbp(importVatCost), note: "Folded into cost under the margin scheme." });
-    steps.push({ label: "= margin", value: gbp(r.margin_gbp) });
+    steps.push({ label: "less total cost", value: gbp(totalCost(r)) });
+    if (importVat)
+      steps.push({ label: "less import VAT paid", value: gbp(importVat), note: "Folded into cost under the margin scheme." });
+    steps.push({ label: "= taxable margin", value: gbp(taxableMargin(r)) });
     steps.push({ label: "VAT due (1/6 of positive margin)", value: gbp(r.vat_due_gbp) });
   } else if (treatment === "standard") {
     steps.push({ label: "Sold price", value: gbp(r.sold_price_gbp) });
@@ -229,12 +266,12 @@ function ExpandedRow({ r, colSpan }: { r: StockBookRow; colSpan: number }) {
                         e.stopPropagation();
                         openDocs(preview.import!.documents!);
                       }}
-                      className="ml-2 font-sans text-[12px] text-oranje hover:underline"
+                      className="ml-2 font-sans text-[12px] text-accent-deep hover:underline"
                     >
                       view import doc{preview.import.documents.length > 1 ? `s (${preview.import.documents.length})` : ""} →
                     </button>
                   ) : preview?.import ? (
-                    <a href={`/shipments/${preview.import.id}`} className="ml-2 font-sans text-[12px] text-oranje hover:underline">open import shipment →</a>
+                    <a href={`/shipments/${preview.import.id}`} className="ml-2 font-sans text-[12px] text-accent-deep hover:underline">open import shipment →</a>
                   ) : null}
                 </dd>
               </div>
@@ -252,12 +289,12 @@ function ExpandedRow({ r, colSpan }: { r: StockBookRow; colSpan: number }) {
                         e.stopPropagation();
                         openDocs(preview.export!.documents!);
                       }}
-                      className="ml-2 font-sans text-[12px] text-oranje hover:underline"
+                      className="ml-2 font-sans text-[12px] text-accent-deep hover:underline"
                     >
                       view export doc{preview.export.documents.length > 1 ? `s (${preview.export.documents.length})` : ""} →
                     </button>
                   ) : preview?.export ? (
-                    <a href={`/shipments/${preview.export.id}`} className="ml-2 font-sans text-[12px] text-oranje hover:underline">open export shipment →</a>
+                    <a href={`/shipments/${preview.export.id}`} className="ml-2 font-sans text-[12px] text-accent-deep hover:underline">open export shipment →</a>
                   ) : null}
                 </dd>
               </div>
@@ -280,11 +317,8 @@ function ExpandedRow({ r, colSpan }: { r: StockBookRow; colSpan: number }) {
             </dl>
             {r.consignment_share_pct != null
               ? (() => {
-                  const treatment = r.vat_treatment ?? "margin_scheme";
                   const extraCosts = Math.max(0, (r.total_cost_gbp ?? r.purchase_cost_gbp ?? 0) - (r.purchase_cost_gbp ?? 0));
-                  const importVatCost =
-                    r.import_type === "import_vat_paid" && treatment === "margin_scheme" ? r.import_vat_gbp ?? 0 : 0;
-                  const costIncurred = extraCosts + importVatCost;
+                  const costIncurred = extraCosts + importVatCost(r);
                   return (
                     <dl className="mt-3 space-y-1.5 rounded-lg border border-line-soft bg-cell px-3 py-2 text-[12px]">
                       <div className="flex items-baseline justify-between gap-3">
@@ -430,7 +464,8 @@ export function StockBookTable({
         (acc, r) => ({
           purchase: acc.purchase + (r.purchase_cost_gbp ?? 0),
           sold: acc.sold + (r.sold_price_gbp ?? 0),
-          margin: acc.margin + (r.margin_gbp ?? 0),
+          // The column's own figure, so the total adds up the rows above it.
+          margin: acc.margin + (taxableMargin(r) ?? 0),
           vat: acc.vat + (r.vat_due_gbp ?? 0),
           reclaim: acc.reclaim + (r.reclaimable_import_vat_gbp ?? 0),
           jvbShare: acc.jvbShare + (r.jvb_share_gbp ?? 0),
@@ -449,7 +484,7 @@ export function StockBookTable({
       case "stock_number":
         return (
           <span className={`block truncate font-mono text-[12px] ${line} text-ink`}>
-            <span className="mr-1 inline-block w-2 text-oranje">{open === r.stock_number ? "▾" : "▸"}</span>
+            <span className="mr-1 inline-block w-2 text-accent-deep">{open === r.stock_number ? "▾" : "▸"}</span>
             {r.stock_number}
           </span>
         );
@@ -465,7 +500,7 @@ export function StockBookTable({
             {d(r.import_date)}
             {r.import_reference ? <span className="block truncate text-ink-soft">{r.import_reference}</span> : null}
             {r.import_type ? (
-              <span className="block text-oranje">
+              <span className="block text-accent-deep">
                 {IMPORT_TYPE_LABEL[r.import_type] ?? r.import_type}
                 {r.import_vat_gbp != null ? ` ${gbp(r.import_vat_gbp)}` : ""}
                 {r.reclaimable_import_vat_gbp ? " · reclaim" : ""}
@@ -497,7 +532,7 @@ export function StockBookTable({
       case "sold_price_gbp":
         return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-body`}>{gbp(r.sold_price_gbp)}</span>;
       case "margin_gbp":
-        return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-body`}>{gbp(r.margin_gbp)}</span>;
+        return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-body`}>{gbp(taxableMargin(r))}</span>;
       case "vat_treatment":
         return <span className={`block text-[11.5px] ${line} text-ink-muted`}>{TREATMENT_LABEL[r.vat_treatment ?? ""] ?? r.vat_treatment ?? "—"}</span>;
       case "vat_due_gbp":
@@ -520,7 +555,7 @@ export function StockBookTable({
       case "vat_due_gbp":
         return <span className="block text-right">{gbp(totals.vat)}</span>;
       case "import":
-        return totals.reclaim > 0 ? <span className="font-mono text-[11px] text-oranje">reclaim {gbp(totals.reclaim)}</span> : null;
+        return totals.reclaim > 0 ? <span className="font-mono text-[11px] text-accent-deep">reclaim {gbp(totals.reclaim)}</span> : null;
       case "share":
         return totals.jvbShare > 0 ? <span className="font-mono text-[11px] text-ink-soft">{gbp(totals.jvbShare)}</span> : null;
       default:
@@ -538,7 +573,9 @@ export function StockBookTable({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-[11px] border border-line">
+      {/* data-inset-focus: the frame scrolls sideways and would clip an outer
+          focus ring, so cells draw it inside (globals.css). */}
+      <div data-inset-focus className="overflow-x-auto border border-line">
         <table ref={tableRef} style={{ width: totalWidth(), tableLayout: "fixed" }} className="min-w-full border-collapse bg-cell text-left">
           <colgroup>
             {cols.map((c) => (

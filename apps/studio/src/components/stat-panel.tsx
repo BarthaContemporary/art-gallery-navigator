@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CountUp } from "@/components/count-up";
+import { formatCount, gbpDisplay } from "@/lib/format";
 
 const PERIODS: [string, string][] = [
   ["month", "Month"],
@@ -38,17 +39,11 @@ export function StatPanel({ title, metric }: { title: string; metric: string }) 
     };
   }, [metric, period]);
 
-  const fmt = (n: number) =>
-    format === "gbp"
-      ? new Intl.NumberFormat("en-GB", {
-          style: "currency",
-          currency: "GBP",
-          maximumFractionDigits: 0,
-        }).format(n)
-      : n.toLocaleString("en-GB");
+  // Dashboard figures: whole pounds, grouped counts.
+  const fmt = (n: number) => (format === "gbp" ? gbpDisplay(n) : formatCount(n));
 
   return (
-    <div className="rounded-[11px] border border-line bg-cell p-4">
+    <div className="border border-line bg-cell p-4">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
           {title} · last

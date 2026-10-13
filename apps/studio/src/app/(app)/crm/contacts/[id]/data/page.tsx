@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { buildContactExport } from "@/lib/contact-export";
+import { formatDateTime } from "@/lib/format";
 
 export const metadata = { title: "Personal data" };
 
@@ -21,7 +22,9 @@ export default async function ContactDataPage({ params }: { params: Promise<{ id
     if (v === null || v === undefined || v === "") return "—";
     if (Array.isArray(v)) return v.length ? v.map(fmt).join(", ") : "—";
     if (typeof v === "object") return JSON.stringify(v);
-    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T/.test(v)) return new Date(v).toLocaleString("en-GB");
+    // Timestamps in London time, as the gallery recorded them; the server runs
+    // on UTC, which put summer entries an hour out on the copy the person gets.
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T/.test(v)) return formatDateTime(v, "numeric", { seconds: true });
     return String(v);
   };
   const Section = ({ title, rows }: { title: string; rows: Record<string, unknown>[] }) => (
@@ -63,7 +66,7 @@ export default async function ContactDataPage({ params }: { params: Promise<{ id
       </div>
       <h1 className="mt-3 text-[22px] font-semibold text-ink-strong">Personal data held about {name}</h1>
       <p className="mt-1 text-[12.5px] text-ink-muted">
-        Prepared {new Date(data.exported_at).toLocaleString("en-GB")}. This is the complete record held in the gallery system,
+        Prepared {formatDateTime(data.exported_at, "numeric", { seconds: true })}. This is the complete record held in the gallery system,
         for a subject access request under Article 15 UK GDPR.
       </p>
       {data.legal_holds.length > 0 ? (
@@ -77,6 +80,7 @@ export default async function ContactDataPage({ params }: { params: Promise<{ id
       <Section title="Mailing lists" rows={data.lists.length ? [{ lists: data.lists }] : []} />
       <Section title="Newsletters received" rows={data.newsletters} />
       <Section title="Private offers" rows={data.offers} />
+      <Section title="Private offer page views" rows={data.offer_views} />
       <Section title="Enquiries" rows={data.enquiries} />
       <Section title="Appointments" rows={data.appointments} />
       <Section title="Purchases from the gallery" rows={data.purchases} />

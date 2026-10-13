@@ -187,3 +187,41 @@ export function describeRules(list: CrmListLike): string {
   ].filter(Boolean);
   return parts.length === 0 ? "every contact" : parts.join(", ");
 }
+
+/**
+ * Who a newsletter may actually mail: an address, marketing consent, not
+ * unsubscribed, not marked do-not-mail. The send and the count on its button
+ * both use this, so the number on the button is the number that gets mailed.
+ */
+export type MailableContact = {
+  id: string;
+  email: string | null;
+  marketing_consent: boolean | null;
+  do_not_mail: boolean | null;
+  unsubscribed_at: string | null;
+};
+
+/** The columns isMailable reads. */
+export const MAILABLE_COLUMNS = "id, email, marketing_consent, do_not_mail, unsubscribed_at";
+
+export function isMailable(c: Omit<MailableContact, "id">): boolean {
+  return Boolean(c.email) && Boolean(c.marketing_consent) && !c.do_not_mail && !c.unsubscribed_at;
+}
+
+/**
+ * A list's size and how many of its members a newsletter would reach.
+ * `exclude` leaves out contacts already mailed (a part-sent newsletter
+ * resumes with only the rest). One read serves both numbers, so they cannot
+ * disagree.
+ */
+export async function countEligible(
+  supabase: Db,
+  list: CrmListLike,
+  exclude?: ReadonlySet<string>,
+): Promise<{ total: number; eligible: number }> {
+  const rows = await loadListContacts<MailableContact>(supabase, list, MAILABLE_COLUMNS);
+  return {
+    total: rows.length,
+    eligible: rows.filter((c) => isMailable(c) && !exclude?.has(c.id)).length,
+  };
+}

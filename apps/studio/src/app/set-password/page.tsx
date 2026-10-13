@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
+import { PASSWORD_MIN } from "@/lib/auth-rules";
 
 type Phase = "loading" | "ready" | "invalid" | "saving" | "done";
 
@@ -44,8 +45,8 @@ export default function SetPasswordPage() {
     const form = e.currentTarget;
     const password = String(new FormData(form).get("password") ?? "");
     const confirm = String(new FormData(form).get("confirm") ?? "");
-    if (password.length < 10) {
-      setError("Password must be at least 10 characters.");
+    if (password.length < PASSWORD_MIN) {
+      setError(`Password must be at least ${PASSWORD_MIN} characters.`);
       return;
     }
     if (password !== confirm) {
@@ -68,7 +69,7 @@ export default function SetPasswordPage() {
 
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-[14px] border border-line bg-cell p-8">
+      <div className="w-full max-w-sm border border-line bg-cell p-8">
         <h1 className="text-[22px] font-bold tracking-[-0.01em] text-ink-strong">
           Set your password
         </h1>
@@ -98,7 +99,7 @@ export default function SetPasswordPage() {
                 name="password"
                 type="password"
                 required
-                minLength={10}
+                minLength={PASSWORD_MIN}
                 autoComplete="new-password"
                 className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px]"
               />
@@ -109,7 +110,7 @@ export default function SetPasswordPage() {
                 name="confirm"
                 type="password"
                 required
-                minLength={10}
+                minLength={PASSWORD_MIN}
                 autoComplete="new-password"
                 className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px]"
               />
@@ -121,7 +122,7 @@ export default function SetPasswordPage() {
             >
               {phase === "saving" ? "Saving…" : "Set password"}
             </button>
-            <p className="mt-3 text-[12px] text-ink-soft">Minimum 10 characters.</p>
+            <p className="mt-3 text-[12px] text-ink-soft">Minimum {PASSWORD_MIN} characters.</p>
           </form>
         )}
       </div>

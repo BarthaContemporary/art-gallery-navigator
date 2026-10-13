@@ -74,7 +74,7 @@ export function PasskeyManager() {
   }
 
   return (
-    <section className="mt-8 max-w-md rounded-[11px] border border-line bg-cell p-5">
+    <section className="mt-8 max-w-md border border-line bg-cell p-5">
       <h2 className="text-[13px] font-semibold text-ink-strong">Passkeys</h2>
       <p className="mt-1 text-[12.5px] text-ink-muted">
         Sign in with Face ID / Touch ID instead of the password. Add it once — iCloud Keychain
@@ -91,7 +91,7 @@ export function PasskeyManager() {
                 {k.last_used_at ? ` · last used ${new Date(k.last_used_at).toLocaleDateString("en-GB")}` : ""}
               </span>
             </span>
-            <button type="button" onClick={() => void remove(k)} className="text-[12px] text-ink-soft hover:text-oranje">
+            <button type="button" onClick={() => void remove(k)} className="text-[12px] text-ink-soft hover:text-accent-deep">
               Remove
             </button>
           </li>

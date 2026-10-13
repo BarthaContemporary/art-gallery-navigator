@@ -178,7 +178,7 @@ export default async function ManageImagesPage({
           tiles={Object.fromEntries(
             signed.map((img) => [
               img.id,
-              <div key={img.id} className="rounded-[9px] border border-line bg-cell p-2.5">
+              <div key={img.id} className="border border-line bg-cell p-2.5">
             <div className="jvb-hatch relative aspect-square overflow-hidden rounded-lg">
               {img.url ? (
                 // eslint-disable-next-line @next/next/no-img-element

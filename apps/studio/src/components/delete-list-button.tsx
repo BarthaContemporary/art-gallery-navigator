@@ -38,7 +38,7 @@ export function DeleteListButton({
       <span className="text-[11.5px] text-ink-body">Delete “{name}”?</span>
       <button
         type="submit"
-        className="rounded-md border border-oranje bg-oranje/10 px-2 py-0.5 text-[11.5px] font-semibold text-oranje"
+        className="rounded-md border border-oranje bg-oranje/10 px-2 py-0.5 text-[11.5px] font-semibold text-accent-deep"
       >
         Yes
       </button>

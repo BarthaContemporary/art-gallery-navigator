@@ -44,7 +44,7 @@ export default async function MakerProfilePage({
       <Link href="/makers" className="text-[12.5px] text-ink-soft">← All makers</Link>
       <h1 className="mt-2 text-[24px] font-semibold text-ink-strong">{maker.display_name}</h1>
 
-      <div className="mt-5 rounded-[11px] border border-line bg-cell p-5">
+      <div className="mt-5 border border-line bg-cell p-5">
         <MakerProfileEditor
           makerId={maker.id}
           initialHtml={(maker.profile_html as string | null) ?? ""}
@@ -62,7 +62,7 @@ export default async function MakerProfilePage({
       </div>
 
       {maker.biography ? (
-        <div className="mt-4 rounded-[11px] border border-line-soft bg-band/50 p-4">
+        <div className="mt-4 border border-line-soft bg-band/50 p-4">
           <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">Legacy biography (migrated)</p>
           <p className="mt-1.5 whitespace-pre-line text-[13px] text-ink-muted">{maker.biography}</p>
         </div>

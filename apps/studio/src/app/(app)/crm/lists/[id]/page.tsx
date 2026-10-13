@@ -5,8 +5,31 @@ import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { LabelPdfButton } from "@/components/label-pdf-button";
 import { loadListContacts, isDynamic, describeRules } from "@/lib/crm-list-members";
+import { ConfirmDelete } from "./confirm-delete";
 
 export const metadata = { title: "List" };
+
+/** The description the lists index uses to tell the auto interest lists apart. */
+const AUTO = "Area of interest (auto)";
+
+/**
+ * An area-of-interest list is kept by the system: deleting it would unlink its
+ * interest area (crm_interest_areas.list_id is set null). The index page
+ * offers no Delete for these and its action refuses them; so does this page.
+ * Module scope, not a closure, so the server action below can call it.
+ */
+async function isInterestList(
+  db: Awaited<ReturnType<typeof getSupabase>>,
+  listId: string,
+): Promise<boolean> {
+  const { data } = await db
+    .from("crm_interest_areas")
+    .select("id")
+    .eq("list_id", listId)
+    .limit(1)
+    .maybeSingle();
+  return Boolean(data);
+}
 
 const btnGhost =
   "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid";
@@ -28,6 +51,8 @@ export default async function ListDetail({
     .eq("id", id)
     .maybeSingle();
   if (!list) notFound();
+
+  const autoList = list.description === AUTO || (await isInterestList(supabase, id));
 
   const dynamic = isDynamic(list);
   const members = await loadListContacts<{
@@ -75,6 +100,9 @@ export default async function ListDetail({
   async function deleteList() {
     "use server";
     const db = await getSupabase();
+    // Checked again here, not only by hiding the button: the same guard as
+    // the index page's action.
+    if (await isInterestList(db, id)) return;
     await db.from("crm_lists").delete().eq("id", id);
     redirect("/crm/lists");
   }
@@ -107,7 +135,7 @@ export default async function ListDetail({
       </div>
 
       {/* Members */}
-      <div className="mt-4 overflow-x-auto rounded-[11px] border border-line">
+      <div className="mt-4 overflow-x-auto border border-line">
         <table className="w-full min-w-[520px] bg-cell text-left text-[13px]">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
@@ -199,14 +227,11 @@ export default async function ListDetail({
       </>
       )}
 
-      <form action={deleteList} className="mt-8">
-        <button
-          type="submit"
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-soft hover:text-ink-strong"
-        >
-          Delete list
-        </button>
-      </form>
+      {autoList ? null : (
+        <form action={deleteList} className="mt-8">
+          <ConfirmDelete name={list.name} />
+        </form>
+      )}
     </div>
   );
 }

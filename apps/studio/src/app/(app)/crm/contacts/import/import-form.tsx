@@ -84,7 +84,7 @@ export function ImportForm() {
       ) : null}
 
       {status === "error" ? (
-        <p className="text-[13px] text-oranje" aria-live="polite">
+        <p className="text-[13px] text-danger" aria-live="polite">
           {message}
         </p>
       ) : null}

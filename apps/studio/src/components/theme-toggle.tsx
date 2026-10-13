@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { setThemeColorMeta } from "@/lib/theme";
 
 /**
  * Light/dark toggle. The actual theme is applied pre-paint by the inline
- * script in the root layout (no flash); this just flips data-theme and
- * persists the choice. Falls back to the OS preference until a choice is made.
+ * script in the root layout (no flash); this just flips data-theme, moves the
+ * theme-color meta with it and persists the choice. Falls back to the OS
+ * preference until a choice is made.
  */
 export function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark" | null>(null);
@@ -18,6 +20,7 @@ export function ThemeToggle() {
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
+    setThemeColorMeta(next);
     try {
       localStorage.setItem("jvb-theme", next);
     } catch {

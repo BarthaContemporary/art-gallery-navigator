@@ -234,7 +234,7 @@ export default async function CategoriesPage({
         {rows.length} categories · {active} in use
       </p>
 
-      <div className="mt-2 overflow-x-auto rounded-[11px] border border-line">
+      <div className="mt-2 overflow-x-auto border border-line">
         <table className="w-full min-w-[620px] bg-cell text-left">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">

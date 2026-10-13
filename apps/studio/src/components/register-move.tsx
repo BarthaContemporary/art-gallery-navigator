@@ -36,7 +36,7 @@ export function RegisterMove({
   }
 
   return (
-    <form action={action} className="mt-2 max-w-[420px] rounded-[10px] border border-line bg-band p-3">
+    <form action={action} className="mt-2 max-w-[420px] border border-line bg-band p-3">
       <input type="hidden" name="to" value={target} />
       <p className="text-[12.5px] leading-snug text-ink-body">
         {toExternal ? (
@@ -60,7 +60,7 @@ export function RegisterMove({
         Worth saying at the point of decision: the number is set aside rather
         than burnt, so this is recoverable if it turns out to be the wrong call.
       */}
-      <p className="mt-1.5 text-[11.5px] leading-snug text-ink-soft">
+      <p className="mt-1.5 text-[11.5px] leading-snug text-body">
         Reversible — moving it back returns the record to{" "}
         <span className="font-mono">{stockNumber}</span>.
       </p>
@@ -72,7 +72,7 @@ export function RegisterMove({
       <div className="mt-2.5 flex items-center gap-3">
         <button
           type="submit"
-          className="min-h-[36px] rounded-lg border border-oranje bg-oranje/10 px-3 text-[12px] font-semibold text-oranje"
+          className="min-h-[36px] rounded-lg border border-oranje bg-oranje/10 px-3 text-[12px] font-semibold text-accent-deep"
         >
           Move it
         </button>

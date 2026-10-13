@@ -1,5 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { safeNextPath } from "@/lib/auth-rules";
+
+/**
+ * A browser opening the URL as a page (an export link, a typed address), as
+ * opposed to a script calling it with fetch.
+ */
+function isPageLoad(request: NextRequest) {
+  if (request.method !== "GET") return false;
+  const mode = request.headers.get("sec-fetch-mode");
+  if (mode) return mode === "navigate";
+  return (request.headers.get("accept") ?? "").includes("text/html");
+}
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -45,13 +57,32 @@ export async function middleware(request: NextRequest) {
   const isPasskeyLogin = path.startsWith("/api/passkeys/login-");
   const isPublic = isLogin || isAsset || isPasskeyLogin || path.startsWith("/set-password");
   if (!user && !isPublic) {
+    // Scripts calling the API get a 401 they can act on (the autosave says
+    // "Signed out") instead of following a redirect to the sign-in page's
+    // HTML, which a PATCH could even take as a successful save.
+    if (path.startsWith("/api/") && !isPageLoad(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // Pages go to sign-in with the page they asked for, so signing in lands
+    // back on it (?next= is checked again where it is followed).
+    const next = safeNextPath(path + request.nextUrl.search);
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
+    if (next && next !== "/") url.searchParams.set("next", next);
     return NextResponse.redirect(url);
   }
   if (user && isLogin) {
+    const next = safeNextPath(request.nextUrl.searchParams.get("next"));
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    if (next) {
+      const to = new URL(next, request.nextUrl.origin);
+      url.pathname = to.pathname;
+      url.search = to.search;
+    } else {
+      url.pathname = "/";
+      url.searchParams.delete("next");
+    }
     return NextResponse.redirect(url);
   }
   return response;
