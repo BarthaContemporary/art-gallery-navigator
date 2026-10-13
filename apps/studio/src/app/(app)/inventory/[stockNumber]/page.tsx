@@ -500,13 +500,22 @@ export default async function PieceDetail({
         : "No VAT on this treatment";
   // The margin in the Commercial section. While the work is unsold it is
   // projected at the marked price (J.v.d.B.'s share of it on a consignment
-  // with a share %). Once sold it is the realised margin, the stock book's
-  // figure (sale less total cost), with a word for what it was: "Loss" in the
-  // danger tone when the sale fell below cost. Display only: no figure here
+  // with a share %). Once sold it is realised: on a consignment with a share,
+  // J.v.d.B.'s net profit from the settlement (the consignor's cost is not
+  // the gallery's loss), with the whole work's margin beneath; otherwise the
+  // stock book's figure, sale less total cost, before VAT. Only a loss or
+  // break-even gets a word: a margin before VAT is not yet a profit (on a
+  // standard-rated sale the VAT can exceed it). Display only: no figure here
   // is worked out differently from the editor and the stock book.
   const isSold = piece.status === "sold" || soldGbp != null;
-  let realised: { value: string; word: string | null; pct: string | null; loss: boolean; share: string | null } | null =
-    null;
+  let realised: {
+    label: string;
+    value: string;
+    word: string | null;
+    pct: string | null;
+    loss: boolean;
+    share: string | null;
+  } | null = null;
   if (fin && isSold) {
     const totalCost =
       fin.total_cost_gbp != null
@@ -528,22 +537,38 @@ export default async function PieceDetail({
             sharePct: consignSharePct,
           }).jvbNetProfit
         : null;
-    realised = {
-      value: margin != null ? gbp(margin) : "—",
-      word:
-        margin == null
-          ? soldGbp == null
-            ? "No sale £ recorded"
-            : "No purchase £ recorded"
-          : margin < 0
-            ? "Loss"
-            : margin > 0
-              ? "Profit"
-              : "Break-even",
-      pct: margin != null && soldGbp ? `${((margin / soldGbp) * 100).toFixed(1)}%` : null,
-      loss: margin != null && margin < 0,
-      share: jvbShare != null ? `J.v.d.B. net profit ${gbp(jvbShare)} · ${consignSharePct}% share` : null,
-    };
+    const outcome = (n: number) => (n < 0 ? "Loss" : n === 0 ? "Break-even" : null);
+    realised =
+      jvbShare != null
+        ? {
+            label: "Realised (JvdB)",
+            value: gbp(jvbShare),
+            // The settlement treats a missing purchase £ as nothing, which on
+            // the margin scheme overstates VAT and so understates this figure:
+            // say so, as the stock book does for the same work.
+            word: fin.purchase_cost_gbp == null ? "No purchase £ recorded" : outcome(jvbShare),
+            pct: `net profit · ${consignSharePct}% share`,
+            loss: jvbShare < 0,
+            share:
+              margin == null
+                ? null
+                : margin < 0
+                  ? `Whole work sold ${gbp(-margin)} below cost`
+                  : `Whole work: ${gbp(margin)} margin before VAT`,
+          }
+        : {
+            label: "Realised margin before VAT",
+            value: margin != null ? gbp(margin) : "—",
+            word:
+              margin == null
+                ? soldGbp == null
+                  ? "No sale £ recorded"
+                  : "No purchase £ recorded"
+                : outcome(margin),
+            pct: margin != null && soldGbp ? `${((margin / soldGbp) * 100).toFixed(1)}%` : null,
+            loss: margin != null && margin < 0,
+            share: null,
+          };
   }
 
   const buyer = buyerRes.data as { id: string; first_name: string | null; last_name: string | null; email: string | null } | null;
@@ -1023,7 +1048,7 @@ export default async function PieceDetail({
               <Stat label="Purchase cost">{gbp(fin.total_cost_gbp)}</Stat>
               {realised ? (
                 <Stat
-                  label="Realised margin"
+                  label={realised.label}
                   tone={realised.loss ? "danger" : undefined}
                   sub={
                     <>

@@ -203,7 +203,7 @@ export function MakerSelect({
                         id={`${inputId ?? "maker"}-dates`}
                         value={newDates}
                         onChange={(e) => setNewDates(e.target.value)}
-                        placeholder="1854–1918"
+                        placeholder="e.g. 1854–1918"
                         className="field"
                       />
                     </div>

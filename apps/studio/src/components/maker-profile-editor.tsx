@@ -330,7 +330,7 @@ export function MakerProfileEditor({
               <input
                 id={`maker-${key}`}
                 value={fields[key]}
-                placeholder={ph}
+                placeholder={ph ? `e.g. ${ph}` : undefined}
                 lang={key === "native_name" ? nativeFieldLang(fields[key]) : undefined}
                 onChange={(e) => setField(key, e.target.value)}
                 onBlur={flushFields}

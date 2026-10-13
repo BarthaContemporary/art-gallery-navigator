@@ -82,7 +82,10 @@ export function MakerRow({
       </Td>
       <Td className="whitespace-nowrap text-right">
         <span className="inline-flex items-center justify-end gap-1">
-          <Link href={`/makers/${maker.id}`} className="link px-1.5 text-[12px]">
+          <Link
+            href={`/makers/${maker.id}`}
+            className={buttonClass({ variant: "quiet", size: "sm" }, "text-body hover:text-ink")}
+          >
             Edit
           </Link>
           <form

@@ -145,14 +145,11 @@ const NEEDS_PURCHASE_TITLE =
   "No purchase £ is recorded, so this figure is not known. Enter it under Edit financials.";
 
 function NeedsPurchaseBadge() {
-  // Allowed to wrap: the VAT due column is narrower than the words.
+  // One line in both cells: the badge measures 93px and the 112px default
+  // columns leave 96px inside, so the same reason never takes two shapes side
+  // by side, and the All view still fits the 1440 page.
   return (
-    <Badge
-      tone="warn"
-      size="xs"
-      title={NEEDS_PURCHASE_TITLE}
-      className="h-auto min-h-4 whitespace-normal py-[3px] text-right leading-[1.2]"
-    >
+    <Badge tone="warn" size="xs" title={NEEDS_PURCHASE_TITLE} className="whitespace-nowrap">
       Needs purchase £
     </Badge>
   );
@@ -225,9 +222,9 @@ function columns(showTreatment: boolean): Col[] {
     { key: "share", label: "Share", width: 104 },
     { key: "sold_date", label: "Sold", width: 100 },
     { key: "sold_price_gbp", label: "Sale £", numeric: true, width: 100 },
-    { key: "margin_gbp", label: "Tax. margin", numeric: true, width: 116 },
+    { key: "margin_gbp", label: "Tax margin", numeric: true, width: 112 },
     ...(showTreatment ? [{ key: "vat_treatment", label: "Treatment", width: 112 } as Col] : []),
-    { key: "vat_due_gbp", label: "VAT due £", numeric: true, width: 100 },
+    { key: "vat_due_gbp", label: "VAT due £", numeric: true, width: 112 },
   ];
 }
 

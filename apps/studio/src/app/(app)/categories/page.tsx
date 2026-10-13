@@ -207,13 +207,13 @@ export default async function CategoriesPage({
               <label htmlFor="new-category-name" className="label">
                 Name
               </label>
-              <input id="new-category-name" name="name" required placeholder="Silver" className="field" />
+              <input id="new-category-name" name="name" required placeholder="e.g. Silver" className="field" />
             </div>
             <div className="flex w-full min-w-0 flex-col gap-1 sm:w-36">
               <label htmlFor="new-category-code" className="label">
                 Code <span className="font-normal normal-case tracking-normal">(optional)</span>
               </label>
-              <input id="new-category-code" name="code" placeholder="auto" className="field tabular" />
+              <input id="new-category-code" name="code" placeholder="Auto" className="field tabular" />
             </div>
             <Button type="submit" variant="primary" pendingLabel="Adding…">
               Add category

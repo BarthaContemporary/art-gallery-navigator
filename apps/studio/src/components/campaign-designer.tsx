@@ -407,7 +407,10 @@ export function CampaignDesigner(props: Props) {
                 </Field>
                 <Field label="From address" hint="Leave empty for the gallery’s usual sender, shown in the box.">
                   <Input
-                    value={from}
+                    // Once locked and left empty, show the gallery's usual sender (the
+                    // one the send uses for an empty field) in ink, not as a faint
+                    // placeholder. Display only: the saved value stays empty.
+                    value={locked && !from ? props.defaultFrom : from}
                     onChange={(e) => setFrom(e.target.value)}
                     readOnly={locked}
                     className={locked ? LOCKED : undefined}

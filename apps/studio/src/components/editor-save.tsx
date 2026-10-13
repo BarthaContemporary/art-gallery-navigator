@@ -181,6 +181,9 @@ export function useStateAutosave(send: () => Promise<boolean> | null) {
   // The newest save asked for, and the chain the saves run along.
   const latest = useRef(0);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
+  // False once the part has unmounted: a save failing after that must not
+  // re-arm a retry that would keep sending for the rest of the session.
+  const alive = useRef(true);
 
   const clearTimers = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -227,6 +230,7 @@ export function useStateAutosave(send: () => Promise<boolean> | null) {
         return true;
       }
       setStatus("error");
+      if (!alive.current) return false;
       attempt.current += 1;
       if (retryTimer.current) clearTimeout(retryTimer.current);
       retryTimer.current = setTimeout(
@@ -260,7 +264,13 @@ export function useStateAutosave(send: () => Promise<boolean> | null) {
     [save],
   );
 
-  useEffect(() => clearTimers, [clearTimers]);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      clearTimers();
+    };
+  }, [clearTimers]);
 
   return { status, save, schedule, flush };
 }

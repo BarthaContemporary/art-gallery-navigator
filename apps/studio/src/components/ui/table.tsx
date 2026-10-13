@@ -1,14 +1,15 @@
 /*
  * Tables (spec section 4): the studio's main surface, so one structure for
- * all of them. Native <table> elements with shared classes; nothing here
- * holds state.
+ * all of them. Native <table> elements with shared classes. Only the frame
+ * holds state (ScrollFrame, a client component, for its edge fade).
  *
  *   <TableFrame bordered? className?>   the scrolling wrapper. Carries
  *     data-inset-focus, so the focus ring draws inside cells instead of being
  *     clipped by the overflow, and position: relative, so anything absolutely
  *     positioned inside (an sr-only word, a resize handle) stays inside the
  *     frame instead of widening the page. bordered adds a 1px rule-strong box.
- *     A wide table scrolls sideways inside this frame; the page never does.
+ *     A wide table scrolls sideways inside this frame; the page never does,
+     and the edge with more columns beyond it fades (ScrollFrame).
  *   <Table density? className?>         <table>: full width, collapsed
  *     borders, 13px. Add style={{ tableLayout: "fixed", width }} for
  *     resizable columns. density "compact" sets this table's row padding to
@@ -54,6 +55,7 @@ import Link from "next/link";
 import type { ComponentPropsWithRef, CSSProperties, ReactNode } from "react";
 import { cx } from "./cx";
 import { ChevronDownIcon, ChevronUpIcon, SortIcon } from "./icons";
+import { ScrollFrame } from "./scroll-frame";
 
 export function TableFrame({
   bordered = false,
@@ -62,13 +64,13 @@ export function TableFrame({
   ...rest
 }: ComponentPropsWithRef<"div"> & { bordered?: boolean }) {
   return (
-    <div
+    <ScrollFrame
       {...rest}
       data-inset-focus
       className={cx("relative overflow-x-auto", bordered && "border border-rule-strong", className)}
     >
       {children}
-    </div>
+    </ScrollFrame>
   );
 }
 

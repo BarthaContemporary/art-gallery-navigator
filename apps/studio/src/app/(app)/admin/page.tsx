@@ -22,6 +22,7 @@ import { sendEmail } from "@/lib/email";
 import { PASSWORD_MIN } from "@/lib/auth-rules";
 // London time: this page renders on the server, where the zone is UTC.
 import { formatDate, formatDateTime } from "@/lib/format";
+import { ACTIVITY_ACTION_LABELS, ACTIVITY_ENTITY_LABELS, labelOf } from "@/lib/labels";
 
 export const metadata = { title: "Admin" };
 
@@ -485,13 +486,9 @@ export default async function AdminPage({
                               Re-invite
                             </Button>
                           </form>
-                          {/* A destructive action in a table row: the first step is quiet
-                              in danger (spec R4), the confirm step keeps its own
-                              "Yes, delete". DeleteListButton draws its trigger quiet; the
-                              wrapper colours that one button and not the confirm form. */}
-                          <span className="contents [&>button]:text-danger">
-                            <DeleteListButton action={deleteUser} id={u.id} name={u.email} />
-                          </span>
+                          {/* A row's destructive action: DeleteListButton draws its first
+                              step quiet in danger and keeps its "Yes, delete" step. */}
+                          <DeleteListButton action={deleteUser} id={u.id} name={u.email} />
                         </div>
                       </Td>
                     </Tr>
@@ -550,8 +547,10 @@ export default async function AdminPage({
                     key={a.id}
                     className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-rule py-1.5 text-[13px]"
                   >
+                    {/* In the change history's words ("Edited · Financials"), not
+                        the raw SQL action and table name. */}
                     <span className="text-body">
-                      {a.action} {a.entity_type}
+                      {labelOf(ACTIVITY_ACTION_LABELS, a.action)} · {labelOf(ACTIVITY_ENTITY_LABELS, a.entity_type)}
                     </span>
                     <time dateTime={a.created_at} className="text-[12px] text-meta">
                       {formatDateTime(a.created_at, "short")}

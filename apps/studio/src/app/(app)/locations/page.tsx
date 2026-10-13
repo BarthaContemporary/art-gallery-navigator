@@ -168,13 +168,13 @@ export default async function LocationsPage({
               <label htmlFor="new-location-code" className="label">
                 Code
               </label>
-              <input id="new-location-code" name="code" placeholder="SJ-B2" className="field tabular" />
+              <input id="new-location-code" name="code" placeholder="e.g. SJ-B2" className="field tabular" />
             </div>
             <div className="flex w-full min-w-0 flex-col gap-1 sm:w-64">
               <label htmlFor="new-location-name" className="label">
                 Name
               </label>
-              <input id="new-location-name" name="name" placeholder="St James, shelf B2" className="field" />
+              <input id="new-location-name" name="name" placeholder="e.g. St James, shelf B2" className="field" />
             </div>
             <div className="flex w-full min-w-0 flex-col gap-1 sm:w-40">
               <label htmlFor="new-location-type" className="label">

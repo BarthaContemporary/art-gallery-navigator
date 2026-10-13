@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
-import { CloseIcon } from "@/components/ui/icons";
+import { CloseIcon, DownloadIcon } from "@/components/ui/icons";
 
 type Doc = {
   id: string;
@@ -157,10 +157,11 @@ export function DocumentsPanel({
             >
               {d.title}
             </FilePreviewLink>
-            <Button variant="quiet" size="sm" onClick={() => download(d)}>
+            <Button variant="quiet" size="sm" icon={<DownloadIcon size={14} />} onClick={() => download(d)}>
               Download
             </Button>
-            <Button variant="quiet" size="sm" onClick={() => remove(d)} className="hover:text-danger">
+            {/* A row's destructive action, as on the shipment page: quiet, in the danger colour. */}
+            <Button variant="quiet" size="sm" onClick={() => remove(d)} className="text-danger">
               Remove
             </Button>
           </li>

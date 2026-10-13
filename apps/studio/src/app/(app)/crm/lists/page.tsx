@@ -120,7 +120,7 @@ export default async function ListsPage() {
               <input
                 id="new-contact-list-name"
                 name="name"
-                placeholder="Japanese bronzes collectors"
+                placeholder="e.g. Japanese bronzes collectors"
                 className="field"
               />
             </div>

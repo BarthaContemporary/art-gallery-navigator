@@ -95,7 +95,7 @@ export function RecordReturn({
       <p className="text-[13px] text-ink">
         <span className="font-semibold">{preview.willReturn.length}</span> item
         {preview.willReturn.length === 1 ? "" : "s"} will be marked returned on{" "}
-        <span className="tabular">{formatDate(date, "numeric")}</span>.
+        <span className="tabular">{formatDate(date, "short")}</span>.
       </p>
       <List label="Will be returned" items={preview.willReturn} tone="ok" />
       <List label="Skipped: written off" items={preview.writtenOff} tone="neutral" />

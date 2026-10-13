@@ -116,9 +116,10 @@ export function CategoryTableRow({
         </Td>
         <Td className="whitespace-nowrap text-right">
           <span className="inline-flex items-center gap-1">
-            <button type="button" onClick={() => setEditing(true)} className="link px-1.5 text-[12px]">
+            {/* Ink, not the link orange: beside the red Delete the two read as one colour. */}
+            <Button size="sm" variant="quiet" onClick={() => setEditing(true)} className="text-body hover:text-ink">
               Edit
-            </button>
+            </Button>
             <form action={toggleAction} className="inline">
               <input type="hidden" name="id" value={cat.id} />
               <input type="hidden" name="active" value={cat.is_active ? "0" : "1"} />

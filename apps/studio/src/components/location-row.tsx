@@ -113,9 +113,10 @@ export function LocationTableRow({
         </Td>
         <Td className="whitespace-nowrap text-right">
           <span className="inline-flex items-center gap-1">
-            <button type="button" onClick={() => setEditing(true)} className="link px-1.5 text-[12px]">
+            {/* Ink, not the link orange: beside the red Delete the two read as one colour. */}
+            <Button size="sm" variant="quiet" onClick={() => setEditing(true)} className="text-body hover:text-ink">
               Edit
-            </button>
+            </Button>
             {/* A row's destructive action: quiet, in the danger colour. */}
             <Button
               size="sm"

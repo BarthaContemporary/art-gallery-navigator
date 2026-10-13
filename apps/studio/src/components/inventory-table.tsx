@@ -1094,8 +1094,10 @@ function FlagButton({
   return (
     <button
       type="button"
+      // One name with aria-pressed carrying the state, as on the record page:
+      // a name that also changed read as "Remove flag, pressed".
       aria-pressed={flagged}
-      aria-label={flagged ? `Remove flag from ${stock}` : `Flag ${stock}`}
+      aria-label={`Flag ${stock}`}
       title={flagged ? "Flagged: click to remove" : "Flag this work (f)"}
       onClick={onClick}
       className={cx(

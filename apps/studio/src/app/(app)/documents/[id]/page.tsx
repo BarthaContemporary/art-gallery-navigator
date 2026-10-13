@@ -265,7 +265,7 @@ export default async function DocumentDetail({
 
         <section className="flex flex-wrap items-center justify-between gap-3 border-t border-rule-strong pt-3">
           <p className="text-[13px] text-ink">Delete this document</p>
-          <DeleteListButton action={deleteDoc} id={id} name="document" />
+          <DeleteListButton action={deleteDoc} id={id} name="document" standalone />
         </section>
       </div>
     </div>

@@ -48,7 +48,11 @@ function attentionReasons(
   if (r.sold_date && r.sold_price_gbp == null) out.push("Sold with no sale £");
   if (!r.sold_date && r.sold_price_gbp != null) out.push("Sale £ with no sale date");
   if (work?.status === "sold" && !r.sold_date) out.push("Marked sold with no sale date");
-  if (work?.missing_purchase_gbp) out.push("Needs purchase £");
+  // The same rows the table marks "Needs purchase £": sold with no purchase £
+  // (whose margin and VAT are not known), plus the works flagged because
+  // their figure was cleared on import. One phrase, one set of rows.
+  if (work?.missing_purchase_gbp || (r.sold_price_gbp != null && r.purchase_cost_gbp == null))
+    out.push("Needs purchase £");
   // Either one is a record of where the work came from; with neither, the
   // margin-scheme entry has nothing behind it.
   if (!r.seller_name?.trim() && !r.purchase_invoice_document_id) out.push("No seller or purchase invoice");
@@ -277,7 +281,8 @@ export default async function StockBookPage({
       {worksError ? (
         <Notice tone="danger" className="mt-5">
           Could not check the works for Needs attention ({worksError}), so &ldquo;Marked sold with no sale
-          date&rdquo; and &ldquo;Needs purchase £&rdquo; are not counted. Reload the page to try again.
+          date&rdquo; is not counted, and &ldquo;Needs purchase £&rdquo; counts only sold rows with no purchase
+          £. Reload the page to try again.
         </Notice>
       ) : null}
 

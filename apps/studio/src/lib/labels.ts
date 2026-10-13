@@ -150,6 +150,26 @@ export const ACTIVITY_ACTION_LABELS: Record<string, string> = {
   DELETE: "Deleted",
 };
 
+/** activity_log.entity_type (a table name): what kind of record it was. */
+export const ACTIVITY_ENTITY_LABELS: Record<string, string> = {
+  pieces: "Record",
+  external_pieces: "Record",
+  piece_financials: "Financials",
+  piece_images: "Image",
+  piece_lists: "List",
+  makers: "Maker",
+  categories: "Category",
+  locations: "Location",
+  crm_contacts: "Contact",
+  crm_lists: "Contact list",
+  crm_campaigns: "Newsletter",
+  offers: "Offer",
+  appointments: "Appointment",
+  shipments: "Shipment",
+  documents: "Document",
+  user_roles: "User role",
+};
+
 /**
  * Column names of a work (pieces, external_pieces) and its financials
  * (piece_financials) in the words of the editor's fields, for the change

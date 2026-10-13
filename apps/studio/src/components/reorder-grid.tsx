@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { GripIcon } from "@/components/ui/icons";
 
 /*
  * Drag-to-reorder, shared by every surface that has a hand-set order: piece
@@ -49,7 +50,7 @@ export function ReorderHandle({ id, className = "" }: { id: string; className?: 
       // outright.
       ref={(el) => ctx.registerRow(id, el?.closest("tr") ?? null)}
       aria-label={`Reorder item ${i + 1} of ${ctx.count}`}
-      title="Drag to reorder — or focus and use ← →"
+      title="Drag to reorder, or focus it and use the arrow keys"
       onPointerDown={() => ctx.startDrag(id)}
       onKeyDown={(e) => {
         const d = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : 0;
@@ -59,9 +60,9 @@ export function ReorderHandle({ id, className = "" }: { id: string; className?: 
       }}
       // touch-none is what stops a touch-drag scrolling the page instead of
       // moving the item.
-      className={`min-h-[28px] cursor-grab touch-none rounded-md border border-line-control bg-cell/90 px-1.5 text-[13px] leading-none text-ink-soft active:cursor-grabbing ${className}`}
+      className={`inline-flex min-h-[28px] cursor-grab touch-none items-center border border-rule-strong bg-page/90 px-1 text-meta hover:text-ink active:cursor-grabbing ${className}`}
     >
-      ⠿
+      <GripIcon size={16} />
     </button>
   );
 }
@@ -254,7 +255,7 @@ export function ReorderGrid({
               <button
                 type="button"
                 aria-label={`Reorder item ${i + 1} of ${order.length}`}
-                title="Drag to reorder — or focus and use ← →"
+                title="Drag to reorder, or focus it and use the arrow keys"
                 onPointerDown={() => startDrag(id)}
                 onKeyDown={(e) => {
                   const d = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
@@ -264,9 +265,9 @@ export function ReorderGrid({
                 }}
                 // touch-none is what stops a touch-drag scrolling the page
                 // instead of moving the tile.
-                className="min-h-[28px] cursor-grab touch-none rounded-md border border-line-control bg-cell/90 px-1.5 text-[13px] leading-none text-ink-soft active:cursor-grabbing"
+                className="inline-flex min-h-[28px] cursor-grab touch-none items-center border border-rule-strong bg-page/90 px-1 text-meta hover:text-ink active:cursor-grabbing"
               >
-                ⠿
+                <GripIcon size={16} />
               </button>
               {showPosition ? (
                 <span className="rounded-md bg-cell/90 px-1.5 py-0.5 font-mono text-[10px] text-ink-faint">

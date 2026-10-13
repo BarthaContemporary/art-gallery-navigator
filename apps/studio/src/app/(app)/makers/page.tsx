@@ -71,7 +71,7 @@ export default async function MakersPage({
                 <input
                   id={`new-maker-${name}`}
                   name={name}
-                  placeholder={ph}
+                  placeholder={`e.g. ${ph}`}
                   lang={name === "native_name" ? "ja" : undefined}
                   className="field"
                 />

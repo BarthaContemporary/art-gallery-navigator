@@ -1,4 +1,5 @@
 import { titleWithYear } from "@jvb/db";
+import { ImageIcon } from "@/components/ui/icons";
 
 /**
  * A work as it appears in a satellite list — attaching to a shipment, picking
@@ -34,10 +35,11 @@ export function PieceLine({
         />
       ) : (
         <span
+          role="img"
           aria-label="No image"
-          className="jvb-hatch flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[11px] text-ink-soft"
+          className="jvb-hatch flex h-9 w-9 shrink-0 items-center justify-center text-meta"
         >
-          ▦
+          <ImageIcon size={16} />
         </span>
       )}
       <span className="min-w-0">

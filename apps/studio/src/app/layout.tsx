@@ -17,7 +17,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Joost van den Bergh — Studio",
+    default: "Studio · Joost van den Bergh",
     template: "%s · Joost van den Bergh",
   },
   description: "Inventory and CRM back office",

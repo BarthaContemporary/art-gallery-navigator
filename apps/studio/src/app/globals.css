@@ -425,13 +425,18 @@
     padding: 8px 10px;
     resize: vertical;
   }
-  /* Placeholders are hints, so they must be readable: meta, 4.09:1 on the
-     light form fill and 6.23:1 on the dark one (light, at 2.6:1, is for
-     disabled and decorative marks only, spec R3). A placeholder is never
-     the only label: every field has a Label or an aria-label as well. */
+  /* Placeholders are hints, so they must be readable. On the light form fill
+     meta gives only 4.09:1, so light uses #6b6b6b (4.8:1 on #f3f3f3); dark
+     uses meta (6.23:1 on #232323). light, at 2.6:1, is for disabled and
+     decorative marks only (spec R3). A placeholder is never the only label:
+     every field has a Label or an aria-label as well, and an example value
+     starts with "e.g." so it never reads as something already entered. */
   .field::placeholder {
-    color: var(--jvb-meta);
+    color: #6b6b6b;
     opacity: 1;
+  }
+  :root[data-theme="dark"] .field::placeholder {
+    color: var(--jvb-meta);
   }
   .field:is(:hover, [data-preview~="hover"]):not(:disabled, :focus) {
     background-color: var(--jvb-form-hover);
@@ -786,6 +791,22 @@
 .jvb-rise {
   animation: jvb-rise-in 420ms cubic-bezier(0.23, 1, 0.32, 1) both;
   animation-delay: var(--jvb-stagger, 0ms);
+}
+
+/* A table frame with more columns past an edge (ScrollFrame sets the
+   attribute while there is more to scroll that way): that edge fades out,
+   so a cut-off column reads as "scroll for more", not as the table's end. */
+[data-scroll-cue="right"] {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+}
+[data-scroll-cue="left"] {
+  -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent);
+}
+[data-scroll-cue="left right"] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
 }
 
 /* Skeleton shimmer — a sheen sweeping across a placeholder while data loads.
