@@ -591,8 +591,10 @@ export function InventoryTable({
                 return (
                   <th
                     key={c.key}
-                    style={{ top: "var(--app-header-h, 88px)" }}
-                    className={`relative select-none border-b border-line bg-cell px-4 py-2.5 font-medium lg:sticky lg:z-20 ${
+                    // The offset only from lg, where the head sticks: on a
+                    // narrower screen it stays relative, and a top offset
+                    // there pushed it down over the first rows.
+                    className={`relative select-none border-b border-line bg-cell px-4 py-2.5 font-medium lg:sticky lg:top-[var(--app-header-h,88px)] lg:z-20 ${
                       c.align === "right" ? "text-right" : "text-left"
                     } ${c.key === "image" ? "px-3" : ""}`}
                     aria-label={c.key === "image" ? "Image" : undefined}

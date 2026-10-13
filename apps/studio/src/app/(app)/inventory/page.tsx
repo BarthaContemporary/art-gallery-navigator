@@ -218,7 +218,9 @@ export default async function InventoryPage({
         </p>
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <div className="flex items-center gap-2">
+        {/* Wraps, and each button keeps its label on one line: unwrapped and
+            pushed right, the row ran off the left edge on a tablet. */}
+        <div className="flex flex-wrap items-center justify-end gap-2 *:whitespace-nowrap">
           <Link
             href={
               sp.flagged
