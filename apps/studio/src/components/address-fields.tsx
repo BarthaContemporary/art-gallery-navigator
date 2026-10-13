@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Field } from "./ui/field";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -78,10 +79,6 @@ type Values = {
   company: string;
 };
 
-const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const input =
-  "mt-1 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
-
 const TYPE_OPTIONS: [string, string][] = [
   ["primary_home", "Primary home"],
   ["work", "Work"],
@@ -125,7 +122,7 @@ export function AddressFields({
         if (cancelled || !acHostRef.current) return;
         if (!places?.PlaceAutocompleteElement) {
           setMapsMsg(
-            "Address lookup unavailable — enable the “Places API (New)” for this key in Google Cloud.",
+            "Address lookup is unavailable. Enable the Places API (New) for this key in Google Cloud.",
           );
           return;
         }
@@ -143,7 +140,7 @@ export function AddressFields({
           el.style.border = "none";
           el.style.fontFamily = "inherit";
           el.style.fontSize = "13.5px";
-          el.style.color = "var(--jvb-ink-body)";
+          el.style.color = "var(--jvb-ink)";
         } catch {
           /* older widget builds may not expose these */
         }
@@ -185,7 +182,7 @@ export function AddressFields({
         // most common non-obvious causes and point there.
         console.error("[address lookup] Google Maps JS failed to load:", err);
         setMapsMsg(
-          "Address lookup couldn’t load. Most likely the key’s API restrictions don’t allow the Maps JavaScript API (enabling it project-wide isn’t enough — it must be in the key’s allowed-APIs list, alongside Places API New). Also check billing, and that no ad-blocker is blocking maps.googleapis.com. The browser console shows Google’s exact error.",
+          "Address lookup couldn’t load. Most likely the key’s API restrictions don’t allow the Maps JavaScript API (enabling it for the project isn’t enough: it must be in the key’s allowed APIs, alongside Places API New). Also check billing, and that no ad blocker is blocking maps.googleapis.com. The browser console shows Google’s exact error.",
         );
       });
     return () => {
@@ -214,20 +211,21 @@ export function AddressFields({
   }, [v]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isWork = v.type === "work";
+  const uid = useId();
+  const fid = (k: keyof Names) => `${uid}-${k}`;
 
   return (
-    <fieldset className="sm:col-span-2">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <legend className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          {legend}
-        </legend>
-        <label className="text-[11px] text-ink-faint">
-          Type
+    <fieldset className="min-w-0 sm:col-span-2">
+      <legend className="pt-2 text-[13px] font-semibold leading-[1.45] text-ink">{legend}</legend>
+
+      <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+        <Field id={fid("type")} label="Address type">
           <select
+            id={fid("type")}
             name={names.type}
             defaultValue={v.type}
             onChange={(e) => setV((p) => ({ ...p, type: e.target.value }))}
-            className="ml-2 rounded-lg border border-line-control bg-control px-2 py-1 text-[12.5px] text-ink-body"
+            className="field"
           >
             {TYPE_OPTIONS.map(([val, l]) => (
               <option key={val} value={val}>
@@ -235,60 +233,68 @@ export function AddressFields({
               </option>
             ))}
           </select>
-        </label>
-      </div>
+        </Field>
 
-      {MAPS_KEY ? (
-        <div className="mt-2">
-          <span className={label}>Find address</span>
-          <div
-            ref={acHostRef}
-            className="mt-1 flex items-center rounded-lg border border-line-control bg-control px-2 [color-scheme:light] [&_gmp-place-autocomplete]:w-full [&_gmp-place-autocomplete]:bg-transparent"
-          />
-          {mapsMsg ? (
-            <p className="mt-1 text-[11.5px] text-ink-soft">{mapsMsg}</p>
-          ) : null}
+        {/* Company name: auto-filled when a business is picked from the
+            search. Shown for work addresses; kept mounted (hidden otherwise)
+            so its value is preserved and always submitted. */}
+        {/* Off a work address the cell stays (invisible) beside the type, so
+            the address lines keep their two-up rows; one column needs no
+            placeholder. */}
+        <div className={isWork ? "min-w-0" : "invisible max-sm:hidden"}>
+          <Field id={fid("company")} label="Company name">
+            <input
+              id={fid("company")}
+              name={names.company}
+              value={v.company}
+              onChange={set("company")}
+              placeholder="Christie’s"
+              className="field"
+            />
+          </Field>
         </div>
-      ) : null}
 
-      {/* Company name — sits beneath the search and is auto-filled when a
-          business is picked. Shown for work addresses; kept mounted (hidden
-          otherwise) so its value is preserved and always submitted. */}
-      <label className={`${label} mt-2 ${isWork ? "block" : "hidden"}`}>
-        Company name
-        <input
-          name={names.company}
-          value={v.company}
-          onChange={set("company")}
-          placeholder="e.g. Christie’s"
-          className={input}
-        />
-      </label>
+        {MAPS_KEY ? (
+          <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
+            <span className="label">Find address</span>
+            <div
+              ref={acHostRef}
+              className="flex min-h-[var(--jvb-control-h)] items-center border-b border-field-edge bg-form px-2 [color-scheme:light] [&_gmp-place-autocomplete]:w-full [&_gmp-place-autocomplete]:bg-transparent"
+            />
+            {mapsMsg ? <p className="text-[12px] leading-[1.4] text-meta">{mapsMsg}</p> : null}
+          </div>
+        ) : null}
 
-      <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label className={label}>
-          Address line 1
-          <input name={names.line1} value={v.line1} onChange={set("line1")} className={input} />
-        </label>
-        <label className={label}>
-          Address line 2
-          <input name={names.line2} value={v.line2} onChange={set("line2")} className={input} />
-        </label>
-        <label className={label}>
-          City
-          <input name={names.city} value={v.city} onChange={set("city")} className={input} />
-        </label>
-        <label className={label}>
-          Postcode
-          <input name={names.postcode} value={v.postcode} onChange={set("postcode")} className={input} />
-        </label>
-        <label className={`${label} sm:col-span-2`}>
-          Country
-          <input name={names.country} value={v.country} onChange={set("country")} className={input} />
-        </label>
+        <Field id={fid("line1")} label="Address line 1">
+          <input id={fid("line1")} name={names.line1} value={v.line1} onChange={set("line1")} className="field" />
+        </Field>
+        <Field id={fid("line2")} label="Address line 2">
+          <input id={fid("line2")} name={names.line2} value={v.line2} onChange={set("line2")} className="field" />
+        </Field>
+        <Field id={fid("city")} label="City">
+          <input id={fid("city")} name={names.city} value={v.city} onChange={set("city")} className="field" />
+        </Field>
+        <Field id={fid("postcode")} label="Postcode">
+          <input
+            id={fid("postcode")}
+            name={names.postcode}
+            value={v.postcode}
+            onChange={set("postcode")}
+            className="field"
+          />
+        </Field>
+        <Field id={fid("country")} label="Country" className="sm:col-span-2">
+          <input
+            id={fid("country")}
+            name={names.country}
+            value={v.country}
+            onChange={set("country")}
+            className="field"
+          />
+        </Field>
       </div>
 
-      {/* Greyscale map preview — full width, larger. */}
+      {/* Greyscale map preview, full width. */}
       {mapSrc && !mapBroken ? (
         <div className="mt-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -296,13 +302,13 @@ export function AddressFields({
             src={mapSrc}
             alt={`Map of ${query}`}
             onError={() => setMapBroken(true)}
-            className="h-[220px] w-full rounded-lg border border-line-soft object-cover"
+            className="h-[220px] w-full border border-rule object-cover"
             loading="lazy"
           />
         </div>
       ) : query && mapBroken ? (
-        <p className="mt-3 text-[11px] text-ink-soft">
-          Map preview unavailable — enable the “Maps Static API” for this key.
+        <p className="mt-3 text-[12px] leading-[1.4] text-meta">
+          Map preview unavailable. Enable the Maps Static API for this key.
         </p>
       ) : null}
     </fieldset>

@@ -1,0 +1,12 @@
+[
+ {
+  "id": "1e9b0000-0001-4000-8000-1e9b00000000",
+  "field": "Category",
+  "raw_value": "Bamboo",
+  "mapped_kind": "category",
+  "mapped_value": "ca700000-0001-4000-8000-ca7000000000",
+  "reviewed": true,
+  "notes": null,
+  "created_at": "2026-07-15T10:00:00.000Z"
+ }
+]

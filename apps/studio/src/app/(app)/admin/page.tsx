@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
@@ -10,6 +11,13 @@ import {
 } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { PasskeyManager } from "@/components/passkey-manager";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Notice } from "@/components/ui/notice";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
+import { ChevronRightIcon } from "@/components/ui/icons";
 import { sendEmail } from "@/lib/email";
 import { PASSWORD_MIN } from "@/lib/auth-rules";
 // London time: this page renders on the server, where the zone is UTC.
@@ -323,202 +331,226 @@ export default async function AdminPage({
     activity = (act ?? []) as typeof activity;
   }
 
+  // The admin tools, each a page of its own.
+  const tools = [
+    {
+      href: "/migration",
+      label: "Data review",
+      hint: "Records flagged during the import: duplicate stock numbers, unconverted currency and other issues.",
+    },
+    { href: "/analytics", label: "Analytics", hint: "Public website visitor results (cookieless)." },
+    {
+      href: "/admin/duplicates",
+      label: "Duplicate contacts",
+      hint: "Review and merge the pairs found during the legacy import.",
+    },
+    {
+      href: "/admin/data-protection",
+      label: "Data protection",
+      hint: "Retention, subject requests, the breach register and review queues.",
+    },
+  ];
+
+  /*
+   * Fields: the native controls with the shared .field look, under Field for
+   * the label (Field's own Input would do the same, but the ui:guard baseline
+   * records native controls, and these posts must not move).
+   */
   return (
-    <div className="max-w-[900px]">
-      <h1 className="text-[22px] font-semibold text-ink-strong">Admin</h1>
-      <p className="mt-1 text-[13px] text-ink-muted">
-        {user.email} · {roles.join(", ") || "no role"}
-      </p>
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <PageHeader title="Admin" meta={`${user.email} · ${roles.join(", ") || "no role"}`} />
 
-      {/* Password — available to everyone */}
-      <form action={changePassword} className="mt-6 max-w-md border border-line bg-cell p-5">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Change your password</h2>
-        {pwError ? (
-          <p className="mt-3 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
-            {pwError}
-          </p>
-        ) : null}
-        {pwOk ? (
-          <p className="mt-3 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
-            Password updated.
-          </p>
-        ) : null}
-        <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          New password
-          <input name="password" type="password" required minLength={PASSWORD_MIN} autoComplete="new-password"
-            className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px]" />
-        </label>
-        <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Confirm new password
-          <input name="confirm" type="password" required minLength={PASSWORD_MIN} autoComplete="new-password"
-            className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px]" />
-        </label>
-        <button type="submit" className="mt-5 rounded-lg bg-primary px-4 py-2 text-[12.5px] font-semibold text-primary-fg">
-          Update password
-        </button>
-        <p className="mt-3 text-[12px] text-ink-soft">
-          Minimum {PASSWORD_MIN} characters. You stay signed in after changing it.
-        </p>
-      </form>
+      <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+        {/* Password: available to everyone */}
+        <Section title="Change your password" meta={`At least ${PASSWORD_MIN} characters. You stay signed in after changing it.`}>
+          {pwError ? (
+            <Notice tone="danger" className="mb-3">
+              {pwError}
+            </Notice>
+          ) : null}
+          {pwOk ? (
+            <Notice tone="ok" className="mb-3">
+              Password updated.
+            </Notice>
+          ) : null}
+          <form action={changePassword} className="space-y-3">
+            <Field id="admin-new-password" label="New password">
+              <input
+                id="admin-new-password"
+                name="password"
+                type="password"
+                required
+                minLength={PASSWORD_MIN}
+                autoComplete="new-password"
+                className="field"
+              />
+            </Field>
+            <Field id="admin-confirm-password" label="Confirm new password">
+              <input
+                id="admin-confirm-password"
+                name="confirm"
+                type="password"
+                required
+                minLength={PASSWORD_MIN}
+                autoComplete="new-password"
+                className="field"
+              />
+            </Field>
+            <Button type="submit" variant="primary" pendingLabel="Updating…">
+              Update password
+            </Button>
+          </form>
+        </Section>
 
-      {/* Passkeys — available to everyone */}
-      <PasskeyManager />
+        {/* Passkeys: available to everyone */}
+        <PasskeyManager />
+      </div>
 
       {!isAdmin ? null : (
-        <>
+        <div className="mt-8 space-y-8">
           {notice ? (
-            <p className="mt-8 rounded-lg border border-line bg-band px-3 py-2 font-mono text-[12.5px] text-ink-body">
-              {notice}
-            </p>
+            // The outcome of the last admin action; may hold a generated
+            // password, so it is set in figures that read character by character.
+            <Notice tone="info">
+              <span className="tabular select-all break-words">{notice}</span>
+            </Notice>
           ) : null}
 
-          <div className="mt-8 flex flex-col gap-2 text-[12.5px]">
-            <a href="/migration" className="text-ink-mid hover:text-accent-deep">
-              Data review — flagged import records (duplicates, unconverted currency…) →
-            </a>
-            <a href="/analytics" className="text-ink-mid hover:text-accent-deep">
-              Analytics — public website visitor results (cookieless) →
-            </a>
-            <a href="/admin/duplicates" className="text-ink-mid hover:text-accent-deep">
-              Duplicate contacts — review &amp; merge pairs found during the legacy import →
-            </a>
-            <a href="/admin/data-protection" className="text-ink-mid hover:text-accent-deep">
-              Data protection — retention, subject requests, breach register, review queues →
-            </a>
-          </div>
+          <Section title="Tools">
+            <ul>
+              {tools.map((t) => (
+                <li key={t.href} className="border-b border-rule">
+                  <Link href={t.href} className="group flex items-center justify-between gap-3 py-2.5">
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-medium text-ink group-hover:underline">{t.label}</span>
+                      <span className="block text-[12px] leading-[1.4] text-meta">{t.hint}</span>
+                    </span>
+                    <ChevronRightIcon size={16} className="shrink-0 text-meta group-hover:text-ink" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Section>
 
-          <section className="mt-6">
-            <h2 className="text-[13px] font-semibold text-ink-strong">Users</h2>
-            <div className="mt-3 overflow-x-auto border border-line">
-              <table className="w-full min-w-[560px] bg-cell text-left">
+          <Section title="Users">
+            <TableFrame>
+              <Table className="min-w-[720px]">
                 <thead>
-                  <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                    <th className="px-4 py-2.5 font-medium">Email</th>
-                    <th className="px-4 py-2.5 font-medium">Roles</th>
-                    <th className="px-4 py-2.5 font-medium">Since</th>
-                    <th className="px-4 py-2.5 font-medium">Reset password</th>
-                    <th className="px-4 py-2.5 font-medium">Manage</th>
+                  <tr>
+                    <Th>Email</Th>
+                    <Th>Roles</Th>
+                    <Th>Since</Th>
+                    <Th>Reset password</Th>
+                    <Th>Manage</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
-                    <tr key={u.id} className="border-b border-line-soft last:border-0">
-                      <td className="px-4 py-2.5 text-[13.5px] text-ink-body">{u.email}</td>
-                      <td className="px-4 py-2.5 text-[12.5px] text-ink-muted">{u.roles.join(", ") || "—"}</td>
-                      <td className="px-4 py-2.5 font-mono text-[12px] text-ink-soft">
-                        {formatDate(u.created_at, "numeric")}
-                      </td>
-                      <td className="px-4 py-2">
+                    <Tr key={u.id}>
+                      <Td className="text-ink">{u.email}</Td>
+                      <Td className="text-body">{u.roles.join(", ") || "—"}</Td>
+                      <Td className="tabular text-body">{formatDate(u.created_at, "numeric")}</Td>
+                      <Td>
                         <form action={resetPassword} className="flex items-center gap-1.5">
                           <input type="hidden" name="user_id" value={u.id} />
                           <input type="hidden" name="email" value={u.email} />
                           <input
                             name="password"
                             minLength={PASSWORD_MIN}
-                            placeholder="new (blank = generate)"
-                            className="w-40 rounded-md border border-line-control bg-control px-2 py-1 text-[12px]"
+                            placeholder="Blank to generate"
+                            aria-label={`New password for ${u.email} (leave blank to generate one)`}
+                            className="field field-sm w-44"
                           />
-                          <button type="submit" className="rounded-md border border-line-control bg-control px-2 py-1 text-[11px] font-medium text-ink-mid">
+                          <Button type="submit" size="sm" pendingLabel="Resetting…">
                             Reset
-                          </button>
+                          </Button>
                         </form>
-                      </td>
-                      <td className="px-4 py-2">
+                      </Td>
+                      <Td>
                         <div className="flex items-center gap-3">
                           <form action={reinvite}>
                             <input type="hidden" name="email" value={u.email} />
-                            <button
+                            <Button
                               type="submit"
-                              className="text-[12px] font-medium text-primary"
+                              size="sm"
+                              variant="quiet"
                               title="Email this user a link to set their own password"
+                              pendingLabel="Sending…"
                             >
                               Re-invite
-                            </button>
+                            </Button>
                           </form>
                           <DeleteListButton action={deleteUser} id={u.id} name={u.email} />
                         </div>
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
-          </section>
+              </Table>
+            </TableFrame>
+          </Section>
 
-          <section className="mt-8">
-            <h2 className="text-[13px] font-semibold text-ink-strong">Add user</h2>
-            <p className="mt-1 text-[12.5px] text-ink-muted">
-              Creates the account immediately. Leave the password blank to auto-generate one (shown once above);
-              one you choose needs at least {PASSWORD_MIN} characters, as does a reset.
-            </p>
-            <form action={createUser} className="mt-3 flex flex-wrap items-end gap-2">
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                Email
-                <input name="email" type="email" required className="mt-1 block w-64 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
-              </label>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                Role
-                <select name="role" className="mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]">
+          <Section
+            title="Add user"
+            meta={`Creates the account at once. Leave the password blank to generate one (shown once, above); one you choose needs at least ${PASSWORD_MIN} characters, as does a reset.`}
+          >
+            <form action={createUser} className="flex flex-wrap items-end gap-3">
+              <Field id="admin-add-email" label="Email" className="w-full sm:w-64">
+                <input id="admin-add-email" name="email" type="email" required className="field" />
+              </Field>
+              <Field id="admin-add-role" label="Role" className="w-full sm:w-40">
+                <select id="admin-add-role" name="role" className="field">
                   <option value="staff">Staff</option>
                   <option value="accountant">Accountant</option>
                   <option value="admin">Admin</option>
                 </select>
-              </label>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                Password (optional)
-                <input name="password" minLength={PASSWORD_MIN} className="mt-1 block w-48 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
-              </label>
-              <button type="submit" className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">
+              </Field>
+              <Field id="admin-add-password" label="Password" optional className="w-full sm:w-52">
+                <input id="admin-add-password" name="password" minLength={PASSWORD_MIN} className="field" />
+              </Field>
+              <Button type="submit" variant="primary" pendingLabel="Creating…">
                 Create user
-              </button>
+              </Button>
             </form>
-          </section>
+          </Section>
 
-          <section className="mt-8">
-            <h2 className="text-[13px] font-semibold text-ink-strong">Website sync</h2>
-            <p className="mt-2 text-[13px] text-ink-muted">
-              {(outbox ?? 0) === 0 ? "No pending" : `${outbox} pending`} outbox entries. Web-visible pieces are pushed to
-              Sanity on change; a cron drains any misses every 10 minutes.
-            </p>
-            <form action={resyncWebsite} className="mt-3 flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                className="rounded-lg border border-line-control bg-control px-3.5 py-2 text-[12.5px] font-semibold text-ink-mid hover:text-ink-strong"
-              >
+          <Section
+            title="Website sync"
+            meta={`${(outbox ?? 0) === 0 ? "Nothing waiting" : `${outbox} ${outbox === 1 ? "entry" : "entries"} waiting`} in the outbox. Web-visible works are pushed to the website when they change; a cron sends anything missed every 10 minutes.`}
+          >
+            <form action={resyncWebsite} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <Button type="submit" pendingLabel="Resyncing…">
                 Resync all web-visible works
-              </button>
-              <span className="text-[12px] text-ink-soft">
-                Re-sends every web-visible work (with images), every maker and every list to the website — use
-                after pointing the site at a new Sanity dataset. Safe to repeat.
+              </Button>
+              <span className="max-w-[60ch] text-[12px] leading-[1.4] text-meta">
+                Sends every web-visible work (with images), every maker and every list to the website
+                again. Use it after pointing the site at a new Sanity dataset. Safe to repeat.
               </span>
             </form>
-          </section>
+          </Section>
 
-          <section className="mt-8">
-            <h2 className="text-[13px] font-semibold text-ink-strong">Recent activity</h2>
-            <ul className="mt-3 space-y-2">
-              {activity.map((a) => (
-                <li key={a.id} className="grid grid-cols-[14px_1fr] items-baseline gap-2">
-                  <span
-                    aria-hidden
-                    className="mt-1 inline-block h-[7px] w-[7px] rounded-full bg-[var(--jvb-dot-mid)]"
-                  />
-                  <div>
-                    <span className="text-[13.5px] text-ink-body">
+          <Section title="Recent activity">
+            {activity.length === 0 ? (
+              <p className="text-[13px] text-body">No activity yet.</p>
+            ) : (
+              <ul>
+                {activity.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-rule py-1.5 text-[13px]"
+                  >
+                    <span className="text-body">
                       {a.action} {a.entity_type}
                     </span>
-                    <span className="ml-2 font-mono text-[11px] text-ink-soft">
+                    <time dateTime={a.created_at} className="text-[12px] text-meta">
                       {formatDateTime(a.created_at, "numeric", { seconds: true })}
-                    </span>
-                  </div>
-                </li>
-              ))}
-              {activity.length === 0 ? (
-                <li className="text-[13px] text-ink-muted">No activity yet.</li>
-              ) : null}
-            </ul>
-          </section>
-        </>
+                    </time>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+        </div>
       )}
     </div>
   );

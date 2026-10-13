@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-const field =
-  "mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink";
+import { Button } from "@/components/ui/button";
+import { PlusIcon } from "@/components/ui/icons";
 
 /**
  * Origin/region picker: a dropdown of curated regions with an inline
@@ -11,9 +10,12 @@ const field =
  * Submits the chosen region name as `origin_region` (free text on pieces).
  */
 export function OriginSelect({
+  id,
   options,
   defaultValue,
 }: {
+  /** For the select, so the form's "Origin / region" label names it. */
+  id?: string;
   options: string[];
   defaultValue?: string | null;
 }) {
@@ -70,10 +72,11 @@ export function OriginSelect({
     <div>
       <select
         ref={selectRef}
+        id={id}
         name="origin_region"
         value={selected}
         onChange={(e) => setSelected(e.target.value)}
-        className={field}
+        className="field"
       >
         <option value="">—</option>
         {opts.map((o) => (
@@ -95,39 +98,40 @@ export function OriginSelect({
                 void add();
               }
             }}
+            aria-label="New region"
             placeholder="New region"
-            className="flex-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[13px] text-ink-body"
+            className="field field-sm min-w-0 flex-1"
           />
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void add()}
-            className="rounded-md border border-oranje bg-oranje/10 px-2.5 py-1 text-[12px] font-semibold text-accent-deep disabled:opacity-60"
-          >
-            {busy ? "Adding…" : "Add"}
-          </button>
-          <button
-            type="button"
+          <Button size="sm" onClick={() => void add()} pending={busy} pendingLabel="Adding…">
+            Add
+          </Button>
+          <Button
+            variant="quiet"
+            size="sm"
             onClick={() => {
               setAdding(false);
               setName("");
               setError(null);
             }}
-            className="text-[12px] text-ink-muted hover:text-ink-strong"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       ) : (
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="mt-1.5 text-[12px] font-medium text-accent-deep"
+          className="link mt-1.5 inline-flex items-center gap-1 text-[12px]"
         >
-          + Add region
+          <PlusIcon size={14} />
+          Add region
         </button>
       )}
-      {error ? <p className="mt-1 text-[12px] text-ink-body">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-1 text-[12px] text-danger">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

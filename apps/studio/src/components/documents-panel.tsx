@@ -7,6 +7,12 @@ import { Dropzone } from "@/components/dropzone";
 import { FilePreviewLink } from "@/components/file-preview";
 import { DOCUMENTS_BUCKET, signDocumentUrl } from "@/lib/document-files";
 import { uploadDocument } from "@/lib/upload-signed";
+import { DOC_TYPE_LABELS, labelOf } from "@/lib/labels";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { Section } from "@/components/ui/section";
+import { CloseIcon } from "@/components/ui/icons";
 
 type Doc = {
   id: string;
@@ -21,10 +27,10 @@ type Doc = {
 // shared Documents area; import/export paperwork lives on the shipment.
 const DOC_TYPES = ["certificate", "condition_report", "export_licence", "other"];
 
-const docLabel = (t: string) => t.replace(/_/g, " ");
+const docLabel = (t: string) => labelOf(DOC_TYPE_LABELS, t);
 
 /**
- * Documents attached to a piece — list + upload, self-contained so uploading
+ * Documents attached to a piece: list and upload, self-contained so uploading
  * does not disturb unsaved edits in the piece form. Files live in the private
  * `piece-documents` bucket; invoice types are RLS-restricted to admin/accountant.
  */
@@ -91,7 +97,7 @@ export function DocumentsPanel({
   }
 
   function fail(msg: string, remaining: File[]) {
-    setError(`Upload failed — ${msg}`);
+    setError(`Upload failed: ${msg}`);
     setStaged(remaining);
     setBusy(false);
   }
@@ -100,7 +106,7 @@ export function DocumentsPanel({
     try {
       window.open(await signDocumentUrl(doc.storage_path, 300), "_blank");
     } catch {
-      setError(`${doc.title}: could not open — reload the page and try again.`);
+      setError(`${doc.title}: could not open. Reload the page and try again.`);
     }
   }
 
@@ -119,7 +125,7 @@ export function DocumentsPanel({
       .select("id");
     if (delErr) return setError(delErr.message);
     if (!data?.length)
-      return setError("That document wasn’t removed — you may not have permission.");
+      return setError("That document wasn’t removed. You may not have permission.");
     // document_pieces cascades from piece_documents, so the link goes with it.
     await supabase.storage.from(DOCUMENTS_BUCKET).remove([doc.storage_path]);
     setDocs((d) => d.filter((x) => x.id !== doc.id));
@@ -127,60 +133,73 @@ export function DocumentsPanel({
   }
 
   return (
-    <section className="border border-line bg-cell p-5">
-      <h2 className="text-[13px] font-semibold text-ink-strong">Piece documents</h2>
-      <p className="mt-0.5 text-[12px] text-ink-muted">
-        Certificates, condition reports and other item-specific files. Invoices, provenance,
-        shipping, insurance and correspondence live in{" "}
-        <a href="/documents" className="text-accent-deep hover:underline">Documents</a>; import/export
-        paperwork lives on the shipment.
-      </p>
-
-      <ul className="mt-3 divide-y divide-line-soft">
+    <Section
+      title="Piece documents"
+      meta={
+        <>
+          Certificates, condition reports and other item-specific files. Invoices, provenance,
+          shipping, insurance and correspondence live in{" "}
+          <a href="/documents" className="link">Documents</a>; import and export paperwork lives on
+          the shipment.
+        </>
+      }
+    >
+      <ul>
         {docs.map((d) => (
-          <li key={d.id} className="flex items-center gap-2 py-2">
-            <span className="bg-chip px-1.5 py-0.5 text-[10px] uppercase tracking-[0.05em] text-ink-mid">
+          <li key={d.id} className="flex items-center gap-2 border-t border-rule py-2 first:border-t-0 first:pt-0">
+            <Badge size="xs" className="shrink-0">
               {docLabel(d.doc_type)}
-            </span>
+            </Badge>
             <FilePreviewLink
               storagePath={d.storage_path}
               title={d.title}
-              className="min-w-0 flex-1 truncate text-left text-[13px] text-ink-body hover:text-ink-strong hover:underline"
+              className="link-plain min-w-0 flex-1 truncate text-left text-[13px] text-ink"
             >
               {d.title}
             </FilePreviewLink>
-            <button type="button" onClick={() => download(d)} className="text-[12px] font-medium text-[var(--jvb-ink-desc)]">
+            <Button variant="quiet" size="sm" onClick={() => download(d)}>
               Download
-            </button>
-            <button type="button" onClick={() => remove(d)} className="text-[11px] text-ink-soft underline">
+            </Button>
+            <Button variant="quiet" size="sm" onClick={() => remove(d)} className="hover:text-danger">
               Remove
-            </button>
+            </Button>
           </li>
         ))}
         {docs.length === 0 ? (
-          <li className="py-2 text-[12.5px] text-ink-soft">No documents attached yet.</li>
+          <li className="text-[13px] text-meta">No documents attached yet.</li>
         ) : null}
       </ul>
 
-      <div className="mt-4 border-t border-line-soft pt-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={docType}
-            onChange={(e) => setDocType(e.target.value)}
-            className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[12.5px] text-ink-mid"
-          >
-            {DOC_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {docLabel(t)}
-              </option>
-            ))}
-          </select>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={staged.length > 1 ? "Title (used only for a single file)" : "Title (optional)"}
-            className="min-w-0 flex-1 rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
-          />
+      <div className="mt-4 border-t border-rule pt-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[200px_minmax(0,1fr)]">
+          <div className="flex flex-col gap-1">
+            <label htmlFor={`doc-type-${pieceId}`} className="label">
+              Document type
+            </label>
+            <select
+              id={`doc-type-${pieceId}`}
+              value={docType}
+              onChange={(e) => setDocType(e.target.value)}
+              className="field"
+            >
+              {DOC_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {docLabel(t)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <label htmlFor={`doc-title-${pieceId}`} className="label">
+              {staged.length > 1 ? "Title (used only for a single file)" : "Title (optional)"}
+            </label>
+            <input
+              id={`doc-title-${pieceId}`}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="field"
+            />
+          </div>
         </div>
 
         <div className="mt-3">
@@ -190,58 +209,57 @@ export function DocumentsPanel({
             multiple
             disabled={busy}
           >
-            <p className="text-[13px] font-medium text-ink-body">
+            <p className="text-[13px] font-medium text-ink">
               Drag files here, or click to choose
             </p>
-            <p className="mt-1 text-[11.5px] text-ink-soft">
-              PDF, image or Word — all filed as “{docLabel(docType)}”.
+            <p className="mt-1 text-[12px] text-meta">
+              PDF, image or Word, all filed as “{docLabel(docType)}”.
             </p>
           </Dropzone>
         </div>
 
         {staged.length > 0 ? (
-          <ul className="mt-3 space-y-1.5">
+          <ul className="mt-3">
             {staged.map((f, i) => (
               <li
                 key={`${f.name}-${i}`}
-                className="flex items-center gap-2 rounded-lg border border-line-soft bg-band/40 px-3 py-1.5 text-[12.5px]"
+                className="flex items-center gap-2 border-t border-rule py-1.5 text-[13px] first:border-t-0"
               >
-                <span className="min-w-0 flex-1 truncate text-ink-body">{f.name}</span>
-                <span className="shrink-0 font-mono text-[11px] text-ink-soft">
+                <span className="min-w-0 flex-1 truncate text-body">{f.name}</span>
+                <span className="tabular shrink-0 text-[12px] text-meta">
                   {(f.size / 1024).toFixed(0)} KB
                 </span>
-                <button
-                  type="button"
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  iconOnly
+                  label={`Remove ${f.name}`}
                   onClick={() => unstage(i)}
                   disabled={busy}
-                  aria-label={`Remove ${f.name}`}
-                  className="shrink-0 text-ink-soft hover:text-accent-deep"
                 >
-                  ✕
-                </button>
+                  <CloseIcon size={14} />
+                </Button>
               </li>
             ))}
           </ul>
         ) : null}
 
-        <button
-          type="button"
+        <Button
+          variant="primary"
           onClick={upload}
-          disabled={busy || staged.length === 0}
-          className="mt-3 rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg disabled:opacity-50"
+          disabled={staged.length === 0}
+          pending={busy}
+          pendingLabel="Uploading…"
+          className="mt-3"
         >
-          {busy
-            ? "Uploading…"
-            : staged.length > 0
-              ? `Upload ${staged.length} file${staged.length === 1 ? "" : "s"}`
-              : "Upload"}
-        </button>
+          {staged.length > 0 ? `Upload ${staged.length} file${staged.length === 1 ? "" : "s"}` : "Upload"}
+        </Button>
       </div>
       {error ? (
-        <p className="mt-2 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12px] text-danger">
+        <Notice tone="danger" className="mt-3">
           {error}
-        </p>
+        </Notice>
       ) : null}
-    </section>
+    </Section>
   );
 }

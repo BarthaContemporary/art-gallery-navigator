@@ -4,9 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanNumberPaste } from "@/lib/amount";
 import { useEditFinancials } from "@/components/edit-financials-context";
 import { consignmentSplit } from "@/lib/consignment";
+import { useSaveReporter } from "@/components/ui/save-status";
+import { Field } from "@/components/ui/field";
+import { Panel, Section } from "@/components/ui/section";
+import { Button } from "@/components/ui/button";
+import { CloseIcon } from "@/components/ui/icons";
+import { useFlushForDone } from "@/components/editor-save";
 
-const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const field = "mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink";
+const figure = "tabular mt-1 text-[14.5px] leading-[1.45] text-ink";
+const note = "mt-0.5 text-[12px] leading-[1.4] text-meta";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const gbp = (n: number) => `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -17,9 +23,10 @@ type Settlement = {
 } | null;
 
 /**
- * Consignment panel — lives below Temporary exports. Autosaves on its own
+ * Consignment panel: lives below Temporary exports. Autosaves on its own
  * endpoint (partial update) so it doesn't disturb the main record form, and
- * shows a live settlement split for admin/accountant.
+ * shows a live settlement split for admin/accountant. Its save state goes to
+ * the editor's one status line (W14), and Done saves it before leaving.
  *
  * Settlement rules:
  *  - Sale handled by J.v.d.B. → regular VAT applies; J.v.d.B. keeps the
@@ -101,15 +108,24 @@ export function ConsignmentPanel({
   }, [sharePct, saleHandled]);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attempt = useRef(0);
+  // An edit the server does not hold yet (waiting, failed or invalid).
+  const unsaved = useRef(false);
   const first = useRef(true);
 
   const pctNum = sharePct.trim() === "" ? null : Number(sharePct);
   const pctInvalid = pctNum !== null && (!Number.isFinite(pctNum) || pctNum <= 0 || pctNum >= 100);
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (): Promise<boolean> => {
+    if (timer.current) clearTimeout(timer.current);
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    timer.current = null;
+    retryTimer.current = null;
     if (pctInvalid) {
+      // Nothing is sent until the share is fixed; the field says why.
       setStatus("error");
-      return;
+      return false;
     }
     setStatus("saving");
     const body = new FormData();
@@ -118,15 +134,28 @@ export function ConsignmentPanel({
     body.set("consignment_details", notes);
     body.set("consignment_share_pct", sharePct);
     body.set("sale_handled_by_jvb", saleHandled);
+    let ok = false;
     try {
       const res = await fetch(`/api/inventory/${encodeURIComponent(stockNumber)}/consignment`, {
         method: "PATCH",
         body,
       });
-      setStatus(res.ok ? "saved" : "error");
+      ok = res.ok;
     } catch {
-      setStatus("error");
+      ok = false;
     }
+    if (ok) {
+      attempt.current = 0;
+      unsaved.current = false;
+      setStatus("saved");
+      return true;
+    }
+    // Try again with a capped backoff (2s, 4s, 8s … 30s), as the main form
+    // does, so a dropped connection heals without re-typing.
+    setStatus("error");
+    attempt.current += 1;
+    retryTimer.current = setTimeout(() => void save(), Math.min(2000 * 2 ** (attempt.current - 1), 30000));
+    return false;
   }, [coOwner, coOwnerContactId, notes, sharePct, saleHandled, pctInvalid, stockNumber]);
 
   // Debounced autosave on any change (skip the initial mount).
@@ -135,13 +164,32 @@ export function ConsignmentPanel({
       first.current = false;
       return;
     }
+    unsaved.current = true;
     setStatus("saving");
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(save, 700);
+    timer.current = setTimeout(() => void save(), 700);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
   }, [coOwner, coOwnerContactId, notes, sharePct, saleHandled, save]);
+  useEffect(
+    () => () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    },
+    [],
+  );
+
+  // Into the editor's one status line, and Done's list of parts to save.
+  const report = useSaveReporter("consignment");
+  useEffect(() => {
+    report({
+      state: status,
+      what: pctInvalid ? "the consignment: the share must be more than 0 and less than 100" : "the consignment",
+      onRetry: status === "error" && !pctInvalid ? () => void save() : undefined,
+    });
+  }, [report, status, pctInvalid, save]);
+  const flush = useCallback(() => (unsaved.current ? save() : Promise.resolve(true)), [save]);
+  useFlushForDone("consignment", flush);
 
   // Live settlement (admin/accountant only — settlement is null otherwise).
   // Sold price / costs / treatment come live from the Financials + Import
@@ -169,137 +217,144 @@ export function ConsignmentPanel({
     });
   }, [settlement, pctNum, pctInvalid, saleHandled, liveSold, livePurchase, liveCosts, liveTreatment, liveImportVatPaid]);
 
-  const statusText =
-    status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "error" ? (pctInvalid ? "Share must be 1–99" : "Couldn’t save") : "";
-
   return (
-    <section className="mt-4 border border-line bg-cell p-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Consignment</h2>
-        <span className={`text-[11px] ${status === "error" ? "text-danger" : "text-ink-soft"}`}>{statusText}</span>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className={label}>
-          Co-owner / consignee
-          <input
-            value={coOwner}
-            onChange={(e) => setCoOwner(e.target.value)}
-            placeholder="Name, or link a CRM contact below"
-            className={field}
-          />
+    <Section title="Consignment">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-3">
+          <Field label="Co-owner / consignee" id="consign-co-owner">
+            <input
+              id="consign-co-owner"
+              value={coOwner}
+              onChange={(e) => setCoOwner(e.target.value)}
+              placeholder="Name, or link a CRM contact below"
+              className="field"
+            />
+          </Field>
           {coOwnerContactId ? (
-            <span className="mt-1.5 inline-flex items-center gap-1.5 border border-line-control px-2.5 py-0.5 text-[11.5px] text-ink-body">
+            <span className="inline-flex min-h-[var(--jvb-control-h-sm)] w-fit items-center gap-1 border border-rule-strong pl-2.5 text-[13px] text-ink">
               Linked contact
-              <button
-                type="button"
-                onClick={unlinkContact}
-                aria-label="Unlink contact"
-                className="text-ink-muted hover:text-accent-deep"
-              >
-                ×
-              </button>
+              <Button variant="quiet" size="sm" iconOnly label="Unlink contact" onClick={unlinkContact}>
+                <CloseIcon size={14} />
+              </Button>
             </span>
           ) : (
-            <>
+            <Field label="Link a CRM contact (optional)" id="consign-contact-search">
               <input
+                id="consign-contact-search"
                 type="search"
                 value={contactQuery}
                 onChange={(e) => setContactQuery(e.target.value)}
-                placeholder="Search CRM contacts to assign…"
-                className={`${field} mt-1.5`}
+                placeholder="Search CRM contacts…"
+                className="field"
               />
               {contactSearching ? (
-                <p className="mt-1 text-[11.5px] text-ink-muted">Searching…</p>
+                <p className="mt-1 text-[12px] text-meta">Searching…</p>
               ) : contactHits.length > 0 ? (
-                <ul className="mt-1 divide-y divide-line-control overflow-hidden rounded-lg border border-line-control">
+                <ul data-inset-focus className="mt-1 divide-y divide-rule overflow-hidden border border-rule-strong">
                   {contactHits.map((c) => (
                     <li key={c.id}>
                       <button
                         type="button"
                         onClick={() => pickContact(c)}
-                        className="flex w-full flex-col items-start px-3 py-1.5 text-left text-[13px] text-ink-body hover:bg-control"
+                        className="flex w-full flex-col items-start px-3 py-1.5 text-left text-[13px] text-ink hover:bg-band"
                       >
                         <span>{c.name}</span>
-                        {c.email ? <span className="text-[11.5px] text-ink-muted">{c.email}</span> : null}
+                        {c.email ? <span className="text-[12px] text-body">{c.email}</span> : null}
                       </button>
                     </li>
                   ))}
                 </ul>
               ) : contactQuery.trim().length >= 2 ? (
-                <p className="mt-1 text-[11.5px] text-ink-muted">No matches.</p>
+                <p className="mt-1 text-[12px] text-meta">No matches.</p>
               ) : null}
-            </>
+            </Field>
           )}
         </div>
 
-        <label className={label}>
-          Share / commission (%)
-          <input
-            type="number" onPaste={cleanNumberPaste}
-            step="0.01"
-            min="0.01"
-            max="99.99"
-            value={sharePct}
-            onChange={(e) => setSharePct(e.target.value)}
-            className={`${field} ${pctInvalid ? "border-oranje" : ""}`}
+        <div className="flex min-w-0 flex-col gap-3">
+          <Field
+            label="Share / commission (%)"
+            id="consign-share"
+            hint="If consigned out, add the percentage received by J.v.d.B."
+            error={pctInvalid ? "Must be more than 0 and less than 100." : undefined}
+          >
+            <input
+              id="consign-share"
+              type="number" onPaste={cleanNumberPaste}
+              step="0.01"
+              min="0.01"
+              max="99.99"
+              value={sharePct}
+              onChange={(e) => setSharePct(e.target.value)}
+              aria-invalid={pctInvalid || undefined}
+              aria-describedby={pctInvalid ? "consign-share-hint consign-share-error" : "consign-share-hint"}
+              className="field tabular"
+            />
+          </Field>
+
+          <Field label="Sale handled by J.v.d.B." id="consign-sale-handled">
+            <select
+              id="consign-sale-handled"
+              value={saleHandled}
+              onChange={(e) => setSaleHandled(e.target.value as "" | "yes" | "no")}
+              className="field"
+            >
+              <option value="">—</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </Field>
+        </div>
+
+        <Field label="Consignment notes" id="consign-notes" className="sm:col-span-2">
+          <textarea
+            id="consign-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="field"
           />
-          <span className="mt-1 block text-[10.5px] text-ink-soft">
-            If consigned out, add percentage received by J.v.d.B.
-          </span>
-        </label>
-
-        <label className={label}>
-          Sale handled by J.v.d.B.
-          <select value={saleHandled} onChange={(e) => setSaleHandled(e.target.value as "" | "yes" | "no")} className={field}>
-            <option value="">—</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-        </label>
-
-        <label className={`${label} sm:col-span-2`}>
-          Consignment notes
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={field} />
-        </label>
+        </Field>
       </div>
 
       {split ? (
-        <div className="mt-4 grid grid-cols-2 gap-4 rounded-lg border border-line-soft bg-band/50 p-4 sm:grid-cols-4">
-          <div>
-            <p className={label}>VAT due £</p>
-            <p className="mt-1 font-mono text-[15px] text-ink-strong">{split.thirdParty ? "—" : gbp(split.vat)}</p>
-            <p className="mt-0.5 text-[10.5px] text-ink-soft">{split.thirdParty ? "no VAT (third-party sale)" : "regular VAT rules"}</p>
+        <Panel title="Settlement" className="mt-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <p className="label">VAT due £</p>
+              <p className={figure}>{split.thirdParty ? "—" : gbp(split.vat)}</p>
+              <p className={note}>{split.thirdParty ? "No VAT (third-party sale)" : "Regular VAT rules"}</p>
+            </div>
+            <div>
+              <p className="label">{split.thirdParty ? "Net sold price £" : "Net after VAT £"}</p>
+              <p className={figure}>{gbp(split.netAfterVat)}</p>
+              <p className={note}>
+                profit pool {gbp(split.profitPool)}
+                {split.jvbBorne > 0 ? ` (after ${gbp(split.jvbBorne)} costs)` : ""}
+              </p>
+            </div>
+            <div>
+              <p className="label">J.v.d.B. receives £</p>
+              <p className={figure}>{gbp(split.jvbReceived)}</p>
+              <p className={note}>
+                net profit {gbp(split.jvbNetProfit)}
+                {split.jvbBorne > 0 ? ` + ${gbp(split.jvbBorne)} costs` : ""}
+              </p>
+            </div>
+            <div>
+              <p className="label">Co-owner / consignee receives £</p>
+              <p className={figure}>{gbp(split.coOwnerShare)}</p>
+              <p className={note}>
+                net profit {gbp(split.coOwnerShare)} · {round2(100 - (pctNum ?? 0))}%
+              </p>
+            </div>
           </div>
-          <div>
-            <p className={label}>{split.thirdParty ? "Net sold price £" : "Net after VAT £"}</p>
-            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.netAfterVat)}</p>
-            <p className="mt-0.5 text-[10.5px] text-ink-soft">
-              profit pool {gbp(split.profitPool)}
-              {split.jvbBorne > 0 ? ` (after ${gbp(split.jvbBorne)} costs)` : ""}
-            </p>
-          </div>
-          <div>
-            <p className={label}>J.v.d.B. receives £</p>
-            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.jvbReceived)}</p>
-            <p className="mt-0.5 text-[10.5px] text-ink-soft">
-              net profit {gbp(split.jvbNetProfit)}
-              {split.jvbBorne > 0 ? ` + ${gbp(split.jvbBorne)} costs` : ""}
-            </p>
-          </div>
-          <div>
-            <p className={label}>Co-owner / consignee receives £</p>
-            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.coOwnerShare)}</p>
-            <p className="mt-0.5 text-[10.5px] text-ink-soft">
-              net profit {gbp(split.coOwnerShare)} · {round2(100 - (pctNum ?? 0))}%
-            </p>
-          </div>
-        </div>
+        </Panel>
       ) : settlement && pctNum !== null && !pctInvalid && saleHandled === "" ? (
-        <p className="mt-3 text-[11.5px] text-ink-soft">
+        <p className="mt-3 text-[12px] leading-[1.4] text-meta">
           Set “Sale handled by J.v.d.B.” to work out VAT and the J.v.d.B. share.
         </p>
       ) : null}
-    </section>
+    </Section>
   );
 }

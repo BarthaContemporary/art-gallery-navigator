@@ -1,0 +1,74 @@
+[
+ {
+  "key": "email_events",
+  "label": "Email delivery events (opens, clicks, bounces)",
+  "days": 730,
+  "mode": "purge",
+  "basis": "Legitimate interest: proving delivery and handling complaints; two years",
+  "updated_at": "2026-03-27T10:00:00.000Z"
+ },
+ {
+  "key": "offer_views",
+  "label": "Private-offer page views (IP, browser)",
+  "days": 730,
+  "mode": "purge",
+  "basis": "Legitimate interest: security of private links; two years",
+  "updated_at": "2026-03-27T10:00:00.000Z"
+ },
+ {
+  "key": "campaign_recipients",
+  "label": "Newsletter send records per contact",
+  "days": 1095,
+  "mode": "purge",
+  "basis": "Evidence of PECR compliance for three years after a send",
+  "updated_at": "2026-03-27T10:00:00.000Z"
+ },
+ {
+  "key": "enquiries",
+  "label": "Website enquiries",
+  "days": 1095,
+  "mode": "purge",
+  "basis": "Contract and pre-contract steps; three years after the enquiry",
+  "updated_at": "2026-03-27T10:00:00.000Z"
+ },
+ {
+  "key": "appointments",
+  "label": "Appointment bookings",
+  "days": 730,
+  "mode": "purge",
+  "basis": "Contract; two years after the appointment",
+  "updated_at": "2026-03-27T10:00:00.000Z"
+ },
+ {
+  "key": "unconfirmed_signups",
+  "label": "Newsletter sign-ups never confirmed",
+  "days": 30,
+  "mode": "purge",
+  "basis": "Consent not completed: the record has no basis to stay",
+  "updated_at": "2026-03-27T10:00:00.000Z"
+ },
+ {
+  "key": "activity_log",
+  "label": "Studio change history",
+  "days": 2190,
+  "mode": "purge",
+  "basis": "Accounting and provenance records; six years",
+  "updated_at": "2026-03-27T10:00:00.000Z"
+ },
+ {
+  "key": "inactive_contacts",
+  "label": "Contacts with no activity, no consent and no hold",
+  "days": 1825,
+  "mode": "review",
+  "basis": "Reviewed for deletion after five years, never deleted automatically",
+  "updated_at": "2026-03-27T10:00:00.000Z"
+ },
+ {
+  "key": "kyc_records",
+  "label": "AML due-diligence records after the relationship ends",
+  "days": 1825,
+  "mode": "review",
+  "basis": "MLR 2017 reg. 40: five years, then reviewed for deletion",
+  "updated_at": "2026-03-27T10:00:00.000Z"
+ }
+]

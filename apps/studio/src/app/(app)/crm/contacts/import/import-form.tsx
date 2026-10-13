@@ -1,12 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { UploadIcon } from "@/components/ui/icons";
 
 type Result = { imported: number; skipped: number; errors: number };
 type Status = "idle" | "uploading" | "done" | "error";
 
-const input =
-  "w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body file:mr-3 file:rounded-md file:border-0 file:bg-band file:px-3 file:py-1 file:text-[12px] file:text-ink-mid";
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 export function ImportForm() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,7 +21,7 @@ export function ImportForm() {
     const file = inputRef.current?.files?.[0];
     if (!file) {
       setStatus("error");
-      setMessage("Please choose a .csv file first.");
+      setMessage("Choose a .csv file first.");
       return;
     }
     setStatus("uploading");
@@ -56,38 +58,38 @@ export function ImportForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-        CSV file
+      <div className="flex min-w-0 flex-col gap-1">
+        <label htmlFor="import-file" className="label">
+          CSV file
+        </label>
+        {/* The file button in the secondary button's look, on the field fill. */}
         <input
           ref={inputRef}
+          id="import-file"
           type="file"
           name="file"
           accept=".csv,text/csv"
-          className={`mt-1 ${input}`}
+          className="field h-auto py-1.5 file:mr-3 file:h-[var(--jvb-control-h-sm)] file:cursor-pointer file:border file:border-solid file:border-rule-strong file:bg-page file:px-2.5 file:text-[12px] file:font-medium file:text-ink"
         />
-      </label>
+      </div>
 
-      <button
+      <Button
         type="submit"
-        disabled={status === "uploading"}
-        className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg disabled:opacity-60"
+        variant="primary"
+        pending={status === "uploading"}
+        pendingLabel="Importing…"
+        icon={<UploadIcon size={14} />}
       >
-        {status === "uploading" ? "Importing…" : "Import contacts"}
-      </button>
+        Import contacts
+      </Button>
 
       {status === "done" && result ? (
-        <p className="text-[13px] text-status-green" aria-live="polite">
-          Imported {result.imported}, skipped {result.skipped} duplicate
-          {result.skipped === 1 ? "" : "s"}, {result.errors} error
-          {result.errors === 1 ? "" : "s"}.
-        </p>
+        <Notice tone={result.errors > 0 ? "warn" : "ok"}>
+          Imported {result.imported}, skipped {plural(result.skipped, "duplicate")}, {plural(result.errors, "error")}.
+        </Notice>
       ) : null}
 
-      {status === "error" ? (
-        <p className="text-[13px] text-danger" aria-live="polite">
-          {message}
-        </p>
-      ) : null}
+      {status === "error" ? <Notice tone="danger">{message}</Notice> : null}
     </form>
   );
 }

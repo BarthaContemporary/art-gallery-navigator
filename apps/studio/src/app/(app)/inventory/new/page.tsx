@@ -1,4 +1,8 @@
 import { createDraftPiece } from "../actions";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { ArrowRightIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "New record" };
 
@@ -13,18 +17,19 @@ export default async function NewPiecePage({
   const external = ledger === "external";
 
   return (
-    <div className="max-w-[560px]">
-      <h1 className="text-[26px] font-semibold text-ink-strong">New record</h1>
-      <p className="mt-1 text-[13px] text-ink-muted">
-        A draft record is created straight away so everything you type is
-        autosaved — and you can attach an import, export or temporary-export
-        shipment while entering the work. The stock number is assigned now; an
-        abandoned blank draft can be deleted from the record.
-      </p>
-      {error ? (
-        <p className="mt-4 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
-          {error}
+    <div className="max-w-[640px]">
+      <PageHeader back={{ href: "/inventory", label: "Inventory" }} title="New record">
+        <p className="text-[13px] leading-[1.45] text-body">
+          A draft record is created straight away, so everything you type is autosaved, and you
+          can attach an import, export or temporary-export shipment while entering the work. The
+          stock number is assigned now; an abandoned blank draft can be deleted from the record.
         </p>
+      </PageHeader>
+
+      {error ? (
+        <Notice tone="danger" className="mb-4">
+          {error}
+        </Notice>
       ) : null}
 
       {/*
@@ -32,63 +37,59 @@ export default async function NewPiecePage({
         stock number is assigned on insert, so a non-JvdB work picks up X-2026-
         numbering from the outset and never holds a JvdB number even briefly.
       */}
-      <form action={createDraftPiece} className="mt-6">
-        <fieldset className="border border-line p-4">
-          <legend className="px-1 text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-            Register
-          </legend>
+      <form action={createDraftPiece}>
+        {/* The rule is on a wrapper: on the fieldset itself the legend would
+            sit in the line, as browsers draw legends. */}
+        <div className="border-t border-rule-strong pt-3">
+          <fieldset className="m-0 min-w-0 border-0 p-0">
+            <legend className="label mb-1 p-0">Register</legend>
 
-          <label className="flex cursor-pointer items-start gap-2.5 py-1.5">
-            <input
-              type="radio"
-              name="ledger"
-              value="jvb"
-              defaultChecked={!external}
-              className="mt-[3px]"
-            />
-            <span className="min-w-0">
-              <span className="block text-[13px] font-medium text-ink-strong">
-                JvdB stock
+            <label className="flex cursor-pointer items-start gap-2.5 border-b border-rule py-3">
+              <input
+                type="radio"
+                name="ledger"
+                value="jvb"
+                defaultChecked={!external}
+                className="mt-[3px] h-4 w-4 shrink-0"
+              />
+              <span className="min-w-0">
+                <span className="block text-[13px] font-medium leading-[1.45] text-ink">JvdB stock</span>
+                <span className="mt-0.5 block text-[12px] leading-[1.4] text-meta">
+                  Our own stock. Numbered <span className="tabular">2026-0001</span> and included in the
+                  Stock Book.
+                </span>
               </span>
-              <span className="mt-0.5 block text-[12px] text-ink-soft">
-                Our own stock. Numbered <span className="font-mono">2026-0001</span> and
-                included in the Stock Book.
-              </span>
-            </span>
-          </label>
+            </label>
 
-          <label className="flex cursor-pointer items-start gap-2.5 py-1.5">
-            <input
-              type="radio"
-              name="ledger"
-              value="external"
-              defaultChecked={external}
-              className="mt-[3px]"
-            />
-            <span className="min-w-0">
-              <span className="block text-[13px] font-medium text-ink-strong">
-                Not JvdB
+            <label className="flex cursor-pointer items-start gap-2.5 border-b border-rule py-3">
+              <input
+                type="radio"
+                name="ledger"
+                value="external"
+                defaultChecked={external}
+                className="mt-[3px] h-4 w-4 shrink-0"
+              />
+              <span className="min-w-0">
+                <span className="block text-[13px] font-medium leading-[1.45] text-ink">Not JvdB</span>
+                <span className="mt-0.5 block text-[12px] leading-[1.4] text-meta">
+                  Held in the gallery but someone else&rsquo;s property. Numbered{" "}
+                  <span className="tabular">X-2026-0001</span> from the outset, and kept out of the
+                  Stock Book and every VAT figure.
+                </span>
               </span>
-              <span className="mt-0.5 block text-[12px] text-ink-soft">
-                Held in the gallery but someone else&rsquo;s property. Numbered{" "}
-                <span className="font-mono">X-2026-0001</span> from the outset, and kept
-                out of the Stock Book and every VAT figure.
-              </span>
-            </span>
-          </label>
-        </fieldset>
+            </label>
+          </fieldset>
+        </div>
 
-        <button
-          type="submit"
-          className="mt-5 rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-primary-fg"
-        >
-          Start new record →
-        </button>
+        <Button type="submit" variant="primary" pendingLabel="Starting…" className="mt-5">
+          Start new record
+          <ArrowRightIcon size={14} />
+        </Button>
       </form>
 
-      <p className="mt-4 text-[12px] text-ink-soft">
-        The register can be changed later from the record, which reissues the
-        stock number. Moving a work back restores the number it had before.
+      <p className="mt-4 text-[12px] leading-[1.4] text-meta">
+        The register can be changed later from the record, which reissues the stock number. Moving
+        a work back restores the number it had before.
       </p>
     </div>
   );

@@ -1,4 +1,9 @@
 import { plausibleConfig, fetchOverview } from "@/lib/plausible";
+import { formatCount } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Notice } from "@/components/ui/notice";
+import { SegmentedLinks } from "@/components/ui/chips";
 
 export const metadata = { title: "Analytics" };
 export const dynamic = "force-dynamic";
@@ -26,28 +31,30 @@ function Bars({
 }) {
   const max = Math.max(1, ...rows.map((r) => r.visitors));
   if (rows.length === 0) {
-    return <p className="px-4 py-6 text-center text-[12.5px] text-ink-muted">{empty}</p>;
+    return <p className="py-6 text-center text-[13px] text-body">{empty}</p>;
   }
   return (
-    <ul className="divide-y divide-line-soft">
+    <ul>
       {rows.map((r) => (
-        <li key={r.name} className="relative px-4 py-2">
+        <li key={r.name} className="relative border-b border-rule px-2 py-2">
+          {/* The bar is a neutral band, so the text over it stays body and
+              ink (meta is not readable on band, spec R3). */}
           <div
-            className="absolute inset-y-0 left-0 bg-oranje/10"
+            className="absolute inset-y-[3px] left-0 bg-band"
             style={{ width: `${(r.visitors / max) * 100}%` }}
             aria-hidden
           />
           <div className="relative flex items-center justify-between gap-3">
-            <span className="truncate text-[13px] text-ink-body">{r.name}</span>
-            <span className="shrink-0 font-mono text-[12px] text-ink-muted">
-              {r.visitors.toLocaleString("en-GB")}
-            </span>
+            <span className="truncate text-[13px] text-ink">{r.name}</span>
+            <span className="tabular shrink-0 text-[12px] text-body">{formatCount(r.visitors)}</span>
           </div>
         </li>
       ))}
     </ul>
   );
 }
+
+const code = "bg-band px-1 text-[12.5px] text-ink";
 
 export default async function AnalyticsPage({
   searchParams,
@@ -61,18 +68,17 @@ export default async function AnalyticsPage({
 
   if (!cfg) {
     return (
-      <div className="max-w-[640px]">
-        <p className="text-[13px] leading-relaxed text-ink-body">
-          Website analytics are not connected yet. Once the self-hosted
-          Plausible instance is running, set{" "}
-          <code className="font-mono text-[12px] text-ink-strong">PLAUSIBLE_STATS_HOST</code>,{" "}
-          <code className="font-mono text-[12px] text-ink-strong">PLAUSIBLE_API_KEY</code> and{" "}
-          <code className="font-mono text-[12px] text-ink-strong">PLAUSIBLE_SITE_ID</code>{" "}
-          in the studio&rsquo;s environment and the public site&rsquo;s visitor
-          results will appear here.
+      <div className="max-w-[var(--jvb-measure)]">
+        <PageHeader title="Analytics" meta="Public website visitors (cookieless)" />
+        <p className="text-[13.5px] leading-[1.5] text-body">
+          Website analytics are not connected yet. Once the self-hosted Plausible instance is
+          running, set <code className={code}>PLAUSIBLE_STATS_HOST</code>,{" "}
+          <code className={code}>PLAUSIBLE_API_KEY</code> and{" "}
+          <code className={code}>PLAUSIBLE_SITE_ID</code> in the studio&rsquo;s environment and the
+          public site&rsquo;s visitor results will appear here.
         </p>
-        <p className="mt-3 text-[12.5px] text-ink-muted">
-          Analytics run on the public website only — the studio is never tracked.
+        <p className="mt-3 text-[13px] text-meta">
+          Analytics run on the public website only. The studio is never tracked.
         </p>
       </div>
     );
@@ -80,63 +86,52 @@ export default async function AnalyticsPage({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[12.5px] text-ink-muted">
-          Public website · {process.env.PLAUSIBLE_SITE_ID}
-        </p>
-        <div className="flex items-center gap-1">
-          {RANGES.map((r) => (
-            <a
-              key={r.key}
-              href={`/analytics?range=${r.key}`}
-              className={`rounded-lg border px-2.5 py-1 text-[12px] font-medium ${
-                r.key === range
-                  ? "border-oranje/40 bg-oranje/10 text-accent-deep"
-                  : "border-line-control bg-control text-ink-mid hover:text-ink-strong"
-              }`}
-            >
-              {r.label}
-            </a>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="Analytics"
+        meta={`Public website · ${process.env.PLAUSIBLE_SITE_ID ?? ""}`}
+        actions={
+          <SegmentedLinks
+            aria-label="Period"
+            current={range}
+            items={RANGES.map((r) => ({ value: r.key, label: r.label, href: `/analytics?range=${r.key}` }))}
+          />
+        }
+      />
 
       {!data ? (
-        <p className="mt-4 rounded-lg border border-line-control bg-control px-3 py-2 text-[12.5px] text-ink-body">
-          Couldn&rsquo;t reach Plausible. Check the host, API key and site ID, and
-          that the instance is running.
-        </p>
+        <Notice tone="danger">
+          Couldn&rsquo;t reach Plausible. Check the host, API key and site ID, and that the instance
+          is running.
+        </Notice>
       ) : (
         <>
-          <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {/* Five figures on hairlines: one row on a desktop, two columns on
+              a phone with the last figure spanning both, so no cell is left
+              empty. */}
+          <dl className="grid grid-cols-2 gap-px border-y border-rule-strong bg-rule lg:grid-cols-5">
             {[
-              ["Unique visitors", data.totals.visitors.toLocaleString("en-GB")],
-              ["Total visits", data.totals.visits.toLocaleString("en-GB")],
-              ["Pageviews", data.totals.pageviews.toLocaleString("en-GB")],
+              ["Unique visitors", formatCount(data.totals.visitors)],
+              ["Total visits", formatCount(data.totals.visits)],
+              ["Pageviews", formatCount(data.totals.pageviews)],
               ["Avg. visit", fmtDuration(data.totals.visitDuration)],
               ["Bounce rate", `${Math.round(data.totals.bounceRate)}%`],
-            ].map(([label, value]) => (
-              <div key={label} className="border border-line bg-cell p-4">
-                <dt className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                  {label}
-                </dt>
-                <dd className="mt-1 font-mono text-[20px] text-ink-strong">{value}</dd>
+            ].map(([label, value], i) => (
+              <div key={label} className={`bg-page px-4 py-4 ${i === 4 ? "col-span-2 lg:col-span-1" : ""}`}>
+                <dt className="label">{label}</dt>
+                <dd className="tabular mt-1.5 text-[22px] font-light leading-[1.15] text-ink">{value}</dd>
               </div>
             ))}
           </dl>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-3">
             {[
               { title: "Top pages", rows: data.topPages, empty: "No page data yet." },
               { title: "Top sources", rows: data.topSources, empty: "No referrer data yet." },
               { title: "Top countries", rows: data.topCountries, empty: "No location data yet." },
             ].map((panel) => (
-              <div key={panel.title} className="overflow-hidden border border-line bg-cell">
-                <p className="border-b border-line px-4 py-2.5 text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                  {panel.title}
-                </p>
+              <Section key={panel.title} title={panel.title} className="min-w-0">
                 <Bars rows={panel.rows} empty={panel.empty} />
-              </div>
+              </Section>
             ))}
           </div>
         </>

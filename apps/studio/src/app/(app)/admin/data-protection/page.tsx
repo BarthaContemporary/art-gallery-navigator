@@ -3,6 +3,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { FlashNotice, Notice } from "@/components/ui/notice";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Badge } from "@/components/ui/badge";
+import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 
 export const metadata = { title: "Data protection" };
 
@@ -12,10 +19,11 @@ async function assertAdmin() {
   return s;
 }
 
-const field = "rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body";
-const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const btn = "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong";
-const primary = "rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg";
+// Native controls in the shared .field look, labelled by Field (with the id
+// passed to both) or by aria-label inside a table row. Native rather than
+// Field's Input so the ui:guard baseline of these posts stays as it was.
+const field = "field";
+const cellField = "field field-sm";
 
 const KIND_LABEL: Record<string, string> = {
   access: "Access", erasure: "Erasure", rectification: "Rectification", restriction: "Restriction",
@@ -180,227 +188,341 @@ export default async function DataProtectionPage({
   // (received_at, due_at) print as the day they name.
   const fmtDate = (v: unknown) => (v ? formatDate(String(v), "numeric") : "—");
 
+  type ReviewContact = { id: string; first_name: string | null; last_name: string | null; updated_at: string };
+  type KycRow = {
+    id: string;
+    contact_id: string;
+    verified_at: string | null;
+    contact: { first_name: string | null; last_name: string | null } | { first_name: string | null; last_name: string | null }[] | null;
+  };
+  type WeakRow = { id: string; first_name: string | null; last_name: string | null; email: string | null };
+  const queueList = "max-h-64 overflow-y-auto text-[13px]";
+  const queueItem = "border-b border-rule py-1.5";
+  const nameLink = "link-plain text-ink";
+
   return (
-    <div className="max-w-[1000px]">
-      <Link href="/admin" className="text-[12.5px] text-ink-soft">
-        ← Admin
-      </Link>
-      <h1 className="mt-2 text-[22px] font-semibold text-ink-strong">Data protection</h1>
-      <p className="mt-1 text-[12.5px] text-ink-muted">
-        Retention, the request and breach registers, and what needs a decision. The procedures are in{" "}
-        <code>docs/compliance</code> in the repository.
-      </p>
-      {sp.error ? <p className="mt-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">{sp.error}</p> : null}
-      {sp.ran ? (
-        <p className="mt-3 rounded-lg border border-status-green/40 bg-band px-3 py-2 text-[12.5px] text-ink-body">
-          Retention ran just now. {sp.ran}
-        </p>
-      ) : null}
-      {sp.notice ? (
-        <p className="mt-3 rounded-lg border border-status-green/40 bg-band px-3 py-2 text-[12.5px] text-ink-body">{sp.notice}</p>
-      ) : null}
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <PageHeader
+        back={{ href: "/admin", label: "Admin" }}
+        title="Data protection"
+        meta={
+          <>
+            Retention, the request and breach registers, and what needs a decision. The procedures
+            are in <code className="text-ink">docs/compliance</code> in the repository.
+          </>
+        }
+      />
+      <div className="mb-6 space-y-2 empty:hidden">
+        <FlashNotice searchParams={sp} />
+        {sp.ran ? <Notice tone="ok">Retention ran just now. {sp.ran}</Notice> : null}
+      </div>
 
-      {/* ---- retention ---- */}
-      <section className="mt-6 border border-line bg-cell p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[13px] font-semibold text-ink-strong">Retention schedule</h2>
-          <form action={runRetention}>
-            <button type="submit" className={btn}>Run retention now</button>
-          </form>
-        </div>
-        <p className="mt-1 text-[12px] text-ink-soft">
-          Runs every night. “Purge” classes are deleted after the period; “review” classes are listed below for a person to decide. The Privacy Notice quotes these periods — change both together.
-        </p>
-        <p className="mt-1 text-[12px] text-ink-body">
-          {lastRun
-            ? `Last run ${formatDateTime(lastRun.ran_at, "numeric", { seconds: true })} (${lastRun.triggered_by === "cron" ? "scheduled" : lastRun.triggered_by}): ${describeRun(lastRun.result)}`
-            : "Not run yet — the first scheduled run is tonight at 03:30 UTC."}
-        </p>
-        <table className="mt-3 w-full text-left text-[12.5px]">
-          <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              <th className="py-2 pr-3 font-medium">Data</th>
-              <th className="py-2 pr-3 font-medium">Keep for</th>
-              <th className="py-2 pr-3 font-medium">Then</th>
-              <th className="py-2 font-medium">Basis</th>
-            </tr>
-          </thead>
-          <tbody>
-            {((policies ?? []) as { key: string; label: string; days: number; mode: string; basis: string | null }[]).map((p) => (
-              <tr key={p.key} className="border-b border-line-soft last:border-0 align-top">
-                <td className="py-2 pr-3 text-ink-body">{p.label}</td>
-                <td className="py-2 pr-3">
-                  <form action={updatePolicy} className="flex items-center gap-1.5">
-                    <input type="hidden" name="key" value={p.key} />
-                    <input name="days" type="number" min={1} max={7300} defaultValue={p.days} className={`${field} w-20`} />
-                    <span className="text-ink-soft">days</span>
-                    <button type="submit" className="text-[11.5px] text-ink-soft underline hover:text-ink-strong">save</button>
-                  </form>
-                </td>
-                <td className="py-2 pr-3 text-ink-muted">{p.mode === "purge" ? "deleted" : "reviewed"}</td>
-                <td className="py-2 text-ink-muted">{p.basis}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      {/* ---- review queues ---- */}
-      <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="border border-line bg-cell p-4">
-          <h2 className="text-[13px] font-semibold text-ink-strong">Contacts to review ({(review ?? []).length})</h2>
-          <p className="mt-1 text-[12px] text-ink-soft">No consent, no legal hold, nothing attached, untouched for the period above. Erase from the contact page or keep by adding a note.</p>
-          <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-[12.5px]">
-            {((review ?? []) as { id: string; first_name: string | null; last_name: string | null; updated_at: string }[]).map((c) => (
-              <li key={c.id}>
-                <Link href={`/crm/contacts/${c.id}`} className="text-ink-body hover:text-accent-deep">
-                  {[c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed"}
-                </Link>
-                <span className="text-ink-faint"> · {fmtDate(c.updated_at)}</span>
-              </li>
-            ))}
-            {(review ?? []).length === 0 ? <li className="text-ink-soft">Nothing due.</li> : null}
-          </ul>
-        </div>
-        <div className="border border-line bg-cell p-4">
-          <h2 className="text-[13px] font-semibold text-ink-strong">AML records past five years ({(kycReview ?? []).length})</h2>
-          <p className="mt-1 text-[12px] text-ink-soft">Verified more than five years ago. Keep only while the relationship continues; otherwise delete the documents and checks.</p>
-          <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-[12.5px]">
-            {((kycReview ?? []) as { id: string; contact_id: string; verified_at: string | null; contact: { first_name: string | null; last_name: string | null } | { first_name: string | null; last_name: string | null }[] | null }[]).map((k) => {
-              const c = Array.isArray(k.contact) ? k.contact[0] : k.contact;
-              return (
-                <li key={k.id}>
-                  <Link href={`/crm/contacts/${k.contact_id}`} className="text-ink-body hover:text-accent-deep">
-                    {[c?.first_name, c?.last_name].filter(Boolean).join(" ") || "Contact"}
-                  </Link>
-                  <span className="text-ink-faint"> · verified {fmtDate(k.verified_at)}</span>
-                </li>
-              );
-            })}
-            {(kycReview ?? []).length === 0 ? <li className="text-ink-soft">Nothing due.</li> : null}
-          </ul>
-        </div>
-        <div className="border border-line bg-cell p-4">
-          <h2 className="text-[13px] font-semibold text-ink-strong">Marketing without evidenced basis ({(weakBasis ?? []).length})</h2>
-          <p className="mt-1 text-[12px] text-ink-soft">
-            Emailable contacts whose only consent record is the import note and who have never bought from the gallery. Send a re-permission email, or untick marketing consent.
-          </p>
-          {attestedCount ? (
-            <p className="mt-2 rounded-lg border border-line-soft bg-band/60 px-2.5 py-1.5 text-[12px] text-ink-body">
-              ✓ Legacy consent recorded on {attestedCount} contacts
-              {attestation?.attested_by ? ` by ${attestation.attested_by}` : ""}
-              {attestation?.attested_at ? ` on ${formatDate(attestation.attested_at, "numeric")}` : ""}.
-            </p>
-          ) : null}
-          {(weakBasis ?? []).length > 0 ? (
-            <form action={attestLegacyConsent} className="mt-2">
-              <button type="submit" className={btn} title="Records, under your login and today's date, that these contacts consented in the previous system">
-                Record: all imported contacts consented in the previous system
-              </button>
+      <div className="space-y-8">
+        {/* ---- retention ---- */}
+        <Section
+          title="Retention schedule"
+          meta={
+            <>
+              Runs every night. &ldquo;Purge&rdquo; classes are deleted after the period;
+              &ldquo;review&rdquo; classes are listed below for a person to decide. The Privacy
+              Notice quotes these periods, so change both together.
+            </>
+          }
+          actions={
+            <form action={runRetention}>
+              <Button type="submit" size="sm" pendingLabel="Running…">
+                Run retention now
+              </Button>
             </form>
-          ) : null}
-          <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-[12.5px]">
-            {((weakBasis ?? []) as { id: string; first_name: string | null; last_name: string | null; email: string | null }[]).map((c) => (
-              <li key={c.id}>
-                <Link href={`/crm/contacts/${c.id}`} className="text-ink-body hover:text-accent-deep">
-                  {[c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "Unnamed"}
-                </Link>
+          }
+        >
+          <p className="mb-3 text-[13px] text-body">
+            {lastRun
+              ? `Last run ${formatDateTime(lastRun.ran_at, "numeric", { seconds: true })} (${lastRun.triggered_by === "cron" ? "scheduled" : lastRun.triggered_by}): ${describeRun(lastRun.result)}`
+              : "Not run yet. The first scheduled run is tonight at 03:30 UTC."}
+          </p>
+          <TableFrame>
+            <Table className="min-w-[640px]">
+              <thead>
+                <tr>
+                  <Th>Data</Th>
+                  <Th>Keep for</Th>
+                  <Th>Then</Th>
+                  <Th>Basis</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {((policies ?? []) as { key: string; label: string; days: number; mode: string; basis: string | null }[]).map((p) => (
+                  <Tr key={p.key} className="align-top">
+                    <Td className="align-top text-ink">{p.label}</Td>
+                    <Td className="align-top">
+                      <form action={updatePolicy} className="flex items-center gap-1.5">
+                        <input type="hidden" name="key" value={p.key} />
+                        <input
+                          name="days"
+                          type="number"
+                          min={1}
+                          max={7300}
+                          defaultValue={p.days}
+                          aria-label={`Days to keep: ${p.label}`}
+                          className={`${cellField} tabular w-20`}
+                        />
+                        <span className="text-body">days</span>
+                        <Button type="submit" size="sm" variant="quiet">
+                          Save
+                        </Button>
+                      </form>
+                    </Td>
+                    <Td className="align-top text-body">{p.mode === "purge" ? "Deleted" : "Reviewed"}</Td>
+                    <Td className="align-top text-body">{p.basis}</Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableFrame>
+        </Section>
+
+        {/* ---- review queues ---- */}
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
+          <Section
+            title={`Contacts to review (${(review ?? []).length})`}
+            meta="No consent, no legal hold, nothing attached, untouched for the period above. Erase from the contact page, or keep by adding a note."
+          >
+            <ul className={queueList}>
+              {((review ?? []) as ReviewContact[]).map((c) => (
+                <li key={c.id} className={queueItem}>
+                  <Link href={`/crm/contacts/${c.id}`} className={nameLink}>
+                    {[c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed"}
+                  </Link>
+                  <span className="tabular text-[12px] text-meta"> · {fmtDate(c.updated_at)}</span>
+                </li>
+              ))}
+              {(review ?? []).length === 0 ? <li className="py-1.5 text-body">Nothing due.</li> : null}
+            </ul>
+          </Section>
+          <Section
+            title={`AML records past five years (${(kycReview ?? []).length})`}
+            meta="Verified more than five years ago. Keep only while the relationship continues; otherwise delete the documents and checks."
+          >
+            <ul className={queueList}>
+              {((kycReview ?? []) as KycRow[]).map((k) => {
+                const c = Array.isArray(k.contact) ? k.contact[0] : k.contact;
+                return (
+                  <li key={k.id} className={queueItem}>
+                    <Link href={`/crm/contacts/${k.contact_id}`} className={nameLink}>
+                      {[c?.first_name, c?.last_name].filter(Boolean).join(" ") || "Contact"}
+                    </Link>
+                    <span className="text-[12px] text-meta"> · verified {fmtDate(k.verified_at)}</span>
+                  </li>
+                );
+              })}
+              {(kycReview ?? []).length === 0 ? <li className="py-1.5 text-body">Nothing due.</li> : null}
+            </ul>
+          </Section>
+          <Section
+            title={`Marketing without evidenced basis (${(weakBasis ?? []).length})`}
+            meta="Emailable contacts whose only consent record is the import note and who have never bought from the gallery. Send a re-permission email, or untick marketing consent."
+          >
+            {attestedCount ? (
+              <Notice tone="ok" className="mb-2">
+                Legacy consent recorded on {attestedCount} contacts
+                {attestation?.attested_by ? ` by ${attestation.attested_by}` : ""}
+                {attestation?.attested_at ? ` on ${formatDate(attestation.attested_at, "numeric")}` : ""}.
+              </Notice>
+            ) : null}
+            {(weakBasis ?? []).length > 0 ? (
+              <form action={attestLegacyConsent} className="mb-2">
+                {/* A long label: let it wrap inside the column rather than overflow. */}
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="h-auto min-h-[var(--jvb-control-h-sm)] whitespace-normal py-1.5 text-left leading-[1.35]"
+                  title="Records, under your login and today's date, that these contacts consented in the previous system"
+                  pendingLabel="Recording…"
+                >
+                  Record: all imported contacts consented in the previous system
+                </Button>
+              </form>
+            ) : null}
+            <ul className={queueList}>
+              {((weakBasis ?? []) as WeakRow[]).map((c) => (
+                <li key={c.id} className={queueItem}>
+                  <Link href={`/crm/contacts/${c.id}`} className={nameLink}>
+                    {[c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || "Unnamed"}
+                  </Link>
+                </li>
+              ))}
+              {(weakBasis ?? []).length === 0 ? <li className="py-1.5 text-body">None.</li> : null}
+            </ul>
+          </Section>
+        </div>
+
+        {/* ---- requests ---- */}
+        <Section
+          title="Data-subject requests"
+          meta="One month to respond from the day received (extendable by two months for complex requests: note it here). Requests tied to a contact are logged from the contact page."
+        >
+          <form action={addRequest} className="mb-4 flex flex-wrap items-end gap-3">
+            <Field id="dp-request-name" label="Name" className="w-full sm:w-44">
+              <input id="dp-request-name" name="subject_name" className={field} />
+            </Field>
+            <Field id="dp-request-kind" label="Request" className="w-full sm:w-40">
+              <select id="dp-request-kind" name="kind" className={field}>
+                {Object.entries(KIND_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </Field>
+            <Field id="dp-request-received" label="Received" className="w-full sm:w-40">
+              <input id="dp-request-received" type="date" name="received_at" defaultValue={today} className={field} />
+            </Field>
+            <Field id="dp-request-channel" label="Channel" className="w-full sm:w-36">
+              <input id="dp-request-channel" name="channel" className={field} />
+            </Field>
+            <Field id="dp-request-notes" label="Notes" className="w-full sm:w-56">
+              <input id="dp-request-notes" name="notes" className={field} />
+            </Field>
+            <Button type="submit" variant="primary" pendingLabel="Logging…">
+              Log request
+            </Button>
+          </form>
+          <TableFrame>
+            <Table className="min-w-[680px]">
+              <thead>
+                <tr>
+                  <Th>Who</Th>
+                  <Th>Request</Th>
+                  <Th>Received</Th>
+                  <Th>Due</Th>
+                  <Th>Status</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...openRequests, ...closedRequests].map((r) => {
+                  const overdue = !r.completed_at && String(r.due_at) < today;
+                  return (
+                    <Tr key={String(r.id)} flagged={overdue}>
+                      <Td className="align-top text-ink">
+                        {r.contact_id ? (
+                          <Link href={`/crm/contacts/${r.contact_id}`} className="link-plain">
+                            {String(r.subject_name ?? "Contact")}
+                          </Link>
+                        ) : (
+                          String(r.subject_name ?? "—")
+                        )}
+                        {r.notes ? <span className="block text-[12px] text-meta">{String(r.notes)}</span> : null}
+                      </Td>
+                      <Td className="align-top text-body">
+                        {KIND_LABEL[String(r.kind)] ?? String(r.kind)}
+                        {r.channel ? ` · ${r.channel}` : ""}
+                      </Td>
+                      <Td className="tabular align-top text-body">{fmtDate(r.received_at)}</Td>
+                      <Td className="align-top">
+                        {/* Overdue is warn, with the word (spec R4). */}
+                        <span className={`tabular ${overdue ? "font-medium text-warn" : "text-body"}`}>
+                          {fmtDate(r.due_at)}
+                        </span>
+                        {overdue ? (
+                          <Badge tone="warn" size="xs" className="ml-1.5">
+                            Overdue
+                          </Badge>
+                        ) : null}
+                      </Td>
+                      <Td className="align-top">
+                        {r.completed_at ? (
+                          <span className="text-body">
+                            Done {fmtDate(r.completed_at)}
+                            {r.outcome ? ` · ${r.outcome}` : ""}
+                          </span>
+                        ) : (
+                          <form action={completeRequest} className="flex items-center gap-1.5">
+                            <input type="hidden" name="id" value={String(r.id)} />
+                            <input
+                              name="outcome"
+                              placeholder="Outcome"
+                              aria-label={`Outcome: ${String(r.subject_name ?? "request")}`}
+                              className={`${cellField} w-36`}
+                            />
+                            <Button type="submit" size="sm" pendingLabel="Saving…">
+                              Complete
+                            </Button>
+                          </form>
+                        )}
+                      </Td>
+                    </Tr>
+                  );
+                })}
+                {(requests ?? []).length === 0 ? <EmptyRow colSpan={5}>No requests logged.</EmptyRow> : null}
+              </tbody>
+            </Table>
+          </TableFrame>
+        </Section>
+
+        {/* ---- breaches ---- */}
+        <Section
+          title="Breach register"
+          meta={
+            <>
+              Record every personal-data breach, reportable or not (Art. 33(5)). A breach likely to
+              risk people&rsquo;s rights must be reported to the ICO within 72 hours of discovery; if
+              the risk is high, tell the people affected as well.
+            </>
+          }
+        >
+          <form action={addBreach} className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <Field id="dp-breach-occurred" label="Occurred">
+              <input id="dp-breach-occurred" type="datetime-local" name="occurred_at" className={field} />
+            </Field>
+            <Field id="dp-breach-people" label="People affected">
+              <input id="dp-breach-people" type="number" name="people_affected" min={0} className={field} />
+            </Field>
+            <Field id="dp-breach-risk" label="Likely risk">
+              <select id="dp-breach-risk" name="likely_risk" className={field}>
+                <option value="unlikely">Unlikely</option>
+                <option value="possible">Possible</option>
+                <option value="likely">Likely: report to the ICO</option>
+                <option value="high">High: report and notify people</option>
+              </select>
+            </Field>
+            <Field id="dp-breach-what" label="What happened" className="md:col-span-3">
+              <textarea id="dp-breach-what" name="description" required rows={2} className={field} />
+            </Field>
+            <Field id="dp-breach-data" label="Data involved" className="md:col-span-2">
+              <input id="dp-breach-data" name="data_affected" className={field} />
+            </Field>
+            <Field id="dp-breach-actions" label="Actions taken" className="md:col-span-3">
+              <textarea id="dp-breach-actions" name="actions_taken" rows={2} className={field} />
+            </Field>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-ink md:col-span-3">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" name="reported_to_ico" className="h-4 w-4" /> Reported to the ICO
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" name="subjects_notified" className="h-4 w-4" /> People affected notified
+              </label>
+              <Button type="submit" variant="primary" className="sm:ml-auto" pendingLabel="Recording…">
+                Record breach
+              </Button>
+            </div>
+          </form>
+          <ul className="text-[13px]">
+            {((breaches ?? []) as Record<string, unknown>[]).map((b) => (
+              <li key={String(b.id)} className="border-b border-rule py-2">
+                <p className="text-ink">
+                  <span className="tabular text-meta">{fmtDate(b.discovered_at)} · </span>
+                  {String(b.description)}
+                </p>
+                <p className="mt-0.5 text-[12px] text-meta">
+                  {b.data_affected ? `${b.data_affected} · ` : ""}
+                  {b.people_affected ? `${b.people_affected} people · ` : ""}risk {String(b.likely_risk ?? "—")} ·{" "}
+                  {b.reported_to_ico ? `reported to the ICO ${fmtDate(b.reported_at)}` : "not reported"} ·{" "}
+                  {b.subjects_notified ? "people notified" : "people not notified"}
+                  {b.actions_taken ? ` · ${b.actions_taken}` : ""}
+                </p>
               </li>
             ))}
-            {(weakBasis ?? []).length === 0 ? <li className="text-ink-soft">None.</li> : null}
+            {(breaches ?? []).length === 0 ? <li className="py-2 text-body">No breaches recorded.</li> : null}
           </ul>
-        </div>
-      </section>
-
-      {/* ---- requests ---- */}
-      <section className="mt-6 border border-line bg-cell p-4">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Data-subject requests</h2>
-        <p className="mt-1 text-[12px] text-ink-soft">One month to respond from the day received (extendable by two months for complex requests — note it here). Requests tied to a contact are logged from the contact page.</p>
-        <form action={addRequest} className="mt-3 flex flex-wrap items-end gap-2">
-          <label className={label}>Name<input name="subject_name" className={`${field} mt-1 block w-44`} /></label>
-          <label className={label}>Request
-            <select name="kind" className={`${field} mt-1 block`}>
-              {Object.entries(KIND_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </label>
-          <label className={label}>Received<input type="date" name="received_at" defaultValue={today} className={`${field} mt-1 block`} /></label>
-          <label className={label}>Channel<input name="channel" className={`${field} mt-1 block w-36`} /></label>
-          <label className={label}>Notes<input name="notes" className={`${field} mt-1 block w-56`} /></label>
-          <button type="submit" className={primary}>Log</button>
-        </form>
-        <table className="mt-3 w-full text-left text-[12.5px]">
-          <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              <th className="py-2 pr-3 font-medium">Who</th><th className="py-2 pr-3 font-medium">Request</th><th className="py-2 pr-3 font-medium">Received</th><th className="py-2 pr-3 font-medium">Due</th><th className="py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...openRequests, ...closedRequests].map((r) => {
-              const overdue = !r.completed_at && String(r.due_at) < today;
-              return (
-                <tr key={String(r.id)} className="border-b border-line-soft last:border-0 align-top">
-                  <td className="py-2 pr-3 text-ink-body">
-                    {r.contact_id ? <Link href={`/crm/contacts/${r.contact_id}`} className="hover:text-accent-deep">{String(r.subject_name ?? "Contact")}</Link> : String(r.subject_name ?? "—")}
-                    {r.notes ? <span className="block text-[11.5px] text-ink-soft">{String(r.notes)}</span> : null}
-                  </td>
-                  <td className="py-2 pr-3 text-ink-muted">{KIND_LABEL[String(r.kind)] ?? String(r.kind)}{r.channel ? ` · ${r.channel}` : ""}</td>
-                  <td className="py-2 pr-3 text-ink-muted">{fmtDate(r.received_at)}</td>
-                  <td className={`py-2 pr-3 ${overdue ? "font-semibold text-danger" : "text-ink-muted"}`}>{fmtDate(r.due_at)}{overdue ? " · overdue" : ""}</td>
-                  <td className="py-2">
-                    {r.completed_at ? (
-                      <span className="text-ink-soft">Done {fmtDate(r.completed_at)}{r.outcome ? ` · ${r.outcome}` : ""}</span>
-                    ) : (
-                      <form action={completeRequest} className="flex items-center gap-1.5">
-                        <input type="hidden" name="id" value={String(r.id)} />
-                        <input name="outcome" placeholder="Outcome" className={`${field} w-36`} />
-                        <button type="submit" className="text-[11.5px] text-ink-soft underline hover:text-ink-strong">complete</button>
-                      </form>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {(requests ?? []).length === 0 ? <tr><td colSpan={5} className="py-3 text-ink-soft">No requests logged.</td></tr> : null}
-          </tbody>
-        </table>
-      </section>
-
-      {/* ---- breaches ---- */}
-      <section className="mt-6 border border-line bg-cell p-4">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Breach register</h2>
-        <p className="mt-1 text-[12px] text-ink-soft">
-          Record every personal-data breach, reportable or not (Art. 33(5)). A breach likely to risk people’s rights must be reported to the ICO within 72 hours of discovery; if the risk is high, tell the people affected as well.
-        </p>
-        <form action={addBreach} className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
-          <label className={label}>Occurred<input type="datetime-local" name="occurred_at" className={`${field} mt-1 block w-full`} /></label>
-          <label className={label}>People affected<input type="number" name="people_affected" min={0} className={`${field} mt-1 block w-full`} /></label>
-          <label className={label}>Likely risk
-            <select name="likely_risk" className={`${field} mt-1 block w-full`}>
-              <option value="unlikely">Unlikely</option><option value="possible">Possible</option><option value="likely">Likely — report to ICO</option><option value="high">High — report and notify people</option>
-            </select>
-          </label>
-          <label className={`${label} md:col-span-3`}>What happened<textarea name="description" required rows={2} className={`${field} mt-1 block w-full`} /></label>
-          <label className={`${label} md:col-span-2`}>Data involved<input name="data_affected" className={`${field} mt-1 block w-full`} /></label>
-          <label className={`${label} md:col-span-3`}>Actions taken<textarea name="actions_taken" rows={2} className={`${field} mt-1 block w-full`} /></label>
-          <div className="flex flex-wrap items-center gap-4 text-[12.5px] text-ink-body md:col-span-3">
-            <label className="flex items-center gap-1.5"><input type="checkbox" name="reported_to_ico" /> Reported to the ICO</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" name="subjects_notified" /> People affected notified</label>
-            <button type="submit" className={`${primary} ml-auto`}>Record breach</button>
-          </div>
-        </form>
-        <ul className="mt-3 space-y-2 text-[12.5px]">
-          {((breaches ?? []) as Record<string, unknown>[]).map((b) => (
-            <li key={String(b.id)} className="rounded-lg border border-line-soft px-3 py-2">
-              <p className="text-ink-body"><span className="text-ink-faint">{fmtDate(b.discovered_at)} · </span>{String(b.description)}</p>
-              <p className="mt-0.5 text-[11.5px] text-ink-soft">
-                {b.data_affected ? `${b.data_affected} · ` : ""}{b.people_affected ? `${b.people_affected} people · ` : ""}risk {String(b.likely_risk ?? "—")} · {b.reported_to_ico ? `reported to ICO ${fmtDate(b.reported_at)}` : "not reported"} · {b.subjects_notified ? "people notified" : "people not notified"}
-                {b.actions_taken ? ` · ${b.actions_taken}` : ""}
-              </p>
-            </li>
-          ))}
-          {(breaches ?? []).length === 0 ? <li className="text-ink-soft">No breaches recorded.</li> : null}
-        </ul>
-      </section>
+        </Section>
+      </div>
     </div>
   );
 }

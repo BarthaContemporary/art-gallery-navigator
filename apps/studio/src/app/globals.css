@@ -143,6 +143,13 @@
   outline-offset: -2px;
 }
 
+/* The page's main region takes focus from the header's skip link; the ring
+   would outline the whole page, and the content's own controls show where
+   focus goes next. */
+#main:focus {
+  outline: none;
+}
+
 /* iOS Safari zooms the page when a text field under 16px takes focus. On
    touch screens every text-entry control is at least 16px; desktop keeps the
    denser sizes. Unlayered for the same reason as the focus ring: the fields
@@ -219,13 +226,456 @@
 }
 
 /* Press feedback — buttons respond on pointer-down, not just after the
-   round-trip. :where() keeps specificity 0 so it never fights utility classes. */
+   round-trip. :where() keeps specificity 0 so it never fights utility classes.
+   .btn and .chip are left out: being unlayered, this transition would replace
+   theirs (colour as well as press), so they carry their own in the
+   component layer below. */
 @media (prefers-reduced-motion: no-preference) {
-  :where(button, [role="button"], summary) {
+  :where(button, [role="button"], summary):not(.btn, .chip) {
     transition: transform 100ms ease-out;
   }
-  :where(button, [role="button"], summary):active {
+  :where(button, [role="button"], summary):not(.btn, .chip):active {
     transform: scale(0.97);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Component layer (spec section 4)
+   The shared controls as plain classes, so a server-rendered page, a client
+   component and the React wrappers in components/ui all draw them the same
+   way. Names follow the website where one exists (.btn, .field, .label). In
+   the components layer, so a utility on the same element (w-full, mt-2)
+   still wins.
+
+   [data-preview~="hover|active|focus"] forces a state without a pointer: the
+   dev-only /ui-kit page uses it to show every state in one screenshot.
+   Nothing else should set it.
+   --------------------------------------------------------------------------- */
+@layer components {
+  /* Shell (spec section 3): the page column, 1440 wide with 16px sides
+     (32px from 768px, via --jvb-pad). The header and <main> both use it, so
+     the wordmark lines up with the content below. */
+  .page {
+    width: 100%;
+    max-width: var(--jvb-page-max);
+    margin-inline: auto;
+    padding-inline: var(--jvb-pad);
+  }
+
+  /* Buttons. Secondary by default: a rule-strong edge that turns ink on
+     hover. .btn-primary (ink fill) is the one main action of a view. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: var(--jvb-control-h);
+    padding: 0 12px;
+    border: 1px solid var(--jvb-rule-strong);
+    background-color: transparent;
+    color: var(--jvb-ink);
+    font-family: var(--jvb-font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+    transition:
+      border-color var(--jvb-dur-fast) ease,
+      background-color var(--jvb-dur-fast) ease,
+      color var(--jvb-dur-fast) ease;
+  }
+  .btn:is(:hover, [data-preview~="hover"]):not(:disabled, [aria-disabled="true"]) {
+    border-color: var(--jvb-ink);
+  }
+  /* Pressed: a fill as well as the scale below, so the press still shows
+     with reduced motion. */
+  .btn:is(:active, [data-preview~="active"]):not(:disabled, [aria-disabled="true"]) {
+    background-color: var(--jvb-band);
+  }
+
+  .btn-primary {
+    border-color: var(--jvb-ink);
+    background-color: var(--jvb-ink);
+    color: var(--jvb-page);
+  }
+  /* body is the next ink step: darker grey on white, lighter on the dark
+     page, so the hover reads in both themes without a mixed colour. */
+  .btn-primary:is(:hover, [data-preview~="hover"], :active, [data-preview~="active"]):not(
+      :disabled,
+      [aria-disabled="true"]
+    ) {
+    border-color: var(--jvb-body);
+    background-color: var(--jvb-body);
+  }
+
+  /* Destructive actions only (spec R4): danger text and edge. */
+  .btn-danger {
+    border-color: var(--jvb-danger);
+    color: var(--jvb-danger);
+  }
+  .btn-danger:is(:hover, [data-preview~="hover"], :active, [data-preview~="active"]):not(
+      :disabled,
+      [aria-disabled="true"]
+    ) {
+    border-color: var(--jvb-danger);
+    background-color: var(--jvb-danger-wash);
+  }
+
+  /* No edge: secondary actions in a toolbar. meta text, so on the page
+     ground only (spec R3). */
+  .btn-quiet {
+    border-color: transparent;
+    padding: 0 8px;
+    color: var(--jvb-meta);
+  }
+  .btn-quiet:is(:hover, [data-preview~="hover"]):not(:disabled, [aria-disabled="true"]) {
+    border-color: transparent;
+    color: var(--jvb-ink);
+  }
+
+  .btn-sm {
+    height: var(--jvb-control-h-sm);
+    padding: 0 10px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  .btn-quiet.btn-sm {
+    padding: 0 6px;
+  }
+  /* Icon-only: square. The React Button requires a label for these. */
+  .btn-icon {
+    width: var(--jvb-control-h);
+    padding: 0;
+  }
+  .btn-icon.btn-sm {
+    width: var(--jvb-control-h-sm);
+  }
+
+  .btn:is(:disabled, [aria-disabled="true"]) {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  a.btn[aria-disabled="true"] {
+    pointer-events: none;
+  }
+  /* Pending (a submit on the wire): disabled, but less faded than an action
+     that is unavailable, and the label says what is happening. */
+  .btn[aria-busy="true"] {
+    opacity: 0.7;
+    cursor: progress;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .btn,
+    .chip {
+      transition:
+        border-color var(--jvb-dur-fast) ease,
+        background-color var(--jvb-dur-fast) ease,
+        color var(--jvb-dur-fast) ease,
+        transform 100ms ease-out;
+    }
+    .btn:is(:active, [data-preview~="active"]):not(:disabled, [aria-disabled="true"]),
+    .chip:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+  }
+
+  /* Fields: the website's light fill with no box, plus a field-edge bottom
+     rule so the field reads as one on the white page (4.54:1). Native and
+     uncontrolled; the touch-size rule above lifts them to 16px on phones. */
+  .field {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: var(--jvb-control-h);
+    padding: 0 10px;
+    border: 0;
+    border-bottom: 1px solid var(--jvb-field-edge);
+    border-radius: 0;
+    background-color: var(--jvb-form);
+    color: var(--jvb-ink);
+    font-family: var(--jvb-font-sans);
+    font-size: 13.5px;
+    line-height: 1.4;
+    transition:
+      background-color var(--jvb-dur-fast) ease,
+      border-color var(--jvb-dur-fast) ease;
+  }
+  textarea.field {
+    height: auto;
+    min-height: 88px;
+    padding: 8px 10px;
+    resize: vertical;
+  }
+  .field::placeholder {
+    color: var(--jvb-light);
+    opacity: 1;
+  }
+  .field:is(:hover, [data-preview~="hover"]):not(:disabled, :focus) {
+    background-color: var(--jvb-form-hover);
+  }
+  .field:focus {
+    border-bottom-color: var(--jvb-ink);
+  }
+  /* Invalid: a 2px danger rule (the inset line adds the second pixel without
+     moving the text), and a message bound with aria-describedby. */
+  .field[aria-invalid="true"] {
+    border-bottom-color: var(--jvb-danger);
+    box-shadow: inset 0 -1px 0 var(--jvb-danger);
+  }
+  .field:disabled {
+    border-bottom-color: var(--jvb-rule-strong);
+    background-color: var(--jvb-band);
+    color: var(--jvb-meta);
+    cursor: not-allowed;
+  }
+  .field-sm {
+    height: var(--jvb-control-h-sm);
+    padding: 0 8px;
+    font-size: 12.5px;
+  }
+
+  /* Field labels and table heads (spec section 2, "label"). meta: on the
+     page ground only. */
+  .label {
+    display: block;
+    font-size: 11.5px;
+    line-height: 1.3;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--jvb-meta);
+  }
+
+  /* Section: the default container. A rule-strong top edge and a heading,
+     no fill and no box (the website's way of dividing a page). */
+  .section {
+    border-top: 1px solid var(--jvb-rule-strong);
+    padding-top: 12px;
+  }
+  .section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 14.5px;
+    line-height: 1.45;
+    font-weight: 600;
+    color: var(--jvb-ink);
+  }
+  .section-meta {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--jvb-meta);
+  }
+
+  /* Panel: an outlined group inside a page (VAT working, bulk bar,
+     consignment calculation). Not the default container. */
+  .panel {
+    border: 1px solid var(--jvb-rule);
+    background-color: var(--jvb-page);
+    padding: 16px;
+  }
+
+  /* Action links ("Edit", "View all"): the only orange text (spec R2). */
+  .link {
+    color: var(--jvb-accent-deep);
+    font-weight: 500;
+    text-decoration-line: none;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+  /* Names and other links in running text or table cells: keep their ink,
+     underline on hover. */
+  .link-plain {
+    color: inherit;
+    text-decoration-line: none;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+  :is(.link, .link-plain):is(:hover, [data-preview~="hover"]) {
+    text-decoration-line: underline;
+  }
+
+  /* Notices: a tone wash with a 3px rule of the tone, text in body (each
+     wash keeps body at 8:1 or better). The tone always comes with words. */
+  .notice {
+    --notice-tone: var(--jvb-info);
+    --notice-wash: var(--jvb-info-wash);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    padding: 8px 12px;
+    border-left: 3px solid var(--notice-tone);
+    background-color: var(--notice-wash);
+    color: var(--jvb-body);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .notice[data-tone="ok"] {
+    --notice-tone: var(--jvb-ok);
+    --notice-wash: var(--jvb-ok-wash);
+  }
+  .notice[data-tone="warn"] {
+    --notice-tone: var(--jvb-warn);
+    --notice-wash: var(--jvb-warn-wash);
+  }
+  .notice[data-tone="danger"] {
+    --notice-tone: var(--jvb-danger);
+    --notice-wash: var(--jvb-danger-wash);
+  }
+  .notice[data-tone="neutral"] {
+    --notice-tone: var(--jvb-rule-strong);
+    --notice-wash: var(--jvb-band);
+  }
+  .notice-inline {
+    display: inline-flex;
+    padding: 3px 8px;
+    font-size: 12px;
+  }
+
+  /* Badges: a square tag. Neutral is body on band; a tone is its own colour
+     on its wash (4.7:1 or better). The dot-plus-word form is drawn by the
+     Badge component. */
+  .badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 4px;
+    height: 20px;
+    padding: 0 6px;
+    background-color: var(--jvb-band);
+    color: var(--jvb-body);
+    font-family: var(--jvb-font-sans);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+  .badge[data-tone="ok"] {
+    background-color: var(--jvb-ok-wash);
+    color: var(--jvb-ok);
+  }
+  .badge[data-tone="warn"] {
+    background-color: var(--jvb-warn-wash);
+    color: var(--jvb-warn);
+  }
+  .badge[data-tone="danger"] {
+    background-color: var(--jvb-danger-wash);
+    color: var(--jvb-danger);
+  }
+  .badge[data-tone="info"] {
+    background-color: var(--jvb-info-wash);
+    color: var(--jvb-info);
+  }
+  .badge-caps {
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .badge-xs {
+    height: 16px;
+    padding: 0 4px;
+    font-size: 10px;
+  }
+
+  /* Chips: filters and toggles. Pressed or current is an ink fill with page
+     text, so the state never rests on colour alone. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--jvb-control-h-sm);
+    padding: 0 10px;
+    border: 1px solid var(--jvb-rule-strong);
+    background-color: transparent;
+    color: var(--jvb-body);
+    font-family: var(--jvb-font-sans);
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+  }
+  .chip:is(:hover, [data-preview~="hover"]):not(:disabled) {
+    border-color: var(--jvb-ink);
+    color: var(--jvb-ink);
+  }
+  .chip:is([aria-pressed="true"], [aria-current]:not([aria-current="false"])) {
+    border-color: var(--jvb-ink);
+    background-color: var(--jvb-ink);
+    color: var(--jvb-page);
+  }
+  .chip:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .chip-count {
+    color: var(--jvb-meta);
+    font-variant-numeric: tabular-nums;
+  }
+  .chip:is([aria-pressed="true"], [aria-current]:not([aria-current="false"])) .chip-count {
+    color: inherit;
+    opacity: 0.75;
+  }
+  /* Joined chips (one choice of several): shared edges. */
+  .segmented {
+    display: inline-flex;
+    flex-wrap: wrap;
+  }
+  .segmented > .chip + .chip {
+    margin-left: -1px;
+  }
+  .segmented > .chip:is(:hover, [aria-current]:not([aria-current="false"])) {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Table rows (spec section 4). Hover is band; selected is the accent wash
+     with a 2px accent rule; the keyboard row (j/k) is band with the same
+     rule; flagged is a 3px warn rule. The rules are drawn inside the first
+     cell, so a row never shifts when its state changes. */
+  .tbl-row > td {
+    transition: background-color var(--jvb-dur-fast) ease;
+  }
+  .tbl-row:is(:hover, [data-preview~="hover"]) > td,
+  .tbl-row.is-current > td {
+    background-color: var(--jvb-band);
+  }
+  .tbl-row.is-selected > td {
+    background-color: var(--jvb-accent-wash);
+  }
+  .tbl-row > td:first-child {
+    position: relative;
+  }
+  .tbl-row:is(.is-selected, .is-current, .is-flagged) > td:first-child::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 2px;
+    background-color: var(--jvb-accent);
+  }
+  .tbl-row.is-flagged > td:first-child::before {
+    width: 3px;
+    background-color: var(--jvb-warn);
+  }
+
+  /* The keyboard focus ring, forced for the /ui-kit page. */
+  [data-preview~="focus"] {
+    outline: 2px solid var(--jvb-accent);
+    outline-offset: 2px;
   }
 }
 

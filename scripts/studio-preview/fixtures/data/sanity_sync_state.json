@@ -1,0 +1,212 @@
+[
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0001-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0001-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0002-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0002-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0003-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0003-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0004-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0004-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0005-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0005-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0006-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0006-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0007-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0007-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0009-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0009-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-000b-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-000b-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-000c-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-000c-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-000f-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-000f-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0010-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0010-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0011-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0011-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0012-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0012-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0013-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0013-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0015-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0015-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0016-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0016-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0017-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0017-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0019-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-0019-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-001a-4000-8000-b1ec00000000",
+  "sanity_doc_id": "work-b1ec0000-001a-4000-8000-b1ec00000000",
+  "status": "ok",
+  "error": null,
+  "last_pushed_hash": "preview",
+  "last_pushed_at": "2026-10-09T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z"
+ },
+ {
+  "entity_type": "piece",
+  "entity_id": "b1ec0000-0005-4000-8000-b1ec00000000",
+  "sanity_doc_id": null,
+  "status": "error",
+  "error": "Image upload timed out",
+  "last_pushed_hash": null,
+  "last_pushed_at": null,
+  "updated_at": "2026-10-12T10:00:00.000Z"
+ }
+]

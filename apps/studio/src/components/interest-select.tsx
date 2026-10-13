@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { ToggleChip } from "./ui/chips";
+import { Button } from "./ui/button";
+import { PlusIcon } from "./ui/icons";
 
 type Area = { id: string; name: string };
-
-const labelCls =
-  "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
 
 /**
  * Multi-select of "areas of interest" for a contact. Options come from the
@@ -27,6 +27,8 @@ export function InterestSelect({
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const headingId = useId();
+  const newId = useId();
 
   const toggle = (name: string) => {
     setSelected((prev) =>
@@ -69,66 +71,63 @@ export function InterestSelect({
   }
 
   return (
-    <div className="sm:col-span-2">
+    <div role="group" aria-labelledby={headingId} className="sm:col-span-2">
       <div className="flex items-center justify-between gap-2">
-        <span className={labelCls}>Areas of interest</span>
+        <h3 id={headingId} className="label">
+          Areas of interest
+        </h3>
         {options.length > 0 ? (
-          <button
-            type="button"
-            onClick={selectAll}
-            className="text-[11.5px] font-medium text-accent-deep"
-          >
+          <Button variant="quiet" size="sm" onClick={selectAll}>
             {allSelected ? "Clear all" : "Select all"}
-          </button>
+          </Button>
         ) : null}
       </div>
       <input type="hidden" name="interests" value={JSON.stringify(selected)} />
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {options.map((o) => {
-          const on = selected.includes(o.name);
-          return (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => toggle(o.name)}
-              aria-pressed={on}
-              className={`border px-2.5 py-1 text-[12px] transition-colors ${
-                on
-                  ? "border-oranje bg-oranje/10 text-accent-deep"
-                  : "border-line-control text-ink-mid hover:text-ink-strong"
-              }`}
-            >
-              {o.name}
-            </button>
-          );
-        })}
+      {/* Pressed is an ink fill (the shared chip), not a tint of orange. */}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {options.map((o) => (
+          <ToggleChip key={o.id} pressed={selected.includes(o.name)} onClick={() => toggle(o.name)}>
+            {o.name}
+          </ToggleChip>
+        ))}
         {options.length === 0 ? (
-          <span className="text-[12px] text-ink-muted">No areas yet — add one below.</span>
+          <span className="text-[13px] leading-[1.45] text-body">No areas yet. Add one below.</span>
         ) : null}
       </div>
-      <div className="mt-2 flex items-center gap-2">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              void addNew();
-            }
-          }}
-          placeholder="Add a new area of interest…"
-          className="w-64 rounded-lg border border-line-control bg-control px-3 py-1.5 text-[13px] text-ink-body"
-        />
-        <button
-          type="button"
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <div className="flex w-full min-w-0 flex-col gap-1 sm:w-64">
+          <label htmlFor={newId} className="label">
+            New area of interest
+          </label>
+          <input
+            id={newId}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void addNew();
+              }
+            }}
+            placeholder="Chinese export porcelain"
+            className="field"
+          />
+        </div>
+        <Button
           onClick={addNew}
-          disabled={adding || !newName.trim()}
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong disabled:opacity-50"
+          disabled={!newName.trim()}
+          pending={adding}
+          pendingLabel="Adding…"
+          icon={<PlusIcon size={14} />}
         >
           Add
-        </button>
+        </Button>
       </div>
-      {error ? <p className="mt-1 text-[12px] text-ink-body">Couldn’t add — {error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-1 text-[12px] leading-[1.4] text-danger">
+          Couldn’t add: {error}
+        </p>
+      ) : null}
     </div>
   );
 }

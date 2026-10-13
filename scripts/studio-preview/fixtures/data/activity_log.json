@@ -1,0 +1,948 @@
+[
+ {
+  "id": 1,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0001-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2020-01-04T10:00:00.000Z"
+ },
+ {
+  "id": 2,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-0001-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-09-29T10:00:00.000Z"
+ },
+ {
+  "id": 3,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0002-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2020-10-10T10:00:00.000Z"
+ },
+ {
+  "id": 4,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0002-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Vase with ash glaze"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-08-17T10:00:00.000Z"
+ },
+ {
+  "id": 5,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-0002-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-08-20T10:00:00.000Z"
+ },
+ {
+  "id": 6,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0003-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2021-09-27T10:00:00.000Z"
+ },
+ {
+  "id": 7,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0003-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Gelatin silver print, Kyoto street"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-29T10:00:00.000Z"
+ },
+ {
+  "id": 8,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0004-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2022-11-28T10:00:00.000Z"
+ },
+ {
+  "id": 9,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0004-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Inlaid wooden box"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-26T10:00:00.000Z"
+ },
+ {
+  "id": 10,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-0004-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-09-02T10:00:00.000Z"
+ },
+ {
+  "id": 11,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0005-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2023-08-03T10:00:00.000Z"
+ },
+ {
+  "id": 12,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-0005-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-09-19T10:00:00.000Z"
+ },
+ {
+  "id": 13,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0006-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2024-12-02T10:00:00.000Z"
+ },
+ {
+  "id": 14,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0006-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Exceptionally large bamboo flower basket of plaited and twisted madake with a rattan-bound rim and a tall arching handle, in its original fitted wood box (tomobako) signed and sealed by the artist"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-10-02T10:00:00.000Z"
+ },
+ {
+  "id": 15,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0007-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2025-10-16T10:00:00.000Z"
+ },
+ {
+  "id": 16,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0008-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2026-09-05T10:00:00.000Z"
+ },
+ {
+  "id": 17,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0008-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Sōdeisha sculpture, stoneware"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-08-21T10:00:00.000Z"
+ },
+ {
+  "id": 18,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-0008-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-10-02T10:00:00.000Z"
+ },
+ {
+  "id": 19,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0009-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2020-03-09T10:00:00.000Z"
+ },
+ {
+  "id": 20,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-0009-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-08-31T10:00:00.000Z"
+ },
+ {
+  "id": 21,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-000a-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2020-11-10T10:00:00.000Z"
+ },
+ {
+  "id": 22,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-000a-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Flower basket with twisted rattan binding"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-29T10:00:00.000Z"
+ },
+ {
+  "id": 23,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-000b-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2021-10-16T10:00:00.000Z"
+ },
+ {
+  "id": 24,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-000c-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2022-07-29T10:00:00.000Z"
+ },
+ {
+  "id": 25,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-000c-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Bronze abstract form"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-10-08T10:00:00.000Z"
+ },
+ {
+  "id": 26,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-000d-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2023-10-18T10:00:00.000Z"
+ },
+ {
+  "id": 27,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-000e-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2024-07-29T10:00:00.000Z"
+ },
+ {
+  "id": 28,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-000e-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Inlaid wooden box"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-28T10:00:00.000Z"
+ },
+ {
+  "id": 29,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-000e-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-08-14T10:00:00.000Z"
+ },
+ {
+  "id": 30,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-000f-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2025-04-30T10:00:00.000Z"
+ },
+ {
+  "id": 31,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-000f-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Set of five red lacquer plates"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-06T10:00:00.000Z"
+ },
+ {
+  "id": 32,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0010-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2026-06-24T10:00:00.000Z"
+ },
+ {
+  "id": 33,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0010-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Silver-inlaid bronze dish"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-10-02T10:00:00.000Z"
+ },
+ {
+  "id": 34,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0011-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2019-11-14T10:00:00.000Z"
+ },
+ {
+  "id": 35,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0012-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2021-02-01T10:00:00.000Z"
+ },
+ {
+  "id": 36,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0012-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Murashido bronze flower vessel"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-19T10:00:00.000Z"
+ },
+ {
+  "id": 37,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0013-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2021-12-26T10:00:00.000Z"
+ },
+ {
+  "id": 38,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0013-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Woodblock print, red and blue"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-08-28T10:00:00.000Z"
+ },
+ {
+  "id": 39,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0014-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2022-11-05T10:00:00.000Z"
+ },
+ {
+  "id": 40,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0014-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Dry-lacquer bowl"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-30T10:00:00.000Z"
+ },
+ {
+  "id": 41,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0015-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2023-11-30T10:00:00.000Z"
+ },
+ {
+  "id": 42,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-0015-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-09-16T10:00:00.000Z"
+ },
+ {
+  "id": 43,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0016-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2024-09-20T10:00:00.000Z"
+ },
+ {
+  "id": 44,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0016-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Flower basket with twisted rattan binding"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-28T10:00:00.000Z"
+ },
+ {
+  "id": 45,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0017-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2025-07-10T10:00:00.000Z"
+ },
+ {
+  "id": 46,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0017-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Ink study, brushed circle"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-28T10:00:00.000Z"
+ },
+ {
+  "id": 47,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0018-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2026-06-07T10:00:00.000Z"
+ },
+ {
+  "id": 48,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0019-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2020-02-27T10:00:00.000Z"
+ },
+ {
+  "id": 49,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-001a-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2020-12-04T10:00:00.000Z"
+ },
+ {
+  "id": 50,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-001a-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Ikebana basket with tall arching handle"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-09T10:00:00.000Z"
+ },
+ {
+  "id": 51,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-001b-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2021-11-01T10:00:00.000Z"
+ },
+ {
+  "id": 52,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-001b-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Vase with ash glaze"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-29T10:00:00.000Z"
+ },
+ {
+  "id": 53,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-001c-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2022-10-02T10:00:00.000Z"
+ },
+ {
+  "id": 54,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-001c-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Bindu"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-30T10:00:00.000Z"
+ },
+ {
+  "id": 55,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-001d-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2023-08-20T10:00:00.000Z"
+ },
+ {
+  "id": 56,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-001d-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-10-10T10:00:00.000Z"
+ },
+ {
+  "id": 57,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-001e-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2024-07-01T10:00:00.000Z"
+ },
+ {
+  "id": 58,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-001e-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-09-04T10:00:00.000Z"
+ },
+ {
+  "id": 59,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-001f-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2025-07-12T10:00:00.000Z"
+ },
+ {
+  "id": 60,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-001f-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Black-glazed stoneware object"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-18T10:00:00.000Z"
+ },
+ {
+  "id": 61,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0020-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2026-04-25T10:00:00.000Z"
+ },
+ {
+  "id": 62,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0021-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2020-02-01T10:00:00.000Z"
+ },
+ {
+  "id": 63,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0021-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Shri Yantra"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-22T10:00:00.000Z"
+ },
+ {
+  "id": 64,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0022-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2021-02-14T10:00:00.000Z"
+ },
+ {
+  "id": 65,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0023-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2021-12-29T10:00:00.000Z"
+ },
+ {
+  "id": 66,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0023-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Iron kettle for the tea ceremony"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-09-05T10:00:00.000Z"
+ },
+ {
+  "id": 67,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "piece_financials",
+  "entity_id": "b1ec0000-0023-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "marked_price_gbp": {
+    "old": 12000,
+    "new": 14500
+   }
+  },
+  "created_at": "2026-08-29T10:00:00.000Z"
+ },
+ {
+  "id": 68,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0024-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2022-09-01T10:00:00.000Z"
+ },
+ {
+  "id": 69,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0025-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2023-09-19T10:00:00.000Z"
+ },
+ {
+  "id": 70,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0025-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Vase with ash glaze"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-08-14T10:00:00.000Z"
+ },
+ {
+  "id": 71,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0026-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2024-08-24T10:00:00.000Z"
+ },
+ {
+  "id": 72,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0026-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Ikebana basket with tall arching handle"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-08-20T10:00:00.000Z"
+ },
+ {
+  "id": 73,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0027-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2025-08-14T10:00:00.000Z"
+ },
+ {
+  "id": 74,
+  "actor_id": "a0000000-0000-4000-8000-000000000001",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0028-4000-8000-b1ec00000000",
+  "action": "INSERT",
+  "changes": null,
+  "created_at": "2026-04-07T10:00:00.000Z"
+ },
+ {
+  "id": 75,
+  "actor_id": "a0000000-0000-4000-8000-000000000002",
+  "entity_type": "pieces",
+  "entity_id": "b1ec0000-0028-4000-8000-b1ec00000000",
+  "action": "UPDATE",
+  "changes": {
+   "title": {
+    "old": "Untitled",
+    "new": "Dry-lacquer bowl"
+   },
+   "status": {
+    "old": "in_stock",
+    "new": "in_stock"
+   }
+  },
+  "created_at": "2026-08-29T10:00:00.000Z"
+ }
+]

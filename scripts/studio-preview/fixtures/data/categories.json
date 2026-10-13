@@ -1,0 +1,119 @@
+[
+ {
+  "id": "ca700000-0001-4000-8000-ca7000000000",
+  "code": "BAM",
+  "name": "Bamboo basket",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 0,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-0002-4000-8000-ca7000000000",
+  "code": "CER",
+  "name": "Ceramics",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 1,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-0003-4000-8000-ca7000000000",
+  "code": "LAC",
+  "name": "Lacquer",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 2,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-0004-4000-8000-ca7000000000",
+  "code": "MET",
+  "name": "Metalwork",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 3,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-0005-4000-8000-ca7000000000",
+  "code": "PNT",
+  "name": "Painting",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 4,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-0006-4000-8000-ca7000000000",
+  "code": "TAN",
+  "name": "Tantric painting",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 5,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-0007-4000-8000-ca7000000000",
+  "code": "WOP",
+  "name": "Work on paper",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 6,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-0008-4000-8000-ca7000000000",
+  "code": "MAN",
+  "name": "Manuscript",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 7,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-0009-4000-8000-ca7000000000",
+  "code": "TEX",
+  "name": "Textile",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 8,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-000a-4000-8000-ca7000000000",
+  "code": "SCU",
+  "name": "Sculpture",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 9,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-000b-4000-8000-ca7000000000",
+  "code": "WOO",
+  "name": "Woodwork",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 10,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-000c-4000-8000-ca7000000000",
+  "code": "PHO",
+  "name": "Photograph",
+  "parent_id": null,
+  "is_active": true,
+  "sort_order": 11,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ },
+ {
+  "id": "ca700000-000d-4000-8000-ca7000000000",
+  "code": "FUR",
+  "name": "Furniture",
+  "parent_id": null,
+  "is_active": false,
+  "sort_order": 12,
+  "created_at": "2025-02-20T10:00:00.000Z"
+ }
+]

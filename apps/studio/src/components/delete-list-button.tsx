@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buttonClass } from "./ui/button-class";
 
 /** Delete-a-list button with an inline confirm step (server action passed in). */
 export function DeleteListButton({
@@ -19,11 +20,7 @@ export function DeleteListButton({
 
   if (!confirming) {
     return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className="text-[12px] font-medium text-ink-soft hover:text-ink-strong"
-      >
+      <button type="button" onClick={() => setConfirming(true)} className={buttonClass({ variant: "quiet", size: "sm" })}>
         Delete
       </button>
     );
@@ -35,17 +32,15 @@ export function DeleteListButton({
       {Object.entries(extra ?? {}).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      <span className="text-[11.5px] text-ink-body">Delete “{name}”?</span>
-      <button
-        type="submit"
-        className="rounded-md border border-oranje bg-oranje/10 px-2 py-0.5 text-[11.5px] font-semibold text-accent-deep"
-      >
-        Yes
+      <span className="text-[12px] leading-[1.4] text-body">Delete “{name}”?</span>
+      {/* Destructive, so danger rather than the accent (spec R1, R4). */}
+      <button type="submit" className={buttonClass({ variant: "danger", size: "sm" })}>
+        Yes, delete
       </button>
       <button
         type="button"
         onClick={() => setConfirming(false)}
-        className="text-[11.5px] font-medium text-ink-mid hover:text-ink-strong"
+        className={buttonClass({ variant: "quiet", size: "sm" })}
       >
         Cancel
       </button>

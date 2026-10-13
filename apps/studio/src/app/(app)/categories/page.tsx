@@ -4,6 +4,13 @@ import { getSupabase, getSession, hasRole } from "@/lib/supabase";
 import { ReorderGrid } from "@/components/reorder-grid";
 import { persistOrder } from "@/lib/reorder";
 import { CategoryTableRow, type CategoryRow } from "@/components/category-row";
+import { formatCount } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button } from "@/components/ui/button";
+import { FlashNotice, Notice } from "@/components/ui/notice";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableFrame, Th } from "@/components/ui/table";
 
 export const metadata = { title: "Categories" };
 
@@ -178,96 +185,109 @@ export default async function CategoriesPage({
 
   return (
     <div>
-      {sp.error ? (
-        <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
-          {sp.error}
+      <PageHeader
+        title="Categories"
+        meta={<span className="tabular">{`${formatCount(rows.length)} categories · ${formatCount(active)} in use`}</span>}
+      >
+        <p className="max-w-[var(--jvb-measure)] text-[13px] leading-[1.45] text-body">
+          Categories shown here fill the picker on a work and the Inventory filter.
+          <strong className="font-medium text-ink"> Hide</strong> takes one out of those
+          lists without touching the works that use it;{" "}
+          <strong className="font-medium text-ink">Delete</strong> is permanent and asks
+          where to move any works first.
         </p>
-      ) : null}
-      <p className="text-[13px] text-ink-muted">
-        Categories shown here fill the picker on a work and the Inventory filter.
-        <strong className="font-medium text-ink-body"> Hide</strong> takes one out of those
-        lists without touching the works that use it;{" "}
-        <strong className="font-medium text-ink-body">Delete</strong> is permanent and asks
-        where to move any works first.
-      </p>
+      </PageHeader>
 
-      <form action={addCategory} className="mt-4 flex flex-wrap items-end gap-2">
-        <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Name
-          <input
-            name="name"
-            required
-            placeholder="Silver"
-            className="mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]"
-          />
-        </label>
-        <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Code <span className="normal-case tracking-normal">(optional)</span>
-          <input
-            name="code"
-            placeholder="auto"
-            className="mt-1 block w-32 rounded-lg border border-line-control bg-control px-3 py-2 font-mono text-[13.5px]"
-          />
-        </label>
-        <button
-          type="submit"
-          className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg"
+      <div className="space-y-6">
+        <FlashNotice searchParams={sp} />
+
+        <Section title="New category">
+          <form action={addCategory} className="flex flex-wrap items-end gap-2">
+            <div className="flex w-full min-w-0 flex-col gap-1 sm:w-64">
+              <label htmlFor="new-category-name" className="label">
+                Name
+              </label>
+              <input id="new-category-name" name="name" required placeholder="Silver" className="field" />
+            </div>
+            <div className="flex w-full min-w-0 flex-col gap-1 sm:w-36">
+              <label htmlFor="new-category-code" className="label">
+                Code <span className="font-normal normal-case tracking-normal">(optional)</span>
+              </label>
+              <input id="new-category-code" name="code" placeholder="auto" className="field tabular" />
+            </div>
+            <Button type="submit" variant="primary" pendingLabel="Adding…">
+              Add category
+            </Button>
+          </form>
+        </Section>
+
+        {hiddenWithWorks.length > 0 ? (
+          <Notice tone="warn">
+            {hiddenWithWorks.length} hidden categor
+            {hiddenWithWorks.length === 1 ? "y is" : "ies are"} still attached to works:{" "}
+            {hiddenWithWorks
+              .sort((a, b) => b.pieces - a.pieces)
+              .map((c) => `${c.name} (${c.pieces})`)
+              .join(", ")}
+            . Those works keep the category but it can&rsquo;t be filtered for, so they are
+            effectively unsorted. Re-categorise them, or Show the category again.
+          </Notice>
+        ) : null}
+
+        <Section
+          title="All categories"
+          meta={
+            isAdmin
+              ? "Works counts both registers. The order here is the order of the picker on a work: drag a grip, or focus it and use the arrow keys."
+              : "Works counts both registers."
+          }
         >
-          Add category
-        </button>
-      </form>
-
-      {hiddenWithWorks.length > 0 ? (
-        <p className="mt-4 rounded-lg border border-warn-soft bg-warn-soft/40 px-3 py-2 text-[12.5px] text-ink-body">
-          {hiddenWithWorks.length} hidden categor
-          {hiddenWithWorks.length === 1 ? "y is" : "ies are"} still attached to works —{" "}
-          {hiddenWithWorks
-            .sort((a, b) => b.pieces - a.pieces)
-            .map((c) => `${c.name} (${c.pieces})`)
-            .join(", ")}
-          . Those works keep the category but it can&rsquo;t be filtered for, so they are
-          effectively unsorted. Re-categorise them, or Show the category again.
-        </p>
-      ) : null}
-
-      <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint">
-        {rows.length} categories · {active} in use
-      </p>
-
-      <div className="mt-2 overflow-x-auto border border-line">
-        <table className="w-full min-w-[620px] bg-cell text-left">
-          <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              {isAdmin ? <th className="w-8 px-2 py-2.5" /> : null}
-              <th className="px-4 py-2.5 font-medium">Name</th>
-              <th className="px-4 py-2.5 font-medium">Code</th>
-              <th className="px-4 py-2.5 font-medium">Status</th>
-              <th className="px-4 py-2.5 font-medium">Works</th>
-              <th className="px-4 py-2.5" />
-            </tr>
-          </thead>
-          <ReorderGrid
-            variant="rows"
-            order={rows.map((c) => c.id)}
-            onReorder={reorder}
-            tiles={Object.fromEntries(
-              rows.map((c) => [
-                c.id,
-                <CategoryTableRow
-                  key={c.id}
-                  cat={c}
-                  reorderable={isAdmin}
-                  others={rows
-                    .filter((o) => o.id !== c.id)
-                    .map((o) => ({ id: o.id, code: o.code, name: o.name }))}
-                  updateAction={updateCategory}
-                  toggleAction={toggleCategory}
-                  deleteAction={deleteCategory}
-                />,
-              ]),
-            )}
-          />
-        </table>
+          {rows.length === 0 ? (
+            <EmptyState>No categories yet. Add the first one above.</EmptyState>
+          ) : (
+            <TableFrame bordered>
+              <Table className="min-w-[640px]">
+                <thead>
+                  <tr>
+                    {isAdmin ? (
+                      <Th className="relative w-10">
+                        <span className="sr-only">Order</span>
+                      </Th>
+                    ) : null}
+                    <Th>Name</Th>
+                    <Th>Code</Th>
+                    <Th>Status</Th>
+                    <Th numeric>Works</Th>
+                    <Th className="relative text-right">
+                      <span className="sr-only">Actions</span>
+                    </Th>
+                  </tr>
+                </thead>
+                <ReorderGrid
+                  variant="rows"
+                  order={rows.map((c) => c.id)}
+                  onReorder={reorder}
+                  tiles={Object.fromEntries(
+                    rows.map((c) => [
+                      c.id,
+                      <CategoryTableRow
+                        key={c.id}
+                        cat={c}
+                        reorderable={isAdmin}
+                        others={rows
+                          .filter((o) => o.id !== c.id)
+                          .map((o) => ({ id: o.id, code: o.code, name: o.name }))}
+                        updateAction={updateCategory}
+                        toggleAction={toggleCategory}
+                        deleteAction={deleteCategory}
+                      />,
+                    ]),
+                  )}
+                />
+              </Table>
+            </TableFrame>
+          )}
+        </Section>
       </div>
     </div>
   );

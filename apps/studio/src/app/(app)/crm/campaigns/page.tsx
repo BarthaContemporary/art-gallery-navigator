@@ -2,9 +2,32 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { emptyDesign } from "@/lib/newsletter";
-import { formatDate } from "@/lib/format";
+import { formatCount, formatDate } from "@/lib/format";
+import { labelOf, type Tone } from "@/lib/labels";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 
 export const metadata = { title: "Newsletters" };
+
+/** crm_campaigns.status, as the send writes it (crm/campaigns/[id]). */
+const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  sending: "Sending",
+  partial: "Part-sent",
+  sent: "Sent",
+};
+
+/**
+ * Marked only where a newsletter needs someone: one being sent (info) or one
+ * that stopped part way and waits for Resume (warn). Draft and sent are
+ * resting states and stay neutral; sent is no longer the accent.
+ */
+const CAMPAIGN_STATUS_TONES: Record<string, Tone> = {
+  sending: "info",
+  partial: "warn",
+};
 
 type CampaignRow = {
   id: string;
@@ -46,28 +69,37 @@ export default async function CampaignsPage() {
     redirect("/crm/campaigns");
   }
 
+  const newButton = (size: "md" | "sm" = "md") => (
+    <form action={newCampaign}>
+      <Button type="submit" variant={size === "md" ? "primary" : "secondary"} size={size} pendingLabel="Creating…">
+        New newsletter
+      </Button>
+    </form>
+  );
+
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <form action={newCampaign}>
-          <button
-            type="submit"
-            className="rounded-lg bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-fg"
-          >
-            New newsletter
-          </button>
-        </form>
-      </div>
+      <PageHeader
+        title="Newsletters"
+        meta={
+          <span className="tabular">{`${formatCount(campaigns.length)} ${
+            campaigns.length === 1 ? "newsletter" : "newsletters"
+          }`}</span>
+        }
+        actions={newButton()}
+      />
 
-      <div className="mt-4 overflow-x-auto border border-line">
-        <table className="w-full min-w-[640px] bg-cell text-left text-[13px]">
+      {/* relative: the frame contains the sr-only head words, which
+          otherwise sit outside the scroll and widen a phone page. */}
+      <TableFrame className="relative">
+        <Table className="min-w-[640px]">
           <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              <th className="px-4 py-2.5 font-medium">Name</th>
-              <th className="px-4 py-2.5 font-medium">Subject</th>
-              <th className="px-4 py-2.5 font-medium">Status</th>
-              <th className="px-4 py-2.5 font-medium">Recipients</th>
-              <th className="px-4 py-2.5 font-medium">Updated</th>
+            <tr>
+              <Th>Name</Th>
+              <Th>Subject</Th>
+              <Th>Status</Th>
+              <Th numeric>Recipients</Th>
+              <Th>Updated</Th>
             </tr>
           </thead>
           <tbody>
@@ -75,45 +107,37 @@ export default async function CampaignsPage() {
               const sent = c.status === "sent";
               const count = c.crm_campaign_recipients?.[0]?.count ?? 0;
               return (
-                <tr key={c.id} className="border-b border-line-soft last:border-0 hover:bg-control">
-                  <td className="px-4 py-2.5 text-ink-body">
-                    <Link href={`/crm/campaigns/${c.id}`} className="hover:text-accent-deep">
+                <Tr key={c.id}>
+                  {/* A floor under the name, so on a phone the table scrolls
+                      sideways rather than stacking a name one word a line. */}
+                  <Td className="min-w-[12rem]">
+                    <Link href={`/crm/campaigns/${c.id}`} className="link-plain font-medium text-ink">
                       {c.name}
                     </Link>
-                  </td>
-                  <td className="max-w-[280px] truncate px-4 py-2.5 text-ink-muted">
-                    {c.subject || "—"}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span
-                      className={`px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-[0.06em] ${
-                        sent
-                          ? "bg-oranje/10 text-accent-deep"
-                          : "border border-line-control text-ink-soft"
-                      }`}
-                    >
-                      {c.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">
-                    {sent ? count : "—"}
-                  </td>
-                  <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">
-                    {sent ? `sent ${fmt(c.sent_at)}` : fmt(c.updated_at)}
-                  </td>
-                </tr>
+                  </Td>
+                  <Td className="max-w-[280px] truncate text-body">{c.subject || "—"}</Td>
+                  <Td>
+                    <Badge variant="dot" tone={CAMPAIGN_STATUS_TONES[c.status] ?? "neutral"} hollow={c.status === "draft"}>
+                      {labelOf(CAMPAIGN_STATUS_LABELS, c.status)}
+                    </Badge>
+                  </Td>
+                  <Td numeric className="text-body">
+                    {sent ? formatCount(count) : "—"}
+                  </Td>
+                  <Td className="tabular whitespace-nowrap text-body">
+                    {sent ? `Sent ${fmt(c.sent_at)}` : fmt(c.updated_at)}
+                  </Td>
+                </Tr>
               );
             })}
             {campaigns.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-ink-muted">
-                  No newsletters yet — create one to design and send a mailing.
-                </td>
-              </tr>
+              <EmptyRow colSpan={5} action={newButton("sm")}>
+                No newsletters yet. Create one to design and send a mailing.
+              </EmptyRow>
             ) : null}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      </TableFrame>
     </div>
   );
 }

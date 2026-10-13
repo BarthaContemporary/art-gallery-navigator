@@ -6,12 +6,18 @@ import { DeleteListButton } from "@/components/delete-list-button";
 import { FilePreviewLink } from "@/components/file-preview";
 import { loadPieceSummaries } from "@/lib/piece-store";
 import { DOC_TYPE_LABELS, labelOf } from "@/lib/labels";
+import { formatCount, formatDate } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button, buttonClass } from "@/components/ui/button";
+import { DownloadIcon, EyeIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "Document" };
 
-const field = "mt-1 block w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
-const labelCls = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const btnGhost = "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid";
+// The shared field look on native elements: the update action reads these
+// names straight from the form.
+const field = "field";
+const labelCls = "label mb-1";
 
 // The same eleven values in the same order as before; the words are the
 // shared ones, so this select matches the Documents filters.
@@ -114,92 +120,153 @@ export default async function DocumentDetail({
   const dateValue = doc.doc_date ? new Date(doc.doc_date).toISOString().slice(0, 10) : "";
 
   return (
-    <div className="max-w-[900px]">
-      <Link href="/documents" className="text-[12.5px] text-ink-soft">← All documents</Link>
-      <h1 className="mt-2 text-[22px] font-semibold text-ink-strong">
-        {labelOf(DOC_TYPE_LABELS, doc.doc_type)}
-      </h1>
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <PageHeader
+        back={{ href: "/documents", label: "All documents" }}
+        title={labelOf(DOC_TYPE_LABELS, doc.doc_type)}
+        meta={
+          <span className="tabular">
+            {[doc.title, doc.doc_date ? formatDate(doc.doc_date) : null, doc.reference].filter(Boolean).join(" · ") ||
+              "No details yet"}
+          </span>
+        }
+        actions={
+          <>
+            {doc.storage_path ? (
+              <FilePreviewLink
+                storagePath={doc.storage_path}
+                title={doc.title ?? "Document"}
+                className={buttonClass({})}
+              >
+                <EyeIcon size={14} />
+                Preview
+              </FilePreviewLink>
+            ) : null}
+            {fileUrl ? (
+              <a href={fileUrl} target="_blank" className={buttonClass({})}>
+                <DownloadIcon size={14} />
+                Download file
+              </a>
+            ) : null}
+          </>
+        }
+      />
 
-      <form action={updateDoc} className="mt-5 grid grid-cols-1 gap-4 border border-line bg-cell p-5 sm:grid-cols-2">
-        <label className={labelCls}>
-          Type
-          <select name="doc_type" defaultValue={doc.doc_type} className={field}>
-            {DOC_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </label>
-        <label className={labelCls}>
-          Reference
-          <input name="reference" defaultValue={doc.reference ?? ""} className={field} />
-        </label>
-        <label className={labelCls}>
-          Date
-          <input type="date" name="doc_date" defaultValue={dateValue} className={field} />
-        </label>
-        <label className={labelCls}>
-          Title
-          <input name="title" defaultValue={doc.title ?? ""} className={field} />
-        </label>
-        <label className={`${labelCls} sm:col-span-2`}>
-          Notes
-          <textarea name="notes" rows={2} defaultValue={doc.notes ?? ""} className={field} />
-        </label>
-        <div className="flex items-center gap-3 sm:col-span-2">
-          <button className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">Save details</button>
-          {doc.storage_path ? (
-            <FilePreviewLink
-              storagePath={doc.storage_path}
-              title={doc.title ?? "Document"}
-              className="text-[12.5px] font-medium text-[var(--jvb-ink-desc)] hover:underline"
-            >
-              Preview
-            </FilePreviewLink>
+      <div className="space-y-6">
+        <Section title="Details">
+          <form action={updateDoc} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="doc-type" className={labelCls}>
+                Type
+              </label>
+              <select id="doc-type" name="doc_type" defaultValue={doc.doc_type} className={field}>
+                {DOC_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="doc-reference" className={labelCls}>
+                Reference
+              </label>
+              <input id="doc-reference" name="reference" defaultValue={doc.reference ?? ""} className={field} />
+            </div>
+            <div>
+              <label htmlFor="doc-date" className={labelCls}>
+                Date
+              </label>
+              <input id="doc-date" type="date" name="doc_date" defaultValue={dateValue} className={field} />
+            </div>
+            <div>
+              <label htmlFor="doc-title" className={labelCls}>
+                Title
+              </label>
+              <input id="doc-title" name="title" defaultValue={doc.title ?? ""} className={field} />
+            </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="doc-notes" className={labelCls}>
+                Notes
+              </label>
+              <textarea id="doc-notes" name="notes" rows={2} defaultValue={doc.notes ?? ""} className={field} />
+            </div>
+            <div className="sm:col-span-2">
+              <Button type="submit" variant="primary" pendingLabel="Saving…">
+                Save details
+              </Button>
+            </div>
+          </form>
+        </Section>
+
+        <Section
+          title="Inventory items"
+          meta={<span className="tabular">{`${formatCount(attached.length)} linked`}</span>}
+        >
+          {attached.length > 0 ? (
+            <ul className="border-t border-rule">
+              {attached.map((p) => (
+                <li key={p.id} className="border-b border-rule">
+                  <form action={removePiece} className="flex items-center justify-between gap-3 py-2">
+                    <input type="hidden" name="piece_id" value={p.id} />
+                    <Link
+                      href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
+                      className="link-plain min-w-0 text-[13px] text-ink"
+                    >
+                      <span className="tabular text-body">{p.stock_number ?? "—"}</span> {p.title ?? "Untitled"}
+                    </Link>
+                    <Button type="submit" size="sm" variant="quiet">
+                      Remove
+                    </Button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13px] text-body">No items linked yet. Find them below.</p>
+          )}
+
+          <form method="get" className="mt-4 flex max-w-[34rem] flex-wrap items-end gap-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <label htmlFor="doc-add" className="label">
+                Link works
+              </label>
+              <input
+                id="doc-add"
+                type="search"
+                name="add"
+                defaultValue={addQ}
+                placeholder="Stock no., title or maker"
+                className="field"
+              />
+            </div>
+            <Button type="submit">Search</Button>
+          </form>
+          {addQ ? (
+            <div className="mt-2">
+              {results.length > 0 ? (
+                <ul className="border-t border-rule">
+                  {results.map((w) => (
+                    <li key={w.id} className="border-b border-rule">
+                      <form action={addPiece} className="flex items-center justify-between gap-3 py-2">
+                        <input type="hidden" name="piece_id" value={w.id} />
+                        <span className="min-w-0 text-[13px] text-ink">
+                          <span className="tabular text-body">{w.stock_number ?? "—"}</span> {w.title ?? "Untitled"}
+                        </span>
+                        <Button type="submit" size="sm">
+                          Link
+                        </Button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[13px] text-body">No works match &ldquo;{addQ}&rdquo;.</p>
+              )}
+            </div>
           ) : null}
-          {fileUrl ? (
-            <a href={fileUrl} target="_blank" className="text-[12.5px] font-medium text-[var(--jvb-ink-desc)]">
-              Download file →
-            </a>
-          ) : null}
-        </div>
-      </form>
+        </Section>
 
-      <section className="mt-6 border border-line bg-cell p-5">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Inventory items ({attached.length})</h2>
-        <div className="mt-3 space-y-1.5">
-          {attached.map((p) => (
-            <form key={p.id} action={removePiece} className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2">
-              <input type="hidden" name="piece_id" value={p.id} />
-              <Link href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`} className="text-[13px] text-ink-body">
-                <span className="font-mono text-[12px] text-ink-muted">{p.stock_number ?? "—"}</span> {p.title ?? "Untitled"}
-              </Link>
-              <button className="text-[12px] text-ink-soft hover:text-ink-strong">Remove</button>
-            </form>
-          ))}
-          {attached.length === 0 ? <p className="text-[12.5px] text-ink-muted">No items linked yet.</p> : null}
-        </div>
-
-        <form method="get" className="mt-4 flex items-center gap-2">
-          <input type="search" name="add" defaultValue={addQ} placeholder="Search works to link — stock no., title, maker…" className="w-full max-w-md rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]" />
-          <button className={btnGhost}>Search</button>
-        </form>
-        {addQ ? (
-          <div className="mt-2 space-y-1">
-            {results.map((w) => (
-              <form key={w.id} action={addPiece} className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2">
-                <input type="hidden" name="piece_id" value={w.id} />
-                <span className="text-[13px] text-ink-body">
-                  <span className="font-mono text-[12px] text-ink-muted">{w.stock_number ?? "—"}</span> {w.title ?? "Untitled"}
-                </span>
-                <button className={btnGhost}>Link</button>
-              </form>
-            ))}
-            {results.length === 0 ? <p className="text-[12.5px] text-ink-muted">No matches.</p> : null}
-          </div>
-        ) : null}
-      </section>
-
-      <div className="mt-8 flex items-center justify-between border border-line-soft bg-band px-4 py-3">
-        <p className="text-[13px] text-ink-strong">Delete this document</p>
-        <DeleteListButton action={deleteDoc} id={id} name="document" />
+        <section className="flex flex-wrap items-center justify-between gap-3 border-t border-rule-strong pt-3">
+          <p className="text-[13px] text-ink">Delete this document</p>
+          <DeleteListButton action={deleteDoc} id={id} name="document" />
+        </section>
       </div>
     </div>
   );

@@ -4,8 +4,11 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
+import { Panel } from "@/components/ui/section";
 
 const ROLES = ["front", "back", "side", "signature", "box", "detail", "condition", "document", "other"];
+// The stored role, as a word.
+const roleWord = (r: string) => r.charAt(0).toUpperCase() + r.slice(1);
 
 type Phase = "uploading" | "processing" | "done" | "error";
 type Item = { id: string; name: string; phase: Phase; progress: number; error?: string };
@@ -116,77 +119,77 @@ export function ImageUploader({ pieceId, nextSortOrder }: { pieceId: string; nex
   const label: Record<Phase, string> = {
     uploading: "Uploading",
     processing: "Processing…",
-    done: "Ready ✓",
+    done: "Ready",
     error: "Failed",
   };
 
   return (
-    <div className="border border-line bg-cell p-4">
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <label className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">Role</label>
+    <Panel>
+      <div className="mb-3 flex max-w-[220px] flex-col gap-1">
+        <label htmlFor={`image-role-${pieceId}`} className="label">
+          Role
+        </label>
         <select
+          id={`image-role-${pieceId}`}
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[12.5px] text-ink-mid"
-          aria-label="Image role"
+          className="field"
         >
           {ROLES.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {roleWord(r)}
             </option>
           ))}
         </select>
       </div>
 
       <Dropzone onFiles={handleFiles} accept="image/*,.tif,.tiff,.heic,.heif" multiple capture="environment">
-        <p className="text-[13px] font-medium text-ink-body">Drag images here, or click to choose</p>
-        <p className="mt-1 text-[11.5px] text-ink-soft">
-          Add several at once — each is filed as “{role}”. Use the picker on a phone to shoot stock
-          directly.
+        <p className="text-[13px] font-medium text-ink">Drag images here, or click to choose</p>
+        <p className="mt-1 text-[12px] text-meta">
+          Add several at once; each is filed as “{roleWord(role)}”. On a phone, the picker can shoot
+          stock directly.
         </p>
       </Dropzone>
 
       {items.length > 0 ? (
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-3">
           {items.map((it) => (
-            <li key={it.id} className="rounded-lg border border-line-soft bg-band/40 px-3 py-2">
+            <li key={it.id} className="border-t border-rule py-2 first:border-t-0">
               <div className="flex items-center justify-between gap-3">
-                <span className="truncate text-[12px] text-ink-body">{it.name}</span>
+                <span className="truncate text-[13px] text-body">{it.name}</span>
                 <span
-                  className={`shrink-0 text-[11px] ${
-                    it.phase === "error"
-                      ? "text-danger"
-                      : it.phase === "done"
-                        ? "text-status-green"
-                        : "text-ink-soft"
+                  className={`tabular shrink-0 text-[12px] ${
+                    it.phase === "error" ? "text-danger" : it.phase === "done" ? "text-ok" : "text-meta"
                   }`}
                 >
                   {it.phase === "uploading" ? `Uploading ${Math.round(it.progress * 100)}%` : label[it.phase]}
                 </span>
               </div>
               {it.phase === "uploading" || it.phase === "processing" ? (
-                <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-line-soft">
+                // Progress: the one place besides place and focus where the
+                // accent is used (spec R1).
+                <div className="mt-1.5 h-1 w-full overflow-hidden bg-rule">
                   <div
-                    className={`h-full rounded-full bg-oranje transition-[width] duration-200 ${
-                      it.phase === "processing" ? "animate-pulse" : ""
-                    }`}
+                    className="h-full bg-accent transition-[width] duration-200"
                     style={{ width: it.phase === "processing" ? "100%" : `${Math.round(it.progress * 90)}%` }}
                   />
                 </div>
               ) : null}
               {it.phase === "error" && it.error ? (
-                <p className="mt-1 text-[11px] text-danger">{it.error}</p>
+                <p role="alert" className="mt-1 text-[12px] text-danger">
+                  {it.error}
+                </p>
               ) : null}
             </li>
           ))}
         </ul>
       ) : null}
 
-      <p className="mt-2 text-[11.5px] text-ink-soft">
-        High-resolution originals (TIFF/JPEG/HEIC up to 500 MB) go to secure storage; web-size
+      <p className="mt-2 text-[12px] leading-[1.4] text-meta">
+        High-resolution originals (TIFF, JPEG or HEIC up to 500 MB) go to secure storage; web-size
         previews are generated automatically within a minute.
         {active ? " Keep this tab open until each image reads “Ready”." : ""}
       </p>
-    </div>
+    </Panel>
   );
 }

@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { SaveStatus, useSaveReporter } from "@/components/ui/save-status";
+import { Button } from "@/components/ui/button";
+import { useFlushForDone, useInEditorRoot } from "@/components/editor-save";
 
 type Status = "idle" | "saving" | "saved" | "error";
 
@@ -23,22 +26,32 @@ function serialise(form: HTMLFormElement): string {
 
 /**
  * Wraps a form and autosaves it (debounced) to `endpoint` via PATCH, sending the
- * form as multipart FormData. Shows a live save-status line. Used for the
- * inventory editor; mirrors the CRM contact editor's behaviour.
+ * form as multipart FormData. Shows a live save-status line (the shared
+ * SaveStatus). Used for the inventory editor and the shipment page; mirrors
+ * the CRM contact editor's behaviour.
+ *
+ * Inside an EditorSaveRoot (the record editor) the form draws no line of its
+ * own: it reports into the root's one line, and the root's Done flushes it
+ * along with the page's other autosaving parts.
  */
 export function AutosaveForm({
   endpoint,
   children,
   className,
   doneHref,
+  what,
 }: {
   endpoint: string;
   children: ReactNode;
   className?: string;
   /** When set, a "Done" button saves any pending edits, waits for them, then navigates here. */
   doneHref?: string;
+  /** What failed, for the status line: "the record" gives "Couldn’t save the record." */
+  what?: string;
 }) {
   const router = useRouter();
+  const inRoot = useInEditorRoot();
+  const report = useSaveReporter(endpoint);
   // The form element, kept after React detaches it on unmount so the
   // leave-flush below can still read edits that never reached the server.
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -304,16 +317,17 @@ export function AutosaveForm({
     return save();
   }, [save]);
 
-  const statusText =
-    status === "saving"
-      ? "Saving…"
-      : status === "saved"
-        ? "All changes saved ✓"
-        : status === "error"
-          ? signedOut
-            ? "Signed out. Your changes are kept here and save once you sign in again."
-            : "Couldn’t save — your changes are kept and will retry automatically"
-          : "Autosave on — changes save automatically";
+  const retryNow = useCallback(() => {
+    attempt.current = 0;
+    void save();
+  }, [save]);
+
+  // Into the editor's one line (a no-op without a SaveStatusProvider), and
+  // into Done's list of parts to save before leaving.
+  useEffect(() => {
+    report({ state: status, what, onRetry: status === "error" ? retryNow : undefined, signedOut });
+  }, [report, status, what, retryNow, signedOut]);
+  useFlushForDone(endpoint, flush);
 
   return (
     <form
@@ -327,66 +341,37 @@ export function AutosaveForm({
       }}
       className={className}
     >
-      <div
-        style={{ top: "var(--app-header-h, 88px)" }}
-        className={`sticky z-10 mb-3 flex items-center gap-2 transition-all duration-200 md:translate-y-0 md:opacity-100 ${
-          hidden ? "-translate-y-3 opacity-0" : "translate-y-0 opacity-100"
-        }`}
-      >
-        <span
-          className={`flex items-center gap-2 text-[12px] ${
-            status === "error"
-              ? "text-danger"
-              : status === "saved"
-                ? "text-status-green"
-                : "text-ink-soft"
+      {inRoot ? null : (
+        <SaveStatus
+          state={status}
+          what={what}
+          signedOut={signedOut}
+          onRetry={status === "error" ? retryNow : undefined}
+          idleText="Changes save automatically"
+          className={`mb-3 transition-[transform,opacity] duration-200 md:translate-y-0 md:opacity-100 ${
+            hidden ? "-translate-y-3 opacity-0" : "translate-y-0 opacity-100"
           }`}
-          aria-live="polite"
         >
-          {statusText}
-          {status === "error" && signedOut ? (
-            // A new tab, so this page and its unsaved edits stay put; the
-            // next retry, or coming back to this tab, saves them.
-            <a
-              href="/login"
-              target="_blank"
-              rel="noopener"
-              className="font-medium underline underline-offset-2"
-            >
-              Sign in
-            </a>
-          ) : null}
-          {status === "error" ? (
-            <button
-              type="button"
-              onClick={() => {
-                attempt.current = 0;
-                void save();
+          {doneHref ? (
+            <Button
+              variant="primary"
+              size="sm"
+              pending={leaving}
+              pendingLabel="Saving…"
+              onClick={async () => {
+                // Leave only once the save has landed; on failure stay here
+                // with the error and the kept edits.
+                setLeaving(true);
+                const ok = await flush();
+                if (ok) router.push(doneHref);
+                else setLeaving(false);
               }}
-              className="rounded-md border border-oranje/40 px-2 py-0.5 text-[11px] font-medium text-accent-deep hover:bg-oranje/10"
             >
-              Retry now
-            </button>
+              Done
+            </Button>
           ) : null}
-        </span>
-        {doneHref ? (
-          <button
-            type="button"
-            disabled={leaving}
-            onClick={async () => {
-              // Leave only once the save has landed; on failure stay here
-              // with the error and the kept edits.
-              setLeaving(true);
-              const ok = await flush();
-              if (ok) router.push(doneHref);
-              else setLeaving(false);
-            }}
-            className="ml-auto rounded-lg bg-primary px-3.5 py-1.5 text-[12px] font-semibold text-primary-fg disabled:opacity-60"
-          >
-            Done
-          </button>
-        ) : null}
-      </div>
+        </SaveStatus>
+      )}
       {children}
     </form>
   );

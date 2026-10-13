@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase, getSession } from "@/lib/supabase";
@@ -15,7 +14,6 @@ import {
   PUBLIC_BASE_URL,
 } from "@/lib/site";
 import { CampaignDesigner } from "@/components/campaign-designer";
-import { SubmitButton } from "@/components/submit-button";
 import { loadListContacts, countEligible, isMailable } from "@/lib/crm-list-members";
 import { writeInChunks } from "@/lib/chunk";
 import {
@@ -26,7 +24,12 @@ import {
   describeEmailError,
 } from "@/lib/email";
 // London time: this page renders on the server, where the zone is UTC.
-import { formatDateTime, formatTime } from "@/lib/format";
+import { formatCount, formatDateTime, formatTime } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { FlashNotice, Notice } from "@/components/ui/notice";
 
 export const metadata = { title: "Newsletter" };
 
@@ -440,27 +443,37 @@ export default async function CampaignDetail({
     const clicked = rows.filter((r) => r.clicked_at).length;
     const bounced = rows.filter((r) => r.bounced_at).length;
     const stat = (n: number) =>
-      total ? `${n} · ${Math.round((n / total) * 100)}%` : String(n);
+      total ? `${formatCount(n)} · ${Math.round((n / total) * 100)}%` : formatCount(n);
 
     return (
-      <div className="max-w-[720px]">
-        <Link href="/crm/campaigns" className="text-[12.5px] text-ink-soft">
-          ← All newsletters
-        </Link>
-        <div className="mt-2 flex items-center gap-2">
-          <h1 className="text-[22px] font-semibold text-ink-strong">{campaign.name}</h1>
-          <span className="bg-oranje/10 px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-accent-deep">
-            Sent
-          </span>
-        </div>
-        <p className="mt-1 text-[13px] text-ink-muted">
-          {campaign.subject} · sent{" "}
-          {formatDateTime(campaign.sent_at)}
-        </p>
+      <div className="max-w-[var(--jvb-measure-wide)]">
+        <PageHeader
+          back={{ href: "/crm/campaigns", label: "All newsletters" }}
+          title={campaign.name}
+          meta={
+            <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Badge>Sent</Badge>
+              <span>
+                {campaign.subject ? `${campaign.subject} · ` : ""}sent {formatDateTime(campaign.sent_at)}
+              </span>
+            </span>
+          }
+        />
 
-        {sp.err === "sendfail" || sp.err === "sending" || refused > 0 ? (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line-control bg-control px-3 py-2 text-[12.5px] text-ink-body">
-            <span>
+        <div className="space-y-6">
+          {sp.err === "sendfail" || sp.err === "sending" || refused > 0 ? (
+            <Notice
+              tone={sp.err === "sendfail" ? "danger" : "warn"}
+              action={
+                refused > 0 ? (
+                  <form action={sendCampaign}>
+                    <Button type="submit" size="sm" pendingLabel="Retrying…">
+                      Retry failed ({refused})
+                    </Button>
+                  </form>
+                ) : null
+              }
+            >
               {sp.err === "sendfail"
                 ? "The retry stopped on an error. "
                 : sp.err === "sending"
@@ -471,48 +484,38 @@ export default async function CampaignDetail({
                     sp.reason ? ` (${describeEmailError(sp.reason)})` : ""
                   }.`
                 : null}
-            </span>
-            {refused > 0 ? (
-              <form action={sendCampaign}>
-                <SubmitButton pendingLabel="Retrying…" variant="ghost">
-                  Retry failed ({refused})
-                </SubmitButton>
-              </form>
-            ) : null}
-          </div>
-        ) : null}
+            </Notice>
+          ) : null}
 
-        <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            ["Recipients", String(total)],
-            ["Opened", stat(opened)],
-            ["Clicked", stat(clicked)],
-            ["Bounced", stat(bounced)],
-          ].map(([label, value]) => (
-            <div key={label} className="border border-line bg-cell p-4">
-              <dt className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                {label}
-              </dt>
-              <dd className="mt-1 font-mono text-[18px] text-ink-strong">{value}</dd>
-            </div>
-          ))}
-        </dl>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
+            {[
+              ["Recipients", formatCount(total)],
+              ["Opened", stat(opened)],
+              ["Clicked", stat(clicked)],
+              ["Bounced", stat(bounced)],
+            ].map(([label, value]) => (
+              <div key={label} className="border-t border-rule-strong pt-2">
+                <dt className="label">{label}</dt>
+                <dd className="tabular mt-1 text-[22px] font-light leading-[1.25] text-ink">{value}</dd>
+              </div>
+            ))}
+          </dl>
 
-        {campaign.body_html ? (
-          <div className="mt-6">
-            <p className="mb-2 text-[11px] uppercase tracking-[0.06em] text-ink-faint">
-              What was sent
-            </p>
-            <iframe
-              title="Sent newsletter"
-              srcDoc={personalise(campaign.body_html, {
-                salutation: "Dear friend",
-                unsubscribeUrl: "#",
-              })}
-              className="h-[600px] w-full border border-line bg-white"
-            />
-          </div>
-        ) : null}
+          {campaign.body_html ? (
+            <Section title="What was sent">
+              {/* White on purpose, in both themes: this is the email as a
+                  reader's mail program draws it. */}
+              <iframe
+                title="Sent newsletter"
+                srcDoc={personalise(campaign.body_html, {
+                  salutation: "Dear friend",
+                  unsubscribeUrl: "#",
+                })}
+                className="h-[600px] w-full border border-rule bg-white"
+              />
+            </Section>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -539,42 +542,27 @@ export default async function CampaignDetail({
         ? "partial"
         : "draft";
 
-  const failedN = Number(sp.failed ?? 0);
-  const leftN = Number(sp.left ?? 0);
-  const banner =
-    sp.sent !== undefined
-      ? `Sent to ${sp.sent} recipient${sp.sent === "1" ? "" : "s"}${
-          sp.skipped && sp.skipped !== "0" ? ` · ${sp.skipped} skipped (no consent / no email)` : ""
-        }${failedN > 0 ? ` · ${failedN} failed (${describeEmailError(sp.reason)})` : ""}${
-          leftN > 0 ? `. ${leftN} still to send: press Resume sending to continue.` : "."
-        }`
-      : sp.test
-        ? `Test sent to ${sp.test}.`
-        : sp.err === "nokey"
-          ? "No RESEND_API_KEY configured — set it to send."
-          : sp.err === "nolist"
-            ? "Choose an audience list before sending."
-            : sp.err === "nosubject"
-              ? "Add a subject line before sending."
-              : sp.err === "testfail"
-                ? `Test send failed (${describeEmailError(sp.reason)}). Check the From address and API key.`
-                : sp.err === "already"
-                  ? "This newsletter has already been sent."
-                  : sp.err === "sending"
-                    ? "This newsletter is already being sent. Reload in a minute to see the result."
-                    : sp.err === "noeligible"
-                      ? "Nobody on this list can be mailed: each needs an email address and marketing consent, and must not be unsubscribed or marked do not mail."
-                      : sp.err === "sendfail"
-                        ? "Sending stopped on an error. Everyone already mailed is recorded and will not be mailed again: press Resume sending to continue."
-                        : sendState === "sending"
-                          ? `This newsletter is being sent (started ${formatTime(campaign.updated_at)}). Reload to see when it has finished.`
-                          : sendState === "stale"
-                            ? `Sending stopped before it finished (last activity ${formatDateTime(campaign.updated_at)}). Resume sending mails only those not yet reached.`
-                            : sendState === "partial"
-                              ? `Partly sent: ${mailed.size} mailed${
-                                  failedCount > 0 ? `, ${failedCount} failed` : ""
-                                }. Resume sending mails only those not yet reached.`
-                              : null;
+  // What the database says about an unfinished send, for when the URL
+  // carries no message of its own (FlashNotice reads the codes the actions
+  // redirect with: sent, skipped, failed, left, reason, test and err).
+  const stateNotice =
+    sendState === "sending" ? (
+      <Notice tone="info">
+        This newsletter is being sent (started {formatTime(campaign.updated_at)}). Reload to see when it has
+        finished.
+      </Notice>
+    ) : sendState === "stale" ? (
+      <Notice tone="warn">
+        Sending stopped before it finished (last activity {formatDateTime(campaign.updated_at)}). Resume sending
+        mails only those not yet reached.
+      </Notice>
+    ) : sendState === "partial" ? (
+      <Notice tone="warn">
+        Partly sent: {formatCount(mailed.size)} mailed
+        {failedCount > 0 ? `, ${formatCount(failedCount)} failed` : ""}. Resume sending mails only those not yet
+        reached.
+      </Notice>
+    ) : null;
 
   // Real counts, not the crm_list_members(count) embed — that returns 0 for a
   // dynamic list and would understate the audience before a send. Each list
@@ -609,18 +597,7 @@ export default async function CampaignDetail({
         sendTest={sendTest}
         sendCampaign={sendCampaign}
         sendState={sendState}
-        header={
-          <Link href="/crm/campaigns" className="text-[12.5px] text-ink-soft">
-            ← All newsletters
-          </Link>
-        }
-        notice={
-          banner ? (
-            <p className="mt-3 rounded-lg border border-line-control bg-control px-3 py-2 text-[12.5px] text-ink-body">
-              {banner}
-            </p>
-          ) : null
-        }
+        notice={<FlashNotice searchParams={sp} codes="campaign" fallback={stateNotice} />}
       />
     </div>
   );

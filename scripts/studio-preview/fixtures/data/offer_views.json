@@ -1,0 +1,30 @@
+[
+ {
+  "id": 1,
+  "recipient_id": "0ff20000-0001-4000-8000-0ff200000000",
+  "viewed_at": "2026-10-08T10:00:00.000Z",
+  "ip": "203.0.113.24",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) Safari/605.1.15"
+ },
+ {
+  "id": 2,
+  "recipient_id": "0ff20000-0001-4000-8000-0ff200000000",
+  "viewed_at": "2026-10-09T10:00:00.000Z",
+  "ip": "203.0.113.24",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) Safari/605.1.15"
+ },
+ {
+  "id": 3,
+  "recipient_id": "0ff20000-0001-4000-8000-0ff200000000",
+  "viewed_at": "2026-10-10T10:00:00.000Z",
+  "ip": "203.0.113.24",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) Safari/605.1.15"
+ },
+ {
+  "id": 4,
+  "recipient_id": "0ff20000-0001-4000-8000-0ff200000000",
+  "viewed_at": "2026-10-11T10:00:00.000Z",
+  "ip": "203.0.113.24",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) Safari/605.1.15"
+ }
+]

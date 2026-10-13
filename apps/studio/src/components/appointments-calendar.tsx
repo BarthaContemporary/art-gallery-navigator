@@ -5,6 +5,11 @@ import {
   MobileMonthCalendar,
   type MobileItem,
 } from "@/components/mobile-month-calendar";
+import { Section } from "@/components/ui/section";
+import { ButtonLink } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronLeftIcon, ChevronRightIcon, ExternalIcon, PlusIcon, RefreshIcon } from "@/components/ui/icons";
 
 export type CalendarAppointment = {
   id: string;
@@ -63,41 +68,44 @@ export function buildMonthGrid(month: string): MonthGridDay[] {
   return days;
 }
 
+// The calendar's own colour where CalDAV gives one (it is data: which
+// calendar an event is on); otherwise the body ink.
+const FALLBACK_DOT = "var(--jvb-body)";
+
 function EventChip({ event, editHref }: { event: CalendarEvent; editHref: string | null }) {
   const body = (
     <>
       <span
         aria-hidden
-        className="mt-[4px] inline-block h-[6px] w-[6px] shrink-0 rounded-full"
-        style={{ backgroundColor: event.color ?? "var(--jvb-ink-label, currentColor)" }}
+        className="mt-[5px] inline-block h-[6px] w-[6px] shrink-0 rounded-full"
+        style={{ backgroundColor: event.color ?? FALLBACK_DOT }}
       />
       <span className="min-w-0">
         {!event.allDay ? (
-          <span className="font-mono text-[10.5px] tabular-nums text-ink-muted">
-            {londonTime(event.start)}{" "}
-          </span>
+          <span className="tabular text-[11px] text-body">{londonTime(event.start)} </span>
         ) : null}
-        <span className="break-words font-medium">{event.title}</span>
+        <span className="break-words font-medium text-ink">{event.title}</span>
         {event.recurring ? (
-          <span aria-hidden className="text-ink-faint">
+          <span className="relative text-body">
             {" "}
-            ↻
+            <RefreshIcon size={11} className="inline align-[-1px]" />
+            <span className="sr-only">(repeats)</span>
           </span>
         ) : null}
       </span>
     </>
   );
-  const chip = "flex items-start gap-1.5 rounded-md bg-pill px-1.5 py-1 text-[11px] leading-snug text-ink-body";
-  const hint = [event.title, event.location].filter(Boolean).join(" — ");
+  const chip = "flex items-start gap-1.5 bg-band px-1.5 py-1 text-[11.5px] leading-snug";
+  const hint = [event.title, event.location].filter(Boolean).join(", ");
   if (editHref) {
     return (
-      <Link href={editHref} className={`${chip} hover:bg-control`} title={`${hint} — click to edit`}>
+      <Link href={editHref} className={`${chip} hover:bg-form-hover`} title={`${hint}. Select to edit`}>
         {body}
       </Link>
     );
   }
   return (
-    <div className={chip} title={event.recurring ? `${hint} — repeats; edit in Apple Calendar` : hint}>
+    <div className={chip} title={event.recurring ? `${hint}. Repeats; edit in Apple Calendar` : hint}>
       {body}
     </div>
   );
@@ -106,18 +114,19 @@ function EventChip({ event, editHref }: { event: CalendarEvent; editHref: string
 function AppointmentChip({ appt }: { appt: CalendarAppointment }) {
   const cancelled = appt.status === "cancelled" || appt.status === "no_show";
   const inner = (
-    <span className={cancelled ? "line-through opacity-60" : undefined}>
-      <span className="font-mono text-[10.5px] tabular-nums text-ink-muted">{appt.time} </span>
-      <span className="break-words font-medium">{appt.label}</span>
+    <span className={`relative ${cancelled ? "line-through" : ""}`}>
+      <span className="tabular text-[11px] text-body">{appt.time} </span>
+      <span className="break-words font-medium text-ink">{appt.label}</span>
+      {cancelled ? <span className="sr-only"> ({appt.status === "no_show" ? "no-show" : "cancelled"})</span> : null}
     </span>
   );
   return (
     <div
-      className="rounded-md border border-line-soft bg-cell px-1.5 py-1 text-[11px] leading-snug text-ink-body"
+      className={`border border-rule-strong bg-page px-1.5 py-1 text-[11.5px] leading-snug ${cancelled ? "opacity-60" : ""}`}
       title={`Appointment · ${appt.label}`}
     >
       {appt.contactId ? (
-        <Link href={`/crm/contacts/${appt.contactId}`} className="hover:text-ink-strong">
+        <Link href={`/crm/contacts/${appt.contactId}`} className="link-plain">
           {inner}
         </Link>
       ) : (
@@ -127,8 +136,93 @@ function AppointmentChip({ appt }: { appt: CalendarAppointment }) {
   );
 }
 
-const navBtn =
-  "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid transition-transform duration-100 [-webkit-tap-highlight-color:transparent] hover:text-ink-strong active:scale-[0.97]";
+/** The month's title and its navigation, shared by the calendar and its placeholder. */
+function CalendarActions({
+  month,
+  editable,
+  webUrl,
+}: {
+  month: string;
+  editable: boolean;
+  webUrl: string | null;
+}) {
+  return (
+    <>
+      {editable ? (
+        <ButtonLink
+          href={`/appointments?month=${month}&new=1`}
+          icon={<PlusIcon size={14} />}
+          size="sm"
+          className="hidden sm:inline-flex"
+        >
+          New event
+        </ButtonLink>
+      ) : null}
+      {webUrl ? (
+        <ButtonLink
+          href={webUrl}
+          native
+          target="_blank"
+          rel="noreferrer"
+          size="sm"
+          variant="quiet"
+          className="hidden sm:inline-flex"
+        >
+          Open shared calendar
+          <ExternalIcon size={14} />
+        </ButtonLink>
+      ) : null}
+      <span className="inline-flex">
+        <ButtonLink href={`/appointments?month=${shiftMonth(month, -1)}`} size="sm" iconOnly label="Previous month">
+          <ChevronLeftIcon size={14} />
+        </ButtonLink>
+        <ButtonLink href="/appointments" size="sm" className="-ml-px">
+          Today
+        </ButtonLink>
+        <ButtonLink href={`/appointments?month=${shiftMonth(month, 1)}`} size="sm" iconOnly label="Next month" className="-ml-px">
+          <ChevronRightIcon size={14} />
+        </ButtonLink>
+      </span>
+    </>
+  );
+}
+
+/**
+ * What shows while the shared calendar loads (the page streams it): the
+ * month's header and navigation, live already, over the grid's frame.
+ */
+export function CalendarSkeleton({ month }: { month: string }) {
+  const grid = buildMonthGrid(month);
+  return (
+    <Section title={monthLabel(month)} actions={<CalendarActions month={month} editable={false} webUrl={null} />}>
+      <div role="status">
+        <span className="sr-only">Loading the shared calendar</span>
+        <div className="sm:hidden">
+          <Skeleton height={280} />
+        </div>
+        <div className="hidden border border-rule-strong sm:block">
+          <div className="grid grid-cols-7 border-b border-rule-strong">
+            {WEEKDAYS.map((d) => (
+              <div key={d} className="label px-2 py-1.5">
+                {d}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7">
+            {grid.map((day, i) => (
+              <div
+                key={day.iso}
+                className={`min-h-[104px] border-rule p-1.5 ${i % 7 !== 0 ? "border-l" : ""} ${i >= 7 ? "border-t" : ""}`}
+              >
+                <Skeleton width={16} height={10} className="ml-auto" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Section>
+  );
+}
 
 export function AppointmentsCalendar({
   month,
@@ -208,63 +302,23 @@ export function AppointmentsCalendar({
   }
 
   return (
-    <section>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-            Calendar
-          </h2>
-          <span className="text-[13.5px] font-semibold text-ink-strong">
-            {monthLabel(month)}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {editable ? (
-            <Link
-              href={`/appointments?month=${month}&new=1`}
-              className={`${navBtn} hidden sm:inline-block`}
-            >
-              + New event
-            </Link>
-          ) : null}
-          {webUrl ? (
-            <a
-              href={webUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={`${navBtn} hidden sm:inline-block`}
-            >
-              Open shared calendar ↗
-            </a>
-          ) : null}
-          <Link href={`/appointments?month=${shiftMonth(month, -1)}`} className={navBtn} aria-label="Previous month">
-            ←
-          </Link>
-          <Link href="/appointments" className={navBtn}>
-            Today
-          </Link>
-          <Link href={`/appointments?month=${shiftMonth(month, 1)}`} className={navBtn} aria-label="Next month">
-            →
-          </Link>
-        </div>
-      </div>
-
+    <Section title={monthLabel(month)} actions={<CalendarActions month={month} editable={editable} webUrl={webUrl} />}>
       {feed.status === "unconfigured" ? (
-        <p className="mt-2 text-[12px] text-ink-muted">
-          Shared calendar not connected — set CALDAV_URL, CALDAV_USER and CALDAV_PASSWORD to
-          show gallery calendar events here. Appointments still appear below.
-        </p>
+        <Notice tone="info" inline className="mb-2">
+          Shared calendar not connected. Set CALDAV_URL, CALDAV_USER and CALDAV_PASSWORD to show gallery
+          calendar events here. Appointments still appear below.
+        </Notice>
       ) : null}
       {feed.status === "error" ? (
-        <p className="mt-2 text-[12px] text-ink-muted">
-          Could not load the shared calendar ({feed.message}) — showing appointments only.
-        </p>
+        <Notice tone="warn" inline className="mb-2">
+          Could not load the shared calendar ({feed.message}). Showing appointments only.
+        </Notice>
       ) : null}
 
       {editor}
 
       {/* Phone: compact month grid + selected-day agenda (no sideways scroll). */}
-      <div className="mt-2 sm:hidden">
+      <div className="sm:hidden">
         <MobileMonthCalendar
           key={month}
           month={month}
@@ -275,14 +329,12 @@ export function AppointmentsCalendar({
         />
       </div>
 
-      <div className="mt-2 hidden overflow-x-auto border border-line sm:block">
-        <div className="min-w-[880px] bg-cell">
-          <div className="grid grid-cols-7 border-b border-line">
+      <div data-inset-focus className="hidden overflow-x-auto border border-rule-strong sm:block">
+        {/* 700: the whole week fits the 768 tablet width. */}
+        <div className="min-w-[700px]">
+          <div className="grid grid-cols-7 border-b border-rule-strong">
             {WEEKDAYS.map((d) => (
-              <div
-                key={d}
-                className="px-2 py-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint"
-              >
+              <div key={d} className="label px-2 py-1.5">
                 {d}
               </div>
             ))}
@@ -295,9 +347,9 @@ export function AppointmentsCalendar({
               return (
                 <div
                   key={day.iso}
-                  className={`group min-h-[104px] border-line-soft p-1.5 ${i % 7 !== 0 ? "border-l" : ""} ${
+                  className={`group min-h-[104px] border-rule p-1.5 ${i % 7 !== 0 ? "border-l" : ""} ${
                     i >= 7 ? "border-t" : ""
-                  } ${day.inMonth ? "" : "opacity-45"}`}
+                  }`}
                 >
                   <div className="mb-1 flex items-center justify-between">
                     {editable ? (
@@ -305,9 +357,9 @@ export function AppointmentsCalendar({
                         href={`/appointments?month=${month}&new=1&day=${day.iso}`}
                         aria-label={`New event on ${day.iso}`}
                         title="New event on this day"
-                        className="px-1 text-[12px] leading-none text-ink-faint opacity-0 transition-opacity hover:text-ink-strong group-hover:opacity-100"
+                        className="inline-flex h-5 w-5 items-center justify-center text-body opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
                       >
-                        +
+                        <PlusIcon size={14} />
                       </Link>
                     ) : (
                       <span />
@@ -315,10 +367,11 @@ export function AppointmentsCalendar({
                     <span
                       className={
                         isToday
-                          ? "inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[var(--jvb-ink-label)] px-1 text-[11.5px] font-semibold text-cell"
-                          : "px-1 text-[11.5px] tabular-nums text-ink-muted"
+                          ? "tabular relative inline-flex h-[22px] min-w-[22px] items-center justify-center bg-ink px-1 text-[11.5px] font-semibold text-page"
+                          : `tabular px-1 text-[11.5px] ${day.inMonth ? "text-body" : "text-meta"}`
                       }
                     >
+                      {isToday ? <span className="sr-only">Today, </span> : null}
                       {day.dayOfMonth}
                     </span>
                   </div>
@@ -346,23 +399,23 @@ export function AppointmentsCalendar({
       </div>
 
       {feed.status === "ok" && feed.calendars.length > 0 ? (
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-body">
           {feed.calendars.map((c) => (
             <span key={c.href} className="inline-flex items-center gap-1.5">
               <span
                 aria-hidden
                 className="inline-block h-[7px] w-[7px] rounded-full"
-                style={{ backgroundColor: c.color ?? "var(--jvb-ink-label, currentColor)" }}
+                style={{ backgroundColor: c.color ?? FALLBACK_DOT }}
               />
               {c.name}
             </span>
           ))}
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="inline-block h-[7px] w-[7px] border border-line-soft bg-cell" />
+            <span aria-hidden className="inline-block h-[7px] w-[7px] border border-rule-strong bg-page" />
             Studio appointment
           </span>
         </div>
       ) : null}
-    </section>
+    </Section>
   );
 }

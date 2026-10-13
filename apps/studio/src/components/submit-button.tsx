@@ -1,12 +1,17 @@
 "use client";
 
-import { useFormStatus } from "react-dom";
+import { Button } from "@/components/ui/button";
 
 /**
  * Submit button for server-action <form>s that shows a pending state — the
  * action disables and swaps its label while the request is in flight, so
  * mutations (send offer, add/remove, link) no longer feel dead. Autosave has
  * its own status line; this is for the discrete-action forms.
+ *
+ * Now a thin wrapper of the shared Button (components/ui/button), which is
+ * pending-aware for every type="submit"; kept so existing callers need no
+ * change. "ghost" is the secondary look. New code uses
+ * <Button type="submit" pendingLabel="…"> directly.
  */
 export function SubmitButton({
   children,
@@ -21,18 +26,15 @@ export function SubmitButton({
   disabled?: boolean;
   className?: string;
 }) {
-  const { pending } = useFormStatus();
-  const base =
-    variant === "primary"
-      ? "rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg"
-      : "rounded-lg border border-line-control bg-control px-3.5 py-2 text-[12.5px] font-medium text-ink-mid";
   return (
-    <button
+    <Button
       type="submit"
-      disabled={pending || disabled}
-      className={`${base} disabled:opacity-60 ${className}`}
+      variant={variant === "primary" ? "primary" : "secondary"}
+      pendingLabel={pendingLabel}
+      disabled={disabled}
+      className={className || undefined}
     >
-      {pending && pendingLabel ? pendingLabel : children}
-    </button>
+      {children}
+    </Button>
   );
 }

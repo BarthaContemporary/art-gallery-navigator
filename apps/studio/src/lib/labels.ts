@@ -24,6 +24,29 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 /**
+ * The state colours a value may take (spec R4). A tone always travels with
+ * its word: the Badge component prints the label beside or inside it.
+ */
+export type Tone = "neutral" | "ok" | "warn" | "danger" | "info";
+
+/**
+ * pieces.status as a tone. Colour only where it asks for something: ok for
+ * a work that can be offered, warn for one held for a client, info for one
+ * whose ownership sits with someone else. Settled states (sold, gifted,
+ * returned, written off) stay neutral; danger is kept for errors.
+ */
+export const STATUS_TONES: Record<string, Tone> = {
+  in_stock: "ok",
+  reserved: "warn",
+  consigned_in: "info",
+  consigned_out: "info",
+  sold: "neutral",
+  gifted: "neutral",
+  returned: "neutral",
+  written_off: "neutral",
+};
+
+/**
  * piece_documents.doc_type (the doc_type enum). The short words the Documents
  * filters always used: the context already says "document", and they fit a
  * chip or a table cell.
@@ -77,6 +100,20 @@ export const KYC_STATUS_LABELS: Record<string, string> = {
   rejected: "Rejected",
 };
 
+/**
+ * crm_contacts.kyc_status as a tone. Marked only where the check asks
+ * something of the gallery: under way (info), referred or rejected (warn,
+ * flagged before any sale). Not started is the resting state of most
+ * contacts and stays neutral, so the column does not shout on every row.
+ */
+export const KYC_STATUS_TONES: Record<string, Tone> = {
+  not_started: "neutral",
+  pending: "info",
+  verified: "ok",
+  refer: "warn",
+  rejected: "warn",
+};
+
 /** piece_financials.vat_treatment (the vat_treatment enum). */
 export const VAT_TREATMENT_LABELS: Record<string, string> = {
   margin_scheme: "Margin scheme",
@@ -84,6 +121,22 @@ export const VAT_TREATMENT_LABELS: Record<string, string> = {
   zero_rated: "Zero-rated",
   outside_scope: "Outside scope",
 };
+
+/** locations.type, in the order the Locations page offers them. */
+export const LOCATION_TYPE_LABELS: Record<string, string> = {
+  gallery: "Gallery",
+  storage: "Storage",
+  fair: "Fair",
+  restorer: "Restorer",
+  consignee: "Consignee",
+  auction: "Auction",
+  other: "Other",
+};
+
+/** A location as the studio names it: "Name · CODE", or the code alone. */
+export function locationLabel(l: { code: string; name: string | null }): string {
+  return l.name && l.name !== l.code ? `${l.name} · ${l.code}` : l.code;
+}
 
 /**
  * The word for `value` in `labels`. A value the map does not know yet (a new

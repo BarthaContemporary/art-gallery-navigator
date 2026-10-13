@@ -2,6 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabase, getSession, createServiceClient } from "@/lib/supabase";
 import { MakerProfileEditor } from "@/components/maker-profile-editor";
+import { scriptLang } from "@/lib/script-lang";
+import { formatCount } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section, Panel } from "@/components/ui/section";
+import { StatusBadge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 
 export const metadata = { title: "Maker profile" };
 
@@ -39,12 +46,26 @@ export default async function MakerProfilePage({
     .order("stock_number")
     .limit(60);
 
-  return (
-    <div className="max-w-[980px]">
-      <Link href="/makers" className="text-[12.5px] text-ink-soft">← All makers</Link>
-      <h1 className="mt-2 text-[24px] font-semibold text-ink-strong">{maker.display_name}</h1>
+  const list = works ?? [];
+  const metaParts = [maker.life_dates, maker.region].filter(Boolean) as string[];
 
-      <div className="mt-5 border border-line bg-cell p-5">
+  return (
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <PageHeader
+        back={{ href: "/makers", label: "All makers" }}
+        title={maker.display_name}
+        meta={
+          maker.native_name || metaParts.length > 0 ? (
+            <>
+              {maker.native_name ? <span lang={scriptLang(maker.native_name)}>{maker.native_name}</span> : null}
+              {maker.native_name && metaParts.length > 0 ? " · " : null}
+              {metaParts.join(" · ")}
+            </>
+          ) : undefined
+        }
+      />
+
+      <div className="space-y-6">
         <MakerProfileEditor
           makerId={maker.id}
           initialHtml={(maker.profile_html as string | null) ?? ""}
@@ -59,37 +80,54 @@ export default async function MakerProfilePage({
             school_or_workshop: (maker.school_or_workshop as string | null) ?? "",
           }}
         />
-      </div>
 
-      {maker.biography ? (
-        <div className="mt-4 border border-line-soft bg-band/50 p-4">
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">Legacy biography (migrated)</p>
-          <p className="mt-1.5 whitespace-pre-line text-[13px] text-ink-muted">{maker.biography}</p>
-        </div>
-      ) : null}
+        {maker.biography ? (
+          <Panel title="Legacy biography (migrated)">
+            <p className="whitespace-pre-line text-[13px] leading-[1.5] text-body">{maker.biography}</p>
+          </Panel>
+        ) : null}
 
-      <div className="mt-6">
-        <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Works by this maker ({(works ?? []).length})
-        </h2>
-        <div className="mt-2 space-y-1">
-          {(works ?? []).map((w) => (
-            <Link
-              key={w.id}
-              href={`/inventory/${encodeURIComponent(w.stock_number)}`}
-              className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2 text-[13px] text-ink-body hover:bg-control"
-            >
-              <span>
-                <span className="font-mono text-[12px] text-ink-muted">{w.stock_number}</span>{" "}
-                {w.title ?? "Untitled"}
-              </span>
-              <span className="text-[11.5px] text-ink-soft">{w.status.replace(/_/g, " ")}</span>
-            </Link>
-          ))}
-          {(works ?? []).length === 0 ? (
-            <p className="text-[12.5px] text-ink-muted">No works attributed yet.</p>
-          ) : null}
-        </div>
+        <Section
+          title="Works by this maker"
+          meta={<span className="tabular">{`${formatCount(list.length)} ${list.length === 1 ? "work" : "works"}`}</span>}
+        >
+          {list.length > 0 ? (
+            <TableFrame>
+              {/* No minimum width: on a phone the title wraps, so the status
+                  stays in view without scrolling sideways. */}
+              <Table>
+                <thead>
+                  <tr>
+                    <Th className="sm:w-[110px]">Stock no.</Th>
+                    <Th>Title</Th>
+                    <Th className="sm:w-[150px]">Status</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((w) => (
+                    <Tr key={w.id}>
+                      <Td className="tabular whitespace-nowrap">
+                        <Link href={`/inventory/${encodeURIComponent(w.stock_number)}`} className="link-plain text-ink">
+                          {w.stock_number}
+                        </Link>
+                      </Td>
+                      <Td className="text-ink">
+                        <Link href={`/inventory/${encodeURIComponent(w.stock_number)}`} className="link-plain">
+                          {w.title ?? "Untitled"}
+                        </Link>
+                      </Td>
+                      <Td className="whitespace-nowrap">
+                        <StatusBadge status={w.status} variant="dot" />
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableFrame>
+          ) : (
+            <EmptyState>No works attributed yet. Choose this maker on a work to list it here.</EmptyState>
+          )}
+        </Section>
       </div>
     </div>
   );

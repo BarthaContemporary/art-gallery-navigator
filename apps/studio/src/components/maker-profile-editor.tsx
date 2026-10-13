@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { nativeFieldLang } from "@/lib/script-lang";
+import { Section } from "@/components/ui/section";
+import { Button } from "@/components/ui/button";
+import { chipClass } from "@/components/ui/chips";
+import { Notice } from "@/components/ui/notice";
+import { SaveStatus } from "@/components/ui/save-status";
+import { WebsiteSwitch } from "@/components/ui/website-switch";
+import { UploadIcon } from "@/components/ui/icons";
 
 export type MakerFields = {
   display_name: string;
@@ -21,7 +28,49 @@ const FIELD_LABELS: [keyof MakerFields, string, string][] = [
   ["school_or_workshop", "School / workshop", ""],
 ];
 
-const HEADING = "text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
+/**
+ * The profile toolbar: each button names what it does (the glyph alone does
+ * not) and reports, through aria-pressed, whether the text at the caret
+ * already has it.
+ */
+type Tool = { key: string; glyph: string; label: string; run: [string, string?]; className?: string };
+const TOOLS: Tool[] = [
+  { key: "bold", glyph: "B", label: "Bold", run: ["bold"], className: "font-bold" },
+  { key: "italic", glyph: "I", label: "Italic", run: ["italic"], className: "italic" },
+  { key: "underline", glyph: "U", label: "Underline", run: ["underline"], className: "underline" },
+  { key: "h2", glyph: "H2", label: "Heading", run: ["formatBlock", "<h2>"] },
+  { key: "h3", glyph: "H3", label: "Subheading", run: ["formatBlock", "<h3>"] },
+  { key: "p", glyph: "¶", label: "Paragraph", run: ["formatBlock", "<p>"] },
+  { key: "ul", glyph: "• List", label: "Bulleted list", run: ["insertUnorderedList"] },
+  { key: "ol", glyph: "1. List", label: "Numbered list", run: ["insertOrderedList"] },
+];
+
+/** Which tools apply at the caret, read from the browser's editing state. */
+function toolStates(): Record<string, boolean> {
+  const q = (c: string) => {
+    try {
+      return document.queryCommandState(c);
+    } catch {
+      return false;
+    }
+  };
+  let block = "";
+  try {
+    block = String(document.queryCommandValue("formatBlock") ?? "").toLowerCase();
+  } catch {
+    /* unsupported: leave the block tools unpressed */
+  }
+  return {
+    bold: q("bold"),
+    italic: q("italic"),
+    underline: q("underline"),
+    h2: block === "h2",
+    h3: block === "h3",
+    p: block === "p",
+    ul: q("insertUnorderedList"),
+    ol: q("insertOrderedList"),
+  };
+}
 
 /**
  * The single maker editing panel: detail fields + representative portrait +
@@ -77,10 +126,23 @@ export function MakerProfileEditor({
   const editorRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [pressed, setPressed] = useState<Record<string, boolean>>({});
+
   // contentEditable is uncontrolled — seed it once.
   useEffect(() => {
     if (editorRef.current) editorRef.current.innerHTML = initialHtml;
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep the toolbar's pressed states in step with the caret, while it is in
+  // the profile text.
+  useEffect(() => {
+    const onSelection = () => {
+      const sel = document.getSelection();
+      if (editorRef.current && sel?.anchorNode && editorRef.current.contains(sel.anchorNode)) setPressed(toolStates());
+    };
+    document.addEventListener("selectionchange", onSelection);
+    return () => document.removeEventListener("selectionchange", onSelection);
   }, []);
 
   async function save() {
@@ -138,6 +200,7 @@ export function MakerProfileEditor({
   function cmd(command: string, value?: string) {
     editorRef.current?.focus();
     document.execCommand(command, false, value);
+    setPressed(toolStates());
     scheduleSave();
   }
 
@@ -242,192 +305,226 @@ export function MakerProfileEditor({
   }
 
   const busy = phase !== "idle";
-  const tbtn =
-    "rounded-md border border-line-control bg-control px-2 py-1 text-[12px] font-medium text-ink-mid hover:text-ink-strong";
 
   return (
-    <div>
-      {/* Details */}
-      <div className="flex items-center justify-between">
-        <p className={HEADING}>Details</p>
-        <span className={`text-[11px] ${status === "error" ? "text-danger" : "text-ink-soft"}`}>
-          {status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "error" ? "Couldn’t save" : "Autosave on"}
-        </span>
-      </div>
-      <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {FIELD_LABELS.map(([key, label, ph]) => (
-          <label key={key} className="block text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-            {label}
+    <div className="space-y-6">
+      {/* Retry sends the details and the profile again, as the next edit
+          would. */}
+      <SaveStatus
+        state={status}
+        what="the maker"
+        idleText="Changes save automatically"
+        onRetry={() => {
+          void saveFields(pending.current);
+          void save();
+        }}
+      />
+
+      <Section title="Details">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {FIELD_LABELS.map(([key, label, ph]) => (
+            <div key={key} className="flex min-w-0 flex-col gap-1">
+              <label htmlFor={`maker-${key}`} className="label">
+                {label}
+              </label>
+              <input
+                id={`maker-${key}`}
+                value={fields[key]}
+                placeholder={ph}
+                lang={key === "native_name" ? nativeFieldLang(fields[key]) : undefined}
+                onChange={(e) => setField(key, e.target.value)}
+                onBlur={flushFields}
+                className="field"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <WebsiteSwitch
+            on={webVisible}
+            onLabel="Artist page on the website"
+            offLabel="Artist page not on the website"
+            onClick={() => void toggleWebVisible(!webVisible)}
+          />
+          <span className="text-[12px] leading-[1.4] text-meta">On for every maker; switch it off to hide this one.</span>
+        </div>
+      </Section>
+
+      {/* Image + profile: two columns from md, headings level and the image
+          field starting level with the rich-text field. */}
+      <section className="section">
+        {/* DOM order is reading order at every width: on a phone the image
+            comes first, then the profile with its toolbar. */}
+        <div className="grid grid-cols-1 gap-x-6 gap-y-6 md:grid-cols-[230px_1fr]">
+          {/* col 1: the heading, then the image field (a drop area when
+              empty). The two heading rows share a minimum height, so the
+              image starts level with the text beside it. */}
+          <div>
+            <div className="mb-2 flex min-h-[var(--jvb-control-h-sm)] items-end">
+              <h2 className="section-title">Representative image</h2>
+            </div>
             <input
-              value={fields[key]}
-              placeholder={ph}
-              lang={key === "native_name" ? nativeFieldLang(fields[key]) : undefined}
-              onChange={(e) => setField(key, e.target.value)}
-              onBlur={flushFields}
-              className="mt-1 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body"
+              ref={fileRef}
+              type="file"
+              accept="image/*,.heic,.heif"
+              className="hidden"
+              onChange={(e) => {
+                void onPick(e.target.files);
+                e.currentTarget.value = "";
+              }}
             />
-          </label>
-        ))}
-        <label className="flex items-center gap-2 self-end pb-2 text-[12.5px] text-ink-body">
-          <input
-            type="checkbox"
-            checked={webVisible}
-            onChange={(e) => void toggleWebVisible(e.target.checked)}
-            className="h-4 w-4"
-          />
-          Artist page on the website
-          <span className="text-[11px] text-ink-soft">(on for every maker — untick to hide this one)</span>
-        </label>
-      </div>
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label={url ? "Replace the portrait" : "Upload a portrait"}
+              onClick={() => !busy && fileRef.current?.click()}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && !busy) fileRef.current?.click();
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                if (!busy) onPick(e.dataTransfer.files);
+              }}
+              className={`aspect-[3/4] w-full cursor-pointer overflow-hidden border transition-colors ${
+                url
+                  ? "border-rule bg-band"
+                  : `border-dashed ${dragOver ? "border-accent bg-accent-wash" : "border-rule-strong bg-page hover:border-ink"}`
+              }`}
+            >
+              {url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt="Portrait" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+                  <UploadIcon size={20} className="text-body" />
+                  <p className="text-[13px] font-medium text-ink">
+                    {dragOver ? "Drop to upload" : "Drop an image here"}
+                  </p>
+                  <p className="text-[12px] text-meta">or click to choose a file</p>
+                </div>
+              )}
+            </div>
 
-      {/* Image + profile: shared grid rows so headings align and the image
-          field starts exactly level with the rich-text field. */}
-      <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-2 border-t border-line-soft pt-5 md:grid-cols-[230px_1fr] md:grid-rows-[auto_1fr]">
-        {/* row 1 — headings (toolbar lives in the same row so row 2 aligns) */}
-        <p className={`${HEADING} self-end`}>Representative image</p>
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <p className={`${HEADING} mr-2`}>Profile</p>
-            <button type="button" onClick={() => cmd("bold")} className={`${tbtn} font-bold`}>B</button>
-            <button type="button" onClick={() => cmd("italic")} className={`${tbtn} italic`}>I</button>
-            <button type="button" onClick={() => cmd("underline")} className={`${tbtn} underline`}>U</button>
-            <button type="button" onClick={() => cmd("formatBlock", "<h2>")} className={tbtn}>H2</button>
-            <button type="button" onClick={() => cmd("formatBlock", "<h3>")} className={tbtn}>H3</button>
-            <button type="button" onClick={() => cmd("formatBlock", "<p>")} className={tbtn}>¶</button>
-            <button type="button" onClick={() => cmd("insertUnorderedList")} className={tbtn}>• List</button>
-            <button type="button" onClick={() => cmd("insertOrderedList")} className={tbtn}>1. List</button>
-          </div>
-          <button
-            type="button"
-            disabled={aiBusy}
-            onClick={() => void draftWithAi()}
-            className="rounded-lg border border-oranje/40 bg-control px-3 py-1.5 text-[12px] font-medium text-accent-deep hover:border-oranje disabled:opacity-60"
-            title="Research this maker and write a draft biography with AI"
-          >
-            {aiBusy ? "Researching… (can take a minute)" : "✦ Draft with AI"}
-          </button>
-        </div>
-
-        {/* row 2, col 1 — image field (drop area when empty) */}
-        <div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*,.heic,.heif"
-            className="hidden"
-            onChange={(e) => {
-              void onPick(e.target.files);
-              e.currentTarget.value = "";
-            }}
-          />
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label={url ? "Replace the portrait" : "Upload a portrait"}
-            onClick={() => !busy && fileRef.current?.click()}
-            onKeyDown={(e) => {
-              if ((e.key === "Enter" || e.key === " ") && !busy) fileRef.current?.click();
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              if (!busy) onPick(e.dataTransfer.files);
-            }}
-            className={`aspect-[3/4] w-full cursor-pointer overflow-hidden border transition-colors ${
-              url
-                ? "border-line bg-band"
-                : `border-2 border-dashed ${dragOver ? "border-oranje bg-oranje/5" : "border-line-control bg-band/60"}`
-            }`}
-          >
-            {url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={url} alt="Portrait" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
-                <span aria-hidden className="text-[22px] text-ink-soft">⬆︎</span>
-                <p className="text-[12.5px] font-medium text-ink-mid">
-                  {dragOver ? "Drop to upload" : "Drop an image here"}
-                </p>
-                <p className="text-[11px] text-ink-soft">or click to choose a file</p>
-              </div>
-            )}
-          </div>
-
-          {busy ? (
-            <div className="mt-2">
-              <div className="h-1 w-full overflow-hidden rounded-full bg-line-soft">
+            {busy ? (
+              <div className="mt-2">
                 <div
-                  className={`h-full rounded-full bg-oranje transition-[width] duration-200 ${phase === "processing" ? "animate-pulse" : ""}`}
-                  style={{ width: phase === "uploading" ? `${Math.round(progress * 90)}%` : "100%" }}
-                />
+                  role="progressbar"
+                  aria-label="Portrait upload"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={phase === "uploading" ? Math.round(progress * 100) : undefined}
+                  className="h-1 w-full overflow-hidden bg-rule"
+                >
+                  <div
+                    className="h-full bg-accent transition-[width] duration-200"
+                    style={{ width: phase === "uploading" ? `${Math.round(progress * 90)}%` : "100%" }}
+                  />
+                </div>
+                <p className="mt-1 text-[12px] text-meta">
+                  {phase === "uploading" ? `Uploading… ${Math.round(progress * 100)}%` : "Processing image…"}
+                </p>
               </div>
-              <p className="mt-1 text-[11px] text-ink-soft">
-                {phase === "uploading" ? `Uploading… ${Math.round(progress * 100)}%` : "Processing image…"}
-              </p>
-            </div>
-          ) : null}
-          {uploadError ? <p className="mt-1.5 text-[11.5px] text-danger">{uploadError}</p> : null}
+            ) : null}
+            {uploadError ? (
+              <Notice tone="danger" inline className="mt-1.5">
+                {uploadError}
+              </Notice>
+            ) : null}
 
-          {url && !busy ? (
-            <div className="mt-2 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
+            {url && !busy ? (
+              <div className="mt-2 flex items-center gap-1">
+                <Button size="sm" onClick={() => fileRef.current?.click()}>
+                  Replace
+                </Button>
+                <Button size="sm" variant="quiet" onClick={() => void removePortrait()}>
+                  Remove
+                </Button>
+              </div>
+            ) : null}
+            <p className="mt-1.5 text-[12px] leading-[1.4] text-meta">
+              Ideally a portrait of the maker. The original is kept for print-quality
+              documents; a web version is generated automatically.
+            </p>
+          </div>
+
+          {/* col 2: the heading with its toolbar, then the rich-text profile */}
+          <div>
+            <div className="mb-2 flex min-h-[var(--jvb-control-h-sm)] flex-wrap items-end justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1">
+                <h2 className="section-title mr-2">Profile</h2>
+                <div role="toolbar" aria-label="Profile formatting" className="flex flex-wrap gap-1">
+                  {TOOLS.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      aria-label={t.label}
+                      aria-pressed={Boolean(pressed[t.key])}
+                      title={t.label}
+                      onClick={() => cmd(t.run[0], t.run[1])}
+                      className={chipClass(`min-w-[28px] justify-center px-2 ${t.className ?? ""}`)}
+                    >
+                      {t.glyph}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                disabled={aiBusy}
+                pending={aiBusy}
+                pendingLabel="Researching… (can take a minute)"
+                onClick={() => void draftWithAi()}
+                title="Research this maker and write a draft biography with AI"
               >
-                Replace
-              </button>
-              <button type="button" onClick={() => void removePortrait()} className="text-[12px] text-ink-soft hover:text-ink-strong">
-                Remove
-              </button>
+                Draft with AI
+              </Button>
             </div>
-          ) : null}
-          <p className="mt-1.5 text-[11px] text-ink-soft">
-            Ideally a portrait of the maker. The original is kept for print-quality
-            documents; a web version is generated automatically.
-          </p>
-        </div>
 
-        {/* row 2, col 2 — rich text profile */}
-        <div>
-          <div
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            onInput={scheduleSave}
-            onBlur={() => {
-              if (timer.current) clearTimeout(timer.current);
-              void save();
-            }}
-            className="prose-maker min-h-[280px] w-full border border-line-control bg-control px-4 py-3 text-[14px] leading-[1.6] text-ink-body [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-          />
-          <p className="mt-1.5 text-[11px] text-ink-soft">
-            Autosaves as you type. This text feeds the maker profile PDF and website page.
-          </p>
-          {aiError ? <p className="mt-1.5 text-[11.5px] text-danger">AI draft: {aiError}</p> : null}
-          {aiSources.length > 0 ? (
-            <div className="mt-2 rounded-lg border border-line-soft bg-band/50 px-3 py-2">
-              <p className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                Sources the draft drew on — verify before publishing
-              </p>
-              <ul className="mt-1 space-y-0.5">
-                {aiSources.map((s) => (
-                  <li key={s.url} className="truncate text-[11.5px]">
-                    <a href={s.url} target="_blank" rel="noreferrer" className="text-ink-muted hover:text-accent-deep">
-                      {s.title || s.url}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              role="textbox"
+              aria-multiline="true"
+              aria-label="Profile"
+              onInput={scheduleSave}
+              onBlur={() => {
+                if (timer.current) clearTimeout(timer.current);
+                void save();
+              }}
+              className="prose-maker min-h-[280px] w-full border-b border-field-edge bg-form px-4 py-3 text-[14.5px] leading-[1.6] text-ink transition-colors hover:bg-form-hover focus:border-ink focus:bg-form [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+            />
+            <p className="mt-1.5 text-[12px] leading-[1.4] text-meta">
+              Autosaves as you type. This text feeds the maker profile PDF and website page.
+            </p>
+            {aiError ? (
+              <Notice tone="danger" inline className="mt-1.5">
+                AI draft: {aiError}
+              </Notice>
+            ) : null}
+            {aiSources.length > 0 ? (
+              <div className="panel mt-2">
+                <p className="label">Sources the draft drew on. Verify before publishing</p>
+                <ul className="mt-1 space-y-0.5">
+                  {aiSources.map((s) => (
+                    <li key={s.url} className="truncate text-[12px]">
+                      <a href={s.url} target="_blank" rel="noreferrer" className="link-plain text-body">
+                        {s.title || s.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

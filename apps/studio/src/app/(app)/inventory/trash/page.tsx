@@ -1,10 +1,13 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { LEDGER_LABEL, type Ledger, type PieceRef } from "@/lib/piece-store";
 // London dates: this page renders on the server, where the zone is UTC.
-import { formatDate } from "@/lib/format";
+import { formatCount, formatDate } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 
 export const metadata = { title: "Trash" };
 
@@ -84,63 +87,61 @@ export default async function TrashPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[22px] font-semibold text-ink-strong">Trash</h1>
-          <p className="mt-1 text-[13px] text-ink-muted">
-            Deleted records are kept for {RETENTION_DAYS} days, then permanently removed.
-            A work shown on the website is taken off it straight away, and returns if
-            you reinstate the record.
-          </p>
-        </div>
-        <Link href="/inventory" className="text-[12.5px] text-ink-mid hover:text-accent-deep">
-          ← Inventory
-        </Link>
-      </div>
+      <PageHeader
+        back={{ href: "/inventory", label: "Inventory" }}
+        title="Trash"
+        meta={`${formatCount(rows.length)} ${rows.length === 1 ? "record" : "records"}`}
+      >
+        <p className="max-w-[640px] text-[13px] leading-[1.45] text-body">
+          Deleted records are kept for {RETENTION_DAYS} days, then permanently removed. A work shown
+          on the website is taken off it straight away, and returns if you reinstate the record.
+        </p>
+      </PageHeader>
 
-      <div className="mt-5 overflow-x-auto border border-line">
-        <table className="w-full bg-cell text-left">
+      <TableFrame>
+        <Table>
           <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              <th className="px-4 py-2.5 font-medium">Stock</th>
-              <th className="px-4 py-2.5 font-medium">Title</th>
-              <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Deleted</th>
-              <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Auto-removed in</th>
-              <th className="px-4 py-2.5 font-medium" />
+            <tr>
+              <Th className="hidden w-36 sm:table-cell">Stock</Th>
+              <Th>Title</Th>
+              <Th className="hidden w-32 sm:table-cell">Deleted</Th>
+              <Th className="hidden w-40 sm:table-cell" numeric>
+                Auto-removed in
+              </Th>
+              <Th className="w-28 sm:w-44">
+                <span className="sr-only">Actions</span>
+              </Th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="border-b border-line-soft last:border-0">
-                <td className="px-4 py-2.5 font-mono text-[12px] text-ink">
-                  {r.stock_number}
-                  {r.ledger === "external" ? (
-                    <span className="ml-1.5 font-sans text-[10.5px] text-ink-faint">
-                      {LEDGER_LABEL.external}
-                    </span>
-                  ) : null}
-                </td>
-                <td className="px-4 py-2.5 text-[13.5px] text-ink-body">
-                  {r.title ?? "Untitled"}
-                  <span className="mt-0.5 block font-mono text-[11.5px] text-ink-muted sm:hidden">
-                    deleted {formatDate(r.deleted_at, "numeric")} ·{" "}
-                    {daysLeft(r.deleted_at)} days left
+              <Tr key={r.id}>
+                <Td className="hidden sm:table-cell">
+                  <StockNumber row={r} />
+                </Td>
+                <Td className="text-ink">
+                  {/* A phone drops the stock, date and countdown columns;
+                      they fold in under the title. */}
+                  <span className="mb-0.5 block sm:hidden">
+                    <StockNumber row={r} />
                   </span>
-                </td>
-                <td className="hidden px-4 py-2.5 font-mono text-[12px] text-ink-soft sm:table-cell">
-                  {formatDate(r.deleted_at, "numeric")}
-                </td>
-                <td className="hidden px-4 py-2.5 font-mono text-[12px] text-ink-muted sm:table-cell">
+                  {r.title ?? "Untitled"}
+                  <span className="tabular mt-0.5 block text-[12px] leading-[1.4] text-meta sm:hidden">
+                    Deleted {formatDate(r.deleted_at, "numeric")}, {daysLeft(r.deleted_at)} days left
+                  </span>
+                </Td>
+                <Td className="tabular hidden text-body sm:table-cell">{formatDate(r.deleted_at, "numeric")}</Td>
+                <Td numeric className="hidden text-body sm:table-cell">
                   {daysLeft(r.deleted_at)} days
-                </td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center justify-end gap-3">
+                </Td>
+                <Td>
+                  <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                     <form action={reinstate}>
                       <input type="hidden" name="id" value={r.id} />
                       <input type="hidden" name="table" value={r.table} />
-                      <button type="submit" className="text-[12px] font-medium text-primary">
+                      <Button type="submit" size="sm" pendingLabel="Reinstating…">
                         Reinstate
-                      </button>
+                      </Button>
                     </form>
                     <DeleteListButton
                       action={purge}
@@ -149,19 +150,26 @@ export default async function TrashPage() {
                       extra={{ table: r.table }}
                     />
                   </div>
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-[13px] text-ink-muted">
-                  Trash is empty.
-                </td>
-              </tr>
-            ) : null}
+            {rows.length === 0 ? <EmptyRow colSpan={5}>Trash is empty.</EmptyRow> : null}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      </TableFrame>
     </div>
+  );
+}
+
+function StockNumber({ row }: { row: TrashRow }) {
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <span className="tabular text-ink">{row.stock_number}</span>
+      {row.ledger === "external" ? (
+        <Badge caps size="xs">
+          {LEDGER_LABEL.external}
+        </Badge>
+      ) : null}
+    </span>
   );
 }

@@ -47,7 +47,10 @@ export default async function AppLayout({
       <CommandPalette
         navItems={items.map((n) => ({ href: n.href, label: n.label, group: n.group }))}
       />
-      <main className="mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-8">
+      {/* .page: the shell width (1440) and side padding (16, 32 from 768),
+          shared with the header so the wordmark lines up with the content.
+          tabIndex lets the header's skip link move focus here. */}
+      <main id="main" tabIndex={-1} className="page py-6 md:py-8">
         {children}
       </main>
     </div>

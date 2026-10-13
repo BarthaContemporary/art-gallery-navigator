@@ -4,9 +4,6 @@ import { useState } from "react";
 import { cleanNumberPaste } from "@/lib/amount";
 import { cmToInchesFraction, gramsToPounds } from "@/lib/measure";
 
-const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const field =
-  "mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink";
 
 // The default dimensions. For a framed work these ARE the framed size — what
 // hangs, ships and appears in the catalogue — so the labels say so while the
@@ -57,59 +54,73 @@ export function DimensionsFields({
     return k.endsWith("_g") ? `${gramsToPounds(n)} lb` : `${cmToInchesFraction(n)} in`;
   };
 
+  // One measurement: its label above, the field, and the imperial figure
+  // under it (announced with the field through aria-describedby).
   const input = (k: string) => (
     <>
       <input
+        id={`dim-${k}`}
         name={k}
         type="number" onPaste={cleanNumberPaste}
         step="0.1"
         value={vals[k]}
         onChange={(e) => set(k, e.target.value)}
-        className={field}
+        aria-describedby={`dim-${k}-imperial`}
+        className="field tabular"
       />
-      <span className="mt-1 block h-[14px] font-mono text-[11px] text-ink-soft">
+      <span id={`dim-${k}-imperial`} className="tabular block h-[16px] text-[12px] leading-[1.4] text-meta">
         {preview(k) ?? ""}
       </span>
     </>
   );
 
+  // Three across in the half-width column of a wide editor, six on a
+  // full-width row.
+  const grid = "grid grid-cols-3 gap-x-3 gap-y-3 sm:grid-cols-6 lg:grid-cols-3";
+
   return (
     <div>
-      <div className="mt-4 grid grid-cols-3 gap-4 sm:grid-cols-6">
+      <div className={grid}>
         {DIMS.map(([k, plain, whenFramed]) => (
-          <label key={k} className={label}>
-            {framed ? whenFramed : plain}
+          <div key={k} className="flex min-w-0 flex-col gap-1">
+            <label htmlFor={`dim-${k}`} className="label truncate">
+              {framed ? whenFramed : plain}
+            </label>
             {input(k)}
-          </label>
+          </div>
         ))}
       </div>
 
       {/* A real form input, so ticking it autosaves like any other field.
           Unticking hides the unframed row; its fields leave the form entirely
           and the server clears the stored unframed measurements. */}
-      <label className="mt-4 flex items-center gap-2 text-[12.5px] font-medium text-ink-body">
+      <label className="mt-4 flex w-fit cursor-pointer items-start gap-2 text-[13px] leading-[1.45] text-ink">
         <input
           type="checkbox"
           name="framed"
           checked={framed}
           onChange={(e) => setFramed(e.target.checked)}
-          className="h-4 w-4"
+          className="mt-[2px] h-4 w-4 shrink-0"
         />
-        Framed
-        {framed ? (
-          <span className="font-normal text-[11.5px] text-ink-soft">
-            — sizes in cm (weight g); the row above is the framed size, record the unframed work below
-          </span>
-        ) : null}
+        <span>
+          Framed
+          {framed ? (
+            <span className="block text-[12px] leading-[1.4] text-meta">
+              Sizes in cm (weight in g). The row above is the framed size; record the unframed work below.
+            </span>
+          ) : null}
+        </span>
       </label>
 
       {framed ? (
-        <div className="mt-2 grid grid-cols-3 gap-4 sm:grid-cols-6">
+        <div className={`mt-3 ${grid}`}>
           {UNFRAMED_DIMS.map(([k, lab]) => (
-            <label key={k} className={label}>
-              {lab}
+            <div key={k} className="flex min-w-0 flex-col gap-1">
+              <label htmlFor={`dim-${k}`} className="label truncate">
+                {lab}
+              </label>
               {input(k)}
-            </label>
+            </div>
           ))}
         </div>
       ) : null}

@@ -1,3 +1,5 @@
+import { Badge } from "@/components/ui/badge";
+
 /*
  * The label is repeated here rather than imported from lib/piece-store so that
  * client components (the inventory table, the edit header) don't pull the
@@ -12,6 +14,9 @@ const NOT_JVB = "Not JvdB";
  * Deliberately silent for JvdB stock: that is the overwhelming majority and the
  * default reading, so badging it would be noise on every row. The badge only
  * appears where the answer is the surprising one.
+ *
+ * Drawn by the shared Badge (a neutral square tag in capitals); props
+ * unchanged.
  */
 export function RegisterBadge({
   ledger,
@@ -22,13 +27,12 @@ export function RegisterBadge({
 }) {
   if (ledger !== "external") return null;
   return (
-    <span
+    <Badge
+      caps
+      size={size === "xs" ? "xs" : "md"}
       title="Held and handled like stock, but not JvdB property. Never enters the stock book."
-      className={`inline-flex shrink-0 items-center rounded-full border border-line bg-pill font-semibold uppercase tracking-[0.05em] text-body ${
-        size === "xs" ? "px-1.5 py-0 text-[9.5px]" : "px-2 py-0.5 text-[10px]"
-      }`}
     >
       {NOT_JVB}
-    </span>
+    </Badge>
   );
 }

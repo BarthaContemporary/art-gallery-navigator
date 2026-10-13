@@ -1,7 +1,16 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { formatDate, gbpExact } from "@/lib/format";
+import { VAT_TREATMENT_LABELS, labelOf } from "@/lib/labels";
+import { ColumnResizer, EmptyRow, SortMark, Table, TableFrame, Td, Tr, type SortState } from "@/components/ui/table";
+import { cx } from "@/components/ui/cx";
+import { Panel } from "@/components/ui/section";
+import { Notice } from "@/components/ui/notice";
+import { buttonClass } from "@/components/ui/button";
+import { ChevronDownIcon, ChevronRightIcon, ExternalIcon } from "@/components/ui/icons";
+import { useResizableColumns } from "@/hooks/use-resizable-columns";
 
 export type StockBookRow = {
   piece_id: string | null;
@@ -31,6 +40,10 @@ export type StockBookRow = {
   jvb_share_gbp: number | null;
   margin_gbp: number | null;
   vat_due_gbp: number | null;
+  seller_name?: string | null;
+  purchase_invoice_document_id?: string | null;
+  /** What still needs doing on this row (the page works it out); empty when nothing. */
+  attention?: string[];
 };
 
 type PreviewDoc = { title: string; url: string };
@@ -52,12 +65,6 @@ const IMPORT_TYPE_LABEL: Record<string, string> = {
   import_vat_paid: "VAT paid",
   import_vat_deferred: "VAT deferred",
   temporary_import: "Temp import",
-};
-const TREATMENT_LABEL: Record<string, string> = {
-  margin_scheme: "Margin",
-  standard: "Standard",
-  zero_rated: "Zero-rated",
-  outside_scope: "Outside scope",
 };
 
 // The accountant reads every figure here, so money stays to the penny
@@ -105,32 +112,45 @@ function totalCost(r: StockBookRow): number | null {
   return r.purchase_cost_gbp;
 }
 
+/**
+ * Zero-rating rests on the work having left the country, so a sold zero-rated
+ * row says whether an export is on record (spec R4: the state in words).
+ */
+function exportOnRecord(r: StockBookRow): boolean | null {
+  if (treatmentOf(r) !== "zero_rated" || !r.sold_date) return null;
+  return Boolean(r.export_date || r.export_reference);
+}
+
 type Col = {
   key: string;
   label: string;
-  cal?: boolean; // show a small calendar glyph before the label
-  align?: "left" | "right";
+  numeric?: boolean;
   width: number;
 };
 
 const MIN_W = 56;
+// Unchanged, so widths people have dragged survive the redesign.
 const STORAGE_KEY = "jvb:stockbook:colwidths:v1";
 
-/** Columns in display order. Treatment only appears on the "all items" view. */
+/**
+ * Columns in display order. Treatment only appears on the "all items" view.
+ * Default widths fit every head and figure, and all twelve columns inside
+ * the 1440 page (cells use 8px sides for that, see the table below).
+ */
 function columns(showTreatment: boolean): Col[] {
   return [
-    { key: "stock_number", label: "S.#", width: 92 },
-    { key: "description", label: "Description", width: 240 },
-    { key: "purchase_date", label: "Purchased", cal: true, width: 108 },
-    { key: "purchase_cost_gbp", label: "Purchase £", align: "right", width: 100 },
-    { key: "import", label: "Import", cal: true, width: 132 },
-    { key: "export", label: "Export", cal: true, width: 132 },
-    { key: "share", label: "Share", width: 128 },
-    { key: "sold_date", label: "Sold", cal: true, width: 108 },
-    { key: "sold_price_gbp", label: "Sale £", align: "right", width: 100 },
-    { key: "margin_gbp", label: "Tax. Margin", align: "right", width: 108 },
-    ...(showTreatment ? [{ key: "vat_treatment", label: "Treatment", width: 104 } as Col] : []),
-    { key: "vat_due_gbp", label: "VAT due £", align: "right", width: 100 },
+    { key: "stock_number", label: "Stock no.", width: 112 },
+    { key: "description", label: "Description", width: 176 },
+    { key: "purchase_date", label: "Purchased", width: 108 },
+    { key: "purchase_cost_gbp", label: "Purchase £", numeric: true, width: 112 },
+    { key: "import", label: "Import", width: 112 },
+    { key: "export", label: "Export", width: 112 },
+    { key: "share", label: "Share", width: 104 },
+    { key: "sold_date", label: "Sold", width: 100 },
+    { key: "sold_price_gbp", label: "Sale £", numeric: true, width: 100 },
+    { key: "margin_gbp", label: "Tax. margin", numeric: true, width: 116 },
+    ...(showTreatment ? [{ key: "vat_treatment", label: "Treatment", width: 112 } as Col] : []),
+    { key: "vat_due_gbp", label: "VAT due £", numeric: true, width: 100 },
   ];
 }
 
@@ -153,22 +173,9 @@ function sortVal(r: StockBookRow, key: string): string | number | null {
   }
 }
 
-function CalIcon() {
-  return (
-    <svg aria-hidden width="11" height="11" viewBox="0 0 16 16" fill="none" className="mr-1 inline-block align-[-1px] text-ink-faint">
-      <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M2.5 6.5h11M5.5 2.5v2M10.5 2.5v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function SortIcon({ state }: { state: "asc" | "desc" | "none" }) {
-  return (
-    <svg aria-hidden width="7" height="11" viewBox="0 0 8 12" fill="none" className={`ml-0.5 inline-block ${state === "none" ? "text-ink-faint" : "text-ink-strong"}`}>
-      <path d="M1.5 4.5 L4 2 L6.5 4.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" opacity={state === "desc" ? 0.3 : 1} />
-      <path d="M1.5 7.5 L4 10 L6.5 7.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" opacity={state === "asc" ? 0.3 : 1} />
-    </svg>
-  );
+/** The editor's Financials section (its id comes from the section rail). */
+function financialsHref(stock: string) {
+  return `/inventory/${encodeURIComponent(stock)}/edit#sec-financials`;
 }
 
 /**
@@ -176,34 +183,47 @@ function SortIcon({ state }: { state: "asc" | "desc" | "none" }) {
  * VAT due and any J.v.d.B. share were reached. Mirrors vw_stock_book_all.
  */
 function CalcSteps({ r }: { r: StockBookRow }) {
-  const steps: { label: string; value: string; note?: string }[] = [];
+  const steps: { label: string; value: ReactNode; note?: string; total?: boolean }[] = [];
   const treatment = treatmentOf(r);
   const thirdParty = r.sale_handled_by_jvb === false;
   const importVat = importVatCost(r);
+  const exported = exportOnRecord(r);
 
-  steps.push({ label: "VAT treatment", value: TREATMENT_LABEL[treatment] ?? treatment });
+  steps.push({ label: "VAT treatment", value: labelOf(VAT_TREATMENT_LABELS, treatment) });
   if (thirdParty)
     steps.push({ label: "Sale handled by", value: "Third party", note: "No output VAT is due from J.v.d.B." });
 
   if (thirdParty) {
-    steps.push({ label: "VAT due", value: gbp(0) });
+    steps.push({ label: "VAT due", value: gbp(0), total: true });
   } else if (treatment === "margin_scheme") {
     steps.push({ label: "Sold price", value: gbp(r.sold_price_gbp) });
     steps.push({ label: "less total cost", value: gbp(totalCost(r)) });
     if (importVat)
       steps.push({ label: "less import VAT paid", value: gbp(importVat), note: "Folded into cost under the margin scheme." });
     steps.push({ label: "= taxable margin", value: gbp(taxableMargin(r)) });
-    steps.push({ label: "VAT due (1/6 of positive margin)", value: gbp(r.vat_due_gbp) });
+    steps.push({ label: "VAT due (1/6 of positive margin)", value: gbp(r.vat_due_gbp), total: true });
   } else if (treatment === "standard") {
     steps.push({ label: "Sold price", value: gbp(r.sold_price_gbp) });
-    steps.push({ label: "VAT due (1/6 of sale)", value: gbp(r.vat_due_gbp) });
+    steps.push({ label: "VAT due (1/6 of sale)", value: gbp(r.vat_due_gbp), total: true });
   } else {
     steps.push({
       label: "VAT due",
       value: gbp(0),
-      note: treatment === "zero_rated" ? "Zero-rated supply — no output VAT." : "Outside the scope of UK VAT — no output VAT.",
+      note: treatment === "zero_rated" ? "Zero-rated supply: no output VAT." : "Outside the scope of UK VAT: no output VAT.",
+      total: true,
     });
   }
+
+  if (exported !== null)
+    steps.push({
+      label: "Export evidence",
+      value: exported ? (
+        <span className="text-ok">Export on record</span>
+      ) : (
+        <span className="text-warn">No export recorded</span>
+      ),
+      note: exported ? undefined : "Zero-rating needs the export on file. Attach the work to its export shipment.",
+    });
 
   if (r.reclaimable_import_vat_gbp)
     steps.push({
@@ -216,232 +236,215 @@ function CalcSteps({ r }: { r: StockBookRow }) {
     steps.push({
       label: `J.v.d.B. receives (${r.consignment_share_pct}% share)`,
       value: gbp(r.jvb_share_gbp),
-      note: "Share of the profit pool, plus any restoration / other costs reimbursed.",
+      note: "Share of the profit pool, plus any restoration and other costs reimbursed.",
     });
   }
 
   return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-[12.5px]">
+    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-[13px] leading-[1.45]">
       {steps.map((s, i) => (
         <div key={i} className="col-span-2 grid grid-cols-subgrid">
-          <dt className="text-ink-muted">
+          <dt className="text-body">
             {s.label}
-            {s.note ? <span className="mt-0.5 block text-[11px] text-ink-soft">{s.note}</span> : null}
+            {s.note ? <span className="mt-0.5 block text-[12px] leading-[1.4] text-meta">{s.note}</span> : null}
           </dt>
-          <dd className="text-right font-mono text-ink-body">{s.value}</dd>
+          <dd className={`tabular text-right ${s.total ? "font-semibold text-ink" : "text-ink"}`}>{s.value}</dd>
         </div>
       ))}
     </dl>
   );
 }
 
-function ExpandedRow({ r, colSpan }: { r: StockBookRow; colSpan: number }) {
-  const [preview, setPreview] = useState<Preview | null>(null);
-  const [loading, setLoading] = useState(false);
+/** One label-and-value line of the movement list. */
+function Line({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-body">{label}</dt>
+      <dd className="tabular text-right text-ink">{children}</dd>
+    </div>
+  );
+}
 
-  if (!preview && !loading && r.piece_id) {
-    setLoading(true);
+function ShipmentLinks({ ship, kind }: { ship: PreviewShipment | null | undefined; kind: "import" | "export" }) {
+  if (!ship) return null;
+  const docs = ship.documents ?? [];
+  if (docs.length > 0) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          openDocs(docs);
+        }}
+        className="link ml-2 inline-flex items-center gap-1 text-[12px]"
+      >
+        {kind === "import" ? "Import" : "Export"} {docs.length > 1 ? `documents (${docs.length})` : "document"}
+        <ExternalIcon size={12} />
+      </button>
+    );
+  }
+  return (
+    <Link href={`/shipments/${ship.id}`} className="link ml-2 text-[12px]">
+      Open {kind} shipment
+    </Link>
+  );
+}
+
+function ExpandedRow({ r, colSpan, id }: { r: StockBookRow; colSpan: number; id: string }) {
+  const [preview, setPreview] = useState<Preview | null>(null);
+
+  // The shipment documents are fetched only when a row is opened.
+  useEffect(() => {
+    if (!r.piece_id) return;
+    let live = true;
     fetch(`/api/stock-book/preview?piece=${r.piece_id}`)
       .then((res) => (res.ok ? res.json() : { import: null, export: null }))
-      .then((data: Preview) => setPreview(data))
-      .catch(() => setPreview({ import: null, export: null }))
-      .finally(() => setLoading(false));
-  }
+      .then((data: Preview) => live && setPreview(data))
+      .catch(() => live && setPreview({ import: null, export: null }));
+    return () => {
+      live = false;
+    };
+  }, [r.piece_id]);
+  const loading = Boolean(r.piece_id) && !preview;
+  const attention = r.attention ?? [];
 
   return (
-    <tr className="border-b border-line-soft bg-band/40 last:border-0">
-      <td colSpan={colSpan} className="px-4 py-4">
+    <tr id={id}>
+      <td colSpan={colSpan} className="border-b border-rule bg-page px-3 pb-5 pt-3">
+        {attention.length > 0 ? (
+          <Notice tone="warn" inline className="mb-3">
+            Needs attention: {attention.join(", ")}.
+          </Notice>
+        ) : null}
         <div className="grid gap-6 md:grid-cols-2">
           <div>
-            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-faint">Movement</h4>
-            <dl className="space-y-2 text-[12.5px]">
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-ink-muted">Imported</dt>
-                <dd className="text-right font-mono text-ink-body">
-                  {d(r.import_date)}
-                  {preview?.import?.documents && preview.import.documents.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDocs(preview.import!.documents!);
-                      }}
-                      className="ml-2 font-sans text-[12px] text-accent-deep hover:underline"
-                    >
-                      view import doc{preview.import.documents.length > 1 ? `s (${preview.import.documents.length})` : ""} →
-                    </button>
-                  ) : preview?.import ? (
-                    <a href={`/shipments/${preview.import.id}`} className="ml-2 font-sans text-[12px] text-accent-deep hover:underline">open import shipment →</a>
-                  ) : null}
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-ink-muted">Exported</dt>
-                <dd className="text-right font-mono text-ink-body">
-                  {d(r.export_date)}
-                  {preview?.export?.destination_country ? (
-                    <span className="ml-2 font-sans text-[12px] text-ink-soft">→ {preview.export.destination_country}</span>
-                  ) : null}
-                  {preview?.export?.documents && preview.export.documents.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDocs(preview.export!.documents!);
-                      }}
-                      className="ml-2 font-sans text-[12px] text-accent-deep hover:underline"
-                    >
-                      view export doc{preview.export.documents.length > 1 ? `s (${preview.export.documents.length})` : ""} →
-                    </button>
-                  ) : preview?.export ? (
-                    <a href={`/shipments/${preview.export.id}`} className="ml-2 font-sans text-[12px] text-accent-deep hover:underline">open export shipment →</a>
-                  ) : null}
-                </dd>
-              </div>
-              {r.temp_export_date ? (
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-ink-muted">Temporary export</dt>
-                  <dd className="text-right font-mono text-ink-body">{d(r.temp_export_date)}</dd>
-                </div>
-              ) : null}
+            <h4 className="label mb-2">Movement</h4>
+            <dl className="space-y-2 text-[13px] leading-[1.45]">
+              <Line label="Imported">
+                {d(r.import_date)}
+                <ShipmentLinks ship={preview?.import} kind="import" />
+              </Line>
+              <Line label="Exported">
+                {d(r.export_date)}
+                {preview?.export?.destination_country ? (
+                  <span className="ml-2 text-[12px] text-body">to {preview.export.destination_country}</span>
+                ) : null}
+                <ShipmentLinks ship={preview?.export} kind="export" />
+              </Line>
+              {r.temp_export_date ? <Line label="Temporary export">{d(r.temp_export_date)}</Line> : null}
               {r.import_type ? (
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-ink-muted">Import type</dt>
-                  <dd className="text-right font-mono text-ink-body">
-                    {IMPORT_TYPE_LABEL[r.import_type] ?? r.import_type}
-                    {r.import_vat_gbp != null ? ` · ${gbp(r.import_vat_gbp)}` : ""}
-                  </dd>
-                </div>
+                <Line label="Import type">
+                  {IMPORT_TYPE_LABEL[r.import_type] ?? r.import_type}
+                  {r.import_vat_gbp != null ? ` · ${gbp(r.import_vat_gbp)}` : ""}
+                </Line>
               ) : null}
-              {loading ? <p className="text-[11px] text-ink-soft">Loading documents…</p> : null}
+              {loading ? <p className="text-[12px] text-meta">Loading documents…</p> : null}
             </dl>
             {r.consignment_share_pct != null
               ? (() => {
                   const extraCosts = Math.max(0, (r.total_cost_gbp ?? r.purchase_cost_gbp ?? 0) - (r.purchase_cost_gbp ?? 0));
                   const costIncurred = extraCosts + importVatCost(r);
                   return (
-                    <dl className="mt-3 space-y-1.5 rounded-lg border border-line-soft bg-cell px-3 py-2 text-[12px]">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <dt className="text-ink-muted">J.v.d.B. share</dt>
-                        <dd className="font-mono text-ink-body">{r.consignment_share_pct}%</dd>
-                      </div>
-                      <div className="flex items-baseline justify-between gap-3">
-                        <dt className="text-ink-muted">Cost incurred</dt>
-                        <dd className="font-mono text-ink-body">{gbp(costIncurred)}</dd>
-                      </div>
-                      <div className="flex items-baseline justify-between gap-3">
-                        <dt className="text-ink-muted">Sale handled by</dt>
-                        <dd className="font-mono text-ink-body">{r.sale_handled_by_jvb === false ? "Consignee" : "J.v.d.B."}</dd>
-                      </div>
-                    </dl>
+                    <Panel className="mt-3">
+                      <dl className="space-y-1.5 text-[13px] leading-[1.45]">
+                        <Line label="J.v.d.B. share">{r.consignment_share_pct}%</Line>
+                        <Line label="Cost incurred">{gbp(costIncurred)}</Line>
+                        <Line label="Sale handled by">{r.sale_handled_by_jvb === false ? "Consignee" : "J.v.d.B."}</Line>
+                      </dl>
+                    </Panel>
                   );
                 })()
               : null}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href={financialsHref(r.stock_number)} className={buttonClass({ size: "sm" })}>
+                Edit financials
+              </Link>
+              <Link href={`/inventory/${encodeURIComponent(r.stock_number)}`} className={buttonClass({ variant: "quiet", size: "sm" })}>
+                Open record
+              </Link>
+            </div>
           </div>
 
-          <div>
-            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-faint">VAT working</h4>
+          <Panel title="VAT working">
             <CalcSteps r={r} />
-          </div>
+          </Panel>
         </div>
       </td>
     </tr>
   );
 }
 
+const ARIA_SORT = { asc: "ascending", desc: "descending", none: "none" } as const;
+
+/**
+ * Th's look, composed here: the resize handle has to sit beside the sort
+ * button, and Th puts every child inside that button (as the inventory table
+ * found too). 8px sides, like the cells below.
+ */
+function SortableHead({
+  label,
+  numeric,
+  state,
+  onSort,
+  resizer,
+}: {
+  label: string;
+  numeric?: boolean;
+  state: SortState;
+  onSort: () => void;
+  resizer: ReactNode;
+}) {
+  return (
+    <th
+      scope="col"
+      aria-sort={ARIA_SORT[state]}
+      className={cx(
+        "relative select-none whitespace-nowrap border-b border-rule-strong bg-page px-2 py-2 align-bottom text-[11.5px] font-semibold uppercase leading-[1.3] tracking-[0.06em] text-meta",
+        numeric ? "text-right" : "text-left",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onSort}
+        className={cx("inline-flex items-center gap-1 uppercase tracking-[inherit] hover:text-ink", state !== "none" && "text-ink")}
+      >
+        {/* On a numeric column the mark goes first, keeping the words flush
+            with the figures below. */}
+        {numeric ? <SortMark state={state} /> : null}
+        <span className="self-baseline">{label}</span>
+        {numeric ? null : <SortMark state={state} />}
+      </button>
+      {resizer}
+    </th>
+  );
+}
+
 export function StockBookTable({
   rows,
   showTreatment,
+  showReasons = false,
+  emptyText = "No records.",
+  emptyAction,
 }: {
   rows: StockBookRow[];
   showTreatment: boolean;
+  /** List each row's attention reasons under its description (the Needs attention view). */
+  showReasons?: boolean;
+  /** The sentence the empty table shows, and one way out of it. */
+  emptyText?: string;
+  emptyAction?: ReactNode;
 }) {
   const cols = useMemo(() => columns(showTreatment), [showTreatment]);
-  const defaults = useMemo(() => Object.fromEntries(cols.map((c) => [c.key, c.width])), [cols]);
+  // Column widths: drag, ←/→ on a focused handle, double-click to reset;
+  // remembered under STORAGE_KEY (hooks/use-resizable-columns).
+  const resize = useResizableColumns(cols, { storageKey: STORAGE_KEY, minWidth: MIN_W });
 
   const [open, setOpen] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
-  const [widths, setWidths] = useState<Record<string, number>>(defaults);
-
-  const colRefs = useRef<Record<string, HTMLTableColElement | null>>({});
-  const tableRef = useRef<HTMLTableElement | null>(null);
-  const drag = useRef<{ key: string; startX: number; startW: number } | null>(null);
-
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-      if (saved && typeof saved === "object") setWidths((w) => ({ ...w, ...saved }));
-    } catch {
-      /* ignore malformed storage */
-    }
-  }, []);
-
-  const widthOf = (key: string) => widths[key] ?? defaults[key] ?? 100;
-  const totalWidth = () => cols.reduce((s, c) => s + widthOf(c.key), 0);
 
   function onHeaderClick(key: string) {
     setSort((s) => (s?.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
   }
-
-  function onResizeMove(e: PointerEvent) {
-    const dd = drag.current;
-    if (!dd) return;
-    const next = Math.max(MIN_W, dd.startW + (e.clientX - dd.startX));
-    const col = colRefs.current[dd.key];
-    if (col) col.style.width = `${next}px`;
-    if (tableRef.current) {
-      const others = cols.reduce((s, c) => s + (c.key === dd.key ? 0 : widthOf(c.key)), 0);
-      tableRef.current.style.width = `${others + next}px`;
-    }
-  }
-  function onResizeEnd(e: PointerEvent) {
-    const dd = drag.current;
-    window.removeEventListener("pointermove", onResizeMove);
-    window.removeEventListener("pointerup", onResizeEnd);
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    drag.current = null;
-    if (!dd) return;
-    const next = Math.max(MIN_W, dd.startW + (e.clientX - dd.startX));
-    setWidths((w) => {
-      const updated = { ...w, [dd.key]: next };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        /* ignore */
-      }
-      return updated;
-    });
-  }
-  function onResizeStart(e: React.PointerEvent, key: string) {
-    e.preventDefault();
-    e.stopPropagation();
-    drag.current = { key, startX: e.clientX, startW: widthOf(key) };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("pointermove", onResizeMove);
-    window.addEventListener("pointerup", onResizeEnd);
-  }
-  function resetColumn(key: string) {
-    setWidths((w) => {
-      const updated = { ...w, [key]: defaults[key] ?? 100 };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        /* ignore */
-      }
-      return updated;
-    });
-  }
-  function resetAll() {
-    setWidths(defaults);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
-  }
-  const isCustomised = cols.some((c) => widthOf(c.key) !== c.width);
 
   const sorted = useMemo(() => {
     if (!sort) return rows;
@@ -475,68 +478,98 @@ export function StockBookTable({
     [rows],
   );
 
-  // Every cell's first line shares the same fixed line-height so the row's
-  // content aligns along the top despite the mixed font sizes.
-  const line = "leading-[18px]";
+  // A second line under a cell's value: references, import type, share split.
+  const sub = "block truncate text-[12px] leading-[1.4] text-body";
 
-  function cell(key: string, r: StockBookRow) {
+  function cell(key: string, r: StockBookRow, isOpen: boolean, detailId: string) {
     switch (key) {
       case "stock_number":
         return (
-          <span className={`block truncate font-mono text-[12px] ${line} text-ink`}>
-            <span className="mr-1 inline-block w-2 text-accent-deep">{open === r.stock_number ? "▾" : "▸"}</span>
-            {r.stock_number}
+          <span className="flex min-w-0 items-center gap-1">
+            <button
+              type="button"
+              aria-expanded={isOpen}
+              aria-controls={isOpen ? detailId : undefined}
+              aria-label={`${isOpen ? "Hide" : "Show"} the VAT working for ${r.stock_number}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(isOpen ? null : r.stock_number);
+              }}
+              className="-ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center text-meta hover:text-ink"
+            >
+              {isOpen ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
+            </button>
+            <Link
+              href={financialsHref(r.stock_number)}
+              onClick={(e) => e.stopPropagation()}
+              title="Edit this work’s financials"
+              className="link-plain tabular truncate font-medium text-ink"
+            >
+              {r.stock_number}
+            </Link>
           </span>
         );
       case "description":
-        return <span className={`block truncate text-[13px] ${line} text-ink-body`}>{r.description ?? "—"}</span>;
+        return (
+          <>
+            <span className="block truncate text-body" title={r.description ?? undefined}>
+              {r.description ?? "—"}
+            </span>
+            {showReasons && (r.attention ?? []).length > 0 ? (
+              <span className="block text-[12px] leading-[1.4] text-warn">{(r.attention ?? []).join(", ")}</span>
+            ) : null}
+          </>
+        );
       case "purchase_date":
-        return <span className={`block font-mono text-[12px] ${line} text-ink-muted`}>{d(r.purchase_date)}</span>;
+        return <span className="tabular text-body">{d(r.purchase_date)}</span>;
       case "purchase_cost_gbp":
-        return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-body`}>{gbp(r.purchase_cost_gbp)}</span>;
+        return <span className="text-body">{gbp(r.purchase_cost_gbp)}</span>;
       case "import":
         return (
-          <span className={`block font-mono text-[11.5px] ${line} text-ink-muted`}>
-            {d(r.import_date)}
-            {r.import_reference ? <span className="block truncate text-ink-soft">{r.import_reference}</span> : null}
+          <span className="block min-w-0">
+            <span className="tabular block text-body">{d(r.import_date)}</span>
+            {r.import_reference ? <span className={sub} title={r.import_reference}>{r.import_reference}</span> : null}
             {r.import_type ? (
-              <span className="block text-accent-deep">
+              <span className={`${sub} tabular`}>
                 {IMPORT_TYPE_LABEL[r.import_type] ?? r.import_type}
                 {r.import_vat_gbp != null ? ` ${gbp(r.import_vat_gbp)}` : ""}
-                {r.reclaimable_import_vat_gbp ? " · reclaim" : ""}
               </span>
             ) : null}
+            {r.reclaimable_import_vat_gbp ? <span className="block text-[12px] leading-[1.4] text-ok">Reclaimable</span> : null}
           </span>
         );
-      case "export":
+      case "export": {
+        const exported = exportOnRecord(r);
         return (
-          <span className={`block font-mono text-[11.5px] ${line} text-ink-muted`}>
-            {d(r.export_date)}
-            {r.export_reference ? <span className="block truncate text-ink-soft">{r.export_reference}</span> : null}
-            {r.export_destination ? <span className="block truncate text-ink-body">→ {r.export_destination}</span> : null}
+          <span className="block min-w-0">
+            <span className="tabular block text-body">{d(r.export_date)}</span>
+            {r.export_reference ? <span className={sub} title={r.export_reference}>{r.export_reference}</span> : null}
+            {r.export_destination ? <span className={sub}>to {r.export_destination}</span> : null}
+            {exported === false ? <span className="block text-[12px] leading-[1.4] text-warn">No export recorded</span> : null}
           </span>
         );
+      }
       case "share":
         return r.consignment_share_pct != null ? (
-          <span className={`block font-mono text-[11.5px] ${line} text-ink-muted`}>
-            <span className="block text-ink-body">{r.consignment_share_pct}%</span>
-            <span className="block text-ink-soft">
-              {r.sale_handled_by_jvb === false ? "3rd-party" : "JvB"} · {gbp(r.jvb_share_gbp)}
+          <span className="block min-w-0">
+            <span className="tabular block text-body">{r.consignment_share_pct}%</span>
+            <span className={`${sub} tabular`} title="Who handled the sale, and J.v.d.B.’s share">
+              {r.sale_handled_by_jvb === false ? "Third party" : "JvdB"} · {gbp(r.jvb_share_gbp)}
             </span>
           </span>
         ) : (
-          <span className={`block ${line} text-ink-soft`}>—</span>
+          <span className="text-body">—</span>
         );
       case "sold_date":
-        return <span className={`block font-mono text-[12px] ${line} text-ink-muted`}>{d(r.sold_date)}</span>;
+        return <span className="tabular text-body">{d(r.sold_date)}</span>;
       case "sold_price_gbp":
-        return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-body`}>{gbp(r.sold_price_gbp)}</span>;
+        return <span className="text-body">{gbp(r.sold_price_gbp)}</span>;
       case "margin_gbp":
-        return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-body`}>{gbp(taxableMargin(r))}</span>;
+        return <span className="text-body">{gbp(taxableMargin(r))}</span>;
       case "vat_treatment":
-        return <span className={`block text-[11.5px] ${line} text-ink-muted`}>{TREATMENT_LABEL[r.vat_treatment ?? ""] ?? r.vat_treatment ?? "—"}</span>;
+        return <span className="block truncate text-body">{r.vat_treatment ? labelOf(VAT_TREATMENT_LABELS, r.vat_treatment) : "—"}</span>;
       case "vat_due_gbp":
-        return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-strong`}>{gbp(r.vat_due_gbp)}</span>;
+        return <span className="font-medium text-ink">{gbp(r.vat_due_gbp)}</span>;
       default:
         return null;
     }
@@ -547,17 +580,17 @@ export function StockBookTable({
       case "description":
         return `Totals · ${rows.length} items`;
       case "purchase_cost_gbp":
-        return <span className="block text-right">{gbp(totals.purchase)}</span>;
+        return gbp(totals.purchase);
       case "sold_price_gbp":
-        return <span className="block text-right">{gbp(totals.sold)}</span>;
+        return gbp(totals.sold);
       case "margin_gbp":
-        return <span className="block text-right">{gbp(totals.margin)}</span>;
+        return gbp(totals.margin);
       case "vat_due_gbp":
-        return <span className="block text-right">{gbp(totals.vat)}</span>;
+        return gbp(totals.vat);
       case "import":
-        return totals.reclaim > 0 ? <span className="font-mono text-[11px] text-accent-deep">reclaim {gbp(totals.reclaim)}</span> : null;
+        return totals.reclaim > 0 ? <span className="text-[12px] font-normal">Reclaim {gbp(totals.reclaim)}</span> : null;
       case "share":
-        return totals.jvbShare > 0 ? <span className="font-mono text-[11px] text-ink-soft">{gbp(totals.jvbShare)}</span> : null;
+        return totals.jvbShare > 0 ? <span className="text-[12px] font-normal">{gbp(totals.jvbShare)}</span> : null;
       default:
         return null;
     }
@@ -565,102 +598,84 @@ export function StockBookTable({
 
   return (
     <div>
-      {isCustomised ? (
+      {resize.isCustomised ? (
         <div className="mb-1.5 flex justify-end">
-          <button type="button" onClick={resetAll} className="text-[11.5px] text-ink-soft underline hover:text-ink-strong">
+          <button type="button" onClick={resize.resetAll} className={buttonClass({ variant: "quiet", size: "sm" })}>
             Reset column widths
           </button>
         </div>
       ) : null}
 
-      {/* data-inset-focus: the frame scrolls sideways and would clip an outer
-          focus ring, so cells draw it inside (globals.css). */}
-      <div data-inset-focus className="overflow-x-auto border border-line">
-        <table ref={tableRef} style={{ width: totalWidth(), tableLayout: "fixed" }} className="min-w-full border-collapse bg-cell text-left">
+      {/* Twelve columns on 8px cell sides rather than 12, so the whole book,
+          VAT due included, fits the 1440 page without scrolling sideways.
+          The descendant selectors outrank the cells' own padding; top
+          alignment keeps the first lines level beside two-line cells. */}
+      <TableFrame bordered>
+        <Table
+          ref={resize.tableRef}
+          style={{ width: resize.totalWidth(), tableLayout: "fixed" }}
+          className="min-w-full [&_td]:px-2 [&_td]:align-top"
+        >
           <colgroup>
             {cols.map((c) => (
-              <col
-                key={c.key}
-                ref={(el) => {
-                  colRefs.current[c.key] = el;
-                }}
-                style={{ width: widthOf(c.key) }}
-              />
+              <col key={c.key} ref={resize.colRef(c.key)} style={{ width: resize.widthOf(c.key) }} />
             ))}
           </colgroup>
           <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              {cols.map((c) => {
-                const isActive = sort?.key === c.key;
-                return (
-                  <th key={c.key} className={`relative select-none px-3 py-2.5 font-medium ${c.align === "right" ? "text-right" : "text-left"}`}>
-                    <button
-                      type="button"
-                      onClick={() => onHeaderClick(c.key)}
-                      title="Click to sort · click again to reverse"
-                      className={`inline-flex items-center gap-0.5 select-none hover:text-ink-mid ${isActive ? "text-ink-strong" : ""}`}
-                    >
-                      {c.cal ? <CalIcon /> : null}
-                      {c.label}
-                      <SortIcon state={isActive ? sort!.dir : "none"} />
-                    </button>
-                    <span
-                      onPointerDown={(e) => onResizeStart(e, c.key)}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        resetColumn(c.key);
-                      }}
-                      role="separator"
-                      aria-orientation="vertical"
-                      aria-label={`Resize ${c.label} column`}
-                      title="Drag to resize · double-click to reset"
-                      className="group absolute inset-y-0 right-0 z-20 w-4 cursor-col-resize touch-none"
-                    >
-                      <span className="pointer-events-none absolute inset-y-[5px] right-0 w-[2px] rounded bg-line-control transition-colors group-hover:bg-oranje" />
-                    </span>
-                  </th>
-                );
-              })}
+            <tr>
+              {cols.map((c) => (
+                <SortableHead
+                  key={c.key}
+                  label={c.label}
+                  numeric={c.numeric}
+                  state={sort?.key === c.key ? sort.dir : "none"}
+                  onSort={() => onHeaderClick(c.key)}
+                  resizer={<ColumnResizer {...resize.handleProps(c.key, c.label)} />}
+                />
+              ))}
             </tr>
           </thead>
           <tbody>
             {sorted.map((r) => {
               const isOpen = open === r.stock_number;
+              const detailId = `sb-detail-${r.stock_number}`;
               return (
                 <Fragment key={r.stock_number}>
-                  <tr
+                  <Tr
+                    current={isOpen}
                     onClick={() => setOpen(isOpen ? null : r.stock_number)}
-                    className={`cursor-pointer border-b border-line-soft hover:bg-band/60 ${isOpen ? "bg-band/60" : ""}`}
+                    className="cursor-pointer"
                   >
                     {cols.map((c) => (
-                      <td key={c.key} className="overflow-hidden px-3 py-2 align-top">
-                        {cell(c.key, r)}
-                      </td>
+                      <Td key={c.key} numeric={c.numeric} className="overflow-hidden">
+                        {cell(c.key, r, isOpen, detailId)}
+                      </Td>
                     ))}
-                  </tr>
-                  {isOpen ? <ExpandedRow r={r} colSpan={cols.length} /> : null}
+                  </Tr>
+                  {isOpen ? <ExpandedRow r={r} colSpan={cols.length} id={detailId} /> : null}
                 </Fragment>
               );
             })}
             {sorted.length === 0 ? (
-              <tr>
-                <td colSpan={cols.length} className="px-4 py-8 text-center text-[13px] text-ink-muted">
-                  No records.
-                </td>
-              </tr>
+              <EmptyRow colSpan={cols.length} action={emptyAction}>
+                {emptyText}
+              </EmptyRow>
             ) : null}
           </tbody>
           <tfoot>
-            <tr className="border-t border-line bg-band text-[12.5px] font-semibold text-ink-strong">
+            <tr className="bg-band font-semibold text-ink">
               {cols.map((c) => (
-                <td key={c.key} className="px-3 py-2.5 font-mono">
+                <td
+                  key={c.key}
+                  className={cx("overflow-hidden border-t border-rule-strong py-2.5", c.numeric && "tabular whitespace-nowrap text-right")}
+                >
                   {footCell(c.key)}
                 </td>
               ))}
             </tr>
           </tfoot>
-        </table>
-      </div>
+        </Table>
+      </TableFrame>
     </div>
   );
 }

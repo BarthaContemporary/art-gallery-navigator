@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 /**
  * Move a record between the JvdB register and the non-JvdB one.
  *
  * This is the one action in the app that retires a stock number, so it does not
  * sit in the autosaving edit form where a mis-click would fire it silently. It
- * asks first, and the question names the exact consequence — which number is
- * retired and roughly what replaces it — rather than a generic "are you sure".
+ * asks first, and the question names the exact consequence (which number is
+ * retired and roughly what replaces it) rather than a generic "are you sure".
  */
 export function RegisterMove({
   action,
@@ -20,38 +21,35 @@ export function RegisterMove({
   stockNumber: string;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const noteId = useId();
   const toExternal = ledger === "jvb";
   const target = toExternal ? "external" : "jvb";
 
   if (!confirming) {
     return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className="text-[11.5px] font-medium text-ink-soft underline decoration-line underline-offset-2 hover:text-ink-strong"
-      >
+      <Button variant="quiet" size="sm" onClick={() => setConfirming(true)} className="-ml-1.5">
         {toExternal ? "Move to Not JvdB" : "Move to JvdB stock"}
-      </button>
+      </Button>
     );
   }
 
   return (
-    <form action={action} className="mt-2 max-w-[420px] border border-line bg-band p-3">
+    <form action={action} className="panel mt-2 max-w-[440px]">
       <input type="hidden" name="to" value={target} />
-      <p className="text-[12.5px] leading-snug text-ink-body">
+      <p className="text-[13px] leading-[1.45] text-body">
         {toExternal ? (
           <>
-            Move <span className="font-mono">{stockNumber}</span> into the Not-JvdB register. The
+            Move <span className="tabular">{stockNumber}</span> into the Not-JvdB register. The
             record keeps its images, documents, lists and history, but it is issued a new{" "}
-            <span className="font-mono">X-</span> number and{" "}
-            <span className="font-mono">{stockNumber}</span> is set aside. It will no longer appear
+            <span className="tabular">X-</span> number and{" "}
+            <span className="tabular">{stockNumber}</span> is set aside. It will no longer appear
             in the stock book.
           </>
         ) : (
           <>
-            Move <span className="font-mono">{stockNumber}</span> into JvdB stock. The record keeps
+            Move <span className="tabular">{stockNumber}</span> into JvdB stock. The record keeps
             everything it has, is issued a regular stock number, and{" "}
-            <span className="font-mono">{stockNumber}</span> is set aside. It will start appearing
+            <span className="tabular">{stockNumber}</span> is set aside. It will start appearing
             in the stock book.
           </>
         )}
@@ -60,29 +58,28 @@ export function RegisterMove({
         Worth saying at the point of decision: the number is set aside rather
         than burnt, so this is recoverable if it turns out to be the wrong call.
       */}
-      <p className="mt-1.5 text-[11.5px] leading-snug text-body">
-        Reversible — moving it back returns the record to{" "}
-        <span className="font-mono">{stockNumber}</span>.
+      <p className="mt-1.5 text-[12px] leading-[1.4] text-meta">
+        Reversible: moving it back returns the record to{" "}
+        <span className="tabular">{stockNumber}</span>.
       </p>
-      <input
-        name="note"
-        placeholder="Why (optional) — e.g. bought in from the owner"
-        className="mt-2.5 block w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13px] text-ink-body"
-      />
-      <div className="mt-2.5 flex items-center gap-3">
-        <button
-          type="submit"
-          className="min-h-[36px] rounded-lg border border-oranje bg-oranje/10 px-3 text-[12px] font-semibold text-accent-deep"
-        >
+      <div className="mt-3 flex flex-col gap-1">
+        <label htmlFor={noteId} className="label">
+          Why (optional)
+        </label>
+        <input
+          id={noteId}
+          name="note"
+          placeholder="For example, bought in from the owner"
+          className="field"
+        />
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <Button type="submit" variant="primary" size="sm" pendingLabel="Moving…">
           Move it
-        </button>
-        <button
-          type="button"
-          onClick={() => setConfirming(false)}
-          className="text-[12px] font-medium text-ink-mid hover:text-ink-strong"
-        >
+        </Button>
+        <Button variant="quiet" size="sm" onClick={() => setConfirming(false)}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );

@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Select } from "@/components/ui/field";
+import { Section } from "@/components/ui/section";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatCount } from "@/lib/format";
 
 type Slice = { label: string; count: number };
 
@@ -11,23 +15,24 @@ const FILTERS: [string, string][] = [
   ["press", "Press"],
 ];
 
-// Validated categorical palette (colorblind-safe adjacent pairs in this fixed
-// order — checked with the dataviz validator). The last slot is a neutral grey
-// reserved for the rolled-up "Other" bucket, which is never a real category.
+// The categorical ramp from the tokens (--jvb-cat-*): muted, evenly spaced
+// hues with a lighter step in the dark theme, so the pie follows the theme.
+// The last slot is a neutral grey reserved for the rolled-up "Other" bucket,
+// which is never a real category.
 const COLORS = [
-  "#2a78d6", // blue
-  "#008300", // green
-  "#e87ba4", // magenta
-  "#eda100", // yellow
-  "#1baf7a", // aqua
-  "#eb6834", // orange
-  "#4a3aa7", // violet
-  "#e34948", // red
-  "#9b9a92", // neutral — "Other"
+  "var(--jvb-cat-3)",
+  "var(--jvb-cat-2)",
+  "var(--jvb-cat-5)",
+  "var(--jvb-cat-4)",
+  "var(--jvb-cat-6)",
+  "var(--jvb-cat-1)",
+  "var(--jvb-cat-9)",
+  "var(--jvb-cat-7)",
+  "var(--jvb-light)", // neutral: "Other"
 ];
-// Gap colour between wedges — must track the card it sits on, so it follows
-// the theme (it was hardcoded light, which drew near-white gaps in dark mode).
-const SURFACE = "var(--jvb-bg-cell)";
+// Gap colour between wedges: the ground the chart sits on, so it follows the
+// theme (a hardcoded light gap drew near-white seams in dark mode).
+const SURFACE = "var(--jvb-page)";
 
 // Separator weight. Deliberately hairline: the stroke is centred on the wedge
 // outline, so it eats HALF ITS WIDTH from each neighbour. At the old 2px a
@@ -115,38 +120,38 @@ export function NationalityPie() {
   }, [slices, total]);
 
   return (
-    <section className="border border-line bg-cell p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Contacts by nationality</h2>
-        <select
+    <Section
+      title="Contacts by nationality"
+      actions={
+        <Select
+          fieldSize="sm"
           value={type}
           onChange={(e) => setType(e.target.value)}
-          className="rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12px] text-ink-mid"
           aria-label="Filter by contact type"
+          className="w-auto"
         >
           {FILTERS.map(([v, l]) => (
             <option key={v} value={v}>
               {l}
             </option>
           ))}
-        </select>
-      </div>
-
+        </Select>
+      }
+    >
       {loading ? (
-        <div className="mt-4 flex flex-wrap items-center gap-6" aria-label="Loading">
-          <span className="jvb-shimmer block h-[160px] w-[160px] rounded-full" />
-          <ul className="min-w-[160px] flex-1 space-y-2">
+        <div role="status" className="flex flex-wrap items-center gap-6">
+          <span className="sr-only">Loading</span>
+          <Skeleton width={160} height={160} className="rounded-full" />
+          <div className="min-w-[160px] flex-1 space-y-2">
             {[0, 1, 2, 3].map((i) => (
-              <li key={i} className="jvb-shimmer h-[13px] rounded" style={{ width: `${88 - i * 12}%` }} />
+              <Skeleton key={i} height={13} width={`${88 - i * 12}%`} />
             ))}
-          </ul>
+          </div>
         </div>
       ) : total === 0 ? (
-        <p className="mt-6 text-[12.5px] text-ink-soft">
-          No contacts with a recorded country for this filter.
-        </p>
+        <p className="py-6 text-[13px] text-body">No contacts with a recorded country for this filter.</p>
       ) : (
-        <div className="mt-4 flex flex-wrap items-center gap-6">
+        <div className="flex flex-wrap items-center gap-6">
           {/* The mask on this wrapper is what sweeps — one clock-wipe over the
               whole chart, so the pie draws itself in data order. */}
           <div className="jvb-sweep h-[160px] w-[160px] shrink-0">
@@ -197,8 +202,8 @@ export function NationalityPie() {
                 // Each row rises in at the moment the sweep reaches its wedge,
                 // so chart and legend read as one motion rather than two.
                 style={{ "--jvb-stagger": `${w.appearsAt}ms` } as React.CSSProperties}
-                className={`jvb-rise flex items-center gap-2 rounded-md px-1 py-0.5 text-[12.5px] transition-colors ${
-                  active === w.i ? "bg-control" : ""
+                className={`jvb-rise flex items-center gap-2 px-1 py-0.5 text-[13px] transition-colors ${
+                  active === w.i ? "bg-band" : ""
                 }`}
                 onPointerEnter={(e) => {
                   if (e.pointerType === "mouse") setActive(w.i);
@@ -209,15 +214,16 @@ export function NationalityPie() {
                   className="inline-block h-[10px] w-[10px] shrink-0"
                   style={{ background: w.color }}
                 />
-                <span className="min-w-0 flex-1 truncate text-ink-body">{w.label}</span>
-                <span className="font-mono text-[11.5px] text-ink-muted">
-                  {w.count} · {Math.round((w.count / total) * 100)}%
+                <span className="min-w-0 flex-1 truncate text-ink">{w.label}</span>
+                {/* body, not meta: the row turns band while its wedge is lit */}
+                <span className="tabular text-[12px] text-body">
+                  {formatCount(w.count)} · {Math.round((w.count / total) * 100)}%
                 </span>
               </li>
             ))}
           </ul>
         </div>
       )}
-    </section>
+    </Section>
   );
 }

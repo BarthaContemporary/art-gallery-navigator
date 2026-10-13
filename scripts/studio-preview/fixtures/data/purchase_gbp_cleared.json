@@ -1,0 +1,16 @@
+[
+ {
+  "piece_id": "b1ec0000-0050-4000-8000-b1ec00000000",
+  "cleared_value": 12050,
+  "purchase_cost": 12050,
+  "currency": "JPY",
+  "cleared_at": "2026-05-06T10:00:00.000Z"
+ },
+ {
+  "piece_id": "b1ec0000-0051-4000-8000-b1ec00000000",
+  "cleared_value": 8250,
+  "purchase_cost": 8250,
+  "currency": "JPY",
+  "cleared_at": "2026-05-06T10:00:00.000Z"
+ }
+]

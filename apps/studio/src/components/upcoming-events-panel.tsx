@@ -8,6 +8,10 @@ import {
   zonedToUtc,
 } from "@/lib/caldav";
 import { formatDate } from "@/lib/format";
+import { Badge } from "@/components/ui/badge";
+import { Notice } from "@/components/ui/notice";
+import { Section } from "@/components/ui/section";
+import { ArrowRightIcon } from "@/components/ui/icons";
 
 const WINDOW_DAYS = 10;
 
@@ -130,73 +134,63 @@ export async function UpcomingEventsPanel() {
   }
 
   return (
-    <div className="border border-line bg-cell p-4">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Next 10 days</h2>
-        <Link
-          href="/appointments"
-          className="text-[12px] font-medium text-ink-muted hover:text-ink-strong"
-        >
-          Open calendar →
+    <Section
+      title={`Next ${WINDOW_DAYS} days`}
+      actions={
+        <Link href="/appointments" className="link inline-flex items-center gap-1 text-[13px]">
+          Open calendar
+          <ArrowRightIcon size={14} />
         </Link>
-      </div>
-
+      }
+    >
       {feed.status === "error" ? (
-        <p className="mt-2 text-[12px] text-ink-muted">
-          Could not load the shared calendar ({feed.message}) — showing appointments only.
-        </p>
+        <Notice tone="warn" inline className="mb-3">
+          Could not load the shared calendar ({feed.message}). Showing appointments only.
+        </Notice>
       ) : null}
       {rows.length === 0 ? (
-        <p className="mt-3 text-[12.5px] text-ink-muted">
+        <p className="py-2 text-[13px] text-body">
           {feed.status === "unconfigured"
             ? "Shared calendar not connected and no appointments scheduled."
             : `Nothing scheduled in the next ${WINDOW_DAYS} days.`}
         </p>
       ) : (
-        <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...byDay.entries()].map(([day, items]) => (
             <div key={day}>
-              <h3 className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                {dayHeading(day, today)}
-              </h3>
-              <ul className="mt-1 space-y-1">
+              <h3 className="label">{dayHeading(day, today)}</h3>
+              <ul className="mt-1.5 space-y-1.5">
                 {items.map((row) => (
-                  <li key={row.key} className="flex items-start gap-1.5 text-[12.5px] leading-snug">
+                  <li key={row.key} className="flex items-start gap-2 text-[13px] leading-[1.45]">
                     {row.kind === "event" ? (
                       <span
                         aria-hidden
-                        className="mt-[5px] inline-block h-[6px] w-[6px] shrink-0 rounded-full"
-                        style={{ backgroundColor: row.color ?? "var(--jvb-ink-label, currentColor)" }}
+                        className="mt-[6px] inline-block h-[6px] w-[6px] shrink-0 rounded-full"
+                        style={{ backgroundColor: row.color ?? "var(--jvb-meta)" }}
                       />
                     ) : (
                       <span
                         aria-hidden
-                        className="mt-[5px] inline-block h-[6px] w-[6px] shrink-0 border border-line bg-cell"
+                        className="mt-[6px] inline-block h-[6px] w-[6px] shrink-0 border border-meta"
                         title="Appointment"
                       />
                     )}
-                    <span className="min-w-0 text-ink-body">
-                      {row.time ? (
-                        <span className="font-mono text-[11px] tabular-nums text-ink-muted">
-                          {row.time}{" "}
-                        </span>
-                      ) : null}
+                    <span className="min-w-0 text-body">
+                      {row.time ? <span className="tabular text-[12px] text-meta">{row.time} </span> : null}
                       {row.href ? (
-                        <Link href={row.href} className="font-medium hover:underline">
+                        <Link href={row.href} className="link-plain font-medium text-ink">
                           {row.label}
                         </Link>
                       ) : (
-                        <span className="font-medium">{row.label}</span>
+                        <span className="font-medium text-ink">{row.label}</span>
                       )}
                       {/* A word, not colour alone: warn text on its own wash. */}
                       {row.toConfirm ? (
-                        <span className="ml-1.5 whitespace-nowrap bg-warn-wash px-1 py-px text-micro font-medium text-warn">
+                        <Badge tone="warn" size="xs" className="ml-1.5">
                           to confirm
-                        </span>
+                        </Badge>
                       ) : null}
-                      {row.detail ? (
-                        <span className="text-[11.5px] text-ink-muted"> · {row.detail}</span>
-                      ) : null}
+                      {row.detail ? <span className="text-[12px] text-meta"> · {row.detail}</span> : null}
                     </span>
                   </li>
                 ))}
@@ -205,6 +199,6 @@ export async function UpcomingEventsPanel() {
           ))}
         </div>
       )}
-    </div>
+    </Section>
   );
 }

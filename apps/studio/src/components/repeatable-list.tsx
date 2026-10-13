@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-
-const field =
-  "w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink";
+import { Button } from "@/components/ui/button";
+import { CloseIcon, PlusIcon } from "@/components/ui/icons";
 
 /**
  * A small editable list of free-text lines that serialises to a single hidden
@@ -15,12 +14,15 @@ export function RepeatableList({
   initial,
   placeholder,
   addLabel = "Add",
+  itemLabel = "Line",
   onChange,
 }: {
   name: string;
   initial: string[];
   placeholder?: string;
   addLabel?: string;
+  /** Names each line for assistive technology: "Publication 2". */
+  itemLabel?: string;
   onChange?: () => void;
 }) {
   const [rows, setRows] = useState<string[]>(initial.length ? initial : []);
@@ -60,30 +62,22 @@ export function RepeatableList({
               <input
                 value={row}
                 placeholder={placeholder}
+                aria-label={`${itemLabel} ${i + 1}`}
                 onChange={(e) => update(i, e.target.value)}
-                className={field}
+                className="field"
               />
-              <button
-                type="button"
-                onClick={() => remove(i)}
-                aria-label="Remove"
-                className="shrink-0 rounded-lg border border-line-control px-2.5 py-2 text-[13px] text-ink-soft hover:text-accent-deep"
-              >
-                ✕
-              </button>
+              <Button iconOnly label={`Remove ${itemLabel.toLowerCase()} ${i + 1}`} onClick={() => remove(i)}>
+                <CloseIcon size={14} />
+              </Button>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-1.5 text-[12.5px] text-ink-muted">None yet.</p>
+        <p className="mt-1.5 text-[13px] text-meta">None yet.</p>
       )}
-      <button
-        type="button"
-        onClick={add}
-        className="mt-2 rounded-lg border border-line-control px-3 py-1.5 text-[12.5px] font-medium text-ink-body hover:border-line"
-      >
-        + {addLabel}
-      </button>
+      <Button size="sm" icon={<PlusIcon size={14} />} onClick={add} className="mt-2">
+        {addLabel}
+      </Button>
     </div>
   );
 }

@@ -1,0 +1,2 @@
+# Runtime files: pid files, server logs, the unanswered-request log, default screenshot output.
+.run/

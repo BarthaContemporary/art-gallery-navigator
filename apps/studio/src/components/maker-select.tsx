@@ -2,20 +2,22 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { nativeFieldLang } from "@/lib/script-lang";
+import { Button } from "@/components/ui/button";
+import { CloseIcon, PlusIcon } from "@/components/ui/icons";
 
 type Option = { id: string; label: string };
-
-const input =
-  "w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink-body";
 
 /**
  * Searchable maker picker. Filters the full maker list client-side so a long
  * dropdown becomes a type-to-find box. Submits the chosen id as `maker_id`.
  */
 export function MakerSelect({
+  id: inputId,
   options,
   defaultId,
 }: {
+  /** For the search box, so the form's "Maker" label names it. */
+  id?: string;
   options: Option[];
   defaultId?: string | null;
 }) {
@@ -107,34 +109,31 @@ export function MakerSelect({
   }
 
   return (
-    <div className="mt-1.5">
+    <div>
       <input ref={hiddenRef} type="hidden" name="maker_id" value={id} />
 
       {id && selected && !searching ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 border border-line-control px-2.5 py-0.5 text-[12.5px] text-ink-body">
+          <span className="inline-flex min-h-[var(--jvb-control-h-sm)] items-center gap-1 border border-rule-strong pl-2.5 text-[13px] text-ink">
             {selected.label}
-            <button
-              type="button"
+            <Button
+              variant="quiet"
+              size="sm"
+              iconOnly
+              label="Clear maker"
               onClick={() => {
                 setId("");
                 setSearching(true);
               }}
-              aria-label="Clear maker"
-              className="text-ink-muted hover:text-accent-deep"
             >
-              ×
-            </button>
+              <CloseIcon size={14} />
+            </Button>
           </span>
-          <button
-            type="button"
-            onClick={() => setSearching(true)}
-            className="text-[12px] text-accent-deep"
-          >
-            change
+          <button type="button" onClick={() => setSearching(true)} className="link text-[12px]">
+            Change
           </button>
           {reused ? (
-            <p role="status" className="w-full text-[12px] text-ink-mid">
+            <p role="status" className="w-full text-[12px] leading-[1.4] text-body">
               Linked to the existing maker “{reused.label}”.{" "}
               <button
                 type="button"
@@ -145,7 +144,7 @@ export function MakerSelect({
                   setSeparate(true);
                   setReused(null);
                 }}
-                className="font-medium text-ink-strong underline"
+                className="link"
               >
                 Add a separate maker instead
               </button>
@@ -155,22 +154,23 @@ export function MakerSelect({
       ) : (
         <div>
           <input
+            id={inputId}
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search makers…"
-            className={input}
+            className="field"
           />
           {q.trim() ? (
             <>
               {results.length > 0 ? (
-                <ul className="mt-1 max-h-60 divide-y divide-line-control overflow-y-auto rounded-lg border border-line-control">
+                <ul data-inset-focus className="mt-1 max-h-60 divide-y divide-rule overflow-y-auto border border-rule-strong">
                   {results.map((o) => (
                     <li key={o.id}>
                       <button
                         type="button"
                         onClick={() => pick(o)}
-                        className="block w-full px-3 py-2 text-left text-[13.5px] text-ink-body hover:bg-control"
+                        className="block w-full px-3 py-2 text-left text-[13px] text-ink hover:bg-band"
                       >
                         {o.label}
                       </button>
@@ -178,58 +178,64 @@ export function MakerSelect({
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 text-[12px] text-ink-muted">No matching maker.</p>
+                <p className="mt-1 text-[12px] text-meta">No matching maker.</p>
               )}
 
-              {/* Offer to create whatever was typed — the search box doubles as
+              {/* Offer to create whatever was typed: the search box doubles as
                   the name field, so there is nothing to re-type. */}
               {adding ? (
-                <div className="mt-2 rounded-lg border border-line-control bg-band/40 p-3">
-                  <p className="text-[12.5px] text-ink-body">
-                    Add <strong>{q.trim()}</strong> as a new maker
+                <div className="panel mt-2 p-3">
+                  <p className="text-[13px] text-body">
+                    Add <strong className="font-semibold text-ink">{q.trim()}</strong> as a new maker
                   </p>
                   {separate ? (
-                    <p className="mt-1 text-[12px] text-ink-mid">
+                    <p className="mt-1 text-[12px] leading-[1.4] text-body">
                       A maker of this name is already on file. Give this one its
                       life dates so the two can be told apart.
                     </p>
                   ) : null}
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <input
-                      value={newDates}
-                      onChange={(e) => setNewDates(e.target.value)}
-                      placeholder="Life dates (optional) — e.g. 1854–1918"
-                      className="min-w-0 flex-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[13px] text-ink-body"
-                    />
-                    <input
-                      value={newNative}
-                      onChange={(e) => setNewNative(e.target.value)}
-                      lang={nativeFieldLang(newNative)}
-                      placeholder="Name in original script (optional)"
-                      className="min-w-0 flex-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[13px] text-ink-body"
-                    />
+                  <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <label htmlFor={`${inputId ?? "maker"}-dates`} className="label">
+                        Life dates (optional)
+                      </label>
+                      <input
+                        id={`${inputId ?? "maker"}-dates`}
+                        value={newDates}
+                        onChange={(e) => setNewDates(e.target.value)}
+                        placeholder="1854–1918"
+                        className="field"
+                      />
+                    </div>
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <label htmlFor={`${inputId ?? "maker"}-native`} className="label">
+                        Name in original script (optional)
+                      </label>
+                      <input
+                        id={`${inputId ?? "maker"}-native`}
+                        value={newNative}
+                        onChange={(e) => setNewNative(e.target.value)}
+                        lang={nativeFieldLang(newNative)}
+                        className="field"
+                      />
+                    </div>
                   </div>
-                  <div className="mt-2 flex items-center gap-3">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void addMaker()}
-                      className="rounded-md border border-oranje bg-oranje/10 px-2.5 py-1 text-[12px] font-semibold text-accent-deep disabled:opacity-60"
-                    >
-                      {busy ? "Adding…" : "Add maker"}
-                    </button>
-                    <button
-                      type="button"
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button size="sm" onClick={() => void addMaker()} pending={busy} pendingLabel="Adding…">
+                      Add maker
+                    </Button>
+                    <Button
+                      variant="quiet"
+                      size="sm"
                       onClick={() => {
                         setAdding(false);
                         setSeparate(false);
                         setError(null);
                       }}
-                      className="text-[12px] text-ink-muted hover:text-ink-strong"
                     >
                       Cancel
-                    </button>
-                    <span className="text-[11.5px] text-ink-soft">
+                    </Button>
+                    <span className="text-[12px] leading-[1.4] text-meta">
                       Biography and portrait can be added later on the maker&rsquo;s page.
                     </span>
                   </div>
@@ -238,22 +244,23 @@ export function MakerSelect({
                 <button
                   type="button"
                   onClick={() => setAdding(true)}
-                  className="mt-1.5 text-[12px] font-medium text-accent-deep"
+                  className="link mt-1.5 inline-flex items-center gap-1 text-[12px]"
                 >
-                  + Add “{q.trim()}” as a new maker
+                  <PlusIcon size={14} />
+                  Add “{q.trim()}” as a new maker
                 </button>
               )}
-              {error ? <p className="mt-1 text-[12px] text-danger">{error}</p> : null}
+              {error ? (
+                <p role="alert" className="mt-1 text-[12px] text-danger">
+                  {error}
+                </p>
+              ) : null}
             </>
           ) : null}
           {id ? (
-            <button
-              type="button"
-              onClick={() => setSearching(false)}
-              className="mt-1 text-[12px] text-ink-muted hover:text-accent-deep"
-            >
-              cancel
-            </button>
+            <Button variant="quiet" size="sm" onClick={() => setSearching(false)} className="mt-1 -ml-1.5">
+              Cancel
+            </Button>
           ) : null}
         </div>
       )}

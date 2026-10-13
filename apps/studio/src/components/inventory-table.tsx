@@ -1,10 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StatusPill, STATUS_LABELS } from "@/components/status-pill";
 import { RegisterBadge } from "@/components/register-badge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox, Field, Input, Select } from "@/components/ui/field";
+import { ArrowRightIcon, FlagIcon, ImageIcon } from "@/components/ui/icons";
+import { Notice } from "@/components/ui/notice";
+import { Panel } from "@/components/ui/section";
+import { ColumnResizer, EmptyRow, SortMark, TableFrame, Td, rowClass } from "@/components/ui/table";
+import { WebsiteDot } from "@/components/ui/website-switch";
+import { cx } from "@/components/ui/cx";
+import { useResizableColumns } from "@/hooks/use-resizable-columns";
 import { titleWithYear } from "@jvb/db";
 
 export type InventoryRow = {
@@ -22,6 +32,8 @@ export type InventoryRow = {
   ledger?: "jvb" | "external";
   /** Temporarily flagged by the current user (see piece_flags). */
   flagged?: boolean;
+  /** pieces.web_visible, for the optional Website column. */
+  web_visible?: boolean;
 };
 
 type Col = {
@@ -30,15 +42,14 @@ type Col = {
   sortable: boolean;
   resizable: boolean;
   width: number; // default width (px)
-  align?: "left" | "right";
 };
 
 // The image column is fixed; every other column is drag-resizable. Sort keys
 // match the SORTABLE map in the inventory page so header clicks re-sort server-side.
 const COLS: Col[] = [
-  { key: "select", label: "", sortable: false, resizable: false, width: 40 },
-  { key: "flag", label: "", sortable: false, resizable: false, width: 36 },
-  { key: "image", label: "", sortable: false, resizable: false, width: 56 },
+  { key: "select", label: "Select", sortable: false, resizable: false, width: 40 },
+  { key: "flag", label: "Flag", sortable: false, resizable: false, width: 40 },
+  { key: "image", label: "Image", sortable: false, resizable: false, width: 56 },
   { key: "stock_number", label: "Stock", sortable: true, resizable: true, width: 130 },
   { key: "title", label: "Title", sortable: true, resizable: true, width: 300 },
   { key: "maker_name", label: "Maker", sortable: true, resizable: true, width: 170 },
@@ -46,13 +57,26 @@ const COLS: Col[] = [
   { key: "location_code", label: "Location", sortable: true, resizable: true, width: 120 },
   { key: "status", label: "Status", sortable: true, resizable: true, width: 130 },
 ];
+/**
+ * Whether a work is on the website, as a column the user switches on. Off by
+ * default: most of the time the question is where a work is and whether it
+ * is available, and the facet above answers "which are on the site".
+ */
+const WEB_COL: Col = { key: "web_visible", label: "Website", sortable: false, resizable: true, width: 96 };
+/** Heads with no visible words (the checkbox, flag and image columns). */
+const WORDLESS = new Set(["select", "flag", "image"]);
+/** The shared Th head style (components/ui/table). */
+const TH =
+  "whitespace-nowrap border-b border-rule-strong bg-page px-3 py-2 align-bottom text-left text-[11.5px] font-semibold uppercase leading-[1.3] tracking-[0.06em] text-meta";
+const ARIA_SORT = { asc: "ascending", desc: "descending", none: "none" } as const;
 
 const MIN_W = 64;
 const STORAGE_KEY = "jvb:inventory:colwidths:v2";
 const DENSITY_KEY = "jvb:inventory:density:v1";
-const DEFAULTS: Record<string, number> = Object.fromEntries(
-  COLS.map((c) => [c.key, c.width]),
-);
+const WEB_COL_KEY = "jvb:inventory:webcol:v1";
+
+/** What the selection bar just filed, for the notice that outlives the bar. */
+type Filed = { listId: string; name: string; added: number; skipped: number };
 
 export function InventoryTable({
   rows,
@@ -88,6 +112,8 @@ export function InventoryTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /** When the current selection began; null whenever nothing is selected. */
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  /** The last "add to list" from the selection bar, until dismissed. */
+  const [filed, setFiled] = useState<Filed | null>(null);
 
   useEffect(() => {
     try {
@@ -185,23 +211,18 @@ export function InventoryTable({
     });
   }
 
-  const [widths, setWidths] = useState<Record<string, number>>(DEFAULTS);
+  // ---- view settings: density and the optional Website column ----
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
-  const colRefs = useRef<Record<string, HTMLTableColElement | null>>({});
-  const tableRef = useRef<HTMLTableElement | null>(null);
-  const drag = useRef<{ key: string; startX: number; startW: number } | null>(null);
+  const [showWeb, setShowWeb] = useState(false);
 
-  // Load persisted widths + density after mount (avoids SSR hydration mismatch).
+  // Load the persisted settings after mount (avoids SSR hydration mismatch).
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-      if (saved && typeof saved === "object") {
-        setWidths((w) => ({ ...w, ...saved }));
-      }
+      if (localStorage.getItem(DENSITY_KEY) === "compact") setDensity("compact");
+      if (localStorage.getItem(WEB_COL_KEY) === "on") setShowWeb(true);
     } catch {
-      /* ignore malformed storage */
+      /* storage blocked: the defaults stand */
     }
-    if (localStorage.getItem(DENSITY_KEY) === "compact") setDensity("compact");
   }, []);
 
   function toggleDensity() {
@@ -215,10 +236,23 @@ export function InventoryTable({
       return next;
     });
   }
-  const rowPad = density === "compact" ? "py-1.5" : "py-2.5";
+  function toggleWebColumn() {
+    setShowWeb((on) => {
+      try {
+        if (on) localStorage.removeItem(WEB_COL_KEY);
+        else localStorage.setItem(WEB_COL_KEY, "on");
+      } catch {
+        /* ignore */
+      }
+      return !on;
+    });
+  }
 
-  const totalWidth = () =>
-    COLS.reduce((s, c) => s + (c.resizable ? widths[c.key] ?? c.width : c.width), 0);
+  // Column widths: drag, ←/→ on a focused handle, double-click to reset;
+  // remembered under STORAGE_KEY (hooks/use-resizable-columns). The Website
+  // column's width is kept there too, under its own key.
+  const columns = showWeb ? [...COLS, WEB_COL] : COLS;
+  const cols = useResizableColumns(columns, { storageKey: STORAGE_KEY, minWidth: MIN_W });
 
   function sort(column: string, dir: "asc" | "desc") {
     const p = new URLSearchParams(params.toString());
@@ -234,72 +268,7 @@ export function InventoryTable({
     sort(column, nextDir);
   }
 
-  // ---- resize (mutate the <col>/<table> directly during drag; commit on release) ----
-  function onResizeMove(e: PointerEvent) {
-    const d = drag.current;
-    if (!d) return;
-    const next = Math.max(MIN_W, d.startW + (e.clientX - d.startX));
-    const col = colRefs.current[d.key];
-    if (col) col.style.width = `${next}px`;
-    if (tableRef.current) {
-      const others = COLS.reduce(
-        (s, c) => s + (c.key === d.key ? 0 : c.resizable ? widths[c.key] ?? c.width : c.width),
-        0,
-      );
-      tableRef.current.style.width = `${others + next}px`;
-    }
-  }
-  function onResizeEnd(e: PointerEvent) {
-    const d = drag.current;
-    window.removeEventListener("pointermove", onResizeMove);
-    window.removeEventListener("pointerup", onResizeEnd);
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    drag.current = null;
-    if (!d) return;
-    const next = Math.max(MIN_W, d.startW + (e.clientX - d.startX));
-    setWidths((w) => {
-      const updated = { ...w, [d.key]: next };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        /* ignore */
-      }
-      return updated;
-    });
-  }
-  function onResizeStart(e: React.PointerEvent, key: string) {
-    e.preventDefault();
-    e.stopPropagation();
-    drag.current = { key, startX: e.clientX, startW: widths[key] ?? DEFAULTS[key] ?? 120 };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("pointermove", onResizeMove);
-    window.addEventListener("pointerup", onResizeEnd);
-  }
-  function resetColumn(key: string) {
-    setWidths((w) => {
-      const updated = { ...w, [key]: DEFAULTS[key] ?? 120 };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        /* ignore */
-      }
-      return updated;
-    });
-  }
-  function resetAll() {
-    setWidths(DEFAULTS);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const isCustomised = COLS.some(
-    (c) => c.resizable && (widths[c.key] ?? c.width) !== c.width,
-  );
+  const isCustomised = cols.isCustomised;
 
   function href(r: InventoryRow) {
     return `/inventory/${encodeURIComponent(r.stock_number)}`;
@@ -355,73 +324,59 @@ export function InventoryTable({
             aria-label={`Select ${r.stock_number}`}
             checked={selected.has(r.id)}
             onChange={() => toggleRow(r.id)}
-            className="align-middle"
+            className="h-4 w-4 align-middle"
           />
         );
       case "flag":
         return <FlagButton flagged={flags.has(r.id)} stock={r.stock_number} onClick={() => toggleFlag(r.id)} />;
-      case "image": {
-        const thumb = thumbs[r.id];
+      case "image":
+        // The title and stock number already link to the record; a second,
+        // unnamed link per row would only add a blank tab stop.
         return (
-          <Link href={href(r)} className="inline-block">
-            {thumb ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={thumb} alt="" className="h-9 w-9 rounded-md object-cover" />
-            ) : (
-              <span
-                className="jvb-hatch flex h-9 w-9 items-center justify-center rounded-md text-[11px] text-ink-soft"
-                aria-label="No image"
-              >
-                ▦
-              </span>
-            )}
+          <Link href={href(r)} aria-hidden tabIndex={-1} className="block w-9">
+            <Thumb src={thumbs[r.id]} size="h-9 w-9" />
           </Link>
         );
-      }
       case "stock_number":
         return (
-          <span className="flex items-center gap-1.5 truncate font-mono text-[12px] text-ink">
-            <Link href={href(r)}>{r.stock_number}</Link>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <Link href={href(r)} className="link-plain tabular truncate text-ink">
+              {r.stock_number}
+            </Link>
             {r.legacy_stock_number ? (
-              <span className="text-ink-soft">({r.legacy_stock_number})</span>
+              <span className="tabular truncate text-meta">({r.legacy_stock_number})</span>
             ) : null}
             <RegisterBadge ledger={r.ledger} size="xs" />
           </span>
         );
       case "title":
         return (
-          <Link href={href(r)} className="flex items-center gap-1.5 truncate text-[13.5px] text-ink-body">
+          <span className="flex min-w-0 items-center gap-1.5">
             {r.needs_completion ? (
-              <span
-                title="Captured on mobile — needs completion"
-                className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em]"
-                style={{ background: "var(--jvb-warn-soft)", color: "var(--jvb-warn)" }}
-              >
+              <Badge tone="warn" size="xs" title="Captured on mobile: needs completion">
                 Finish
-              </span>
+              </Badge>
             ) : null}
-            <span className="truncate">{titleWithYear(r.title, r.year)}</span>
-          </Link>
+            <Link href={href(r)} className="link-plain truncate text-ink">
+              {titleWithYear(r.title, r.year)}
+            </Link>
+          </span>
         );
       case "maker_name":
         return (
-          <span className="block truncate text-[13px] text-ink-muted">
+          <span className="block truncate text-body">
             {r.maker_name ?? "—"}
-            {r.maker_name && r.maker_dates ? (
-              <span className="text-ink-soft"> ({r.maker_dates})</span>
-            ) : null}
+            {r.maker_name && r.maker_dates ? <span className="text-meta"> ({r.maker_dates})</span> : null}
           </span>
         );
       case "category_name":
-        return <span className="block truncate text-[13px] text-ink-muted">{r.category_name ?? "—"}</span>;
+        return <span className="block truncate text-body">{r.category_name ?? "—"}</span>;
       case "location_code":
-        return (
-          <span className="block truncate text-[13px] text-ink-muted">
-            {r.location_name ?? "—"}
-          </span>
-        );
+        return <span className="block truncate text-body">{r.location_name ?? "—"}</span>;
       case "status":
         return <StatusPill status={r.status} variant="inline" />;
+      case "web_visible":
+        return <WebsiteDot on={Boolean(r.web_visible)} wordless />;
       default:
         return null;
     }
@@ -429,6 +384,27 @@ export function InventoryTable({
 
   return (
     <div>
+      {filed ? (
+        <Notice
+          tone="ok"
+          className="mb-2"
+          action={
+            <Button variant="quiet" size="sm" className="text-body" onClick={() => setFiled(null)}>
+              Dismiss
+            </Button>
+          }
+        >
+          Added {filed.added} work{filed.added === 1 ? "" : "s"} to{" "}
+          <Link href={`/inventory/lists/${filed.listId}`} className="link inline-flex items-center gap-1">
+            {filed.name}
+            <ArrowRightIcon size={14} />
+          </Link>
+          {filed.skipped > 0
+            ? `. ${filed.skipped} non-JvdB work${filed.skipped === 1 ? " was" : "s were"} left out (lists hold JvdB stock only).`
+            : "."}
+        </Notice>
+      ) : null}
+
       {flagCount > 0 || showingFlagged ? (
         <FlagBar
           count={flagCount}
@@ -451,7 +427,11 @@ export function InventoryTable({
           }}
         />
       ) : null}
-      {flagError ? <p className="mb-2 text-[12px] text-danger">{flagError}</p> : null}
+      {flagError ? (
+        <Notice tone="danger" inline className="mb-2">
+          {flagError}
+        </Notice>
+      ) : null}
 
       {selected.size > 0 ? (
         <AddToListBar
@@ -462,6 +442,7 @@ export function InventoryTable({
           flaggedCount={[...selected].filter((id) => flags.has(id)).length}
           onFlag={(flagged) => void setFlagged([...selected], flagged)}
           onClear={() => setSelected(new Set())}
+          onAdded={setFiled}
           onDone={() => {
             setSelected(new Set());
             router.refresh();
@@ -469,133 +450,128 @@ export function InventoryTable({
         />
       ) : null}
 
-      {/* Density and column-width controls only mean anything for the table,
-          which is desktop-only — hide them where the cards render. */}
-      <div className="mb-1.5 hidden items-center justify-end gap-3 md:flex">
-        <span className="mr-auto hidden font-mono text-[10.5px] text-ink-faint lg:inline">
-          j/k move · ⏎ open · x select · f flag
-        </span>
-        <button
-          type="button"
-          onClick={toggleDensity}
-          className="text-[11.5px] text-ink-soft hover:text-ink-strong"
-          title="Toggle row density"
-        >
+      {/* The view settings only mean anything for the table, which is
+          desktop-only — hide them where the cards render. */}
+      <div className="mb-1 hidden items-center justify-end gap-1 md:flex">
+        <p className="mr-auto hidden text-[11px] leading-[1.3] text-meta lg:block">
+          <Kbd>j</Kbd> <Kbd>k</Kbd> move · <Kbd>⏎</Kbd> open · <Kbd>x</Kbd> select · <Kbd>f</Kbd> flag
+        </p>
+        <Button variant="quiet" size="sm" onClick={toggleWebColumn} aria-pressed={showWeb}>
+          {showWeb ? "Hide website column" : "Show website column"}
+        </Button>
+        <Button variant="quiet" size="sm" onClick={toggleDensity} title="Toggle row density">
           {density === "compact" ? "Comfortable rows" : "Compact rows"}
-        </button>
+        </Button>
         {isCustomised ? (
-          <button
-            type="button"
-            onClick={resetAll}
-            className="text-[11.5px] text-ink-soft underline hover:text-ink-strong"
-          >
+          <Button variant="quiet" size="sm" onClick={cols.resetAll}>
             Reset column widths
-          </button>
+          </Button>
         ) : null}
       </div>
 
       {/* Mobile: a card list. The table is a fixed ~1100px grid with drag
           handles — on a phone that is three viewports of sideways scrolling and
           the handles are unusable by touch. Same data, one column, tappable. */}
-      <ul className="overflow-hidden border border-line md:hidden">
-        {rows.map((r) => (
-          <li
-            key={r.id}
-            className={`border-b border-line-soft last:border-0 ${
-              flags.has(r.id) ? "bg-warn-soft/60 shadow-[inset_3px_0_0_var(--jvb-warn)]" : ""
-            }`}
-          >
-            <div className="flex items-stretch">
-              <label className="flex w-11 shrink-0 items-center justify-center border-r border-line-soft">
-                <span className="sr-only">Select {r.stock_number}</span>
-                <input
-                  type="checkbox"
-                  checked={selected.has(r.id)}
-                  onChange={() => toggleRow(r.id)}
-                  className="h-4 w-4"
+      <ul className="border-t border-rule-strong md:hidden">
+        {rows.map((r) => {
+          const isSelected = selected.has(r.id);
+          const isFlagged = flags.has(r.id);
+          return (
+            <li
+              key={r.id}
+              className={cx("relative border-b border-rule", isSelected && "bg-accent-wash")}
+            >
+              {/* The same row rules as the table: 3px warn when flagged,
+                  2px accent when selected. */}
+              {isFlagged || isSelected ? (
+                <span
+                  aria-hidden
+                  className={cx("absolute inset-y-0 left-0", isFlagged ? "w-[3px] bg-warn" : "w-[2px] bg-accent")}
                 />
-              </label>
-              <Link href={href(r)} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
-                {thumbs[r.id] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={thumbs[r.id]}
-                    alt=""
-                    loading="lazy"
-                    className="h-12 w-12 shrink-0 rounded-md object-cover"
+              ) : null}
+              <div className="flex items-stretch">
+                <label className="flex w-11 shrink-0 items-center justify-center">
+                  <span className="sr-only">Select {r.stock_number}</span>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleRow(r.id)}
+                    className="h-4 w-4"
                   />
-                ) : (
-                  <span
-                    aria-label="No image"
-                    className="jvb-hatch flex h-12 w-12 shrink-0 items-center justify-center rounded-md text-[11px] text-ink-soft"
-                  >
-                    ▦
+                </label>
+                <Link href={href(r)} className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-1">
+                  <Thumb src={thumbs[r.id]} size="h-12 w-12" lazy />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="tabular text-[12px] leading-[1.4] text-meta">{r.stock_number}</span>
+                      <RegisterBadge ledger={r.ledger} size="xs" />
+                      {r.needs_completion ? (
+                        <Badge tone="warn" size="xs">
+                          Finish
+                        </Badge>
+                      ) : null}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[13.5px] leading-[1.45] text-ink">
+                      {titleWithYear(r.title, r.year)}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[12px] leading-[1.4] text-meta">
+                      {[r.maker_name, r.category_name, r.location_name].filter(Boolean).join(" · ") || "—"}
+                    </span>
+                    <span className="mt-1 block text-[12px]">
+                      <StatusPill status={r.status} variant="inline" />
+                    </span>
                   </span>
-                )}
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline gap-2">
-                    <span className="font-mono text-[11.5px] text-ink-muted">{r.stock_number}</span>
-                    <RegisterBadge ledger={r.ledger} size="xs" />
-                    {r.needs_completion ? (
-                      <span className="bg-warn-soft px-1.5 text-[10px] font-medium text-warn">
-                        Finish
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="mt-0.5 block truncate text-[13.5px] text-ink-body">
-                    {titleWithYear(r.title, r.year)}
-                  </span>
-                  <span className="mt-0.5 block truncate text-[12px] text-ink-soft">
-                    {[r.maker_name, r.category_name, r.location_name].filter(Boolean).join(" · ") ||
-                      "—"}
-                  </span>
-                  <span className="mt-1 block">
-                    <StatusPill status={r.status} variant="inline" />
-                  </span>
+                </Link>
+                <span className="flex w-11 shrink-0 items-center justify-center">
+                  <FlagButton flagged={isFlagged} stock={r.stock_number} onClick={() => toggleFlag(r.id)} large />
                 </span>
-              </Link>
-              <span className="flex w-11 shrink-0 items-center justify-center border-l border-line-soft">
-                <FlagButton flagged={flags.has(r.id)} stock={r.stock_number} onClick={() => toggleFlag(r.id)} large />
-              </span>
-            </div>
-          </li>
-        ))}
+              </div>
+            </li>
+          );
+        })}
         {rows.length === 0 ? (
-          <li className="px-4 py-8 text-center text-[13px] text-ink-muted">No records match.</li>
+          <li className="px-4 py-10 text-center text-[13px] leading-[1.45] text-body">
+            No records match these filters.
+          </li>
         ) : null}
       </ul>
 
-      {/* data-inset-focus: the frame scrolls sideways and would clip an outer
-          focus ring, so cells draw it inside (globals.css). */}
-      <div data-inset-focus className="hidden overflow-x-auto border border-line md:block lg:overflow-x-visible">
+      {/* TableFrame: the frame scrolls sideways and would clip an outer focus
+          ring, so cells draw it inside (data-inset-focus). From lg up it stops
+          clipping so the head can stick under the app header. */}
+      <TableFrame className="hidden md:block lg:overflow-x-visible">
         <table
-          ref={tableRef}
-          style={{ width: totalWidth(), tableLayout: "fixed" }}
-          className="min-w-full border-collapse bg-cell text-left"
+          ref={cols.tableRef}
+          style={
+            {
+              width: cols.totalWidth(),
+              tableLayout: "fixed",
+              // Density is this table's own setting (DENSITY_KEY), so it sets
+              // the row padding the Td cells read rather than the page's.
+              "--jvb-row-py": density === "compact" ? "6px" : "10px",
+            } as CSSProperties
+          }
+          className="min-w-full border-collapse bg-page text-left text-[13px] leading-[1.45]"
         >
           <colgroup>
-            {COLS.map((c) => (
-              <col
-                key={c.key}
-                ref={(el) => {
-                  colRefs.current[c.key] = el;
-                }}
-                style={{ width: c.resizable ? widths[c.key] ?? c.width : c.width }}
-              />
+            {columns.map((c) => (
+              <col key={c.key} ref={cols.colRef(c.key)} style={{ width: cols.widthOf(c.key) }} />
             ))}
           </colgroup>
           <thead>
-            <tr className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              {COLS.map((c) => {
-                const isActive = activeSort === c.key;
+            <tr>
+              {columns.map((c) => {
+                const state = activeSort === c.key ? activeDir : "none";
                 return (
+                  // Th's look, composed here: the resize handle has to sit
+                  // beside the sort button, and Th puts every child inside it.
                   <th
                     key={c.key}
-                    style={{ top: "var(--app-header-h, 88px)" }}
-                    className={`relative select-none border-b border-line bg-cell px-4 py-2.5 font-medium lg:sticky lg:z-20 ${
-                      c.align === "right" ? "text-right" : "text-left"
-                    } ${c.key === "image" ? "px-3" : ""}`}
-                    aria-label={c.key === "image" ? "Image" : undefined}
+                    scope="col"
+                    aria-sort={c.sortable ? ARIA_SORT[state] : undefined}
+                    // The offset only where the head sticks (lg up): on a
+                    // relative cell it would shift the head down over the rows.
+                    className={cx(TH, "relative select-none lg:sticky lg:top-[var(--app-header-h,88px)] lg:z-20")}
                   >
                     {c.key === "select" ? (
                       <input
@@ -603,40 +579,27 @@ export function InventoryTable({
                         aria-label="Select all on this page"
                         checked={allSelected}
                         onChange={toggleAll}
-                        className="align-middle"
+                        className="h-4 w-4 align-middle"
                       />
+                    ) : WORDLESS.has(c.key) ? (
+                      <span className="sr-only">{c.label}</span>
                     ) : c.sortable ? (
                       <button
                         type="button"
                         onClick={() => onHeaderClick(c.key)}
                         title="Click to sort · click again to reverse"
-                        className={`inline-flex items-center gap-1 select-none hover:text-ink-mid ${
-                          isActive ? "text-ink-strong" : ""
-                        }`}
+                        className={cx(
+                          "inline-flex items-center gap-1 uppercase tracking-[inherit] hover:text-ink",
+                          state !== "none" && "text-ink",
+                        )}
                       >
-                        {c.label}
-                        <SortIcon state={isActive ? activeDir : "none"} />
+                        <span className="self-baseline">{c.label}</span>
+                        <SortMark state={state} />
                       </button>
                     ) : (
                       c.label
                     )}
-                    {c.resizable ? (
-                      <span
-                        onPointerDown={(e) => onResizeStart(e, c.key)}
-                        onDoubleClick={(e) => {
-                          e.stopPropagation();
-                          resetColumn(c.key);
-                        }}
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-label={`Resize ${c.label} column`}
-                        title="Drag to resize · double-click to reset"
-                        className="group absolute inset-y-0 right-0 z-20 w-4 cursor-col-resize touch-none"
-                      >
-                        {/* visible divider at the column boundary (always faintly shown, orange on hover) */}
-                        <span className="pointer-events-none absolute inset-y-[5px] right-0 w-[2px] rounded bg-line-control transition-colors group-hover:bg-oranje" />
-                      </span>
-                    ) : null}
+                    {c.resizable ? <ColumnResizer {...cols.handleProps(c.key, c.label)} /> : null}
                   </th>
                 );
               })}
@@ -649,31 +612,47 @@ export function InventoryTable({
                 ref={(el) => {
                   rowRefs.current[i] = el;
                 }}
-                className={`border-b border-line-soft last:border-0 hover:bg-control ${
-                  flags.has(r.id) ? "bg-warn-soft/60 shadow-[inset_3px_0_0_var(--jvb-warn)]" : ""
-                } ${i === activeRow ? "bg-oranje/10 ring-1 ring-inset ring-oranje/40" : ""}`}
+                className={rowClass({
+                  selected: selected.has(r.id),
+                  flagged: flags.has(r.id),
+                  current: i === activeRow,
+                })}
               >
-                {COLS.map((c) => (
-                  <td
-                    key={c.key}
-                    className={`overflow-hidden px-4 align-middle ${rowPad} ${c.key === "image" ? "px-3 py-1" : ""}`}
-                  >
+                {columns.map((c) => (
+                  <Td key={c.key} className="overflow-hidden">
                     {cell(c, r)}
-                  </td>
+                  </Td>
                 ))}
               </tr>
             ))}
             {rows.length === 0 ? (
-              <tr>
-                <td colSpan={COLS.length} className="px-4 py-8 text-center text-[13px] text-ink-muted">
-                  No records match.
-                </td>
-              </tr>
+              <EmptyRow colSpan={columns.length}>No records match these filters.</EmptyRow>
             ) : null}
           </tbody>
         </table>
-      </div>
+      </TableFrame>
     </div>
+  );
+}
+
+/** A square thumbnail, or a hatched square with an image mark when there is none. */
+function Thumb({ src, size, lazy = false }: { src: string | undefined; size: string; lazy?: boolean }) {
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt="" loading={lazy ? "lazy" : undefined} className={cx("shrink-0 object-cover", size)} />;
+  }
+  return (
+    <span aria-hidden className={cx("jvb-hatch flex shrink-0 items-center justify-center text-meta", size)}>
+      <ImageIcon size={14} />
+    </span>
+  );
+}
+
+function Kbd({ children }: { children: string }) {
+  return (
+    <kbd className="inline-block min-w-[16px] border border-rule-strong px-1 text-center font-sans text-[11px] leading-[16px] text-body">
+      {children}
+    </kbd>
   );
 }
 
@@ -696,6 +675,7 @@ function AddToListBar({
   flaggedCount,
   onFlag,
   onClear,
+  onAdded,
   onDone,
 }: {
   selectedIds: string[];
@@ -706,6 +686,8 @@ function AddToListBar({
   flaggedCount: number;
   onFlag: (flagged: boolean) => void;
   onClear: () => void;
+  /** The list the selection went into, for the notice left behind. */
+  onAdded: (filed: Filed) => void;
   onDone: () => void;
 }) {
   const [listId, setListId] = useState("");
@@ -749,8 +731,18 @@ function AddToListBar({
           pieceIds: selectedIds,
         }),
       });
-      const json = (await res.json()) as { error?: string };
+      const json = (await res.json()) as { error?: string; listId?: string; added?: number; skipped?: number };
       if (!res.ok) throw new Error(json.error ?? "Could not add to list");
+      // Say where the works went: the bar closes with the selection, so the
+      // confirmation has to live in the table above it.
+      if (json.listId) {
+        onAdded({
+          listId: json.listId,
+          name: listId ? lists.find((l) => l.id === listId)?.name ?? "the list" : newName.trim(),
+          added: json.added ?? selectedIds.length,
+          skipped: json.skipped ?? 0,
+        });
+      }
       onDone();
       setListId("");
       setNewName("");
@@ -827,129 +819,123 @@ function AddToListBar({
     }
   }
 
-  const field =
-    "rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body";
+  const n = selectedIds.length;
 
   return (
-    <div className="jvb-slide-enter mb-2 space-y-2 rounded-lg border border-oranje/30 bg-oranje/5 px-3 py-2.5">
+    // The bulk bar is a Panel (spec section 4) with the selection's accent
+    // rule down its edge, the same mark the selected rows carry.
+    <Panel className="mb-2 border-l-2 border-l-accent">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[12.5px] font-medium text-ink-body">
-          {selectedIds.length} selected
-        </span>
+        <p className="text-[13px] font-medium leading-[1.45] text-ink" aria-live="polite">
+          {n} selected
+        </p>
         {stale ? (
-          <span
-            title="This selection was started a while ago — worth checking it is still what you meant."
-            className="bg-warn-soft px-2 py-0.5 text-[11.5px] font-medium text-warn"
-          >
-            gathered {ageLabel(age)}
-          </span>
+          <Badge tone="warn" title="This selection was started a while ago. Check it is still what you meant.">
+            Gathered {ageLabel(age)}
+          </Badge>
         ) : null}
-        <span className="text-[12px] text-ink-soft">→ add to</span>
-        <select value={listId} onChange={(e) => setListId(e.target.value)} className={field}>
-          <option value="">New list…</option>
-          {lists.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-        {!listId ? (
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="New list name"
-            className={`${field} w-52`}
-          />
-        ) : null}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void add()}
-          className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg disabled:opacity-60"
-        >
-          {busy ? "Adding…" : "Add"}
-        </button>
-        <span aria-hidden className="mx-1 hidden h-5 w-px bg-oranje/20 sm:inline-block" />
-        {/* Flag / unflag the whole selection — the group form of the row ⚑. */}
-        <button
-          type="button"
-          disabled={busy || flaggedCount === selectedIds.length}
-          onClick={() => onFlag(true)}
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid disabled:opacity-50"
-        >
-          ⚑ Flag
-        </button>
-        <button
-          type="button"
-          disabled={busy || flaggedCount === 0}
-          onClick={() => onFlag(false)}
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid disabled:opacity-50"
-        >
-          Unflag
-        </button>
-        <button
-          type="button"
-          onClick={onClear}
-          className="ml-auto text-[12px] text-ink-soft hover:text-ink-strong"
-        >
+        <Button variant="quiet" size="sm" onClick={onClear} className="ml-auto">
           Clear selection
-        </button>
+        </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-oranje/20 pt-2">
-        <span className="text-[12px] text-ink-soft">Bulk edit</span>
-        <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} className={field}>
-          <option value="">Set status…</option>
-          {Object.entries(STATUS_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <select value={bulkLocation} onChange={(e) => setBulkLocation(e.target.value)} className={field}>
-          <option value="">Move to location…</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          disabled={busy || (!bulkStatus && !bulkLocation)}
-          onClick={() => void applyBulk()}
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-semibold text-ink-strong disabled:opacity-50"
-        >
-          {busy ? "Applying…" : "Apply"}
-        </button>
-        <button
-          type="button"
+      <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Add to list" className="w-48">
+            <Select fieldSize="sm" value={listId} onChange={(e) => setListId(e.target.value)}>
+              <option value="">New list…</option>
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {!listId ? (
+            <Field label="New list name" className="w-48">
+              <Input fieldSize="sm" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            </Field>
+          ) : null}
+          <Button size="sm" disabled={busy} pending={busy} pendingLabel="Adding…" onClick={() => void add()}>
+            Add
+          </Button>
+        </div>
+
+        {/* Flag / unflag the whole selection — the group form of the row flag. */}
+        <div className="flex items-end gap-2">
+          <Button
+            size="sm"
+            icon={<FlagIcon size={14} />}
+            disabled={busy || flaggedCount === n}
+            onClick={() => onFlag(true)}
+          >
+            Flag
+          </Button>
+          <Button size="sm" disabled={busy || flaggedCount === 0} onClick={() => onFlag(false)}>
+            Unflag
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Set status" className="w-40">
+            <Select fieldSize="sm" value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)}>
+              <option value="">Unchanged</option>
+              {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Move to location" className="w-48">
+            <Select fieldSize="sm" value={bulkLocation} onChange={(e) => setBulkLocation(e.target.value)}>
+              <option value="">Unchanged</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Button
+            size="sm"
+            disabled={busy || (!bulkStatus && !bulkLocation)}
+            onClick={() => void applyBulk()}
+          >
+            {busy ? "Applying…" : "Apply"}
+          </Button>
+        </div>
+
+        <Button
+          variant="danger"
+          size="sm"
           disabled={busy}
+          aria-expanded={confirmingDelete}
           onClick={() => {
             setCountTyped("");
             setConfirmingDelete((v) => !v);
           }}
-          className="ml-auto rounded-lg border border-danger/40 px-3 py-1.5 text-[12px] font-semibold text-danger disabled:opacity-50"
+          className="sm:ml-auto"
         >
           Delete…
-        </button>
+        </Button>
       </div>
 
       {confirmingDelete ? (
-        <div className="rounded-lg border border-danger/40 bg-danger/5 p-3">
-          <p className="text-[12.5px] leading-snug text-ink-body">
+        <div className="mt-3 border-l-[3px] border-danger bg-danger-wash p-3">
+          <p className="text-[13px] leading-[1.45] text-body">
             Delete{" "}
-            <strong>
-              {selectedIds.length} work{selectedIds.length === 1 ? "" : "s"}
+            <strong className="font-semibold text-ink">
+              {n} work{n === 1 ? "" : "s"}
             </strong>
             ? They move to the recycle bin and can be restored from{" "}
-            <a href="/inventory/trash" className="underline">
-              Inventory → Trash
-            </a>{" "}
+            <Link href="/inventory/trash" className="underline underline-offset-2">
+              Inventory, Trash
+            </Link>{" "}
             for 30 days, after which they are removed for good.
           </p>
           {stale ? (
-            <p className="mt-1.5 text-[12px] text-ink-soft">
+            <p className="mt-1.5 text-[12px] leading-[1.4] text-body">
               This selection was started {ageLabel(age)}. Check it is still what you meant.
             </p>
           ) : null}
@@ -958,43 +944,47 @@ function AddToListBar({
             dismissed by the same reflex as the first; a number that has to
             match forces you to read how many records this actually affects.
           */}
-          <label className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-ink-body">
-            <span>
-              Type <strong className="font-mono">{selectedIds.length}</strong> to confirm
-            </span>
-            <input
-              value={countTyped}
-              onChange={(e) => setCountTyped(e.target.value)}
-              inputMode="numeric"
-              autoComplete="off"
-              aria-label={`Type ${selectedIds.length} to confirm deletion`}
-              className="w-20 rounded-lg border border-line-control bg-control px-2 py-1 text-[12.5px] text-ink-body"
-            />
-            <button
-              type="button"
-              disabled={busy || countTyped.trim() !== String(selectedIds.length)}
+          <div className="mt-2.5 flex flex-wrap items-end gap-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="bulk-delete-count" className="text-[12px] leading-[1.4] text-body">
+                Type <strong className="tabular font-semibold text-ink">{n}</strong> to confirm
+              </label>
+              <input
+                id="bulk-delete-count"
+                value={countTyped}
+                onChange={(e) => setCountTyped(e.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                className="field field-sm w-24 bg-page"
+              />
+            </div>
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={busy || countTyped.trim() !== String(n)}
+              pending={busy}
+              pendingLabel="Deleting…"
               onClick={() => void deleteSelected()}
-              className="min-h-[32px] rounded-lg border border-danger bg-danger-soft px-3 text-[12px] font-semibold text-danger disabled:opacity-40"
             >
-              {busy ? "Deleting…" : "Delete"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(false)}
-              className="text-[12px] font-medium text-ink-mid hover:text-ink-strong"
-            >
+              Delete
+            </Button>
+            <Button size="sm" onClick={() => setConfirmingDelete(false)}>
               Cancel
-            </button>
-          </label>
+            </Button>
+          </div>
         </div>
       ) : null}
 
-      {error ? <p className="text-[12px] text-danger">{error}</p> : null}
-    </div>
+      {error ? (
+        <Notice tone="danger" inline className="mt-3">
+          {error}
+        </Notice>
+      ) : null}
+    </Panel>
   );
 }
 
-/** The row flag: amber when set, faint until hovered otherwise. */
+/** The row flag: a filled warn flag when set, an outline until hovered otherwise. */
 function FlagButton({
   flagged,
   stock,
@@ -1011,13 +1001,17 @@ function FlagButton({
       type="button"
       aria-pressed={flagged}
       aria-label={flagged ? `Remove flag from ${stock}` : `Flag ${stock}`}
-      title={flagged ? "Flagged — click to remove" : "Flag this work (f)"}
+      title={flagged ? "Flagged: click to remove" : "Flag this work (f)"}
       onClick={onClick}
-      className={`inline-flex items-center justify-center rounded-md leading-none transition-colors duration-150 ${
-        large ? "h-11 w-11 text-[18px]" : "h-6 w-6 text-[14px]"
-      } ${flagged ? "text-warn" : "text-ink-faint hover:text-warn"}`}
+      className={cx(
+        "inline-flex items-center justify-center transition-colors duration-150",
+        large ? "h-11 w-11" : "h-7 w-7",
+        flagged ? "text-warn" : "text-meta hover:text-warn",
+      )}
     >
-      ⚑
+      {/* Filled when set, so the state is a change of shape as well as of
+          colour. */}
+      <FlagIcon size={large ? 18 : 16} className={flagged ? "fill-current" : undefined} />
     </button>
   );
 }
@@ -1117,130 +1111,87 @@ function FlagBar({
     }
   }
 
-  const field =
-    "rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body";
-
   return (
-    <div className="jvb-slide-enter mb-2 space-y-2 rounded-lg border border-warn/40 bg-warn-soft/40 px-3 py-2.5">
+    // A Panel with the flag's 3px warn rule, the mark flagged rows carry.
+    <Panel className="mb-2 border-l-[3px] border-l-warn">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[12.5px] font-medium text-ink-body">
-          <span className="text-warn">⚑</span> {count} flagged
+        <p className="flex items-center gap-1.5 text-[13px] font-medium leading-[1.45] text-ink">
+          <FlagIcon size={16} className="fill-current text-warn" />
+          {count} flagged
           {flaggedOnPage > 0 && flaggedOnPage !== count ? (
-            <span className="font-normal text-ink-soft"> · {flaggedOnPage} on this page</span>
+            <span className="font-normal text-meta">, {flaggedOnPage} on this page</span>
           ) : null}
-        </span>
-        <button
-          type="button"
-          onClick={toggleShowFlagged}
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
-        >
+        </p>
+        <Button size="sm" onClick={toggleShowFlagged}>
           {showingFlagged ? "Show all records" : "Show flagged only"}
-        </button>
+        </Button>
         {flaggedOnPage > 0 ? (
-          <button
-            type="button"
+          <Button
+            size="sm"
             onClick={onSelectFlaggedOnPage}
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
             title="Tick every flagged work on this page, for a bulk edit"
           >
             Select flagged on this page
-          </button>
+          </Button>
         ) : null}
-        <button
-          type="button"
+        <Button
+          variant="quiet"
+          size="sm"
           disabled={busy || count === 0}
           onClick={() => void clearAll()}
-          className="ml-auto text-[12px] text-ink-soft hover:text-ink-strong disabled:opacity-50"
+          className="ml-auto"
         >
           Clear all flags
-        </button>
+        </Button>
       </div>
 
       {count > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 border-t border-warn/20 pt-2">
-          <span className="text-[12px] text-ink-soft">File flagged works into</span>
-          <select value={listId} onChange={(e) => setListId(e.target.value)} className={field}>
-            <option value="">New list…</option>
-            {lists.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <Field label="File flagged works into" className="w-52">
+            <Select fieldSize="sm" value={listId} onChange={(e) => setListId(e.target.value)}>
+              <option value="">New list…</option>
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
           {!listId ? (
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="New list name"
-              className={`${field} w-52`}
-            />
+            <Field label="New list name" className="w-52">
+              <Input fieldSize="sm" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            </Field>
           ) : null}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void fileIntoList()}
-            className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg disabled:opacity-60"
-          >
-            {busy ? "Adding…" : `Add ${count} to list`}
-          </button>
-          <label className="flex items-center gap-1.5 text-[12px] text-ink-mid">
-            <input
-              type="checkbox"
-              checked={clearAfter}
-              onChange={(e) => setClearAfter(e.target.checked)}
-              className="h-3.5 w-3.5"
-            />
-            Clear the flags afterwards
-          </label>
+          <Button size="sm" disabled={busy} pending={busy} pendingLabel="Adding…" onClick={() => void fileIntoList()}>
+            Add {count} to list
+          </Button>
+          <Checkbox
+            label="Clear the flags afterwards"
+            checked={clearAfter}
+            onChange={(e) => setClearAfter(e.target.checked)}
+            className="mb-1.5"
+          />
         </div>
       ) : null}
 
       {done ? (
-        <p className="text-[12px] text-ink-body">
-          Added {done.added} work{done.added === 1 ? "" : "s"} to{" "}
-          <Link href={`/inventory/lists/${done.listId}`} className="font-medium text-accent-deep hover:underline">
-            {done.name}
-          </Link>
-          {done.skipped > 0 ? (
-            <span className="text-ink-soft">
-              {" "}
-              · {done.skipped} non-JvdB work{done.skipped === 1 ? "" : "s"} skipped (lists hold JvdB stock only)
-            </span>
-          ) : null}
-          .
-        </p>
+        <Notice tone="ok" inline className="mt-3">
+          <span>
+            Added {done.added} work{done.added === 1 ? "" : "s"} to{" "}
+            <Link href={`/inventory/lists/${done.listId}`} className="link">
+              {done.name}
+            </Link>
+            {done.skipped > 0
+              ? `. ${done.skipped} non-JvdB work${done.skipped === 1 ? " was" : "s were"} skipped (lists hold JvdB stock only).`
+              : "."}
+          </span>
+        </Notice>
       ) : null}
-      {error ? <p className="text-[12px] text-danger">{error}</p> : null}
-    </div>
-  );
-}
-
-function SortIcon({ state }: { state: "asc" | "desc" | "none" }) {
-  return (
-    <svg
-      aria-hidden
-      width="7"
-      height="11"
-      viewBox="0 0 8 12"
-      fill="none"
-      className={`ml-0.5 ${state === "none" ? "text-ink-faint" : "text-ink-strong"}`}
-    >
-      <path
-        d="M1.5 4.5 L4 2 L6.5 4.5"
-        stroke="currentColor"
-        strokeWidth="1.25"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity={state === "desc" ? 0.3 : 1}
-      />
-      <path
-        d="M1.5 7.5 L4 10 L6.5 7.5"
-        stroke="currentColor"
-        strokeWidth="1.25"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity={state === "asc" ? 0.3 : 1}
-      />
-    </svg>
+      {error ? (
+        <Notice tone="danger" inline className="mt-3">
+          {error}
+        </Notice>
+      ) : null}
+    </Panel>
   );
 }

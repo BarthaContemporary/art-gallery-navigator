@@ -1,0 +1,334 @@
+[
+ {
+  "id": "1e9a0000-0001-4000-8000-1e9a00000000",
+  "row_number": 1000,
+  "raw": {
+   "Stock No": "J2000",
+   "Title": "Flower basket, 'Autumn Wind'",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0001-4000-8000-b1ec00000000",
+  "issues": [
+   "price not numeric"
+  ],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0002-4000-8000-1e9a00000000",
+  "row_number": 1037,
+  "raw": {
+   "Stock No": "J2001",
+   "Title": "Sculptural bamboo form, 'Wave'",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0005-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0003-4000-8000-1e9a00000000",
+  "row_number": 1074,
+  "raw": {
+   "Stock No": "J3824",
+   "Title": "Openwork bamboo vessel",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0009-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0004-4000-8000-1e9a00000000",
+  "row_number": 1111,
+  "raw": {
+   "Stock No": "J2003",
+   "Title": "Flower basket, 'Autumn Wind'",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-000d-4000-8000-b1ec00000000",
+  "issues": [
+   "date unreadable",
+   "dimensions in inches"
+  ],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0005-4000-8000-1e9a00000000",
+  "row_number": 1148,
+  "raw": {
+   "Stock No": "J2004",
+   "Title": "Landscape with red sun",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0011-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0006-4000-8000-1e9a00000000",
+  "row_number": 1185,
+  "raw": {
+   "Stock No": "J2005",
+   "Title": "Untitled abstraction",
+   "Price": "on request"
+  },
+  "piece_id": null,
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0007-4000-8000-1e9a00000000",
+  "row_number": 1222,
+  "raw": {
+   "Stock No": "I3562",
+   "Title": "Indigo boro textile",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0019-4000-8000-b1ec00000000",
+  "issues": [
+   "date unreadable"
+  ],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0008-4000-8000-1e9a00000000",
+  "row_number": 1259,
+  "raw": {
+   "Stock No": "J2007",
+   "Title": "Manuscript page dedicated to various salagram forms, with sacred marks representing different manifestations of Vishnu",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-001d-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0009-4000-8000-1e9a00000000",
+  "row_number": 1296,
+  "raw": {
+   "Stock No": "I1888",
+   "Title": "Shri Yantra",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0021-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-000a-4000-8000-1e9a00000000",
+  "row_number": 1333,
+  "raw": {
+   "Stock No": "J2009",
+   "Title": "Vase with ash glaze",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0025-4000-8000-b1ec00000000",
+  "issues": [
+   "maker not matched",
+   "dimensions in inches"
+  ],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-000b-4000-8000-1e9a00000000",
+  "row_number": 1370,
+  "raw": {
+   "Stock No": "J2010",
+   "Title": "Carved wood sculpture",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0029-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-000c-4000-8000-1e9a00000000",
+  "row_number": 1407,
+  "raw": {
+   "Stock No": "J2011",
+   "Title": "Bronze vase with wave pattern",
+   "Price": "on request"
+  },
+  "piece_id": null,
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-000d-4000-8000-1e9a00000000",
+  "row_number": 1444,
+  "raw": {
+   "Stock No": "J2012",
+   "Title": "Red lacquer ikebana vase",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0031-4000-8000-b1ec00000000",
+  "issues": [
+   "date unreadable"
+  ],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-000e-4000-8000-1e9a00000000",
+  "row_number": 1481,
+  "raw": {
+   "Stock No": "J2013",
+   "Title": "Carved and polished wooden bowl",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0035-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-000f-4000-8000-1e9a00000000",
+  "row_number": 1518,
+  "raw": {
+   "Stock No": "J1984",
+   "Title": "Landscape with red sun",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0039-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0010-4000-8000-1e9a00000000",
+  "row_number": 1555,
+  "raw": {
+   "Stock No": "J2015",
+   "Title": "Gelatin silver print, Kyoto street",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-003d-4000-8000-b1ec00000000",
+  "issues": [
+   "maker not matched",
+   "dimensions in inches"
+  ],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0011-4000-8000-1e9a00000000",
+  "row_number": 1592,
+  "raw": {
+   "Stock No": "J2016",
+   "Title": "Faceted porcelain vase",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0041-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0012-4000-8000-1e9a00000000",
+  "row_number": 1629,
+  "raw": {
+   "Stock No": "J2017",
+   "Title": "Red lacquer ikebana vase",
+   "Price": "on request"
+  },
+  "piece_id": null,
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0013-4000-8000-1e9a00000000",
+  "row_number": 1666,
+  "raw": {
+   "Stock No": "J3248",
+   "Title": "Red lacquer ikebana vase",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0049-4000-8000-b1ec00000000",
+  "issues": [
+   "maker not matched"
+  ],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0014-4000-8000-1e9a00000000",
+  "row_number": 1703,
+  "raw": {
+   "Stock No": "J2019",
+   "Title": "From Point",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-004d-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0015-4000-8000-1e9a00000000",
+  "row_number": 1740,
+  "raw": {
+   "Stock No": "J1237",
+   "Title": "Carved wood sculpture",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0051-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0016-4000-8000-1e9a00000000",
+  "row_number": 1777,
+  "raw": {
+   "Stock No": "J2021",
+   "Title": "Faceted porcelain vase",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0055-4000-8000-b1ec00000000",
+  "issues": [
+   "maker not matched",
+   "dimensions in inches"
+  ],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0017-4000-8000-1e9a00000000",
+  "row_number": 1814,
+  "raw": {
+   "Stock No": "J2022",
+   "Title": "Tea bowl with white slip",
+   "Price": "on request"
+  },
+  "piece_id": "b1ec0000-0059-4000-8000-b1ec00000000",
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ },
+ {
+  "id": "1e9a0000-0018-4000-8000-1e9a00000000",
+  "row_number": 1851,
+  "raw": {
+   "Stock No": "J2023",
+   "Title": "Bronze vase with wave pattern",
+   "Price": "on request"
+  },
+  "piece_id": null,
+  "issues": [],
+  "import_batch": "filemaker-2026-07",
+  "created_at": "2026-07-15T10:00:00.000Z"
+ }
+]

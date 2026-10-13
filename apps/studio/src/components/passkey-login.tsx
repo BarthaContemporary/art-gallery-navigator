@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { createClient } from "@jvb/db/browser";
 import { safeNextPath } from "@/lib/auth-rules";
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { KeyIcon } from "@/components/ui/icons";
 
 /**
  * Passkey sign-in for the login page. Two paths, both Apple-friendly:
@@ -80,20 +83,24 @@ export function PasskeyLogin({ next = null }: { next?: string | null } = {}) {
 
   return (
     <div>
-      <button
-        type="button"
+      <Button
+        className="w-full"
+        icon={<KeyIcon size={16} />}
         onClick={() => void signIn()}
-        disabled={state === "busy"}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-line-control bg-control px-4 py-2.5 text-[13px] font-semibold text-ink-body disabled:opacity-60"
+        pending={state === "busy"}
+        pendingLabel="Waiting for Face ID or Touch ID…"
       >
-        <span aria-hidden>🔑</span>
-        {state === "busy" ? "Waiting for Face ID / Touch ID…" : "Sign in with passkey"}
-      </button>
-      {error ? <p className="mt-2 text-[12px] text-danger">{error}</p> : null}
-      <div className="mt-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.06em] text-ink-faint">
-        <span className="h-px flex-1 bg-line" />
+        Sign in with passkey
+      </Button>
+      {error ? (
+        <Notice tone="danger" inline className="mt-2 w-full">
+          {error}
+        </Notice>
+      ) : null}
+      <div className="label mt-5 flex items-center gap-3">
+        <span aria-hidden className="h-px flex-1 bg-rule-strong" />
         or with password
-        <span className="h-px flex-1 bg-line" />
+        <span aria-hidden className="h-px flex-1 bg-rule-strong" />
       </div>
     </div>
   );

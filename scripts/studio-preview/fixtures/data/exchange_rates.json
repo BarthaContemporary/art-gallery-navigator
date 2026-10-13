@@ -1,0 +1,20 @@
+[
+ {
+  "base": "GBP",
+  "quote": "JPY",
+  "rate": 192.4,
+  "as_of": "2026-10-12"
+ },
+ {
+  "base": "GBP",
+  "quote": "EUR",
+  "rate": 1.176,
+  "as_of": "2026-10-12"
+ },
+ {
+  "base": "GBP",
+  "quote": "USD",
+  "rate": 1.281,
+  "as_of": "2026-10-12"
+ }
+]

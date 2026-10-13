@@ -1,22 +1,25 @@
 "use client";
 
 import { useState } from "react";
-
-const field = "mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
-const labelCls = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
+import { formatDate } from "@/lib/format";
+import { Button } from "@/components/ui/button";
+import { Badge, type Tone } from "@/components/ui/badge";
+import { Notice } from "@/components/ui/notice";
 
 type PieceLite = { stock_number: string | null; title: string | null };
 type Preview = { willReturn: PieceLite[]; writtenOff: PieceLite[]; exported: PieceLite[] };
 
-function List({ label, items, tone }: { label: string; items: PieceLite[]; tone: string }) {
+function List({ label, items, tone }: { label: string; items: PieceLite[]; tone: Tone }) {
   if (!items.length) return null;
   return (
-    <div className="mt-2">
-      <p className={`text-[11px] font-medium uppercase tracking-[0.06em] ${tone}`}>{label} ({items.length})</p>
+    <div className="mt-3">
+      <Badge tone={tone} variant="dot" className="text-[13px] font-semibold">
+        {label} ({items.length})
+      </Badge>
       <ul className="mt-1 space-y-0.5">
         {items.map((p, i) => (
-          <li key={i} className="text-[12.5px] text-ink-body">
-            <span className="font-mono text-[12px] text-ink-muted">{p.stock_number ?? "—"}</span> {p.title ?? "Untitled"}
+          <li key={i} className="text-[13px] text-ink">
+            <span className="tabular text-body">{p.stock_number ?? "—"}</span> {p.title ?? "Untitled"}
           </li>
         ))}
       </ul>
@@ -53,7 +56,7 @@ export function RecordReturn({
       if (!res.ok) throw new Error("Could not load preview");
       setPreview((await res.json()) as Preview);
     } catch {
-      setError("Could not load the preview — please try again.");
+      setError("Could not load the preview. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -62,19 +65,26 @@ export function RecordReturn({
   if (!preview) {
     return (
       <div className="flex flex-wrap items-end gap-2">
-        <label className={labelCls}>
-          Return date
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={field} />
-        </label>
-        <button
-          type="button"
-          onClick={loadPreview}
-          disabled={loading}
-          className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg disabled:opacity-50"
-        >
-          {loading ? "Checking…" : "Record return"}
-        </button>
-        {error ? <p className="w-full text-[12px] text-ink-body">{error}</p> : null}
+        <div className="flex flex-col gap-1">
+          <label htmlFor={`return-date-${shipmentId}`} className="label">
+            Return date
+          </label>
+          <input
+            id={`return-date-${shipmentId}`}
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="field w-[170px]"
+          />
+        </div>
+        <Button variant="primary" onClick={loadPreview} pending={loading} pendingLabel="Checking…">
+          Record return
+        </Button>
+        {error ? (
+          <Notice tone="danger" inline className="w-full">
+            {error}
+          </Notice>
+        ) : null}
       </div>
     );
   }
@@ -82,17 +92,17 @@ export function RecordReturn({
   const skipped = preview.writtenOff.length + preview.exported.length;
   return (
     <div>
-      <p className="text-[13px] text-ink-body">
+      <p className="text-[13px] text-ink">
         <span className="font-semibold">{preview.willReturn.length}</span> item
         {preview.willReturn.length === 1 ? "" : "s"} will be marked returned on{" "}
-        <span className="font-mono">{new Date(date).toLocaleDateString("en-GB")}</span>.
+        <span className="tabular">{formatDate(date, "numeric")}</span>.
       </p>
-      <List label="Will be returned" items={preview.willReturn} tone="text-status-green" />
-      <List label="Skipped — written off" items={preview.writtenOff} tone="text-ink-soft" />
-      <List label="Skipped — permanently exported" items={preview.exported} tone="text-ink-soft" />
+      <List label="Will be returned" items={preview.willReturn} tone="ok" />
+      <List label="Skipped: written off" items={preview.writtenOff} tone="neutral" />
+      <List label="Skipped: permanently exported" items={preview.exported} tone="neutral" />
       {skipped > 0 ? (
-        <p className="mt-2 text-[12px] text-ink-muted">
-          {skipped} item{skipped === 1 ? "" : "s"} won’t be returned — they’re accounted for elsewhere
+        <p className="mt-2 text-[12px] leading-[1.4] text-meta">
+          {skipped} item{skipped === 1 ? "" : "s"} won’t be returned. They’re accounted for elsewhere
           and will be marked accordingly.
         </p>
       ) : null}
@@ -100,21 +110,16 @@ export function RecordReturn({
       <div className="mt-3 flex items-center gap-2">
         <form action={action}>
           <input type="hidden" name="return_date" value={date} />
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            pendingLabel="Recording…"
             disabled={preview.willReturn.length === 0 && skipped === 0}
-            className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg disabled:opacity-50"
           >
             Confirm return
-          </button>
+          </Button>
         </form>
-        <button
-          type="button"
-          onClick={() => setPreview(null)}
-          className="rounded-lg border border-line-control bg-control px-3.5 py-2 text-[12.5px] font-medium text-ink-mid"
-        >
-          Back
-        </button>
+        <Button onClick={() => setPreview(null)}>Back</Button>
       </div>
     </div>
   );

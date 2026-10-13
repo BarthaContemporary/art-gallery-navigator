@@ -5,11 +5,13 @@ import { parseAmount } from "@/lib/amount";
 import { AmountInput } from "@/components/amount-input";
 import { useEditFinancials } from "@/components/edit-financials-context";
 import { consignmentSplit } from "@/lib/consignment";
+import { Field } from "@/components/ui/field";
+import { Panel } from "@/components/ui/section";
 
 /** Small customs/import glyph shown when import VAT is folded into costs. */
 function ImportVatIcon({ title }: { title: string }) {
   return (
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="inline-block align-[-1px] text-accent-deep" aria-label={title}>
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="inline-block align-[-1px] text-body" aria-label={title}>
       <title>{title}</title>
       <path d="M5 14v3.5A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5V14" />
       <path d="M12 4v9" />
@@ -18,10 +20,12 @@ function ImportVatIcon({ title }: { title: string }) {
   );
 }
 
-const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const field =
-  "mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink";
-const readonly = `${field} bg-band/60`;
+const field = "field";
+// Worked out, not typed: no fill, so it reads as a figure rather than a box
+// to type into (the field keeps its bottom rule and stays focusable).
+const readonly = "field bg-transparent text-body hover:bg-transparent";
+const figure = "tabular mt-1 text-[14.5px] leading-[1.45] text-ink";
+const note = "mt-0.5 text-[12px] leading-[1.4] text-meta";
 
 const CURRENCIES = ["GBP", "EUR", "USD", "CHF", "JPY"];
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -123,7 +127,7 @@ export function FinancialsFields({
         setSoldNote(
           !soldDate
             ? "Enter a sold date to convert, or type the Sold £ in by hand."
-            : `No spot rate available for ${soldDate} — type the Sold £ in by hand.`,
+            : `No spot rate available for ${soldDate}. Type the Sold £ in by hand.`,
         );
         return;
       }
@@ -194,144 +198,142 @@ export function FinancialsFields({
 
   return (
     <div>
-      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {/* Purchase */}
-        <label className={label}>
-          Purchase date
-          <input type="date" name="purchase_date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={field} />
-        </label>
-        <label className={label}>
-          Purchase cost
-          <AmountInput name="purchase_cost" value={purchaseCost} onChange={(e) => setPurchaseCost(e.target.value)} className={field} />
-        </label>
-        <label className={label}>
-          Currency
-          <select name="purchase_currency" value={purchaseCur} onChange={(e) => setPurchaseCur(e.target.value)} className={field}>
+        <Field label="Purchase date" id="fin-purchase-date">
+          <input id="fin-purchase-date" type="date" name="purchase_date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={field} />
+        </Field>
+        <Field label="Purchase cost" id="fin-purchase-cost">
+          <AmountInput id="fin-purchase-cost" name="purchase_cost" value={purchaseCost} onChange={(e) => setPurchaseCost(e.target.value)} className={`${field} tabular`} />
+        </Field>
+        <Field label="Currency" id="fin-purchase-currency">
+          <select id="fin-purchase-currency" name="purchase_currency" value={purchaseCur} onChange={(e) => setPurchaseCur(e.target.value)} className={field}>
             {curOptions}
           </select>
-        </label>
-        <label className={label}>
-          Cost £
+        </Field>
+        <Field
+          label="Cost £"
+          id="fin-cost-gbp"
+          hint={purchaseIsGbp ? "Same as purchase cost (GBP)." : "Entered manually."}
+        >
           <AmountInput
+            id="fin-cost-gbp"
             name="purchase_cost_gbp"
             value={costGbp}
             readOnly={purchaseIsGbp}
             onChange={purchaseIsGbp ? undefined : (e) => setCostGbp(e.target.value)}
-            className={purchaseIsGbp ? readonly : field}
+            aria-describedby="fin-cost-gbp-hint"
+            className={`${purchaseIsGbp ? readonly : field} tabular`}
           />
-          <span className="mt-1 block text-[10.5px] text-ink-soft">
-            {purchaseIsGbp ? "Same as purchase cost (GBP)." : "Entered manually."}
-          </span>
-        </label>
+        </Field>
 
-        <label className={label}>
-          Restoration £
-          <AmountInput name="restoration_cost_gbp" value={restorationGbp} onChange={(e) => setRestorationGbp(e.target.value)} className={field} />
-        </label>
-        <label className={label}>
-          <span className="inline-flex items-center gap-1">
-            Other costs £
-            {importVatCost > 0 ? <ImportVatIcon title={`Includes import VAT of ${gbp(importVatCost)} added to costs (margin scheme)`} /> : null}
-          </span>
-          <AmountInput name="other_costs_gbp" value={otherGbp} onChange={(e) => setOtherGbp(e.target.value)} className={field} />
-          {importVatCost > 0 ? (
-            <span className="mt-1 block text-[10.5px] text-accent-deep">+ import VAT {gbp(importVatCost)}</span>
-          ) : null}
-        </label>
-        <label className={`${label} sm:col-span-2`}>
-          Marked price £
-          <AmountInput decimals={0} name="marked_price_gbp" defaultValue={d("marked_price_gbp")} className={field} />
-        </label>
+        <Field label="Restoration £" id="fin-restoration">
+          <AmountInput id="fin-restoration" name="restoration_cost_gbp" value={restorationGbp} onChange={(e) => setRestorationGbp(e.target.value)} className={`${field} tabular`} />
+        </Field>
+        <Field
+          label={
+            <span className="inline-flex items-center gap-1">
+              Other costs £
+              {importVatCost > 0 ? <ImportVatIcon title={`Includes import VAT of ${gbp(importVatCost)} added to costs (margin scheme)`} /> : null}
+            </span>
+          }
+          id="fin-other"
+          hint={importVatCost > 0 ? `Plus import VAT ${gbp(importVatCost)}` : undefined}
+        >
+          <AmountInput
+            id="fin-other"
+            name="other_costs_gbp"
+            value={otherGbp}
+            onChange={(e) => setOtherGbp(e.target.value)}
+            aria-describedby={importVatCost > 0 ? "fin-other-hint" : undefined}
+            className={`${field} tabular`}
+          />
+        </Field>
+        <Field label="Marked price £" id="fin-marked" className="sm:col-span-2">
+          <AmountInput id="fin-marked" decimals={0} name="marked_price_gbp" defaultValue={d("marked_price_gbp")} className={`${field} tabular`} />
+        </Field>
 
         {/* Sale */}
-        <label className={label}>
-          Sold date
-          <input type="date" name="sold_date" value={soldDate} onChange={(e) => setSoldDate(e.target.value)} className={field} />
-        </label>
-        <label className={label}>
-          {thirdParty ? "Net sold price" : "Sold price"}
-          <AmountInput name="sold_price" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} className={field} />
-        </label>
-        <label className={label}>
-          Sell currency
-          <select name="sell_currency" value={sellCur} onChange={(e) => setSellCur(e.target.value)} className={field}>
+        <Field label="Sold date" id="fin-sold-date">
+          <input id="fin-sold-date" type="date" name="sold_date" value={soldDate} onChange={(e) => setSoldDate(e.target.value)} className={field} />
+        </Field>
+        <Field label={thirdParty ? "Net sold price" : "Sold price"} id="fin-sold-price">
+          <AmountInput id="fin-sold-price" name="sold_price" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} className={`${field} tabular`} />
+        </Field>
+        <Field label="Sell currency" id="fin-sell-currency">
+          <select id="fin-sell-currency" name="sell_currency" value={sellCur} onChange={(e) => setSellCur(e.target.value)} className={field}>
             {curOptions}
           </select>
-        </label>
-        <label className={label}>
-          {thirdParty ? "Net sold £" : "Sold £"}
+        </Field>
+        <Field label={thirdParty ? "Net sold £" : "Sold £"} id="fin-sold-gbp" hint={soldNote ?? undefined}>
           <AmountInput
+            id="fin-sold-gbp"
             name="sold_price_gbp"
             value={soldGbp}
             readOnly={autoConverted}
             onChange={autoConverted ? undefined : (e) => setSoldGbp(e.target.value)}
-            className={autoConverted ? readonly : field}
+            aria-describedby={soldNote ? "fin-sold-gbp-hint" : undefined}
+            className={`${autoConverted ? readonly : field} tabular`}
           />
-          {soldNote ? <span className="mt-1 block text-[10.5px] text-ink-soft">{soldNote}</span> : null}
-        </label>
+        </Field>
 
-        <label className={`${label} sm:col-span-2`}>
-          VAT treatment
-          <select name="vat_treatment" value={vatTreatment} onChange={(e) => setVatTreatment(e.target.value)} className={field}>
+        <Field label="VAT treatment" id="fin-vat" className="sm:col-span-2">
+          <select id="fin-vat" name="vat_treatment" value={vatTreatment} onChange={(e) => setVatTreatment(e.target.value)} className={field}>
             {Object.entries(VAT_LABELS).map(([v, l]) => (
               <option key={v} value={v}>
                 {l}
               </option>
             ))}
           </select>
-        </label>
+        </Field>
       </div>
 
-      {/* Worked-out tax + net — display only, driven by the VAT treatment. */}
-      <div className={`mt-4 grid grid-cols-2 gap-4 rounded-lg border border-line-soft bg-band/50 p-4 ${onConsignment ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
-        <div>
-          <p className={label}>Total cost £</p>
-          <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(totalCost)}</p>
-        </div>
-        <div>
-          <p className={label}>VAT due £</p>
-          <p className="mt-1 font-mono text-[15px] text-ink-strong">
-            {soldNum > 0 ? gbp(vatDue) : "—"}
-          </p>
-          <p className="mt-0.5 text-[10.5px] text-ink-soft">
-            {thirdParty
-              ? "no VAT — sold by a third party"
-              : vatTreatment === "margin_scheme"
-                ? "1/6 of margin (sale − total cost)"
-                : vatTreatment === "standard"
-                  ? "1/6 of sale price"
-                  : "no VAT on this treatment"}
-          </p>
-        </div>
-        <div>
-          <p className={label}>Net of VAT £</p>
-          <p className="mt-1 font-mono text-[15px] text-ink-strong">
-            {soldNum > 0 ? gbp(netAmount) : "—"}
-          </p>
-          {reclaimableImportVat > 0 ? (
-            <p className="mt-1 text-[10.5px] font-medium text-accent-deep">
-              Import VAT of {gbp(reclaimableImportVat)} is reclaimable on this item — noted in the stock book.
-            </p>
-          ) : null}
-        </div>
-        {onConsignment ? (
+      {/* Worked-out tax + net: display only, driven by the VAT treatment. */}
+      <Panel title="VAT working" className="mt-5">
+        <div className={`grid grid-cols-2 gap-4 ${onConsignment ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
           <div>
-            <p className={label}>J.v.d.B. share £</p>
-            <p className="mt-1 font-mono text-[15px] text-ink-strong">
-              {soldNum > 0 ? gbp(jvbSplit?.jvbReceived ?? 0) : "—"}
-            </p>
-            <p className="mt-0.5 text-[10.5px] text-ink-soft">
-              net profit {gbp(jvbSplit?.jvbNetProfit ?? 0)}
-              {jvbSplit && jvbSplit.jvbBorne > 0 ? ` + ${gbp(jvbSplit.jvbBorne)} costs reimbursed` : ""} · on consignment
+            <p className="label">Total cost £</p>
+            <p className={figure}>{gbp(totalCost)}</p>
+          </div>
+          <div>
+            <p className="label">VAT due £</p>
+            <p className={figure}>{soldNum > 0 ? gbp(vatDue) : "—"}</p>
+            <p className={note}>
+              {thirdParty
+                ? "No VAT: sold by a third party"
+                : vatTreatment === "margin_scheme"
+                  ? "1/6 of margin (sale − total cost)"
+                  : vatTreatment === "standard"
+                    ? "1/6 of sale price"
+                    : "No VAT on this treatment"}
             </p>
           </div>
-        ) : null}
-      </div>
+          <div>
+            <p className="label">Net of VAT £</p>
+            <p className={figure}>{soldNum > 0 ? gbp(netAmount) : "—"}</p>
+            {reclaimableImportVat > 0 ? (
+              <p className="mt-1 text-[12px] font-medium leading-[1.4] text-body">
+                Import VAT of {gbp(reclaimableImportVat)} is reclaimable on this item, noted in the stock book.
+              </p>
+            ) : null}
+          </div>
+          {onConsignment ? (
+            <div>
+              <p className="label">J.v.d.B. share £</p>
+              <p className={figure}>{soldNum > 0 ? gbp(jvbSplit?.jvbReceived ?? 0) : "—"}</p>
+              <p className={note}>
+                net profit {gbp(jvbSplit?.jvbNetProfit ?? 0)}
+                {jvbSplit && jvbSplit.jvbBorne > 0 ? ` + ${gbp(jvbSplit.jvbBorne)} costs reimbursed` : ""} · on consignment
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </Panel>
 
-      <p className="mt-3 text-[11.5px] text-ink-soft">
+      <p className="mt-3 max-w-[var(--jvb-measure)] text-[12px] leading-[1.4] text-meta">
         The sale £ is worked out automatically from the spot rate on the sale date (or typed
         in by hand if no rate is available); the purchase £ is entered by hand. VAT and net
-        update from the VAT treatment above and are shown for reference — they aren’t stored.
+        update from the VAT treatment above and are shown for reference; they aren’t stored.
       </p>
     </div>
   );

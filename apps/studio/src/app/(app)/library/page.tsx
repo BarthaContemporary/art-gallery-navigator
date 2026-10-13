@@ -6,11 +6,19 @@ import { FoldPanel } from "@/components/fold-panel";
 import { NewDocument } from "@/components/new-document";
 import { formatDate } from "@/lib/format";
 import { DOC_TYPE_LABELS, SHIPMENT_KIND_LABELS, labelOf } from "@/lib/labels";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRightIcon } from "@/components/ui/icons";
 
-export const metadata = { title: "Inventory Lists & Docs" };
+export const metadata = { title: "Inventory lists & docs" };
 
-const rowCls = "flex items-center justify-between gap-3 border-b border-line-soft py-2 text-[13px] last:border-0";
-const manageCls = "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid";
+const rowCls =
+  "flex items-center justify-between gap-3 border-b border-rule py-2 text-[13px] leading-[1.45] first:border-t";
+/** A row that opens its record: the name in ink, underlined on hover. */
+const nameCls = "link-plain min-w-0 truncate text-ink";
+const countCls = "tabular shrink-0 text-[12px] leading-[1.4] text-meta";
+const emptyCls = "text-[13px] leading-[1.45] text-body";
 // shipment_date and doc_date are `date` columns: printed as the day they name.
 const fmt = (d: string | null) => formatDate(d, "numeric");
 
@@ -86,37 +94,35 @@ export default async function LibraryPage() {
   const catRows = (categories.data ?? []) as { id: string; name: string; code: string; is_active: boolean }[];
 
   return (
-    <div className="max-w-[820px]">
-      <h1 className="text-[22px] font-semibold text-ink-strong">Inventory Lists &amp; Docs</h1>
-      <p className="mt-1 text-[13px] text-ink-muted">Tap a section to open it.</p>
+    <div className="max-w-[960px]">
+      <PageHeader
+        title="Inventory lists & docs"
+        meta="Lists, shipments, documents, makers, locations and categories, each one click from its record."
+      />
 
-      <div className="mt-5 space-y-3">
+      <div className="border-b border-rule-strong">
         {/* Inventory lists */}
         <FoldPanel
           title="Inventory lists"
           count={listRows.length}
-          action={<Link href="/inventory/lists" className={manageCls}>Manage / new →</Link>}
+          action={<ManageLink href="/inventory/lists">Manage lists</ManageLink>}
         >
           {listRows.length ? (
             <div>
               {listRows.map((l) => (
                 <div key={l.id} className={rowCls}>
-                  <Link href={`/inventory/lists/${l.id}`} className="min-w-0 truncate text-ink-body hover:text-accent-deep">
+                  <Link href={`/inventory/lists/${l.id}`} className={nameCls}>
                     {l.name}
                   </Link>
-                  <span className="flex shrink-0 items-center gap-1.5">
-                    {l.isDynamic ? (
-                      <span className="bg-oranje/10 px-1.5 text-[10px] font-medium uppercase tracking-[0.06em] text-accent-deep">
-                        Live
-                      </span>
-                    ) : null}
-                    <span className="font-mono text-[12px] text-ink-soft">{l.count}</span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    {l.isDynamic ? <Badge tone="info" size="xs">Live</Badge> : null}
+                    <span className={countCls}>{l.count}</span>
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-[12.5px] text-ink-muted">No lists yet.</p>
+            <p className={emptyCls}>No lists yet.</p>
           )}
         </FoldPanel>
 
@@ -126,11 +132,11 @@ export default async function LibraryPage() {
           count={shipRows.length}
           action={
             <>
-              <form action={createShipment}><input type="hidden" name="kind" value="import" /><button className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg">New import</button></form>
-              <form action={createShipment}><input type="hidden" name="kind" value="temporary_import" /><button className={manageCls}>New temporary import</button></form>
-              <form action={createShipment}><input type="hidden" name="kind" value="export" /><button className={manageCls}>New export</button></form>
-              <form action={createShipment}><input type="hidden" name="kind" value="temporary_export" /><button className={manageCls}>New temporary export</button></form>
-              <Link href="/shipments" className="text-[12px] text-accent-deep hover:underline">All →</Link>
+              <form action={createShipment}><input type="hidden" name="kind" value="import" /><Button type="submit" size="sm" pendingLabel="Creating…">New import</Button></form>
+              <form action={createShipment}><input type="hidden" name="kind" value="temporary_import" /><Button type="submit" size="sm" pendingLabel="Creating…">New temporary import</Button></form>
+              <form action={createShipment}><input type="hidden" name="kind" value="export" /><Button type="submit" size="sm" pendingLabel="Creating…">New export</Button></form>
+              <form action={createShipment}><input type="hidden" name="kind" value="temporary_export" /><Button type="submit" size="sm" pendingLabel="Creating…">New temporary export</Button></form>
+              <ManageLink href="/shipments">All shipments</ManageLink>
             </>
           }
         >
@@ -138,87 +144,118 @@ export default async function LibraryPage() {
             <div>
               {shipRows.map((s) => (
                 <div key={s.id} className={rowCls}>
-                  <Link href={`/shipments/${s.id}`} className="min-w-0 truncate text-ink-body hover:text-accent-deep">
+                  <Link href={`/shipments/${s.id}`} className={nameCls}>
                     <span className="font-medium">{labelOf(SHIPMENT_KIND_LABELS, s.kind)}</span>
-                    <span className="text-ink-muted"> · {fmt(s.shipment_date)}{s.reference ? ` · ${s.reference}` : ""}</span>
+                    <span className="text-body"> · {fmt(s.shipment_date)}{s.reference ? ` · ${s.reference}` : ""}</span>
                   </Link>
-                  <span className="font-mono text-[12px] text-ink-soft">{s.piece_shipments?.[0]?.count ?? 0} items</span>
+                  <span className={countCls}>{s.piece_shipments?.[0]?.count ?? 0} items</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-[12.5px] text-ink-muted">No shipments yet.</p>
+            <p className={emptyCls}>No shipments yet.</p>
           )}
         </FoldPanel>
 
         {/* Documents */}
-        <FoldPanel title="Documents" count={docRows.length} action={<><NewDocument /><Link href="/documents" className="text-[12px] text-accent-deep hover:underline">All →</Link></>}>
+        <FoldPanel
+          title="Documents"
+          count={docRows.length}
+          action={
+            <>
+              <NewDocument />
+              <ManageLink href="/documents">All documents</ManageLink>
+            </>
+          }
+        >
           {docRows.length ? (
             <div>
               {docRows.map((d) => (
                 <div key={d.id} className={rowCls}>
-                  <Link href={`/documents/${d.id}`} className="min-w-0 truncate text-ink-body hover:text-accent-deep">
+                  <Link href={`/documents/${d.id}`} className={nameCls}>
                     <span className="font-medium">{labelOf(DOC_TYPE_LABELS, d.doc_type)}</span>
-                    {d.title ? <span className="text-ink-muted"> · {d.title}</span> : null}
-                    <span className="text-ink-muted"> · {fmt(d.doc_date)}</span>
+                    {d.title ? <span className="text-body"> · {d.title}</span> : null}
+                    <span className="text-body"> · {fmt(d.doc_date)}</span>
                   </Link>
-                  <span className="font-mono text-[12px] text-ink-soft">{d.document_pieces?.[0]?.count ?? 0} items</span>
+                  <span className={countCls}>{d.document_pieces?.[0]?.count ?? 0} items</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-[12.5px] text-ink-muted">No documents yet.</p>
+            <p className={emptyCls}>No documents yet.</p>
           )}
         </FoldPanel>
 
-        {/* Makers */}
-        <FoldPanel title="Makers" count={makerRows.length} action={<Link href="/makers" className={manageCls}>Manage / new →</Link>}>
-          <div className="max-h-80 overflow-y-auto">
+        {/* Makers: each row opens the maker's page. */}
+        <FoldPanel title="Makers" count={makerRows.length} action={<ManageLink href="/makers">Manage makers</ManageLink>}>
+          <div className="max-h-80 overflow-y-auto" data-inset-focus>
             {makerRows.map((m) => (
               <div key={m.id} className={rowCls}>
-                <span className="min-w-0 truncate text-ink-body">{m.display_name}</span>
-                <span className="font-mono text-[12px] text-ink-soft">{m.life_dates ?? ""}</span>
+                <Link href={`/makers/${m.id}`} className={nameCls}>
+                  {m.display_name}
+                </Link>
+                <span className={countCls}>{m.life_dates ?? ""}</span>
               </div>
             ))}
-            {makerRows.length === 0 ? <p className="text-[12.5px] text-ink-muted">No makers yet.</p> : null}
+            {makerRows.length === 0 ? <p className={emptyCls}>No makers yet.</p> : null}
           </div>
         </FoldPanel>
 
-        {/* Locations */}
-        <FoldPanel title="Locations" count={locRows.length} action={<Link href="/locations" className={manageCls}>Manage / new →</Link>}>
-          <div className="max-h-80 overflow-y-auto">
+        {/* Locations have no page of their own: a row opens the works kept
+            there, as the Locations page does. */}
+        <FoldPanel title="Locations" count={locRows.length} action={<ManageLink href="/locations">Manage locations</ManageLink>}>
+          <div className="max-h-80 overflow-y-auto" data-inset-focus>
             {locRows.map((l) => (
               <div key={l.id} className={rowCls}>
-                <span className="text-ink-body"><span className="font-mono text-[12px] text-ink-muted">{l.code}</span>{l.name ? ` · ${l.name}` : ""}</span>
-                <span className="text-[12px] text-ink-soft">{l.type ?? ""}</span>
+                <Link
+                  href={`/inventory?location=${l.id}`}
+                  className={nameCls}
+                  title="Show the works at this location"
+                >
+                  <span className="tabular text-body">{l.code}</span>
+                  {l.name ? ` · ${l.name}` : ""}
+                </Link>
+                <span className="shrink-0 text-[12px] leading-[1.4] text-meta">{l.type ?? ""}</span>
               </div>
             ))}
-            {locRows.length === 0 ? <p className="text-[12.5px] text-ink-muted">No locations yet.</p> : null}
+            {locRows.length === 0 ? <p className={emptyCls}>No locations yet.</p> : null}
           </div>
         </FoldPanel>
 
-        {/* Categories — count is the number in use, since hidden ones don't
-            appear in any picker. */}
+        {/* Categories: count is the number in use, since hidden ones don't
+            appear in any picker. A row opens the works in it. */}
         <FoldPanel
           title="Categories"
           count={catRows.filter((c) => c.is_active).length}
-          action={<Link href="/categories" className={manageCls}>Manage / new →</Link>}
+          action={<ManageLink href="/categories">Manage categories</ManageLink>}
         >
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto" data-inset-focus>
             {catRows.map((c) => (
               <div key={c.id} className={rowCls}>
-                <span className={`min-w-0 truncate ${c.is_active ? "text-ink-body" : "text-ink-muted"}`}>
+                <Link
+                  href={`/inventory?category=${c.id}`}
+                  className={`link-plain min-w-0 truncate ${c.is_active ? "text-ink" : "text-meta"}`}
+                  title="Show the works in this category"
+                >
                   {c.name}
-                </span>
-                <span className="font-mono text-[12px] text-ink-soft">
-                  {c.is_active ? c.code : "hidden"}
-                </span>
+                </Link>
+                <span className={countCls}>{c.is_active ? c.code : "hidden"}</span>
               </div>
             ))}
-            {catRows.length === 0 ? <p className="text-[12.5px] text-ink-muted">No categories yet.</p> : null}
+            {catRows.length === 0 ? <p className={emptyCls}>No categories yet.</p> : null}
           </div>
         </FoldPanel>
       </div>
     </div>
+  );
+}
+
+/** The way from a panel to the page that manages it: an action link (spec R2). */
+function ManageLink({ href, children }: { href: string; children: string }) {
+  return (
+    <Link href={href} className="link inline-flex min-h-[var(--jvb-control-h-sm)] items-center gap-1 text-[13px]">
+      {children}
+      <ArrowRightIcon size={14} />
+    </Link>
   );
 }

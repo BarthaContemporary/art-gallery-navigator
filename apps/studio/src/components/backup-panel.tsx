@@ -1,4 +1,6 @@
 import { getSupabase } from "@/lib/supabase";
+import { Badge, type Tone } from "@/components/ui/badge";
+import { Section } from "@/components/ui/section";
 
 /**
  * Admin-only backup health panel for the dashboard. Reads the latest run per
@@ -42,43 +44,47 @@ export async function BackupPanel() {
   });
 
   const worst = rows.some((r) => r.state !== "ok");
-  const dot = (state: string) =>
-    state === "ok"
-      ? "var(--jvb-status-green)"
-      : state === "stale"
-        ? "var(--jvb-warn)"
-        : "var(--jvb-danger)";
+  // A state colour always comes with its word (spec R4): overdue is warn,
+  // never recorded is danger.
+  const tone = (state: string): Tone => (state === "ok" ? "ok" : state === "stale" ? "warn" : "danger");
 
   return (
-    <div className="border border-line bg-cell p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Backups</h2>
-        <span className={`text-[11px] ${worst ? "text-accent-deep" : "text-ink-soft"}`}>
-          {worst ? "Needs attention" : "All healthy"}
-        </span>
-      </div>
-      <ul className="mt-3 space-y-2">
+    <Section
+      title="Backups"
+      actions={
+        <Badge tone={worst ? "warn" : "ok"}>{worst ? "Needs attention" : "All healthy"}</Badge>
+      }
+    >
+      <ul>
         {rows.map((r) => (
-          <li key={r.kind} className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2">
-              <span aria-hidden className="inline-block h-2 w-2 rounded-full" style={{ background: dot(r.state) }} />
-              <span className="text-[13px] text-ink-body">{r.label}</span>
-              <span className="text-[10.5px] uppercase tracking-[0.05em] text-ink-faint">{r.cadence}</span>
+          <li
+            key={r.kind}
+            className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-rule py-2 text-[13px]"
+          >
+            <span>
+              <Badge variant="dot" tone={tone(r.state)}>
+                <span className="text-ink">{r.label}</span>
+              </Badge>
+              <span className="text-[12px] text-meta"> · {r.cadence}</span>
             </span>
-            <span className="text-[11.5px] text-ink-soft">
+            <span
+              className={`text-[12px] ${
+                r.state === "missing" ? "text-danger" : r.state === "stale" ? "text-warn" : "text-meta"
+              }`}
+            >
               {r.state === "missing"
                 ? "No backup recorded yet"
                 : r.state === "stale"
-                  ? `Overdue — last ${ago(r.run!.created_at, now)}`
-                  : `${ago(r.run!.created_at, now)}`}
+                  ? `Overdue: last run ${ago(r.run!.created_at, now)}`
+                  : `Last run ${ago(r.run!.created_at, now)}`}
             </span>
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-[11px] text-ink-soft">
+      <p className="mt-2 text-[12px] leading-[1.4] text-meta">
         Off-site to Vultr object storage (drive encrypted at rest). A missed backup also alerts by
         email via healthchecks.io.
       </p>
-    </div>
+    </Section>
   );
 }

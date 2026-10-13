@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { signedThumbnail, PREVIEW_WIDTH } from "@/lib/thumbnails";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -10,6 +9,23 @@ import { ReorderGrid } from "@/components/reorder-grid";
 import { persistOrder } from "@/lib/reorder";
 import { RecordKeyNav } from "@/components/record-key-nav";
 import { titleWithYear } from "@jvb/db";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
+
+// The image roles (the image_role enum) as words; the stored value is unchanged.
+const ROLE_WORDS: Record<string, string> = {
+  front: "Front",
+  back: "Back",
+  side: "Side",
+  signature: "Signature",
+  box: "Box",
+  detail: "Detail",
+  condition: "Condition",
+  document: "Document",
+  other: "Other",
+};
 
 export const metadata = { title: "Manage images" };
 
@@ -120,57 +136,60 @@ export default async function ManageImagesPage({
 
   return (
     <div>
-      <p className="text-[13px] text-ink-muted">
-        <Link href={`/inventory/${encodeURIComponent(piece.stock_number)}`}>← Back to record</Link>
-      </p>
       {/* ← / → move between works without leaving image editing, so a session
           spent bringing photography up to date runs straight down the
           inventory. Ignored while typing a caption. */}
       <RecordKeyNav prevHref={prevHref} nextHref={nextHref} />
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[26px] font-semibold text-ink-strong">
-          Images · <span className="font-mono text-[20px]">{piece.stock_number}</span>
-        </h1>
-        <div className="flex items-center gap-2.5">
-          <span className="flex items-center gap-1">
-            {prevHref && prevRes.data ? (
-              <Link
-                href={prevHref}
-                aria-label={`Previous work — ${prevRes.data.stock_number}`}
-                title={`Images for ${prevRes.data.stock_number}`}
-                className="flex h-11 w-11 items-center justify-center rounded-lg border border-line-control text-ink-mid md:h-[30px] md:w-[30px]"
-              >
-                ‹
-              </Link>
-            ) : null}
-            {nextHref && nextRes.data ? (
-              <Link
-                href={nextHref}
-                aria-label={`Next work — ${nextRes.data.stock_number}`}
-                title={`Images for ${nextRes.data.stock_number}`}
-                className="flex h-11 w-11 items-center justify-center rounded-lg border border-line-control text-ink-mid md:h-[30px] md:w-[30px]"
-              >
-                ›
-              </Link>
-            ) : null}
-          </span>
-        </div>
-      </div>
-      {piece.title ? (
-        <p className="mt-1 text-[13px] text-ink-muted">{titleWithYear(piece.title, piece.year)}</p>
-      ) : null}
-      <div className="mt-5">
-        <ImageUploader pieceId={piece.id} nextSortOrder={(images ?? []).length} />
-      </div>
+      <PageHeader
+        back={{ href: `/inventory/${encodeURIComponent(piece.stock_number)}`, label: "Back to record" }}
+        title="Images"
+        meta={
+          <>
+            <span className="tabular">{piece.stock_number}</span>
+            {piece.title ? ` · ${titleWithYear(piece.title, piece.year)}` : ""}
+          </>
+        }
+        actions={
+          prevHref || nextHref ? (
+            <span className="flex items-center gap-1">
+              {prevHref && prevRes.data ? (
+                <ButtonLink
+                  href={prevHref}
+                  iconOnly
+                  label={`Previous work: ${prevRes.data.stock_number}`}
+                  title={`Images for ${prevRes.data.stock_number}`}
+                >
+                  <ChevronLeftIcon />
+                </ButtonLink>
+              ) : null}
+              {nextHref && nextRes.data ? (
+                <ButtonLink
+                  href={nextHref}
+                  iconOnly
+                  label={`Next work: ${nextRes.data.stock_number}`}
+                  title={`Images for ${nextRes.data.stock_number}`}
+                >
+                  <ChevronRightIcon />
+                </ButtonLink>
+              ) : null}
+            </span>
+          ) : null
+        }
+      />
+
+      <ImageUploader pieceId={piece.id} nextSortOrder={(images ?? []).length} />
       {/*
         Tiles are rendered here, on the server, and handed to the grid keyed by
         id. The client component owns the order and nothing else, so the rotate,
         caption and delete controls below stay exactly as they were.
       */}
       {signed.length === 0 ? (
-        <p className="mt-6 text-[13px] text-ink-muted">No images yet.</p>
+        <EmptyState className="mt-6 border-t border-rule">
+          No images yet. Drop photographs into the box above to add the first.
+        </EmptyState>
       ) : (
+        <div className="mt-6">
         <ReorderGrid
           order={signed.map((img) => img.id)}
           onReorder={reorderImages}
@@ -178,52 +197,66 @@ export default async function ManageImagesPage({
           tiles={Object.fromEntries(
             signed.map((img) => [
               img.id,
-              <div key={img.id} className="border border-line bg-cell p-2.5">
-            <div className="jvb-hatch relative aspect-square overflow-hidden rounded-lg">
+              <div key={img.id} className="border border-rule bg-page p-2.5">
+            {/* Square, as the website's tiles: the whole photograph is on
+                the record page; this is for telling them apart. */}
+            <div className="jvb-hatch relative aspect-square overflow-hidden">
               {img.url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={img.url} alt={img.caption ?? img.role} className="h-full w-full object-cover" />
+                <img src={img.url} alt={img.caption ?? ROLE_WORDS[img.role] ?? img.role} className="h-full w-full object-cover" />
               ) : (
-                <span className="absolute inset-0 flex items-center justify-center px-2 text-center text-[11px] text-ink-soft">
-                  {img.processing_status === "pending" || img.processing_status === "processing"
-                    ? "Processing…"
-                    : img.processing_status === "error"
-                      ? `Error: ${img.processing_error ?? "unknown"}`
-                      : img.legacy_container_filename
-                        ? `Awaiting legacy file ${img.legacy_container_filename}`
-                        : "No preview"}
+                <span className="absolute inset-0 flex items-center justify-center p-3 text-center">
+                  <span
+                    className={`bg-page px-2 py-1 text-[12px] leading-[1.4] ${
+                      img.processing_status === "error" ? "text-danger" : "text-body"
+                    }`}
+                  >
+                    {img.processing_status === "pending" || img.processing_status === "processing"
+                      ? "Processing…"
+                      : img.processing_status === "error"
+                        ? `Error: ${img.processing_error ?? "unknown"}`
+                        : img.legacy_container_filename
+                          ? `Awaiting legacy file ${img.legacy_container_filename}`
+                          : "No preview"}
+                  </span>
                 </span>
               )}
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
-              <p className="text-[10.5px] uppercase tracking-[0.05em] text-ink-faint">{img.role}</p>
+              <p className="text-[13px] font-medium leading-[1.45] text-ink">{ROLE_WORDS[img.role] ?? img.role}</p>
               {/* Rotate sits above the caption row, per request. Disabled until
                   there is a processed derivative to turn. Ordering is the grip
                   handle in the corner (ImageReorderGrid). */}
               <RotateImageButton imageId={img.id} disabled={!img.url} />
             </div>
-            <form action={saveCaption} className="mt-1 flex gap-1.5">
+            <form action={saveCaption} className="mt-1.5 flex flex-col gap-1">
               <input type="hidden" name="id" value={img.id} />
-              <input
-                name="caption"
-                defaultValue={img.caption ?? ""}
-                placeholder="Caption"
-                className="w-full min-w-0 rounded-md border border-line-control bg-control px-2 py-1 text-[12px]"
-              />
-              <button type="submit" className="rounded-md border border-line-control bg-control px-2 py-1 text-[11px] font-medium text-ink-mid">
-                Save
-              </button>
+              <label htmlFor={`caption-${img.id}`} className="label">
+                Caption
+              </label>
+              <div className="flex gap-1.5">
+                <input
+                  id={`caption-${img.id}`}
+                  name="caption"
+                  defaultValue={img.caption ?? ""}
+                  className="field field-sm min-w-0 flex-1"
+                />
+                <Button type="submit" size="sm" pendingLabel="Saving…">
+                  Save
+                </Button>
+              </div>
             </form>
-            <form action={deleteImage} className="mt-1.5">
+            <form action={deleteImage} className="mt-1">
               <input type="hidden" name="id" value={img.id} />
-              <button type="submit" className="text-[11px] text-ink-soft underline">
+              <Button type="submit" variant="quiet" size="sm" pendingLabel="Deleting…" className="-ml-1.5 text-danger">
                 Delete
-              </button>
+              </Button>
             </form>
               </div>,
             ]),
           )}
         />
+        </div>
       )}
     </div>
   );

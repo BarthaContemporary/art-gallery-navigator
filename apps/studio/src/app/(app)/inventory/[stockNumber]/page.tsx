@@ -13,20 +13,44 @@ import {
 } from "@/lib/supabase";
 import { PieceGallery, type GalleryImage } from "@/components/piece-gallery";
 import { RecordKeyNav } from "@/components/record-key-nav";
-import { Disclosure } from "@/components/disclosure";
+import { RecordMenu } from "@/components/record-menu";
 import { StatusPill } from "@/components/status-pill";
 import { RegisterBadge } from "@/components/register-badge";
 import { RegisterMove } from "@/components/register-move";
 import { ChangeHistory, type HistoryEntry } from "@/components/change-history";
+import { FilePreviewLink } from "@/components/file-preview";
 import { cmToInchesFraction } from "@/lib/measure";
 import { titleWithYear } from "@jvb/db";
 import { formatDimensionsCm } from "@jvb/db";
-import { consignmentSplit } from "@/lib/consignment";
+import { consignmentSplit, round2 } from "@/lib/consignment";
+import { DOC_TYPE_LABELS, VAT_TREATMENT_LABELS, labelOf } from "@/lib/labels";
 // London time and the shared money format; this page renders on the server,
 // where a bare toLocaleString prints UTC.
-import { formatCount, formatDate, formatDateTime, gbpDisplay } from "@/lib/format";
+import { formatCount, formatDate, formatDateTime, gbpDisplay, gbpExact } from "@/lib/format";
+import { Badge } from "@/components/ui/badge";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { FlashNotice } from "@/components/ui/notice";
+import { Section } from "@/components/ui/section";
+import { WebsiteDot } from "@/components/ui/website-switch";
+import {
+  ArrowLeftIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  EditIcon,
+  EyeIcon,
+  FileIcon,
+  FlagIcon,
+} from "@/components/ui/icons";
 
 export const metadata = { title: "Piece detail" };
+
+// The website square's kinds (pieces.presentation, piece_image_squares.kind),
+// in the words of the editor's "Website square" select.
+const SQUARE_WORDS: Record<string, string> = {
+  flat: "flat work",
+  object: "object",
+  photo: "photograph as taken",
+};
 
 const ROLE_CAPTIONS: Record<string, string> = {
   front: "Front",
@@ -49,9 +73,9 @@ export default async function PieceDetail({
   searchParams,
 }: {
   params: Promise<{ stockNumber: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string }>;
 }) {
-  const { error: actionError } = await searchParams;
+  const sp = await searchParams;
   const { stockNumber: raw } = await params;
   const stockNumber = decodeURIComponent(raw);
   const supabase = await getSupabase();
@@ -101,12 +125,14 @@ export default async function PieceDetail({
   ] = await Promise.all([
     supabase
       .from("piece_images")
-      .select("id, role, caption, sort_order, storage_path_display")
+      .select("id, role, caption, sort_order, storage_path_display, processing_status")
       .eq("piece_id", piece.id)
       .order("sort_order"),
     supabase
       .from("provenance_entries")
-      .select("id, date_text, party, event_type, details")
+      // is_public: whether the line may appear on the website; the others
+      // are marked internal here.
+      .select("id, date_text, party, event_type, details, is_public")
       .eq("piece_id", piece.id)
       .order("sort_order"),
     supabase
@@ -160,7 +186,7 @@ export default async function PieceDetail({
       .limit(5),
     supabase
       .from("document_pieces")
-      .select("doc:piece_documents ( id, doc_type, title, created_at )")
+      .select("doc:piece_documents ( id, doc_type, title, storage_path, created_at )")
       .eq("piece_id", piece.id),
     supabase
       .from("enquiries")
@@ -258,12 +284,47 @@ export default async function PieceDetail({
     year: number | null;
   }[];
   const relatedImg = new Map<string, string>();
+
+  // Activity rows, read here because the actor names below need them.
+  const activityRows = (activityRes.data ?? []) as unknown as Array<{
+    id: number | string;
+    action: string;
+    created_at: string;
+    actor_id: string | null;
+    entity_type?: string | null;
+    changes?: Record<string, unknown> | null;
+  }>;
+  const actorIds = isAdmin
+    ? [...new Set(activityRows.map((a) => a.actor_id).filter((x): x is string => Boolean(x)))]
+    : [];
+  const fin = financialsRes.data;
+  const buyerContactId = (fin?.buyer_contact_id as string | null | undefined) ?? null;
+  // The photograph the website tile is drawn from: the first processed one.
+  const firstDone = imageRows.find((im) => im.storage_path_display && im.processing_status === "done");
+
+  // The follow-up reads each depend on the batch above but not on each
+  // other, so they run together.
+  const [relImgsRes, profsRes, buyerRes, squareRes] = await Promise.all([
+    related.length
+      ? supabase
+          .from("piece_images")
+          .select("piece_id, role, sort_order, storage_path_display")
+          .in("piece_id", related.map((r) => r.id))
+          .not("storage_path_display", "is", null)
+      : Promise.resolve({ data: [] as { piece_id: string; role: string; sort_order: number | null; storage_path_display: string | null }[] }),
+    actorIds.length
+      ? supabase.from("profiles").select("id, full_name").in("id", actorIds)
+      : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
+    showFinancials && buyerContactId
+      ? supabase.from("crm_contacts").select("id, first_name, last_name, email").eq("id", buyerContactId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    firstDone
+      ? supabase.from("piece_image_squares").select("guess, kind, square_path").eq("image_id", firstDone.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
   if (related.length) {
-    const { data: relImgs } = await supabase
-      .from("piece_images")
-      .select("piece_id, role, sort_order, storage_path_display")
-      .in("piece_id", related.map((r) => r.id))
-      .not("storage_path_display", "is", null);
+    const relImgs = relImgsRes.data;
     // Best image per piece: prefer the "front" role, then lowest sort_order.
     const best = new Map<string, { score: number; sort: number; path: string }>();
     for (const im of relImgs ?? []) {
@@ -285,7 +346,6 @@ export default async function PieceDetail({
 
   const watching = Boolean(watchRes.data);
   const flagged = Boolean(flagRow);
-  const fin = financialsRes.data;
   const total = totalRes.count ?? 0;
   const position = total - (positionRes.count ?? 1) + 1;
   const enquiryCount = enquiriesRes.count ?? 0;
@@ -294,29 +354,11 @@ export default async function PieceDetail({
   // Activity / change history. Admins get the full field-level diff with the
   // name of whoever made each change; other roles see a short recent list
   // (and RLS returns nothing to staff regardless).
-  const activityRows = (activityRes.data ?? []) as unknown as Array<{
-    id: number | string;
-    action: string;
-    created_at: string;
-    actor_id: string | null;
-    entity_type?: string | null;
-    changes?: Record<string, unknown> | null;
-  }>;
   let historyEntries: HistoryEntry[] = [];
   if (isAdmin) {
-    const actorIds = [
-      ...new Set(activityRows.map((a) => a.actor_id).filter((x): x is string => Boolean(x))),
-    ];
-    let names: Record<string, string> = {};
-    if (actorIds.length) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", actorIds);
-      names = Object.fromEntries(
-        (profs ?? []).map((p) => [p.id as string, (p.full_name as string | null) ?? ""]),
-      );
-    }
+    const names: Record<string, string> = Object.fromEntries(
+      (profsRes.data ?? []).map((p) => [p.id as string, (p.full_name as string | null) ?? ""]),
+    );
     historyEntries = activityRows.map((a) => ({
       id: a.id,
       action: a.action,
@@ -363,6 +405,73 @@ export default async function PieceDetail({
         sharePct: consignSharePct as number,
       }).jvbNetProfit
     : null;
+
+  // Website state for the header. The square is what the sync draws the
+  // tile from: the owner's choice, or on auto its reading of the first
+  // photograph. Objects and room photographs get a rendered square; until the
+  // sync has made it (or read the photograph at all) it is "pending". Only
+  // said of works on the website, since the sync renders nothing else.
+  const webVisible = Boolean(piece.web_visible);
+  const presentation = String(piece.presentation ?? "auto");
+  const square = squareRes.data as { guess: string; kind: string; square_path: string | null } | null;
+  const squareKind = presentation !== "auto" ? presentation : square?.guess ?? null;
+  const squarePending =
+    Boolean(firstDone) &&
+    (!square || (squareKind !== "flat" && (square.kind !== squareKind || !square.square_path)));
+  const squareText = !webVisible || !firstDone
+    ? null
+    : `Square: ${squareKind ? SQUARE_WORDS[squareKind] ?? squareKind : "not read yet"}${
+        presentation === "auto" && squareKind ? " (auto)" : ""
+      }${squarePending ? ", pending" : ""}`;
+
+  // The sale, for the roles that see financials: the same VAT rules as the
+  // editor's Financials panel (CLAUDE.md, Money / VAT). Margin scheme: 1/6 of
+  // sale less total cost, import VAT paid counting as a cost; standard: 1/6
+  // of the sale; zero-rated and outside scope: none. A sale handled by a
+  // third party carries no VAT for the gallery.
+  const soldGbp = fin?.sold_price_gbp != null ? Number(fin.sold_price_gbp) : null;
+  const hasSale = Boolean(fin && (soldGbp != null || fin.sold_date || buyerContactId));
+  const saleThirdParty = consignSaleHandled === false;
+  const saleTreatment = String(fin?.vat_treatment ?? "margin_scheme");
+  const saleCostBase =
+    num0(fin?.total_cost_gbp) +
+    (saleTreatment === "margin_scheme" && fin?.import_type === "import_vat_paid" ? num0(fin?.import_vat_gbp) : 0);
+  const saleVat =
+    soldGbp != null && soldGbp > 0 && !saleThirdParty
+      ? round2(
+          saleTreatment === "margin_scheme"
+            ? Math.max(0, soldGbp - saleCostBase) / 6
+            : saleTreatment === "standard"
+              ? soldGbp / 6
+              : 0,
+        )
+      : 0;
+  const saleNet = soldGbp != null ? round2(soldGbp - saleVat) : null;
+  const saleVatBasis = saleThirdParty
+    ? "No VAT: sold by a third party"
+    : saleTreatment === "margin_scheme"
+      ? "1/6 of the margin (sale less total cost)"
+      : saleTreatment === "standard"
+        ? "1/6 of the sale price"
+        : "No VAT on this treatment";
+  const buyer = buyerRes.data as { id: string; first_name: string | null; last_name: string | null; email: string | null } | null;
+  const buyerName = buyer
+    ? [buyer.first_name, buyer.last_name].filter(Boolean).join(" ") || buyer.email || "Unnamed contact"
+    : null;
+  const soldToNote = (piece.sold_to as string | null)?.trim() || null;
+
+  const documents = ((documentsRes.data ?? []) as unknown as {
+    doc: { id: string; doc_type: string; title: string | null; storage_path: string | null } | null;
+  }[])
+    .map((r) => r.doc)
+    .filter((d): d is NonNullable<typeof d> => Boolean(d));
+  const provenance = (provenanceRes.data ?? []) as {
+    id: string;
+    date_text: string | null;
+    party: string | null;
+    details: string | null;
+    is_public: boolean | null;
+  }[];
 
   async function addToList(formData: FormData) {
     "use server";
@@ -535,202 +644,183 @@ export default async function PieceDetail({
     ...(tempExportDest ? ([["Temp. export to", tempExportDest]] as [string, React.ReactNode][]) : []),
   ];
 
+  const sn = encodeURIComponent(piece.stock_number);
+  const prevHref = prevRes.data ? `/inventory/${encodeURIComponent(prevRes.data.stock_number)}` : null;
+  const nextHref = nextRes.data ? `/inventory/${encodeURIComponent(nextRes.data.stock_number)}` : null;
+
   return (
-    <div className="jvb-content-enter -mx-4 -my-6 md:-mx-8 md:-my-8">
-      {actionError ? (
-        <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
-          {actionError}
-        </p>
-      ) : null}
-      <RecordKeyNav
-        prevHref={
-          prevRes.data ? `/inventory/${encodeURIComponent(prevRes.data.stock_number)}` : null
-        }
-        nextHref={
-          nextRes.data ? `/inventory/${encodeURIComponent(nextRes.data.stock_number)}` : null
-        }
-      />
-      {/* 1 · sticky top chrome */}
+    // Record and detail pages sit in the wide measure (spec section 3).
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <FlashNotice searchParams={sp} className="mb-4" />
+      <RecordKeyNav prevHref={prevHref} nextHref={nextHref} />
+
+      {/* 1 · record bar: where you are, the way on, and the record's actions.
+          Sticky from tablet width; on a phone it wraps to two rows and
+          scrolls away, leaving the screen to the work. */}
       <div
         style={{ top: "var(--app-header-h, 88px)" }}
-        className="sticky z-30 flex items-center justify-between gap-3 overflow-x-auto border-b border-line bg-[var(--jvb-bg-header)] px-4 py-3 backdrop-blur-[8px] md:px-[34px] md:py-4"
+        className="z-30 -mt-2 mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-rule bg-[var(--jvb-header-bg)] py-2.5 backdrop-blur-[8px] md:sticky"
       >
-        <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-muted">
-          <Link
-            href="/inventory"
-            aria-label="Back to inventory"
-            className="-ml-2 flex h-11 w-11 items-center justify-center text-ink-mid md:ml-0 md:h-auto md:w-auto"
-          >
-            ←
+        {/* On a phone: the trail and ‹ › on one row, the actions on the next.
+            From tablet width: one row, the record's controls on the right. */}
+        <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-2 text-[12px] leading-[1.4] text-meta md:flex-none">
+          <Link href="/inventory" className="inline-flex shrink-0 items-center gap-1 hover:text-ink">
+            <ArrowLeftIcon size={14} />
+            Inventory
           </Link>
-          <span className="hidden sm:inline">Inventory</span>
-          <span className="hidden text-[var(--jvb-ink-separator)] sm:inline">/</span>
+          <span aria-hidden className="hidden text-light sm:inline">/</span>
           <span className="hidden truncate sm:inline">{piece.category?.name ?? "Uncategorised"}</span>
-          <span className="hidden text-[var(--jvb-ink-separator)] sm:inline">/</span>
-          <span className="font-mono text-[12px] text-[var(--jvb-ink-body)]">
+          <span aria-hidden className="text-light">/</span>
+          <span aria-current="page" className="tabular shrink-0 text-body">
             {piece.stock_number}
           </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-2.5">
-          <span className="hidden font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint md:inline">
-            Record {position} / {formatCount(total)}
+        </nav>
+        <div className="flex items-center gap-2 md:ml-auto">
+          <span className="hidden text-[12px] leading-[1.4] text-meta md:inline">
+            <span className="tabular">{formatCount(position)}</span> of{" "}
+            <span className="tabular">{formatCount(total)}</span>
           </span>
           <span className="flex items-center gap-1">
-            {prevRes.data ? (
-              <Link
-                href={`/inventory/${encodeURIComponent(prevRes.data.stock_number)}`}
-                aria-label="Previous record"
-                className="flex h-11 w-11 items-center justify-center rounded-lg border border-line-control text-ink-mid md:h-[30px] md:w-[30px]"
-              >
-                ‹
-              </Link>
+            {prevHref ? (
+              <ButtonLink href={prevHref} iconOnly label="Previous record" size="sm">
+                <ChevronLeftIcon />
+              </ButtonLink>
             ) : null}
-            {nextRes.data ? (
-              <Link
-                href={`/inventory/${encodeURIComponent(nextRes.data.stock_number)}`}
-                aria-label="Next record"
-                className="flex h-11 w-11 items-center justify-center rounded-lg border border-line-control text-ink-mid md:h-[30px] md:w-[30px]"
-              >
-                ›
-              </Link>
+            {nextHref ? (
+              <ButtonLink href={nextHref} iconOnly label="Next record" size="sm">
+                <ChevronRightIcon />
+              </ButtonLink>
             ) : null}
           </span>
-          <span aria-hidden className="hidden h-5 w-px bg-line md:inline-block" />
+        </div>
+        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+          <span aria-hidden className="hidden h-5 w-px bg-rule md:inline-block" />
+          {/* Words on a wide screen; narrower, the icon, named by aria-label. */}
           <form action={toggleWatch}>
-            <button
+            <Button
               type="submit"
-              className={`inline-flex min-h-11 items-center rounded-lg border px-3 py-[7px] text-[12.5px] font-medium transition-colors duration-150 md:min-h-0 ${
-                watching
-                  ? "border-[var(--jvb-border-control-active)] bg-control-active text-ink-strong"
-                  : "border-line-control bg-control text-ink-mid"
-              }`}
+              aria-pressed={watching}
+              aria-label={watching ? "Watching" : "Watch"}
+              icon={<EyeIcon size={15} />}
+              className={`px-3 ${watching ? "border-ink bg-band" : ""}`}
             >
-              {watching ? "★ Watching" : "☆ Watch"}
-            </button>
+              <span className="hidden lg:inline">{watching ? "Watching" : "Watch"}</span>
+            </Button>
           </form>
           <form action={toggleFlag}>
-            <button
+            <Button
               type="submit"
               aria-pressed={flagged}
-              title={flagged ? "Flagged — click to remove the flag" : "Flag this work to come back to it from the inventory"}
-              className={`inline-flex min-h-11 items-center rounded-lg border px-3 py-[7px] text-[12.5px] font-medium transition-colors duration-150 md:min-h-0 ${
-                flagged
-                  ? "border-warn/60 bg-warn-soft text-warn"
-                  : "border-line-control bg-control text-ink-mid"
-              }`}
+              aria-label={flagged ? "Flagged" : "Flag"}
+              title={flagged ? "Flagged. Press to remove the flag." : "Flag this work to come back to it from the inventory"}
+              icon={<FlagIcon size={15} className={flagged ? "text-warn" : undefined} />}
+              className={`px-3 ${flagged ? "border-warn bg-warn-wash text-warn" : ""}`}
             >
-              {flagged ? "⚑ Flagged" : "⚑ Flag"}
-            </button>
+              <span className="hidden lg:inline">{flagged ? "Flagged" : "Flag"}</span>
+            </Button>
           </form>
-          <Link
-            href={`/inventory/${encodeURIComponent(piece.stock_number)}/edit`}
-            className="inline-flex min-h-11 items-center rounded-lg bg-primary px-[15px] py-[7px] text-[12.5px] font-semibold text-primary-fg md:min-h-0"
+          {/* Documents ▾: the exports and the list form, one click away */}
+          <RecordMenu label="Documents" icon={<FileIcon size={15} />}>
+            <p className="label">Documents</p>
+            <ul className="mt-1.5 grid grid-cols-[1fr_auto] gap-x-4 text-[13px] leading-[1.45]">
+              {(
+                [
+                  ["Fact sheet", `/api/export/fact-sheet.pdf?stock=${sn}`, `/api/export/fact-sheet.docx?stock=${sn}`],
+                  ["Certificate", `/api/export/certificate.pdf?stock=${sn}`, `/api/export/certificate.docx?stock=${sn}`],
+                ] as const
+              ).map(([what, pdf, docx]) => (
+                <li key={what} className="col-span-2 grid grid-cols-subgrid items-baseline border-b border-rule py-1.5">
+                  <span className="text-body">{what}</span>
+                  <span className="flex gap-3">
+                    <SaveToDriveLink href={pdf} className="link">
+                      PDF
+                    </SaveToDriveLink>
+                    <SaveToDriveLink href={docx} className="link">
+                      DOCX
+                    </SaveToDriveLink>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-[12px] leading-[1.4] text-meta">Saved onto the shared drive.</p>
+
+            {/* add to list: file this work into a static list */}
+            <div className="mt-4 border-t border-rule-strong pt-3">
+              {pieceLists && pieceLists.length > 0 ? (
+                <form action={addToList} className="flex flex-col gap-1">
+                  <label htmlFor="add-to-list" className="label">
+                    Add to list
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select id="add-to-list" name="list_id" defaultValue="" required className="field">
+                      <option value="" disabled>
+                        Choose a list…
+                      </option>
+                      {pieceLists.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button type="submit" pendingLabel="Adding…">
+                      Add
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <p className="text-[13px] text-body">
+                  No lists yet.{" "}
+                  <Link href="/inventory/lists" className="link">
+                    Create one
+                  </Link>
+                </p>
+              )}
+              <Link href="/inventory/lists" className="link mt-2 inline-block text-[12px]">
+                Manage lists →
+              </Link>
+            </div>
+          </RecordMenu>
+          <ButtonLink
+            href={`/inventory/${sn}/edit`}
+            variant="primary"
+            icon={<EditIcon size={15} />}
+            className="ml-auto md:ml-0"
           >
             Edit record
-          </Link>
+          </ButtonLink>
         </div>
       </div>
 
-      {/* secondary utilities — documents + lists, tucked into a disclosure so
-          the artwork leads the fold instead of export links (one click away) */}
-      <div className="px-5 pt-2 md:px-8">
-       <Disclosure summary="Documents & lists">
-        <div className="mt-2 space-y-2.5 rounded-lg border border-line-soft bg-band/40 px-3.5 py-3">
-          {/* documents — fact sheet / certificate as PDF or DOCX */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
-            <span className="uppercase tracking-[0.06em] text-ink-faint">Documents</span>
-            {(() => {
-              const sn = encodeURIComponent(piece.stock_number);
-              const links: [string, string][] = [
-                ["Fact sheet PDF", `/api/export/fact-sheet.pdf?stock=${sn}`],
-                ["DOCX", `/api/export/fact-sheet.docx?stock=${sn}`],
-                ["Certificate PDF", `/api/export/certificate.pdf?stock=${sn}`],
-                ["DOCX", `/api/export/certificate.docx?stock=${sn}`],
-              ];
-              return links.map(([label, href], i) => (
-                <SaveToDriveLink
-                  key={href}
-                  href={href}
-                  className={`text-ink-mid hover:text-ink-strong ${i === 2 ? "border-l border-line pl-4" : ""}`}
-                >
-                  {label}
-                </SaveToDriveLink>
-              ));
-            })()}
-          </div>
-          {/* add to list — file this work into a static list */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px]">
-            <span className="uppercase tracking-[0.06em] text-ink-faint">Lists</span>
-            {pieceLists && pieceLists.length > 0 ? (
-              <form action={addToList} className="flex items-center gap-2">
-                <label htmlFor="add-to-list" className="sr-only">
-                  Add to list
-                </label>
-                <select
-                  id="add-to-list"
-                  name="list_id"
-                  defaultValue=""
-                  className="rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body"
-                >
-                  <option value="" disabled>
-                    Choose a list…
-                  </option>
-                  {pieceLists.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
-                >
-                  Add to list
-                </button>
-              </form>
-            ) : (
-              <span className="text-ink-muted">
-                No lists yet —{" "}
-                <Link href="/inventory/lists" className="text-accent-deep hover:underline">
-                  create one
-                </Link>
-                .
-              </span>
-            )}
-            <Link href="/inventory/lists" className="text-ink-mid hover:text-ink-strong">
-              Manage lists →
-            </Link>
-          </div>
-        </div>
-       </Disclosure>
-      </div>
-
-      {/* 2 · main split */}
-      <div className="grid grid-cols-1 lg:grid-cols-[640px_1fr]">
-        <section className="border-line-soft p-5 md:p-8 lg:border-r lg:pb-[34px] lg:pl-10 lg:pr-8 lg:pt-[38px]">
+      {/* 2 · the work: gallery beside its identity and facts */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+        <div>
           <PieceGallery
             images={images}
             stockNumber={piece.stock_number}
             imagesMeta={`${images.length} image${images.length === 1 ? "" : "s"}`}
           />
-        </section>
+        </div>
 
-        <section className="p-5 md:p-8 lg:px-[42px] lg:pb-10 lg:pt-[38px]">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <StatusPill status={piece.status} />
             <RegisterBadge ledger={store.ledger} />
-            <span className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-muted">
-              Stock {piece.stock_number}
-            </span>
-            {daysInStock != null ? (
-              <span className="ml-auto text-[12px] text-ink-soft">
-                {daysInStock} days in stock
-              </span>
+            <WebsiteDot on={webVisible} className="text-[12px] leading-[1.4]" />
+            {squareText ? (
+              <span className="text-[12px] leading-[1.4] text-meta">{squareText}</span>
             ) : null}
           </div>
+          <p className="mt-2 flex flex-wrap items-center gap-x-3 text-[12px] leading-[1.4] text-meta">
+            <span className="tabular">Stock {piece.stock_number}</span>
+            {daysInStock != null ? (
+              <span>
+                <span className="tabular">{formatCount(daysInStock)}</span> days in stock
+              </span>
+            ) : null}
+          </p>
 
           {isAdmin ? (
-            <div className="mt-2.5">
+            <div className="mt-2">
               <RegisterMove
                 action={moveRegister}
                 ledger={store.ledger}
@@ -740,318 +830,303 @@ export default async function PieceDetail({
           ) : null}
 
           {piece.maker ? (
-            <p className="mt-5 text-[13px] font-medium text-ink-muted">
-              <Link href={`/makers?focus=${piece.maker.id}`}>
+            <p className="mt-5 text-[13px] font-medium leading-[1.45] text-body">
+              <Link href={`/makers/${piece.maker.id}`} className="link-plain">
                 {piece.maker.display_name}
                 {piece.maker.life_dates ? ` (${piece.maker.life_dates})` : ""}
               </Link>
             </p>
           ) : null}
-          <h1 className="mt-1 text-[26px] font-semibold leading-[1.13] tracking-[-0.01em] text-ink-strong md:text-[32px]">
+          <h1 className={`${piece.maker ? "mt-1" : "mt-5"} text-display text-ink`}>
             {titleWithYear(piece.title, piece.year)}
           </h1>
-          <p className="mt-1.5 text-[14.5px] text-ink-muted">
-            {[piece.period, piece.origin_region].filter(Boolean).join(" · ") || " "}
-          </p>
+          {piece.period || piece.origin_region ? (
+            <p className="mt-1.5 text-[14.5px] leading-[1.45] text-body">
+              {[piece.period, piece.origin_region].filter(Boolean).join(" · ")}
+            </p>
+          ) : null}
 
-          {/* spec grid */}
-          <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden border border-line bg-line sm:grid-cols-3">
+          {/* the facts, on hairlines */}
+          <dl className="mt-6 grid grid-cols-2 border-t border-rule-strong sm:grid-cols-3 lg:grid-cols-2">
             {specs.map(([label, value]) => (
-              <div key={label} className="bg-cell px-4 py-[13px]">
-                <dt className="text-[11px] uppercase tracking-[0.06em] text-ink-label">
-                  {label}
-                </dt>
-                <dd className="mt-0.5 text-[14px] text-ink">{value}</dd>
+              <div key={label} className="min-w-0 border-b border-rule py-2.5 pr-3">
+                <dt className="label">{label}</dt>
+                <dd className="mt-1 text-[13.5px] leading-[1.5] text-ink">{value}</dd>
               </div>
             ))}
           </dl>
 
-          {piece.description ? (
-            <div className="mt-7">
-              <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                Description
-              </h2>
-              <p className="mt-2 whitespace-pre-line text-[15.5px] leading-[1.62] text-[var(--jvb-ink-desc)] [text-wrap:pretty]">
-                {piece.description}
-              </p>
-            </div>
-          ) : null}
+          <div className="mt-8 space-y-6">
+            {piece.description ? (
+              <Section title="Description">
+                <p className="max-w-[var(--jvb-measure)] whitespace-pre-line text-[16px] leading-[1.6] text-body">
+                  {piece.description}
+                </p>
+              </Section>
+            ) : null}
 
-          {piece.condition_report || piece.signature_inscription ? (
-            <div className="mt-7 grid grid-cols-1 gap-[26px] sm:grid-cols-2">
-              {piece.condition_report ? (
-                <div>
-                  <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                    Condition
-                  </h2>
-                  <p className="mt-2 text-[14.5px] leading-[1.55] text-ink-body">
-                    {piece.condition_report}
-                  </p>
-                </div>
-              ) : null}
-              {piece.signature_inscription ? (
-                <div>
-                  <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                    Signature
-                  </h2>
-                  <p className="mt-2 text-[14.5px] leading-[1.55] text-ink-body">
-                    {piece.signature_inscription}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+            {piece.condition_report || piece.signature_inscription ? (
+              <div
+                className={`grid grid-cols-1 gap-6 ${
+                  piece.condition_report && piece.signature_inscription ? "sm:grid-cols-2" : ""
+                }`}
+              >
+                {piece.condition_report ? (
+                  <Section title="Condition">
+                    <p className="text-[14.5px] leading-[1.55] text-body">{piece.condition_report}</p>
+                  </Section>
+                ) : null}
+                {piece.signature_inscription ? (
+                  <Section title="Signature">
+                    <p className="text-[14.5px] leading-[1.55] text-body">{piece.signature_inscription}</p>
+                  </Section>
+                ) : null}
+              </div>
+            ) : null}
 
-          {(provenanceRes.data ?? []).length > 0 ? (
-            <div className="mt-7">
-              <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                Provenance &amp; history
-              </h2>
-              <ol className="mt-2">
-                {(provenanceRes.data ?? []).map((p) => (
-                  <li
-                    key={p.id}
-                    className="grid grid-cols-[70px_1fr] gap-2 border-t border-line-soft py-2.5 first:border-t-0"
-                  >
-                    <span className="font-mono text-[12px] text-ink-soft">
-                      {p.date_text ?? "—"}
-                    </span>
-                    <span className="text-[15px] text-[var(--jvb-ink-body)]">
-                      {[p.party, p.details].filter(Boolean).join(" — ")}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ) : null}
-        </section>
+            {provenance.length > 0 ? (
+              <Section title="Provenance & history">
+                <ol>
+                  {provenance.map((p) => (
+                    <li
+                      key={p.id}
+                      className="grid grid-cols-[76px_minmax(0,1fr)] gap-3 border-t border-rule py-2.5 first:border-t-0 first:pt-0"
+                    >
+                      <span className="tabular text-[12px] leading-[1.6] text-meta">{p.date_text ?? "—"}</span>
+                      <span className="text-[14.5px] leading-[1.5] text-body">
+                        {p.party}
+                        {p.is_public === false ? (
+                          // Kept off the website by the sync; the tag says so here.
+                          <Badge size="xs" className="ml-2" title="Not shown on the website">
+                            Internal
+                          </Badge>
+                        ) : null}
+                        {p.details ? (
+                          <span className="mt-0.5 block text-[13px] leading-[1.45] text-meta">{p.details}</span>
+                        ) : null}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </Section>
+            ) : null}
+          </div>
+        </div>
       </div>
 
-      {/* 3 · commercial band — admin/accountant only */}
-      {showFinancials && fin ? (
-        <div className="grid grid-cols-1 gap-6 border-y border-line bg-band px-5 py-6 md:grid-cols-[2fr_1.15fr] md:gap-9 md:px-[42px] md:py-[26px]">
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-            <Stat label="Marked price">
-              <span className="text-[22px] font-semibold text-[var(--jvb-ink-heading)] md:text-[26px]">
-                {gbp(fin.marked_price_gbp)}
-              </span>
-            </Stat>
-            <Stat label="Purchase cost">
-              <span className="font-mono text-[18px] font-medium text-[var(--jvb-ink-cost)] md:text-[22px]">
-                {gbp(fin.total_cost_gbp)}
-              </span>
-            </Stat>
-            <Stat label={useJvbMargin ? "Projected margin (JvdB)" : "Projected margin"}>
-              <span className="font-mono text-[18px] text-ink-strong md:text-[22px]">
+      <div className="mt-10 space-y-8">
+        {/* 3 · commercial: admin and accountant only */}
+        {showFinancials && fin ? (
+          <Section title="Commercial">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+              <Stat label="Marked price">{gbp(fin.marked_price_gbp)}</Stat>
+              <Stat label="Purchase cost">{gbp(fin.total_cost_gbp)}</Stat>
+              <Stat
+                label={useJvbMargin ? "Projected margin (JvdB)" : "Projected margin"}
+                sub={useJvbMargin ? `${consignSharePct}% share` : marginPct ? `${marginPct}%` : null}
+              >
                 {useJvbMargin
                   ? gbp(jvbProjectedMargin)
                   : fin.marked_price_gbp != null && fin.total_cost_gbp != null
                     ? gbp(fin.marked_price_gbp - fin.total_cost_gbp)
                     : "—"}
-              </span>
-              {useJvbMargin ? (
-                <span className="mt-0.5 block font-mono text-[12px] text-body">
-                  {consignSharePct}% share
-                </span>
-              ) : marginPct ? (
-                <span className="mt-0.5 block font-mono text-[12px] text-body">
-                  {marginPct}%
-                </span>
-              ) : null}
-            </Stat>
-            <Stat label="Enquiries">
-              <span className="font-mono text-[18px] text-ink-strong md:text-[22px]">
-                {enquiryCount}
-              </span>
-              {lastEnquiry ? (
-                <span className="mt-0.5 block font-mono text-[12px] text-body">
-                  last {formatDate(lastEnquiry, "short", { year: false })}
-                </span>
-              ) : null}
-            </Stat>
-          </div>
-          {(() => {
-            // Consignment status derives from the Consignment panel fields on
-            // the piece (co-owner/consignee, share %, sale-handled), computed
-            // above; a legacy consignment_id link still counts.
-            const vatText = `${fin.vat_treatment.replace(/_/g, " ")}${fin.vat_review_needed ? " (review needed)" : ""}`;
-            return (
-              <div className="border-line md:border-l md:pl-9">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-[15px] font-semibold text-ink-strong">
-                    {onConsignment ? "Consigned" : "Owned outright"}
-                  </span>
-                  <span className="bg-chip px-2 py-0.5 text-[11px] text-ink-body">
-                    {onConsignment ? "Consignment" : "Not consigned"}
-                  </span>
-                </div>
-                {onConsignment ? (
-                  <p className="mt-1.5 text-[13px] text-body">
-                    {consignCoOwner ? `Co-owner / consignee: ${consignCoOwner}. ` : ""}
-                    {consignSharePct != null ? `J.v.d.B. share ${consignSharePct}%. ` : ""}
-                    {consignSaleHandled === false
-                      ? "Sold by a third party — no VAT for J.v.d.B."
-                      : `${consignSaleHandled === true ? "Sale handled by J.v.d.B. · " : ""}VAT: ${vatText}.`}
-                  </p>
-                ) : (
-                  <p className="mt-1.5 text-[13px] text-body">
-                    {`100% JVB stock · no revenue split. VAT: ${vatText}.`}
-                  </p>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-      ) : null}
-
-      {/* 4 · related + activity + records */}
-      <div className="grid grid-cols-1 gap-8 p-5 md:p-8 lg:grid-cols-[1.5fr_1fr] lg:px-[42px]">
-        <section>
-          {piece.maker && related.length > 0 ? (
-            <>
-              <div className="flex items-baseline justify-between">
-                <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                  More from this maker
-                </h2>
-                <Link
-                  href={`/inventory?q=${encodeURIComponent(piece.maker.display_name)}`}
-                  className="text-[12px] font-medium text-[var(--jvb-ink-desc)]"
-                >
-                  View all →
-                </Link>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-                {related.map((r) => {
-                  const thumb = relatedImg.get(r.id);
-                  return (
-                    <Link
-                      key={r.id}
-                      href={`/inventory/${encodeURIComponent(r.stock_number)}`}
-                      className="group"
-                    >
-                      <div className="jvb-hatch relative aspect-square overflow-hidden">
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={thumb} alt={r.title ?? r.stock_number} className="h-full w-full object-cover" />
-                        ) : null}
-                        <span className="absolute left-2 top-2 font-mono text-[10px] text-ink-muted">
-                          {r.stock_number}
-                        </span>
-                        {r.status === "sold" ? (
-                          <span className="absolute right-2 top-2 bg-tag-dark px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.05em] text-primary-fg">
-                            Sold
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-1.5 truncate text-[12.5px] text-ink-body group-hover:text-ink-strong">
-                        {titleWithYear(r.title, r.year)}
-                      </p>
-                    </Link>
-                  );
-                })}
-              </div>
-            </>
-          ) : null}
-
-          {/* documents + location history */}
-          <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2">
-            <div>
-              <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                Documents
-              </h2>
-              <ul className="mt-2 space-y-1.5">
-                {(((documentsRes.data ?? []) as unknown as { doc: { id: string; doc_type: string; title: string | null } | null }[])
-                  .map((r) => r.doc)
-                  .filter((d): d is NonNullable<typeof d> => Boolean(d))).map((d) => (
-                  <li key={d.id} className="flex items-baseline gap-2 text-[13px] text-ink-body">
-                    <span className="bg-chip px-1.5 py-0.5 text-[10px] uppercase tracking-[0.05em] text-ink-mid">
-                      {d.doc_type === "import_document" ? "Import Documents" : d.doc_type.replace(/_/g, " ")}
+              </Stat>
+              <Stat
+                label="Enquiries"
+                sub={lastEnquiry ? `last ${formatDate(lastEnquiry, "short", { year: false })}` : null}
+              >
+                {formatCount(enquiryCount)}
+              </Stat>
+            </dl>
+            {(() => {
+              // Consignment status derives from the Consignment panel fields on
+              // the piece (co-owner/consignee, share %, sale-handled), computed
+              // above; a legacy consignment_id link still counts.
+              const vatText = labelOf(VAT_TREATMENT_LABELS, fin.vat_treatment).toLowerCase();
+              return (
+                <div className="mt-5 border-t border-rule pt-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[14.5px] font-semibold leading-[1.45] text-ink">
+                      {onConsignment ? "Consigned" : "Owned outright"}
                     </span>
-                    <span className="truncate">{d.title}</span>
-                  </li>
-                ))}
-                {(documentsRes.data ?? []).length === 0 ? (
-                  <li className="text-[12.5px] text-ink-soft">No documents attached.</li>
-                ) : null}
-              </ul>
-            </div>
-            <div>
-              <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                Location history
-              </h2>
-              <ul className="mt-2 space-y-1.5">
-                {(historyRes.data ?? []).map((h) => (
-                  <li key={h.id} className="text-[13px] text-ink-body">
-                    <span className="font-mono text-[11px] text-ink-soft">
-                      {formatDate(h.moved_at, "numeric")}
-                    </span>{" "}
-                    {(h.from_loc as unknown as { code: string } | null)?.code ?? "—"} →{" "}
-                    {(h.to_loc as unknown as { code: string } | null)?.code ?? "—"}
-                  </li>
-                ))}
-                {(historyRes.data ?? []).length === 0 ? (
-                  <li className="text-[12.5px] text-ink-soft">No moves recorded.</li>
-                ) : null}
-              </ul>
-            </div>
-          </div>
-        </section>
+                    <Badge>{onConsignment ? "Consignment" : "Not consigned"}</Badge>
+                    {fin.vat_review_needed ? <Badge tone="warn">VAT review needed</Badge> : null}
+                  </div>
+                  {onConsignment ? (
+                    <p className="mt-1.5 text-[13px] leading-[1.45] text-body">
+                      {consignCoOwner ? `Co-owner / consignee: ${consignCoOwner}. ` : ""}
+                      {consignSharePct != null ? `J.v.d.B. share ${consignSharePct}%. ` : ""}
+                      {consignSaleHandled === false
+                        ? "Sold by a third party, so no VAT for J.v.d.B."
+                        : `${consignSaleHandled === true ? "Sale handled by J.v.d.B. · " : ""}VAT: ${vatText}.`}
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 text-[13px] leading-[1.45] text-body">
+                      {`100% JVB stock · no revenue split. VAT: ${vatText}.`}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+          </Section>
+        ) : null}
 
-        <section className="lg:border-l lg:border-line-soft lg:pl-8">
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-              {isAdmin ? "Change history" : "Activity"}
-            </h2>
-            {isAdmin ? (
-              <span className="font-mono text-[11px] text-ink-soft">
-                {historyEntries.length} change{historyEntries.length === 1 ? "" : "s"}
-              </span>
-            ) : null}
-          </div>
+        {/* the sale, once there is one: what it made, the VAT, and who bought it */}
+        {showFinancials && fin && hasSale ? (
+          <Section title="Sale" meta={fin.sold_date ? `Sold ${formatDate(fin.sold_date, "short")}` : undefined}>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+              <Stat label={saleThirdParty ? "Net sold £" : "Sold £"}>{soldGbp != null ? gbpExact(soldGbp) : "—"}</Stat>
+              <Stat label="VAT due £" sub={soldGbp != null ? saleVatBasis : null}>
+                {soldGbp != null ? gbpExact(saleVat) : "—"}
+              </Stat>
+              <Stat label="Net of VAT £">{saleNet != null ? gbpExact(saleNet) : "—"}</Stat>
+              <div className="min-w-0">
+                <dt className="label">Buyer</dt>
+                <dd className="mt-1 text-[14.5px] leading-[1.45] text-ink">
+                  {buyer ? (
+                    <Link href={`/crm/contacts/${buyer.id}`} className="link-plain font-medium">
+                      {buyerName}
+                    </Link>
+                  ) : soldToNote ? (
+                    soldToNote
+                  ) : (
+                    <span className="text-meta">Not recorded</span>
+                  )}
+                  {buyer && soldToNote ? (
+                    <span className="mt-0.5 block text-[12px] leading-[1.4] text-meta">{soldToNote}</span>
+                  ) : null}
+                </dd>
+              </div>
+            </dl>
+          </Section>
+        ) : null}
+
+        {/* 4 · related, documents, location history, activity */}
+        {piece.maker && related.length > 0 ? (
+          <Section
+            title="More from this maker"
+            actions={
+              <Link
+                href={`/inventory?q=${encodeURIComponent(piece.maker.display_name)}`}
+                className="link text-[12px]"
+              >
+                View all →
+              </Link>
+            }
+          >
+            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
+              {related.map((r) => {
+                const thumb = relatedImg.get(r.id);
+                return (
+                  <Link key={r.id} href={`/inventory/${encodeURIComponent(r.stock_number)}`} className="group block min-w-0">
+                    <div className="jvb-hatch relative aspect-square overflow-hidden">
+                      {thumb ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={thumb} alt={r.title ?? r.stock_number} className="h-full w-full object-cover" />
+                      ) : null}
+                      {r.status === "sold" ? (
+                        <Badge size="xs" className="absolute right-1.5 top-1.5">
+                          Sold
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="tabular mt-1.5 text-[11px] leading-[1.3] text-meta">{r.stock_number}</p>
+                    <p className="truncate text-[13px] leading-[1.45] text-body group-hover:text-ink group-hover:underline">
+                      {titleWithYear(r.title, r.year)}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          </Section>
+        ) : null}
+
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+          <Section title="Documents">
+            {documents.length === 0 ? (
+              <p className="text-[13px] text-meta">No documents attached.</p>
+            ) : (
+              <ul>
+                {documents.map((d) => (
+                  <li key={d.id} className="flex items-baseline gap-2 border-t border-rule py-2 first:border-t-0 first:pt-0">
+                    <Badge size="xs" className="shrink-0">
+                      {labelOf(DOC_TYPE_LABELS, d.doc_type)}
+                    </Badge>
+                    <Link href={`/documents/${d.id}`} className="link-plain min-w-0 flex-1 truncate text-[13px] text-body">
+                      {d.title || "Untitled document"}
+                    </Link>
+                    {d.storage_path ? (
+                      <FilePreviewLink
+                        storagePath={d.storage_path}
+                        title={d.title || "Document"}
+                        className="link shrink-0 text-[12px]"
+                      >
+                        Preview
+                      </FilePreviewLink>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+          <Section title="Location history">
+            {(historyRes.data ?? []).length === 0 ? (
+              <p className="text-[13px] text-meta">No moves recorded.</p>
+            ) : (
+              <ul>
+                {(historyRes.data ?? []).map((h) => (
+                  <li key={h.id} className="flex items-baseline gap-3 border-t border-rule py-2 text-[13px] text-body first:border-t-0 first:pt-0">
+                    <span className="tabular w-[84px] shrink-0 text-[12px] text-meta">
+                      {formatDate(h.moved_at, "short")}
+                    </span>
+                    <span>
+                      {(h.from_loc as unknown as { code: string } | null)?.code ?? "—"} →{" "}
+                      {(h.to_loc as unknown as { code: string } | null)?.code ?? "—"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+        </div>
+
+        <Section
+          title={isAdmin ? "Change history" : "Activity"}
+          meta={
+            isAdmin
+              ? `${formatCount(historyEntries.length)} change${historyEntries.length === 1 ? "" : "s"}`
+              : undefined
+          }
+        >
           {isAdmin ? (
             <ChangeHistory entries={historyEntries} revertAction={revertChange} />
+          ) : activityRows.length === 0 ? (
+            <p className="text-[13px] text-meta">No activity yet.</p>
           ) : (
-            <ul className="mt-3 space-y-2.5">
-              {activityRows.map((a, i) => (
-                <li key={a.id} className="grid grid-cols-[14px_1fr] gap-2">
-                  <span
-                    aria-hidden
-                    className="mt-[5px] h-[7px] w-[7px] rounded-full"
-                    style={{
-                      background:
-                        i === 0
-                          ? "var(--jvb-dot-recent)"
-                          : i < 3
-                            ? "var(--jvb-dot-mid)"
-                            : "var(--jvb-dot-old)",
-                    }}
-                  />
-                  <div>
-                    <p className="text-[13.5px] text-ink-body">{a.action}</p>
-                    <p className="font-mono text-[11px] text-ink-soft">
-                      {formatDateTime(a.created_at, "numeric", { seconds: true })}
-                    </p>
-                  </div>
+            <ul>
+              {activityRows.map((a) => (
+                <li key={a.id} className="flex flex-wrap items-baseline justify-between gap-x-4 border-t border-rule py-2 first:border-t-0 first:pt-0">
+                  <span className="text-[13px] text-body">{a.action}</span>
+                  <span className="tabular text-[12px] text-meta">
+                    {formatDateTime(a.created_at, "numeric", { seconds: true })}
+                  </span>
                 </li>
               ))}
-              {activityRows.length === 0 ? (
-                <li className="text-[12.5px] text-ink-soft">No activity yet.</li>
-              ) : null}
             </ul>
           )}
-        </section>
+        </Section>
       </div>
     </div>
   );
 }
 
-// Stats sit on the commercial band, where meta grey reads only 4.09:1, so the
-// label and the secondary lines in that band use body (tokens.css usage rules).
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
+/** One figure under its label: the record's money and counts. */
+function Stat({ label, sub, children }: { label: string; sub?: string | null; children: React.ReactNode }) {
   return (
-    <div>
-      <div className="text-[11px] text-body">{label}</div>
-      <div className="mt-1">{children}</div>
+    <div className="min-w-0">
+      <dt className="label">{label}</dt>
+      <dd className="tabular mt-1 text-[22px] font-light leading-[1.25] text-ink">{children}</dd>
+      {sub ? <dd className="mt-0.5 text-[12px] leading-[1.4] text-meta">{sub}</dd> : null}
     </div>
   );
 }
@@ -1094,7 +1169,7 @@ function renderDimensions(piece: Dims): React.ReactNode {
   return (
     <>
       {cm}
-      <span className="mt-0.5 block font-mono text-[11.5px] text-ink-soft">{inches}</span>
+      <span className="tabular mt-0.5 block text-[12px] leading-[1.4] text-meta">{inches}</span>
     </>
   );
 }

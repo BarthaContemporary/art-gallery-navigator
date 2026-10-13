@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
@@ -12,11 +13,19 @@ import { resolveListPieceIds, listExcludedIds, type ListLike } from "@/lib/list-
 import { titleWithYear } from "@jvb/db";
 import { applyFacet, facetMatches, parseFacet } from "@/lib/facet";
 import { LabelPdfButton } from "@/components/label-pdf-button";
+import { ExportMenu } from "@/components/export-menu";
+import { ReorderGrid, ReorderHandle } from "@/components/reorder-grid";
+import { formatCount } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonClass } from "@/components/ui/button";
+import { FlashNotice } from "@/components/ui/notice";
+import { Section } from "@/components/ui/section";
+import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
+import { WebsiteDot, WebsiteSwitch } from "@/components/ui/website-switch";
+import { ImageIcon, PlusIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "Inventory list" };
-
-const btnGhost =
-  "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid";
 
 type PieceLite = {
   id: string;
@@ -176,6 +185,8 @@ export default async function InventoryListDetail({
   const liveIds = new Set(visibleRows.map((r) => r.id));
   items = items.filter((p) => liveIds.has(p.id));
   const onWebsite = visibleRows.filter((r) => r.web_visible).length;
+  // Each row's own website state, for the dot beside it.
+  const webById = new Map(visibleRows.map((r) => [r.id, Boolean(r.web_visible)]));
 
   const thumbByPiece = await loadThumbnails(supabase, [
     ...items.map((p) => p.id),
@@ -387,7 +398,7 @@ export default async function InventoryListDetail({
       redirect(`/inventory/lists/${id}?error=${encodeURIComponent(`Stopped after ${changed} of ${candidates}: ${failure}`)}`);
     }
     if (candidates > 0 && changed === 0) {
-      redirect(`/inventory/lists/${id}?error=${encodeURIComponent("Nothing changed — your role may not publish works. Ask an admin.")}`);
+      redirect(`/inventory/lists/${id}?error=${encodeURIComponent("Nothing changed: your role may not publish works. Ask an admin.")}`);
     }
     redirect(
       `/inventory/lists/${id}?notice=${encodeURIComponent(
@@ -396,7 +407,7 @@ export default async function InventoryListDetail({
             ? "Every work in this list was already on the website."
             : "No work in this list was on the website."
           : visible
-            ? `${changed} work${changed === 1 ? "" : "s"} switched to “On website — yes”. The site updates ${pace}.`
+            ? `${changed} work${changed === 1 ? "" : "s"} put on the website. The site updates ${pace}.`
             : `${changed} work${changed === 1 ? "" : "s"} taken off the website. The site updates ${pace}.`,
       )}`,
     );
@@ -418,6 +429,45 @@ export default async function InventoryListDetail({
     );
   }
 
+  /**
+   * The hand-set order of a static list, which the website's workList, the
+   * labels and the exports all follow (lib/list-members). The same two
+   * safeguards as lib/reorder's persistOrder, which cannot be used here
+   * because piece_list_items is keyed by (list_id, piece_id) rather than id:
+   * ids the browser sends that are not members are dropped, and members it
+   * did not send (added in another tab) keep their place at the end. Only
+   * rows whose position moved are written.
+   */
+  async function reorderItems(ids: string[]) {
+    "use server";
+    const db = await getSupabase();
+    const { data, error } = await db
+      .from("piece_list_items")
+      .select("piece_id, sort_order")
+      .eq("list_id", id)
+      .eq("excluded", false);
+    if (error) throw new Error(error.message);
+    const current = new Map(
+      ((data ?? []) as { piece_id: string; sort_order: number | null }[]).map((r) => [r.piece_id, r.sort_order]),
+    );
+    const ordered = ids.filter((pid) => current.has(pid));
+    for (const pid of current.keys()) if (!ordered.includes(pid)) ordered.push(pid);
+    const moved = ordered.map((pid, i) => [pid, i] as const).filter(([pid, i]) => current.get(pid) !== i);
+    // An update per moved row, a few at a time: a list can run to hundreds.
+    for (let at = 0; at < moved.length; at += 20) {
+      const results = await Promise.all(
+        moved
+          .slice(at, at + 20)
+          .map(([pid, i]) =>
+            db.from("piece_list_items").update({ sort_order: i }).eq("list_id", id).eq("piece_id", pid),
+          ),
+      );
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw new Error(failed.error.message);
+    }
+    revalidatePath(`/inventory/lists/${id}`);
+  }
+
   async function deleteList() {
     "use server";
     const db = await getSupabase();
@@ -425,347 +475,400 @@ export default async function InventoryListDetail({
     redirect("/inventory/lists");
   }
 
-  return (
-    <div className="max-w-[860px]">
-      <Link href="/inventory/lists" className="text-[12.5px] text-ink-soft">
-        ← All inventory lists
-      </Link>
-      {sp.error ? (
-        <p className="mt-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">{sp.error}</p>
-      ) : null}
-      {sp.notice ? (
-        <p className="mt-3 rounded-lg border border-status-green/40 bg-band px-3 py-2 text-[12.5px] text-ink-body">{sp.notice}</p>
-      ) : null}
-      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-[24px] font-semibold text-ink-strong">{list.name}</h1>
-            <span
-              className={`px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-[0.06em] ${
-                isDynamic
-                  ? "bg-oranje/10 text-accent-deep"
-                  : "border border-line-control text-ink-soft"
-              }`}
-            >
-              {isDynamic ? "Live" : "Static"}
+  const n = items.length;
+  const listHref = (p: PieceLite) => `/inventory/${encodeURIComponent(p.stock_number ?? "")}`;
+
+  /** One member row; static lists hand these to ReorderGrid, which keys and orders them. */
+  const memberRow = (p: PieceLite) => (
+    <Tr key={p.id}>
+      {isDynamic ? null : (
+        <Td className="pr-0">
+          <ReorderHandle id={p.id} />
+        </Td>
+      )}
+      <Td className="pl-2 pr-2 sm:px-3">
+        {/* The title links to the record; the picture is the same link,
+            kept out of the tab order. */}
+        <Link href={listHref(p)} className="block w-10" aria-hidden tabIndex={-1}>
+          <Thumb src={thumbByPiece.get(p.id)} />
+        </Link>
+      </Td>
+      <Td className="hidden md:table-cell">
+        <Link href={listHref(p)} className="link-plain tabular text-ink">
+          {p.stock_number ?? "—"}
+        </Link>
+      </Td>
+      <Td>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <Link href={listHref(p)} className="link-plain text-ink">
+            {titleWithYear(p.title, p.year)}
+          </Link>
+          {editedSinceAdded.has(p.id) ? (
+            <Badge tone="ok" size="xs" title="Edited since it was added to this list">
+              Edited
+            </Badge>
+          ) : null}
+        </span>
+        {p.period || p.medium ? (
+          <span className="mt-0.5 block text-[12px] leading-[1.4] text-meta">
+            {[p.period, p.medium].filter(Boolean).join(" · ")}
+          </span>
+        ) : null}
+        {/* The columns a narrow screen drops fold in under the title. */}
+        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] leading-[1.4] lg:hidden">
+          <span className="tabular text-meta md:hidden">{p.stock_number ?? "—"}</span>
+          {p.status ? (
+            <span className="sm:hidden">
+              <StatusPill status={p.status} variant="inline" />
             </span>
+          ) : null}
+          <WebsiteDot on={webById.get(p.id) ?? false} />
+        </span>
+      </Td>
+      {/* Availability is read live even on a static list: the membership is
+          fixed, the works' status is not. */}
+      <Td className="hidden sm:table-cell">
+        {p.status ? <StatusPill status={p.status} variant="inline" /> : "—"}
+      </Td>
+      <Td className="hidden lg:table-cell">
+        <WebsiteDot on={webById.get(p.id) ?? false} />
+      </Td>
+      {/* Tighter at phone width, where every pixel the title loses is a line. */}
+      <Td className="pl-1 pr-0 text-right sm:px-3">
+        {isDynamic ? (
+          <form action={excludeItem}>
+            <input type="hidden" name="piece_id" value={p.id} />
+            <Button
+              type="submit"
+              variant="quiet"
+              size="sm"
+              className="text-body"
+              aria-label={`Exclude ${p.stock_number ?? "this work"} from this list`}
+              title="Pin this work out of the list. It stays out however the live filters resolve; reinstate it below at any time. The record itself is untouched."
+            >
+              Exclude
+            </Button>
+          </form>
+        ) : (
+          <form action={removeItem}>
+            <input type="hidden" name="piece_id" value={p.id} />
+            <Button
+              type="submit"
+              variant="quiet"
+              size="sm"
+              className="text-body"
+              aria-label={`Remove ${p.stock_number ?? "this work"} from this list`}
+              title="Takes the work off this list only. The inventory record is untouched."
+            >
+              Remove
+            </Button>
+          </form>
+        )}
+      </Td>
+    </Tr>
+  );
+  const columns = isDynamic ? 6 : 7;
+
+  return (
+    <div className="max-w-[960px]">
+      <PageHeader
+        back={{ href: "/inventory/lists", label: "All inventory lists" }}
+        title={list.name}
+        meta={
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Badge tone={isDynamic ? "info" : "neutral"}>{isDynamic ? "Live" : "Static"}</Badge>
+            <span className="tabular">
+              {formatCount(n)} work{n === 1 ? "" : "s"}
+              {n > 0 ? `, ${formatCount(onWebsite)} on the website` : ""}
+            </span>
+          </span>
+        }
+      >
+        {list.description || isDynamic ? (
+          <div className="max-w-[640px] space-y-1 text-[13px] leading-[1.45] text-body">
+            {list.description ? <p>{list.description}</p> : null}
+            {isDynamic ? <p>Live view: {rulesSummary.join(", ")}.</p> : null}
           </div>
-          {list.description ? (
-            <p className="mt-0.5 text-[12.5px] text-ink-muted">{list.description}</p>
-          ) : null}
-          {isDynamic ? (
-            <p className="mt-0.5 text-[12.5px] text-ink-muted">
-              Live view — {rulesSummary.join(", ")}.
-            </p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
-            {items.length} work{items.length === 1 ? "" : "s"}
-            {items.length > 0 ? ` · ${onWebsite} on the website` : ""}
-          </p>
+        ) : null}
+      </PageHeader>
+
+      <FlashNotice searchParams={sp} className="mb-4" />
+
+      {/* What the list does outside the studio, apart from what it makes.
+          Two groups rather than one row of eight equal controls. */}
+      <div className="grid gap-x-8 gap-y-4 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <ToolGroup title="Website">
           {/* Whether the list itself is available to events on the website.
               Independent of the works' own visibility: a list on the website
               only ever shows its web-visible works. */}
           <form action={toggleListOnWebsite}>
             <input type="hidden" name="to" value={listOnWebsite ? "" : "on"} />
-            <button
+            <WebsiteSwitch
               type="submit"
-              role="switch"
-              aria-checked={listOnWebsite}
-              title={listOnWebsite ? "Events on the website can use this list — click to withdraw it" : "Not available on the website — click to let events use it"}
-              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[12px] font-medium ${
-                listOnWebsite ? "border-status-green/60 bg-control text-ink-mid" : "border-line-control bg-control text-body"
-              }`}
-            >
-              <span aria-hidden className="inline-block h-2 w-2 rounded-full" style={{ background: listOnWebsite ? "var(--jvb-status-green)" : "var(--jvb-danger)" }} />
-              {listOnWebsite ? "List on website — yes" : "List on website — no"}
-            </button>
+              on={listOnWebsite}
+              onLabel="List on website"
+              offLabel="List not on website"
+              title={
+                listOnWebsite
+                  ? "Events on the website can use this list. Click to withdraw it."
+                  : "Not available on the website. Click to let events use it."
+              }
+            />
           </form>
-          <PublishListButton action={setListVisibility} count={items.length} onCount={onWebsite} visible />
-          <PublishListButton action={setListVisibility} count={items.length} onCount={onWebsite} visible={false} />
-          {/* Says what the dot means, and only appears once there is one. */}
-          {editedSinceAdded.size > 0 ? (
-            <p className="flex items-center gap-1.5 font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
-              <span
-                aria-hidden
-                className="inline-block h-[7px] w-[7px] rounded-full"
-                style={{ background: "var(--jvb-status-green)" }}
-              />
-              {editedSinceAdded.size} edited since added
-            </p>
-          ) : null}
-          {/* Object labels for the whole list — same Avery chooser as the
-              contact mailing labels; the PDF carries framed + unframed sizes. */}
+          <PublishListButton action={setListVisibility} count={n} onCount={onWebsite} visible />
+          <PublishListButton action={setListVisibility} count={n} onCount={onWebsite} visible={false} />
+        </ToolGroup>
+        <ToolGroup title="Output">
+          {/* Object labels for the whole list: the same Avery chooser as the
+              contact mailing labels; the PDF carries framed and unframed sizes. */}
           <LabelPdfButton
             listId={id}
             endpoint="/api/export/work-labels.pdf"
             buttonLabel="Work labels PDF"
             filePrefix="work-labels"
+            className={buttonClass({ size: "sm" })}
           />
+          {/* The list's own exports (api/export/list.*), in the list's order.
+              Nothing to export from an empty list. */}
+          {n > 0 ? (
+            <ExportMenu
+              size="sm"
+              align="left"
+              count={n}
+              noun={n === 1 ? "work" : "works"}
+              items={[
+                { href: `/api/export/list.xlsx?list=${id}`, label: "Excel (XLSX)" },
+                { href: `/api/export/list.docx?list=${id}`, label: "Word (DOCX)" },
+              ]}
+            />
+          ) : null}
           {isDynamic ? (
             <form action={copyAsStatic}>
-              <button
+              <Button
                 type="submit"
+                size="sm"
+                pendingLabel="Copying…"
                 title="Freeze the current membership into a new static list you can edit by hand. This live list is untouched."
-                className="text-[12px] font-medium text-primary"
               >
                 Save as editable copy
-              </button>
+              </Button>
             </form>
           ) : null}
-        </div>
+        </ToolGroup>
       </div>
 
-      {/* Add works — above the table, because adding is what you come here to
+      {/* Add works: above the table, because adding is what you come here to
           do; hunting for the box under a few hundred rows was the complaint. */}
       {isDynamic ? null : (
-        <div className="mt-4">
-          <form method="get" className="flex items-center gap-2">
-            <input
-              type="search"
-              name="add"
-              defaultValue={addQ}
-              placeholder="Search works to add — stock no., title, maker…"
-              className="w-full max-w-md rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
-            />
-            <button type="submit" className={btnGhost}>
-              Search
-            </button>
+        <Section title="Add works" className="mt-6">
+          <form method="get" role="search" className="flex flex-wrap items-end gap-2">
+            <div className="flex w-full min-w-0 max-w-md flex-col gap-1">
+              <label htmlFor="list-add-search" className="label">
+                Find works to add
+              </label>
+              <input
+                id="list-add-search"
+                type="search"
+                name="add"
+                defaultValue={addQ}
+                placeholder="Stock no., title, maker…"
+                className="field"
+              />
+            </div>
+            <Button type="submit">Search</Button>
           </form>
           {addQ ? (
-            <div className="mt-2 space-y-1">
+            <div className="mt-3">
               {results.length > 0 ? (
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
-                  <p className="text-[12.5px] text-ink-muted">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
+                  <p className="text-[12px] leading-[1.4] text-meta">
                     {addMatches > results.length
-                      ? `Showing the first ${results.length} of ${addMatches} matches not yet in the list — narrow the search to find a specific work (a stock number finds just that one).`
+                      ? `Showing the first ${results.length} of ${addMatches} matches not yet in the list. Narrow the search to find a specific work (a stock number finds just that one).`
                       : `${results.length} match${results.length === 1 ? "" : "es"} not yet in the list.`}
                   </p>
                   <form action={addShown}>
                     <input type="hidden" name="piece_ids" value={results.map((p) => p.id).join(",")} />
-                    <button type="submit" className={btnGhost}>
+                    <Button type="submit" size="sm" pendingLabel="Adding…">
                       Add all {results.length} shown
-                    </button>
+                    </Button>
                   </form>
                 </div>
               ) : null}
-              {results.map((p) => (
-                <form
-                  key={p.id}
-                  action={addItem}
-                  className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2"
-                >
-                  <input type="hidden" name="piece_id" value={p.id} />
-                  <span className="flex min-w-0 items-center gap-3 text-[13px] text-ink-body">
-                    <Thumb src={thumbByPiece.get(p.id)} />
-                    <span className="min-w-0 truncate">
-                      <span className="font-mono text-[12px] text-ink-muted">
-                        {p.stock_number ?? "—"}
-                      </span>{" "}
-                      {titleWithYear(p.title, p.year)}
-                    </span>
-                  </span>
-                  <button type="submit" className={btnGhost}>
-                    Add
-                  </button>
-                </form>
-              ))}
-              {results.length === 0 ? (
-                <p className="text-[12.5px] text-ink-muted">
+              {results.length > 0 ? (
+                <ul className="border-t border-rule">
+                  {results.map((p) => (
+                    <li key={p.id} className="border-b border-rule">
+                      <form action={addItem} className="flex items-center justify-between gap-3 py-1.5">
+                        <input type="hidden" name="piece_id" value={p.id} />
+                        <span className="flex min-w-0 items-center gap-3 text-[13px] leading-[1.45] text-ink">
+                          <Thumb src={thumbByPiece.get(p.id)} />
+                          <span className="min-w-0 truncate">
+                            <span className="tabular text-meta">{p.stock_number ?? "—"}</span>{" "}
+                            {titleWithYear(p.title, p.year)}
+                          </span>
+                        </span>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          icon={<PlusIcon size={14} />}
+                          pendingLabel="Adding…"
+                          aria-label={`Add ${p.stock_number ?? "this work"} to the list`}
+                        >
+                          Add
+                        </Button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[13px] leading-[1.45] text-body">
                   {addMatches === 0 && (hitsTotal ?? 0) > 0
                     ? "Every match is already in the list."
-                    : "No matches — try a stock number, part of the title, or the maker."}
+                    : "No matches. Try a stock number, part of the title, or the maker."}
                 </p>
-              ) : null}
+              )}
             </div>
           ) : null}
-        </div>
+        </Section>
       )}
 
-      {/* Works in the list */}
-      <div className="mt-4 overflow-x-auto border border-line">
-        {/* No min-width: on a phone this forced 560px of sideways scrolling.
-            The stock column hides below sm (it is already in the row's link)
-            and the title wraps instead. */}
-        <table className="w-full bg-cell text-left text-[13px]">
-          <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              <th className="px-3 py-2.5 font-medium" />
-              <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Stock</th>
-              <th className="px-4 py-2.5 font-medium">Title</th>
-              <th className="px-4 py-2.5 font-medium">Availability</th>
-              <th className="px-4 py-2.5 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((p) => (
-              <tr key={p.id} className="border-b border-line-soft last:border-0">
-                <td className="px-3 py-1">
-                  <Link
-                    href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
-                    className="block"
-                    aria-hidden
-                    tabIndex={-1}
-                  >
-                    {thumbByPiece.get(p.id) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={thumbByPiece.get(p.id)}
-                        alt=""
-                        loading="lazy"
-                        className="h-10 w-10 rounded object-cover"
-                      />
-                    ) : (
-                      <span className="jvb-hatch block h-10 w-10 rounded" />
-                    )}
-                  </Link>
-                </td>
-                <td className="hidden px-4 py-2 font-mono text-[12px] text-ink sm:table-cell">
-                  <Link
-                    href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
-                    className="hover:text-accent-deep"
-                  >
-                    {p.stock_number ?? "—"}
-                  </Link>
-                </td>
-                <td className="px-4 py-2 text-ink-body">
-                  {editedSinceAdded.has(p.id) ? (
-                    <span
-                      title="Edited since it was added to this list"
-                      aria-label="Edited since it was added to this list"
-                      className="mr-1.5 inline-block h-[7px] w-[7px] rounded-full align-middle"
-                      style={{ background: "var(--jvb-status-green)" }}
-                    />
-                  ) : null}
-                  <Link
-                    href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
-                    className="hover:text-accent-deep"
-                  >
-                    {titleWithYear(p.title, p.year)}
-                  </Link>
-                  {/* Stock number folds in here once its own column is hidden. */}
-                  <span className="mt-0.5 block font-mono text-[11.5px] text-ink-muted sm:hidden">
-                    {p.stock_number ?? "—"}
-                  </span>
-                  {p.period || p.medium ? (
-                    <span className="mt-0.5 block text-[12px] text-ink-soft sm:ml-2 sm:mt-0 sm:inline">
-                      {[p.period, p.medium].filter(Boolean).join(" · ")}
-                    </span>
-                  ) : null}
-                </td>
-                {/* Availability is read live even on a static list — the
-                    membership is fixed, the works' status is not. */}
-                <td className="px-4 py-2">
-                  {p.status ? <StatusPill status={p.status} variant="inline" /> : "—"}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  {isDynamic ? (
-                    <form action={excludeItem}>
-                      <input type="hidden" name="piece_id" value={p.id} />
-                      <button
-                        type="submit"
-                        title="Pin this work out of the list. It stays out however the live filters resolve; reinstate it below at any time. The record itself is untouched."
-                        className="text-[12px] text-ink-soft hover:text-ink-strong"
-                      >
-                        Exclude
-                      </button>
-                    </form>
-                  ) : (
-                    <form action={removeItem}>
-                      <input type="hidden" name="piece_id" value={p.id} />
-                      <button
-                        type="submit"
-                        title="Takes the work off this list only — the inventory record is untouched."
-                        className="text-[12px] text-ink-soft hover:text-ink-strong"
-                      >
-                        Remove from list
-                      </button>
-                    </form>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {items.length === 0 ? (
+      <Section
+        title="Works in this list"
+        className="mt-6"
+        meta={
+          isDynamic
+            ? "In the order the live filters give them."
+            : n > 1
+              ? "Drag a grip, or focus it and press the arrow keys, to set the order the website, labels and exports follow."
+              : undefined
+        }
+        actions={
+          // Says what the Edited tag means, and only once there is one.
+          editedSinceAdded.size > 0 ? (
+            <p className="text-[12px] leading-[1.4] text-meta">
+              <span className="tabular">{editedSinceAdded.size}</span> edited since added
+            </p>
+          ) : null
+        }
+      >
+        <TableFrame>
+          <Table>
+            <thead>
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-ink-muted">
-                  {isDynamic
-                    ? "No works currently match these filters."
-                    : "No works yet — use the search above to add."}
-                </td>
+                {isDynamic ? null : (
+                  <Th className="w-10 pr-0">
+                    <span className="sr-only">Order</span>
+                  </Th>
+                )}
+                <Th className="w-14 pl-2 pr-2 sm:w-16 sm:px-3">
+                  <span className="sr-only">Image</span>
+                </Th>
+                <Th className="hidden w-28 md:table-cell">Stock</Th>
+                <Th>Title</Th>
+                <Th className="hidden w-36 sm:table-cell">Availability</Th>
+                <Th className="hidden w-36 lg:table-cell">Website</Th>
+                <Th className="w-[76px] sm:w-24">
+                  <span className="sr-only">Actions</span>
+                </Th>
               </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            {n > 0 && !isDynamic ? (
+              <ReorderGrid
+                variant="rows"
+                order={items.map((p) => p.id)}
+                tiles={Object.fromEntries(items.map((p) => [p.id, memberRow(p)]))}
+                onReorder={reorderItems}
+              />
+            ) : (
+              <tbody>
+                {items.map(memberRow)}
+                {n === 0 ? (
+                  <EmptyRow colSpan={columns}>
+                    {isDynamic
+                      ? "No works currently match these filters."
+                      : "No works yet. Use the search above to add some."}
+                  </EmptyRow>
+                ) : null}
+              </tbody>
+            )}
+          </Table>
+        </TableFrame>
+        {isDynamic ? (
+          <p className="mt-3 max-w-[640px] text-[13px] leading-[1.45] text-body">
+            This is a saved view. Works appear and disappear automatically as their details change. To
+            change which works are shown, adjust the{" "}
+            <Link href="/inventory" className="link">
+              inventory filters
+            </Link>{" "}
+            and save a new list.
+          </p>
+        ) : null}
+      </Section>
 
       {/* Works pinned out of this live list. Kept visible so an exclusion is
           never a silent disappearance, and reversible in one click. */}
       {excludedItems.length > 0 ? (
-        <div className="mt-5">
-          <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-            Excluded from this list ({excludedItems.length})
-          </h2>
-          <div className="mt-2 space-y-1.5">
+        <Section
+          title="Excluded from this list"
+          meta={`${formatCount(excludedItems.length)} pinned out. Reinstate a work to let the filters decide again.`}
+          className="mt-6"
+        >
+          <ul className="border-t border-rule">
             {excludedItems.map((p) => (
-              <div
-                key={p.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft bg-band/40 px-3 py-2"
-              >
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-rule py-1.5">
                 <Link
-                  href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
-                  className="flex min-w-0 items-center gap-3 text-[13px] text-ink-muted hover:text-accent-deep"
+                  href={listHref(p)}
+                  className="link-plain flex min-w-0 items-center gap-3 text-[13px] leading-[1.45] text-body"
                 >
                   <Thumb src={thumbByPiece.get(p.id)} />
                   <span className="min-w-0 truncate">
-                    <span className="font-mono text-[12px]">{p.stock_number ?? "—"}</span>{" "}
+                    <span className="tabular text-meta">{p.stock_number ?? "—"}</span>{" "}
                     {titleWithYear(p.title, p.year)}
                   </span>
                 </Link>
                 <form action={reinstateItem}>
                   <input type="hidden" name="piece_id" value={p.id} />
-                  <button
-                    type="submit"
-                    className="text-[12px] font-medium text-[var(--jvb-ink-desc)] hover:text-ink-strong"
-                  >
+                  <Button type="submit" size="sm" pendingLabel="Reinstating…">
                     Reinstate
-                  </button>
+                  </Button>
                 </form>
-              </div>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </Section>
       ) : null}
 
-      {isDynamic ? (
-        <p className="mt-3 text-[12.5px] text-ink-muted">
-          This is a saved view. Works appear and disappear automatically as their
-          details change — to edit which works are shown, adjust the{" "}
-          <Link href="/inventory" className="text-accent-deep hover:underline">
-            inventory filters
-          </Link>{" "}
-          and save a new list.
-        </p>
-      ) : null}
-
-      <form action={deleteList} className="mt-8">
-        <button
-          type="submit"
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-body hover:text-ink-strong"
-        >
-          Delete list
-        </button>
-      </form>
+      <div className="mt-10 border-t border-rule-strong pt-4">
+        <form action={deleteList}>
+          <Button type="submit" variant="danger" size="sm" pendingLabel="Deleting…">
+            Delete list
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
 
-/** The small square preview used in the list's side rows. */
+/** A labelled group of controls in the page's toolbar. */
+function ToolGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div role="group" aria-label={title} className="border-t border-rule-strong pt-2">
+      <p className="label mb-2" aria-hidden>
+        {title}
+      </p>
+      <div className="flex flex-wrap items-start gap-2">{children}</div>
+    </div>
+  );
+}
+
+/** The small square picture used in the list's rows. */
 function Thumb({ src }: { src: string | undefined }) {
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded object-cover" />
+    <img src={src} alt="" loading="lazy" className="h-10 w-10 shrink-0 object-cover" />
   ) : (
-    <span aria-hidden className="jvb-hatch block h-10 w-10 shrink-0 rounded" />
+    <span aria-hidden className="jvb-hatch flex h-10 w-10 shrink-0 items-center justify-center text-meta">
+      <ImageIcon size={14} />
+    </span>
   );
 }

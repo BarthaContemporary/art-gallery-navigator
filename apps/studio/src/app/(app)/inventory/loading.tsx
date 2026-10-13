@@ -1,34 +1,38 @@
+import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
+
 /**
- * Route-level skeleton for the inventory list — shown while the server page's
- * queries resolve, instead of a blank screen. Mirrors the real table's rhythm
- * (thumbnail + a few text columns) so the layout doesn't jump on load.
+ * Route-level skeleton for the inventory list, shown while the server page's
+ * queries resolve instead of a blank screen. Mirrors the page's rhythm (title
+ * and actions, the labelled filter bar, the table) so nothing jumps on load.
  */
 export default function InventoryLoading() {
   return (
-    <div className="animate-pulse">
-      {/* toolbar row */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="h-9 w-full max-w-md rounded-lg bg-placeholder sm:w-96" />
-        <div className="h-9 w-24 rounded-lg bg-placeholder" />
-        <div className="ml-auto h-9 w-28 rounded-lg bg-placeholder" />
+    <div>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <Skeleton width={140} height={26} />
+          <Skeleton width={90} height={12} className="mt-2" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton width={110} height={32} />
+          <Skeleton width={110} height={32} />
+        </div>
       </div>
 
-      {/* table */}
-      <div className="mt-4 overflow-hidden border border-line">
-        <div className="border-b border-line bg-cell px-4 py-2.5">
-          <div className="h-3 w-40 rounded bg-placeholder" />
-        </div>
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-4 border-b border-line-soft px-4 py-2.5 last:border-0">
-            <div className="jvb-hatch h-9 w-9 shrink-0 rounded-md" />
-            <div className="h-3 w-24 rounded bg-placeholder" />
-            <div className="h-3 flex-1 rounded bg-placeholder" />
-            <div className="hidden h-3 w-20 rounded bg-placeholder sm:block" />
-            <div className="hidden h-3 w-16 rounded bg-placeholder md:block" />
-            <div className="h-3 w-14 rounded bg-placeholder" />
+      <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:flex sm:flex-wrap">
+        {[256, 144, 192, 208, 208, 176, 144].map((w, i) => (
+          <div
+            key={i}
+            className={i === 0 ? "col-span-2 sm:w-[var(--w)]" : "sm:w-[var(--w)]"}
+            style={{ ["--w" as string]: `${w}px` }}
+          >
+            <Skeleton width={56} height={10} />
+            <Skeleton height={28} className="mt-1.5" />
           </div>
         ))}
       </div>
+
+      <SkeletonTable rows={12} columns={6} label="Loading the inventory" className="mt-8" />
     </div>
   );
 }

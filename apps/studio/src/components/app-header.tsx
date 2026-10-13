@@ -4,14 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button, buttonClass } from "@/components/ui/button";
+import { CloseIcon, SearchIcon } from "@/components/ui/icons";
+import { cx } from "@/components/ui/cx";
 
 type NavItem = { href: string; label: string; group?: string };
 
+const openPalette = () => window.dispatchEvent(new Event("jvb:command-palette"));
+
 /**
- * Back-office header. Mirrors the public site's navigation architecture:
- * a one-line wordmark with inline nav on desktop; below md the wordmark
- * stacks ("Joost / van den Bergh") and the nav collapses to a full-screen
- * overlay menu (page ground @ 85% + backdrop-blur) triggered by "Menu".
+ * Back-office header, in the public site's family (spec C1): the wordmark in
+ * the accent, the nav in meta with ink for the current page and a square 2px
+ * accent rule under it. On top of the website's header it is sticky (the
+ * page at 92% under a blur), and it carries search, the theme and sign-out.
+ * Below md the wordmark stacks ("Joost / van den Bergh") and the nav moves
+ * into a full-screen menu behind "Menu", which closes on any link tap and on
+ * Escape and holds the theme and account controls in its footer.
  */
 export function AppHeader({
   items,
@@ -24,9 +32,15 @@ export function AppHeader({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  // The item the user just tapped — shown orange as press feedback while the
-  // next page loads, so the tap registers before the overlay closes.
+  // The item the user just chose: drawn as the current page while the next
+  // one loads, so the click registers before the route (and aria-current)
+  // catches up.
   const [pending, setPending] = useState<string | null>(null);
+  // The palette shortcut as this keyboard writes it. Null until mounted, so
+  // the server render and the first client render agree.
+  const [shortcut, setShortcut] = useState<string | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setOpen(false);
@@ -34,11 +48,27 @@ export function AppHeader({
   }, [pathname]);
 
   useEffect(() => {
+    const mac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+    setShortcut(mac ? "⌘K" : "Ctrl K");
+  }, []);
+
+  // While the menu is open: no page scroll behind it, focus inside it, and
+  // Escape closes it and hands focus back to the Menu button.
+  useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    overlayRef.current?.querySelector<HTMLElement>("a, button")?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
@@ -69,6 +99,14 @@ export function AppHeader({
     .filter(matches)
     .sort((a, b) => b.length - a.length)[0];
   const isActive = (href: string) => href === activeHref;
+  // What is drawn as current: the pending choice while a page loads,
+  // otherwise the active page. aria-current stays with the real page.
+  const isShownCurrent = (href: string) => (pending ? href === pending : isActive(href));
+
+  const choose = (href: string) => {
+    setPending(href === activeHref ? null : href);
+    setOpen(false);
+  };
 
   const wordmarkStacked = (
     <>
@@ -80,88 +118,93 @@ export function AppHeader({
 
   return (
     <>
-      <header ref={headerRef} className="sticky top-0 z-40 bg-[var(--jvb-bg-header)] backdrop-blur-md">
-        <div className="mx-auto max-w-[1320px] px-4 py-3 md:px-8">
-          {/* Row 1 — wordmark + account/menu */}
+      <header ref={headerRef} className="sticky top-0 z-40 bg-[var(--jvb-header-bg)] backdrop-blur-md">
+        <a
+          href="#main"
+          className="sr-only z-50 bg-page px-3 py-2 text-[13px] font-medium text-ink focus:not-sr-only focus:absolute focus:left-[var(--jvb-pad)] focus:top-2"
+        >
+          Skip to content
+        </a>
+        <div className="page pb-1 pt-3 md:pb-0">
+          {/* Row 1: wordmark, then search, theme and account */}
           <div className="flex items-center gap-4">
+            {/* The wordmark is the brand in the accent, as on the website (a
+                logo is exempt from the text-contrast rule). */}
             <Link
               href="/"
-              className="shrink-0 text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-ink-strong"
+              className="shrink-0 text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-accent transition-[color] hover:text-accent-deep"
             >
-              <span className="hidden whitespace-nowrap md:inline">
-                Joost van den Bergh
-              </span>
+              <span className="hidden whitespace-nowrap md:inline">Joost van den Bergh</span>
               <span className="md:hidden">{wordmarkStacked}</span>
             </Link>
 
             {/* Desktop actions */}
-            <div className="ml-auto hidden shrink-0 items-center gap-2 md:flex">
+            <div className="ml-auto hidden shrink-0 items-center gap-1.5 md:flex">
               <button
                 type="button"
-                onClick={() => window.dispatchEvent(new Event("jvb:command-palette"))}
-                aria-label="Search (⌘K)"
-                className="flex items-center gap-2 rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-body hover:text-ink-strong"
+                onClick={openPalette}
+                aria-label="Search"
+                aria-keyshortcuts="Meta+K Control+K /"
+                className={buttonClass({ size: "sm" }, "min-w-[148px] justify-start gap-2 text-body")}
               >
+                <SearchIcon size={14} />
                 <span>Search</span>
-                <kbd className="rounded border border-line-control bg-band px-1.5 py-px font-mono text-[10.5px] text-body">
-                  ⌘K
-                </kbd>
+                {shortcut ? (
+                  <kbd className="ml-auto font-sans text-[11px] font-normal leading-none text-meta">{shortcut}</kbd>
+                ) : null}
               </button>
               <ThemeToggle />
               <form action={signOut}>
-                <button
-                  type="submit"
-                  title={userEmail ?? undefined}
-                  className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
-                >
+                <Button type="submit" variant="quiet" size="sm" title={userEmail ?? undefined} pendingLabel="Signing out…">
                   Sign out
-                </button>
+                </Button>
               </form>
             </div>
 
-            {/* Mobile triggers */}
-            <div className="ml-auto flex items-center gap-4 md:hidden">
-              {!open ? (
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new Event("jvb:command-palette"))}
-                  aria-label="Search"
-                  className="grid h-11 w-11 -mr-2 place-items-center text-ink-strong"
-                >
-                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-                    <path d="m20 20-3.2-3.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </button>
-              ) : null}
+            {/* Phone and small tablet: search and the menu, 44px targets */}
+            <div className="-mr-2 ml-auto flex items-center md:hidden">
               <button
+                type="button"
+                onClick={openPalette}
+                aria-label="Search"
+                className="grid h-11 w-11 place-items-center text-ink hover:text-accent-deep"
+              >
+                <SearchIcon size={20} />
+              </button>
+              <button
+                ref={menuButtonRef}
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
+                aria-controls="app-menu"
                 aria-label={open ? "Close menu" : "Open menu"}
-                className="text-[13px] font-medium text-ink-strong"
+                className="inline-flex h-11 min-w-11 items-center justify-center px-2 text-[13px] font-medium text-ink"
               >
                 {open ? "Close" : "Menu"}
               </button>
             </div>
           </div>
 
-          {/* Row 2 — desktop nav, wraps beneath the wordmark, flush-left with it */}
-          <nav className="-ml-2.5 mt-2 hidden flex-wrap items-center justify-start gap-x-0.5 gap-y-1 md:flex">
+          {/* Row 2: desktop nav, wraps beneath the wordmark, flush-left with it */}
+          <nav aria-label="Main" className="-ml-2.5 mt-1.5 hidden flex-wrap items-center gap-x-0.5 md:flex">
             {items.map((n, i) => {
-              const active = isActive(n.href);
+              const shown = isShownCurrent(n.href);
               const newGroup = i > 0 && n.group !== items[i - 1]?.group;
               return (
                 <span key={n.href} className="flex shrink-0 items-center">
-                  {newGroup ? <span aria-hidden className="mx-1.5 h-3.5 w-px bg-line" /> : null}
+                  {newGroup ? <span aria-hidden className="mx-1.5 h-3.5 w-px bg-rule-strong" /> : null}
                   <Link
                     href={n.href}
-                    aria-current={active ? "page" : undefined}
-                    className={`relative shrink-0 px-2.5 py-1.5 text-[12.5px] font-medium transition-colors ${
-                      active
-                        ? "text-accent-deep after:absolute after:inset-x-2.5 after:-bottom-px after:h-0.5 after:rounded-full after:bg-oranje after:content-['']"
-                        : "text-ink-mid hover:text-ink-strong"
-                    }`}
+                    onClick={() => choose(n.href)}
+                    aria-current={isActive(n.href) ? "page" : undefined}
+                    className={cx(
+                      "relative inline-flex h-9 shrink-0 items-center px-2.5 text-[13px] font-medium transition-[color]",
+                      // The current page: ink, with a square accent rule along
+                      // the header's bottom edge.
+                      shown
+                        ? "text-ink after:absolute after:inset-x-2.5 after:bottom-0 after:h-0.5 after:bg-accent after:content-['']"
+                        : "text-meta hover:text-ink",
+                    )}
                   >
                     {n.label}
                   </Link>
@@ -172,55 +215,74 @@ export function AppHeader({
         </div>
       </header>
 
-      {/* Mobile full-screen overlay menu — sibling of <header> so its fixed
+      {/* Phone menu: a full-screen layer, sibling of <header> so its fixed
           positioning and backdrop-blur resolve against the viewport. */}
       {open ? (
         <div
-          className="fixed inset-0 z-50 md:hidden"
+          ref={overlayRef}
+          id="app-menu"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+          className="fixed inset-0 z-50 flex flex-col overflow-y-auto md:hidden"
           style={{
-            // Theme-aware overlay — was hardcoded light, which frosted the menu
-            // as a light panel over the dark app in dark mode.
             backgroundColor: "var(--jvb-bg-overlay)",
             backdropFilter: "blur(22px) saturate(1.4)",
             WebkitBackdropFilter: "blur(22px) saturate(1.4)",
           }}
         >
-          <div className="flex items-start justify-between px-4 py-3">
-            <span className="text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-ink-strong">
+          <div className="page flex items-start justify-between pt-3">
+            <span className="text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-accent">
               {wordmarkStacked}
             </span>
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                menuButtonRef.current?.focus();
+              }}
               aria-label="Close menu"
-              className="text-[13px] font-medium text-ink-strong"
+              className="-mr-2 -mt-1 inline-flex h-11 items-center gap-1.5 px-2 text-[13px] font-medium text-ink"
             >
+              <CloseIcon size={16} />
               Close
             </button>
           </div>
-          <nav className="mt-9 flex flex-col gap-3.5 px-4">
-            {items.map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                onClick={() => setPending(n.href)}
-                aria-current={isActive(n.href) ? "page" : undefined}
-                className={`text-[18px] font-semibold tracking-[-0.01em] transition-colors duration-150 active:text-accent-deep ${
-                  isActive(n.href) || pending === n.href ? "text-accent-deep" : "text-ink-mid"
-                }`}
-              >
-                {n.label}
-              </Link>
-            ))}
-            <form action={signOut} className="mt-5">
-              <button
-                type="submit"
-                className="text-[14px] font-medium text-ink-soft"
-              >
-                Sign out
-              </button>
-            </form>
+          <nav aria-label="Main" className="page mt-8 flex flex-col">
+            {items.map((n, i) => {
+              const shown = isShownCurrent(n.href);
+              const newGroup = i > 0 && n.group !== items[i - 1]?.group;
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  onClick={() => choose(n.href)}
+                  aria-current={isActive(n.href) ? "page" : undefined}
+                  className={cx(
+                    "flex min-h-11 items-center border-l-2 pl-3 text-[18px] font-medium tracking-[-0.01em] transition-[color]",
+                    newGroup && "mt-3",
+                    shown ? "border-accent text-ink" : "border-transparent text-meta active:text-ink",
+                  )}
+                >
+                  {n.label}
+                </Link>
+              );
+            })}
           </nav>
+          {/* Theme and account, which the phone header has no room for. */}
+          <div className="page mt-auto border-t border-rule-strong pb-[max(16px,env(safe-area-inset-bottom))] pt-4">
+            {userEmail ? (
+              <p className="mb-3 truncate text-[12px] leading-[1.4] text-meta">Signed in as {userEmail}</p>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <ThemeToggle withLabel />
+              <form action={signOut}>
+                <Button type="submit" pendingLabel="Signing out…">
+                  Sign out
+                </Button>
+              </form>
+            </div>
+          </div>
         </div>
       ) : null}
     </>

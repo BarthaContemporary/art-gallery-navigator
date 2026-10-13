@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
@@ -15,6 +14,14 @@ import { consignmentSplit } from "@/lib/consignment";
 import { loadPieceRows } from "@/lib/piece-store";
 // London dates: this page renders on the server, where the zone is UTC.
 import { formatDate } from "@/lib/format";
+import {
+  CONTACT_TYPE_LABELS,
+  KYC_STATUS_LABELS,
+  KYC_STATUS_TONES,
+  labelOf,
+} from "@/lib/labels";
+import { PageHeader } from "@/components/ui/page-header";
+import { Badge } from "@/components/ui/badge";
 
 export const metadata = { title: "Contact" };
 
@@ -45,12 +52,10 @@ type Contact = {
   notes: string | null;
 };
 
-const AML_OPTIONS: Record<string, string> = {
-  not_started: "Not started",
-  pending: "In progress",
-  verified: "Confirmed",
-  refer: "Refer",
-  rejected: "Rejected",
+/** crm_contacts.sanctions_status, as the fortnightly screen writes it. */
+const SANCTIONS_LABELS: Record<string, string> = {
+  clear: "Clear",
+  potential_match: "Potential match",
 };
 
 export default async function ContactProfile({
@@ -238,45 +243,31 @@ export default async function ContactProfile({
     revalidatePath(`/crm/contacts/${id}`);
   }
 
-  return (
-    <div className="max-w-[900px]">
-      <Link href="/crm/contacts" className="text-[12.5px] text-ink-soft">
-        ← All contacts
-      </Link>
+  // The sanctions screen's last answer (api/cron/sanctions-screen): a
+  // potential match is flagged for review, a clear result stays neutral.
+  const sanctions = contact.sanctions_status;
+  const kycTone = KYC_STATUS_TONES[contact.kyc_status] ?? "neutral";
 
-      {/* header */}
-      <div className="mt-2 flex flex-wrap items-start gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-band text-[18px] text-body">
-          {(contact.first_name?.[0] ?? contact.last_name?.[0] ?? "?").toUpperCase()}
+  return (
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <PageHeader
+        back={{ href: "/crm/contacts", label: "All contacts" }}
+        title={name}
+        meta={[labelOf(CONTACT_TYPE_LABELS, contact.contact_type), contact.email].filter(Boolean).join(" · ")}
+      >
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge tone={kycTone}>
+            AML: {labelOf(KYC_STATUS_LABELS, contact.kyc_status)}
+            {amlDate ? `, ${formatDate(amlDate)}` : ""}
+          </Badge>
+          {sanctions ? (
+            <Badge tone={sanctions === "potential_match" ? "warn" : "neutral"}>
+              Sanctions: {labelOf(SANCTIONS_LABELS, sanctions)}
+              {contact.last_screened_at ? `, screened ${formatDate(contact.last_screened_at)}` : ""}
+            </Badge>
+          ) : null}
         </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-[24px] font-semibold text-ink-strong">{name}</h1>
-          <p className="mt-0.5 text-[12.5px] text-ink-muted">
-            {contact.contact_type.replace(/_/g, " ")}
-            {contact.email ? ` · ${contact.email}` : ""}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <span className="border border-line-control px-2.5 py-0.5 text-[11px] text-ink-mid">
-              AML: {AML_OPTIONS[contact.kyc_status] ?? contact.kyc_status}
-              {amlDate ? ` · ${amlDate}` : ""}
-            </span>
-            {contact.sanctions_status ? (
-              <span
-                className={`px-2.5 py-0.5 text-[11px] ${
-                  contact.sanctions_status === "potential_match"
-                    ? "bg-tag-dark text-primary-fg"
-                    : "border border-line-control text-ink-mid"
-                }`}
-              >
-                Sanctions: {contact.sanctions_status.replace(/_/g, " ")}
-                {contact.last_screened_at
-                  ? ` · ${formatDate(contact.last_screened_at, "numeric")}`
-                  : ""}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </div>
+      </PageHeader>
 
       <ContactEditor
         id={id}

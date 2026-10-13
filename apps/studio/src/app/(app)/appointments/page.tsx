@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession, getSupabase } from "@/lib/supabase";
@@ -16,11 +17,19 @@ import {
 } from "@/lib/caldav";
 import {
   AppointmentsCalendar,
+  CalendarSkeleton,
   buildMonthGrid,
   type CalendarAppointment,
 } from "@/components/appointments-calendar";
 import { EventEditor } from "@/components/event-editor";
-import { formatDateTime } from "@/lib/format";
+import { formatCount, formatDateTime } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Badge, type Tone } from "@/components/ui/badge";
+import { Notice } from "@/components/ui/notice";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 
 export const metadata = { title: "Appointments" };
 
@@ -110,9 +119,6 @@ async function deleteEvent(formData: FormData) {
   redirect(backUrl(month, res.ok ? null : res.message));
 }
 
-const btnGhost =
-  "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong";
-
 type ContactLite = {
   id: string;
   first_name: string | null;
@@ -141,36 +147,21 @@ const STATUS_LABELS: Record<string, string> = {
   no_show: "No-show",
 };
 
-function AppointmentStatusPill({ status }: { status: string }) {
-  const label = STATUS_LABELS[status] ?? status;
-  if (status === "confirmed") {
-    return (
-      <span className="inline-flex items-center gap-1.5 border border-line bg-pill px-2.5 py-0.5 text-[11.5px] font-semibold text-[var(--jvb-ink-label)]">
-        <span aria-hidden className="inline-block h-[6px] w-[6px] rounded-full bg-status-green" />
-        {label}
-      </span>
-    );
-  }
-  if (status === "cancelled" || status === "no_show") {
-    return (
-      <span className="inline-flex items-center border border-line-soft bg-pill px-2.5 py-0.5 text-[11.5px] font-medium text-body line-through">
-        {label}
-      </span>
-    );
-  }
-  if (status === "completed") {
-    return (
-      <span className="inline-flex items-center border border-line-soft bg-pill px-2.5 py-0.5 text-[11.5px] font-medium text-body">
-        {label}
-      </span>
-    );
-  }
-  // requested / fallback — neutral
-  return (
-    <span className="inline-flex items-center border border-line bg-pill px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-mid">
-      {label}
-    </span>
-  );
+/**
+ * appointments.status as a tone (spec R4: the word always comes with it).
+ * A request waits on the gallery (warn); a confirmed visit is set (ok); the
+ * settled outcomes stay neutral, danger being kept for errors.
+ */
+const STATUS_TONES: Record<string, Tone> = {
+  requested: "warn",
+  confirmed: "ok",
+  completed: "neutral",
+  no_show: "neutral",
+  cancelled: "neutral",
+};
+
+function AppointmentStatusBadge({ status }: { status: string }) {
+  return <Badge tone={STATUS_TONES[status] ?? "neutral"}>{STATUS_LABELS[status] ?? status}</Badge>;
 }
 
 // "Mon, 12 Oct 2026, 14:00" in London time. This page renders on the server
@@ -204,14 +195,15 @@ function StatusActions({ appt }: { appt: Appointment }) {
   }
   if (actions.length === 0) return null;
   return (
+    // Wraps to a second line rather than pushing Cancel out of the frame.
     <div className="flex flex-wrap justify-end gap-1.5">
       {actions.map((a) => (
         <form key={a.status} action={setStatus}>
           <input type="hidden" name="id" value={appt.id} />
           <input type="hidden" name="status" value={a.status} />
-          <button type="submit" className={btnGhost}>
+          <Button type="submit" size="sm" variant={a.status === "cancelled" ? "danger" : "secondary"}>
             {a.label}
-          </button>
+          </Button>
         </form>
       ))}
     </div>
@@ -224,53 +216,48 @@ function nameOf(c: ContactLite): string {
 
 function AppointmentRow({ appt, withActions }: { appt: Appointment; withActions: boolean }) {
   return (
-    <tr className="border-b border-line-soft last:border-0 align-top">
-      <td className="px-4 py-2.5">
-        <span className="font-mono text-[12px] tabular-nums text-ink-body">
-          {fmt(appt.starts_at)}
-        </span>
-      </td>
-      <td className="px-4 py-2.5 text-ink-body">{appt.type?.name ?? "—"}</td>
-      <td className="px-4 py-2.5 text-ink-body">
+    <Tr>
+      <Td className="whitespace-nowrap align-top">
+        <span className="tabular text-ink">{fmt(appt.starts_at)}</span>
+      </Td>
+      <Td className="align-top text-body">{appt.type?.name ?? "—"}</Td>
+      <Td className="whitespace-nowrap align-top text-ink">
         {appt.contact_id ? (
-          <Link
-            href={`/crm/contacts/${appt.contact_id}`}
-            className="hover:text-ink-strong"
-          >
+          <Link href={`/crm/contacts/${appt.contact_id}`} className="link-plain font-medium">
             {appt.contact ? nameOf(appt.contact) : (appt.name ?? "Contact")}
           </Link>
         ) : (
           (appt.name ?? "—")
         )}
-      </td>
-      <td className="px-4 py-2.5 text-ink-muted">
+      </Td>
+      <Td className="whitespace-nowrap align-top text-body">
         {appt.email ? (
-          <a href={`mailto:${appt.email}`} className="hover:text-ink-strong">
+          <a href={`mailto:${appt.email}`} className="link-plain">
             {appt.email}
           </a>
         ) : (
           "—"
         )}
-      </td>
-      <td className="px-4 py-2.5 text-ink-muted">
-        {appt.phone ? (
-          <span className="font-mono text-[12px] tabular-nums">{appt.phone}</span>
-        ) : (
-          "—"
-        )}
-      </td>
-      <td className="max-w-[240px] px-4 py-2.5 text-[12px] text-ink-soft">
+      </Td>
+      <Td className="whitespace-nowrap align-top text-body">
+        {appt.phone ? <span className="tabular">{appt.phone}</span> : "—"}
+      </Td>
+      <Td className="min-w-[180px] max-w-[260px] align-top text-[12px] leading-[1.4] text-body">
         {appt.notes ? (
-          <span className="line-clamp-2 whitespace-pre-wrap break-words">{appt.notes}</span>
+          <span className="line-clamp-2 whitespace-pre-wrap break-words" title={appt.notes}>
+            {appt.notes}
+          </span>
         ) : null}
-      </td>
-      <td className="px-4 py-2.5">
-        <AppointmentStatusPill status={appt.status} />
-      </td>
-      <td className="px-4 py-2.5 text-right">
-        {withActions ? <StatusActions appt={appt} /> : null}
-      </td>
-    </tr>
+      </Td>
+      <Td className="align-top">
+        <AppointmentStatusBadge status={appt.status} />
+      </Td>
+      {withActions ? (
+        <Td className="w-[280px] min-w-[200px] align-top text-right">
+          <StatusActions appt={appt} />
+        </Td>
+      ) : null}
+    </Tr>
   );
 }
 
@@ -282,18 +269,24 @@ function AppointmentsTable({
   withActions: boolean;
 }) {
   return (
-    <div className="mt-2 overflow-x-auto border border-line">
-      <table className="w-full min-w-[880px] bg-cell text-left text-[13px]">
+    <TableFrame bordered>
+      <Table className="min-w-[880px]">
         <thead>
-          <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-            <th className="px-4 py-2.5 font-medium">When</th>
-            <th className="px-4 py-2.5 font-medium">Type</th>
-            <th className="px-4 py-2.5 font-medium">Person</th>
-            <th className="px-4 py-2.5 font-medium">Email</th>
-            <th className="px-4 py-2.5 font-medium">Phone</th>
-            <th className="px-4 py-2.5 font-medium">Notes</th>
-            <th className="px-4 py-2.5 font-medium">Status</th>
-            <th className="px-4 py-2.5 font-medium" />
+          <tr>
+            <Th>When</Th>
+            <Th>Type</Th>
+            <Th>Person</Th>
+            <Th>Email</Th>
+            <Th>Phone</Th>
+            <Th>Notes</Th>
+            <Th>Status</Th>
+            {withActions ? (
+              // relative: the hidden word is absolutely positioned, and in a
+              // sideways-scrolling frame it must not escape and widen the page.
+              <Th className="relative text-right">
+                <span className="sr-only">Actions</span>
+              </Th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -301,28 +294,27 @@ function AppointmentsTable({
             <AppointmentRow key={appt.id} appt={appt} withActions={withActions} />
           ))}
         </tbody>
-      </table>
-    </div>
+      </Table>
+    </TableFrame>
   );
 }
 
-export default async function AppointmentsPage({
-  searchParams,
+/**
+ * The month grid and the event editor, which wait on the shared calendar
+ * (CalDAV, a network round trip to Radicale). Streamed in its own Suspense
+ * boundary (W16) so the appointment lists below never wait for it.
+ */
+async function CalendarBlock({
+  month,
+  today,
+  sp,
+  appointments,
 }: {
-  searchParams: Promise<{
-    month?: string;
-    new?: string;
-    day?: string;
-    edit?: string;
-    calerr?: string;
-  }>;
+  month: string;
+  today: string;
+  sp: { new?: string; day?: string; edit?: string };
+  appointments: CalendarAppointment[];
 }) {
-  const sp = await searchParams;
-  const supabase = await getSupabase();
-
-  const today = londonDay(new Date());
-  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.month ?? "") ? sp.month! : today.slice(0, 7);
-
   // Fetch the shared calendar for the full visible grid (leading/trailing
   // days of adjacent months included), London midnight to London midnight.
   const grid = buildMonthGrid(month);
@@ -332,47 +324,7 @@ export default async function AppointmentsPage({
   };
   const gridFirst = grid[0]?.iso ?? `${month}-01`;
   const gridLast = grid[grid.length - 1]?.iso ?? `${month}-28`;
-  const feedPromise = fetchCalendarFeed(dayStart(gridFirst), dayStart(gridLast, 1));
-
-  const { data } = await supabase
-    .from("appointments")
-    .select(
-      "id, starts_at, ends_at, status, name, email, phone, notes, contact_id, contact:crm_contacts ( id, first_name, last_name ), type:appointment_types ( name )",
-    )
-    .order("starts_at", { ascending: true });
-
-  const appointments = (data ?? []).map((r) => {
-    const row = r as unknown as Omit<Appointment, "contact" | "type"> & {
-      contact: ContactLite | ContactLite[] | null;
-      type: { name: string | null } | { name: string | null }[] | null;
-    };
-    const contact = Array.isArray(row.contact) ? (row.contact[0] ?? null) : (row.contact ?? null);
-    const type = Array.isArray(row.type) ? (row.type[0] ?? null) : (row.type ?? null);
-    return { ...row, contact, type } as Appointment;
-  });
-
-  const now = Date.now();
-  const upcoming = appointments.filter(
-    (a) => a.status !== "cancelled" && new Date(a.starts_at).getTime() >= now,
-  );
-  const past = appointments
-    .filter((a) => a.status === "cancelled" || new Date(a.starts_at).getTime() < now)
-    .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
-
-  const feed = await feedPromise;
-  const calendarAppointments: CalendarAppointment[] = appointments.map((a) => {
-    const start = new Date(a.starts_at);
-    return {
-      id: a.id,
-      startsAt: a.starts_at,
-      day: londonDay(start),
-      time: londonTime(start),
-      label:
-        (a.contact ? nameOf(a.contact) : (a.name ?? null)) ?? a.type?.name ?? "Appointment",
-      status: a.status,
-      contactId: a.contact_id,
-    };
-  });
+  const feed = await fetchCalendarFeed(dayStart(gridFirst), dayStart(gridLast, 1));
 
   let editor: React.ReactNode = null;
   if (feed.status === "ok" && feed.calendars.length > 0 && (sp.new || sp.edit)) {
@@ -399,52 +351,133 @@ export default async function AppointmentsPage({
   }
 
   return (
-    <div className="max-w-[1080px] space-y-8">
-      {sp.calerr ? (
-        <p className="rounded-lg border border-danger-soft bg-danger-soft/40 px-3 py-2 text-[12.5px] text-ink-strong">
-          Calendar: {sp.calerr}.{" "}
-          <Link href={`/appointments?month=${month}`} className="underline">
-            Dismiss
-          </Link>
-        </p>
-      ) : null}
-      <AppointmentsCalendar
-        month={month}
-        today={today}
-        feed={feed}
-        webUrl={calendarWebUrl()}
-        appointments={calendarAppointments}
-        editor={editor}
+    <AppointmentsCalendar
+      month={month}
+      today={today}
+      feed={feed}
+      webUrl={calendarWebUrl()}
+      appointments={appointments}
+      editor={editor}
+    />
+  );
+}
+
+export default async function AppointmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    month?: string;
+    new?: string;
+    day?: string;
+    edit?: string;
+    calerr?: string;
+  }>;
+}) {
+  const sp = await searchParams;
+  const supabase = await getSupabase();
+
+  const today = londonDay(new Date());
+  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.month ?? "") ? sp.month! : today.slice(0, 7);
+
+  const { data } = await supabase
+    .from("appointments")
+    .select(
+      "id, starts_at, ends_at, status, name, email, phone, notes, contact_id, contact:crm_contacts ( id, first_name, last_name ), type:appointment_types ( name )",
+    )
+    .order("starts_at", { ascending: true });
+
+  const appointments = (data ?? []).map((r) => {
+    const row = r as unknown as Omit<Appointment, "contact" | "type"> & {
+      contact: ContactLite | ContactLite[] | null;
+      type: { name: string | null } | { name: string | null }[] | null;
+    };
+    const contact = Array.isArray(row.contact) ? (row.contact[0] ?? null) : (row.contact ?? null);
+    const type = Array.isArray(row.type) ? (row.type[0] ?? null) : (row.type ?? null);
+    return { ...row, contact, type } as Appointment;
+  });
+
+  const now = Date.now();
+  const upcoming = appointments.filter(
+    (a) => a.status !== "cancelled" && new Date(a.starts_at).getTime() >= now,
+  );
+  const past = appointments
+    .filter((a) => a.status === "cancelled" || new Date(a.starts_at).getTime() < now)
+    .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
+  const requested = upcoming.filter((a) => a.status === "requested").length;
+
+  const calendarAppointments: CalendarAppointment[] = appointments.map((a) => {
+    const start = new Date(a.starts_at);
+    return {
+      id: a.id,
+      startsAt: a.starts_at,
+      day: londonDay(start),
+      time: londonTime(start),
+      label:
+        (a.contact ? nameOf(a.contact) : (a.name ?? null)) ?? a.type?.name ?? "Appointment",
+      status: a.status,
+      contactId: a.contact_id,
+    };
+  });
+
+  return (
+    <div>
+      <PageHeader
+        title="Appointments"
+        meta={
+          <span className="tabular">
+            {formatCount(upcoming.length)} upcoming
+            {requested > 0 ? ` · ${formatCount(requested)} waiting to be confirmed` : ""}
+          </span>
+        }
       />
 
-      {appointments.length === 0 ? (
-        <p className="text-[13px] text-ink-muted">
-          No appointments yet — bookings from the website&rsquo;s Visit page will appear
-          here.
-        </p>
-      ) : (
-        <div className="space-y-8">
-          <section>
-            <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-              Upcoming
-            </h2>
-            {upcoming.length > 0 ? (
-              <AppointmentsTable rows={upcoming} withActions />
-            ) : (
-              <p className="mt-2 text-[12.5px] text-ink-muted">No upcoming appointments.</p>
-            )}
-          </section>
+      <div className="space-y-6">
+        {sp.calerr ? (
+          <Notice
+            tone="danger"
+            action={
+              <ButtonLink href={`/appointments?month=${month}`} variant="quiet" size="sm">
+                Dismiss
+              </ButtonLink>
+            }
+          >
+            Calendar: {sp.calerr}.
+          </Notice>
+        ) : null}
 
-          {past.length > 0 ? (
-            <section>
-              <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                Past &amp; cancelled
-              </h2>
-              <AppointmentsTable rows={past} withActions={false} />
-            </section>
-          ) : null}
-        </div>
-      )}
+        {/* key: a new month shows the placeholder while its events load,
+            rather than leaving the last month standing. */}
+        <Suspense key={month} fallback={<CalendarSkeleton month={month} />}>
+          <CalendarBlock
+            month={month}
+            today={today}
+            sp={{ new: sp.new, day: sp.day, edit: sp.edit }}
+            appointments={calendarAppointments}
+          />
+        </Suspense>
+
+        {appointments.length === 0 ? (
+          <EmptyState>
+            No appointments yet. Bookings from the website&rsquo;s Visit page will appear here.
+          </EmptyState>
+        ) : (
+          <>
+            <Section title="Upcoming">
+              {upcoming.length > 0 ? (
+                <AppointmentsTable rows={upcoming} withActions />
+              ) : (
+                <p className="text-[13px] text-body">No upcoming appointments.</p>
+              )}
+            </Section>
+
+            {past.length > 0 ? (
+              <Section title="Past and cancelled">
+                <AppointmentsTable rows={past} withActions={false} />
+              </Section>
+            ) : null}
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,224 @@
+[
+ {
+  "id": "ca3a0000-0001-4000-8000-ca3a00000000",
+  "name": "Summer newsletter: Japanese bamboo",
+  "subject": "Summer newsletter: Japanese bamboo",
+  "template_key": null,
+  "status": "sent",
+  "resend_broadcast_id": null,
+  "sent_at": "2026-08-04T10:00:00.000Z",
+  "created_by": "a0000000-0000-4000-8000-000000000001",
+  "created_at": "2026-05-21T10:00:00.000Z",
+  "updated_at": "2026-10-10T10:00:00.000Z",
+  "design": {
+   "blocks": [
+    {
+     "id": "b1",
+     "type": "heading",
+     "text": "Summer newsletter: Japanese bamboo",
+     "level": 1
+    },
+    {
+     "id": "b2",
+     "type": "text",
+     "text": "Dear friends, we are delighted to share a selection of new arrivals ahead of the autumn fairs. Placeholder newsletter copy for the studio preview."
+    },
+    {
+     "id": "b3",
+     "type": "works",
+     "items": [
+      {
+       "title": "Flower basket, 'Autumn Wind'",
+       "maker": "Yamamoto Jirō",
+       "price": "On request"
+      },
+      {
+       "title": "Vase with ash glaze",
+       "maker": "Kiyomizu Rokubei VI",
+       "price": "On request"
+      },
+      {
+       "title": "Gelatin silver print, Kyoto street",
+       "maker": "Nakajima Masao",
+       "price": "On request"
+      }
+     ]
+    },
+    {
+     "id": "b4",
+     "type": "button",
+     "label": "View the selection",
+     "href": "https://joostvandenbergh.com"
+    },
+    {
+     "id": "b5",
+     "type": "divider"
+    },
+    {
+     "id": "b6",
+     "type": "text",
+     "text": "The gallery is open by appointment, Tuesday to Friday."
+    }
+   ]
+  },
+  "body_html": null,
+  "preview_text": "New arrivals and where to find us this autumn",
+  "from_address": null,
+  "list_id": "c1570000-0001-4000-8000-c15700000000",
+  "test_sent_at": null
+ },
+ {
+  "id": "ca3a0000-0002-4000-8000-ca3a00000000",
+  "name": "TEFAF 2027 invitation",
+  "subject": "TEFAF 2027 invitation",
+  "template_key": null,
+  "status": "partial",
+  "resend_broadcast_id": null,
+  "sent_at": null,
+  "created_by": "a0000000-0000-4000-8000-000000000001",
+  "created_at": "2026-08-18T10:00:00.000Z",
+  "updated_at": "2026-10-12T10:00:00.000Z",
+  "design": {
+   "blocks": [
+    {
+     "id": "b1",
+     "type": "heading",
+     "text": "TEFAF 2027 invitation",
+     "level": 1
+    },
+    {
+     "id": "b2",
+     "type": "text",
+     "text": "Dear friends, we are delighted to share a selection of new arrivals ahead of the autumn fairs. Placeholder newsletter copy for the studio preview."
+    },
+    {
+     "id": "b3",
+     "type": "works",
+     "items": [
+      {
+       "title": "Flower basket, 'Autumn Wind'",
+       "maker": "Yamamoto Jirō",
+       "price": "On request"
+      },
+      {
+       "title": "Vase with ash glaze",
+       "maker": "Kiyomizu Rokubei VI",
+       "price": "On request"
+      },
+      {
+       "title": "Gelatin silver print, Kyoto street",
+       "maker": "Nakajima Masao",
+       "price": "On request"
+      }
+     ]
+    },
+    {
+     "id": "b4",
+     "type": "button",
+     "label": "View the selection",
+     "href": "https://joostvandenbergh.com"
+    },
+    {
+     "id": "b5",
+     "type": "divider"
+    },
+    {
+     "id": "b6",
+     "type": "text",
+     "text": "The gallery is open by appointment, Tuesday to Friday."
+    }
+   ]
+  },
+  "body_html": null,
+  "preview_text": "New arrivals and where to find us this autumn",
+  "from_address": null,
+  "list_id": "c1570000-0002-4000-8000-c15700000000",
+  "test_sent_at": null
+ },
+ {
+  "id": "ca3a0000-0003-4000-8000-ca3a00000000",
+  "name": "Autumn arrivals (draft)",
+  "subject": "Autumn arrivals (draft)",
+  "template_key": null,
+  "status": "draft",
+  "resend_broadcast_id": null,
+  "sent_at": null,
+  "created_by": "a0000000-0000-4000-8000-000000000001",
+  "created_at": "2026-09-06T10:00:00.000Z",
+  "updated_at": "2026-10-09T10:00:00.000Z",
+  "design": {
+   "blocks": [
+    {
+     "id": "b1",
+     "type": "heading",
+     "text": "Autumn arrivals (draft)",
+     "level": 1
+    },
+    {
+     "id": "b2",
+     "type": "text",
+     "text": "Dear friends, we are delighted to share a selection of new arrivals ahead of the autumn fairs. Placeholder newsletter copy for the studio preview."
+    },
+    {
+     "id": "b3",
+     "type": "works",
+     "items": [
+      {
+       "title": "Flower basket, 'Autumn Wind'",
+       "maker": "Yamamoto Jirō",
+       "price": "On request"
+      },
+      {
+       "title": "Vase with ash glaze",
+       "maker": "Kiyomizu Rokubei VI",
+       "price": "On request"
+      },
+      {
+       "title": "Gelatin silver print, Kyoto street",
+       "maker": "Nakajima Masao",
+       "price": "On request"
+      }
+     ]
+    },
+    {
+     "id": "b4",
+     "type": "button",
+     "label": "View the selection",
+     "href": "https://joostvandenbergh.com"
+    },
+    {
+     "id": "b5",
+     "type": "divider"
+    },
+    {
+     "id": "b6",
+     "type": "text",
+     "text": "The gallery is open by appointment, Tuesday to Friday."
+    }
+   ]
+  },
+  "body_html": null,
+  "preview_text": "New arrivals and where to find us this autumn",
+  "from_address": null,
+  "list_id": "c1570000-0001-4000-8000-c15700000000",
+  "test_sent_at": null
+ },
+ {
+  "id": "ca3a0000-0004-4000-8000-ca3a00000000",
+  "name": "Untitled draft",
+  "subject": null,
+  "template_key": null,
+  "status": "draft",
+  "resend_broadcast_id": null,
+  "sent_at": null,
+  "created_by": "a0000000-0000-4000-8000-000000000001",
+  "created_at": "2026-01-28T10:00:00.000Z",
+  "updated_at": "2026-10-12T10:00:00.000Z",
+  "design": null,
+  "body_html": null,
+  "preview_text": null,
+  "from_address": null,
+  "list_id": null,
+  "test_sent_at": null
+ }
+]

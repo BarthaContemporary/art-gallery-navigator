@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Button } from "@/components/ui/button";
 
 /**
  * The list page's Delete button, with the same inline confirm step the lists
@@ -15,37 +16,23 @@ export function ConfirmDelete({ name }: { name: string }) {
 
   if (!confirming) {
     return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-body hover:text-ink-strong"
-      >
+      <Button variant="danger" size="sm" onClick={() => setConfirming(true)}>
         Delete list
-      </button>
+      </Button>
     );
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[12.5px] text-ink-body">
+      <span className="text-[13px] leading-[1.45] text-body">
         Delete “{name}”? This can’t be undone.
       </span>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg border border-danger px-3 py-1.5 text-[12px] font-semibold text-danger hover:bg-danger-wash disabled:opacity-60"
-      >
-        {pending ? "Deleting…" : "Yes, delete"}
-      </button>
-      <button
-        type="button"
-        autoFocus
-        disabled={pending}
-        onClick={() => setConfirming(false)}
-        className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
-      >
+      <Button type="submit" variant="danger" size="sm" pendingLabel="Deleting…">
+        Yes, delete
+      </Button>
+      <Button variant="quiet" size="sm" autoFocus disabled={pending} onClick={() => setConfirming(false)}>
         Cancel
-      </button>
+      </Button>
     </div>
   );
 }

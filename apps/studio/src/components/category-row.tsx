@@ -1,7 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { ReorderHandle } from "@/components/reorder-grid";
+import { formatCount } from "@/lib/format";
+import { Td, Tr } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
 
 export type CategoryRow = {
   id: string;
@@ -10,9 +16,6 @@ export type CategoryRow = {
   is_active: boolean;
   pieces: number;
 };
-
-const cellInput =
-  "w-full rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[13px] text-ink-body";
 
 /**
  * One editable row in the Categories table.
@@ -45,171 +48,143 @@ export function CategoryTableRow({
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [mergeTo, setMergeTo] = useState("");
+  // colSpan follows the admin grip column, which only exists for admins.
+  const span = reorderable ? 6 : 5;
 
   if (editing) {
     return (
-      <tr className="border-b border-line-soft bg-band/40 last:border-0">
-        {/* colSpan follows the admin grip column, which only exists for admins. */}
-        <td colSpan={reorderable ? 6 : 5} className="px-4 py-2.5">
-          <form action={updateAction} className="flex flex-wrap items-center gap-2">
+      <Tr current>
+        <Td colSpan={span}>
+          <form action={updateAction} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="id" value={cat.id} />
-            <input
-              name="name"
-              defaultValue={cat.name}
-              required
-              className={`${cellInput} w-64`}
-              aria-label="Category name"
-            />
-            <input
-              name="code"
-              defaultValue={cat.code}
-              required
-              className={`${cellInput} w-40 font-mono`}
-              aria-label="Category code"
-            />
-            <button
-              type="submit"
-              className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg"
-            >
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`cat-name-${cat.id}`} className="label">
+                Name
+              </label>
+              <input id={`cat-name-${cat.id}`} name="name" defaultValue={cat.name} required className="field field-sm w-64" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`cat-code-${cat.id}`} className="label">
+                Code
+              </label>
+              <input id={`cat-code-${cat.id}`} name="code" defaultValue={cat.code} required className="field field-sm tabular w-40" />
+            </div>
+            <Button type="submit" size="sm" variant="primary" pendingLabel="Saving…">
               Save
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="text-[12px] text-ink-soft hover:text-ink-strong"
-            >
+            </Button>
+            <Button size="sm" variant="quiet" onClick={() => setEditing(false)}>
               Cancel
-            </button>
+            </Button>
           </form>
-        </td>
-      </tr>
+        </Td>
+      </Tr>
     );
   }
 
   return (
     <>
-      <tr className={`border-b border-line-soft last:border-0 ${cat.is_active ? "" : "opacity-60"}`}>
+      <Tr>
         {/* Grip lives in its own cell — a table row has nowhere to overlay it. */}
         {reorderable ? (
-          <td className="w-8 px-2 py-2.5">
+          <Td className="w-10">
             <ReorderHandle id={cat.id} />
-          </td>
+          </Td>
         ) : null}
-        <td className="px-4 py-2.5 text-[13.5px] text-ink-body">{cat.name}</td>
-        <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">{cat.code}</td>
-        <td className="px-4 py-2.5">
+        <Td className={cat.is_active ? "font-medium text-ink" : "text-body"}>{cat.name}</Td>
+        <Td className="tabular whitespace-nowrap text-body">{cat.code}</Td>
+        <Td>
           {cat.is_active ? (
-            <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-body">
-              <span
-                aria-hidden
-                className="inline-block h-[6px] w-[6px] rounded-full"
-                style={{ background: "var(--jvb-status-green)" }}
-              />
+            <Badge tone="ok" variant="dot">
               In use
-            </span>
+            </Badge>
           ) : (
-            <span className="text-[12.5px] text-ink-muted">Hidden</span>
+            <Badge variant="dot" hollow>
+              Hidden
+            </Badge>
           )}
-        </td>
-        <td className="px-4 py-2.5">
-          <a
-            href={`/inventory?category=${cat.id}`}
-            className="font-mono text-[12px] text-ink-mid underline"
+        </Td>
+        <Td numeric>
+          <Link
+            href={`/inventory?category=${cat.id}&ledger=all`}
+            className="link-plain text-ink underline decoration-rule-strong underline-offset-2"
+            title={`Show the ${cat.pieces === 1 ? "work" : "works"} in ${cat.name}`}
           >
-            {cat.pieces}
-          </a>
-        </td>
-        <td className="px-4 py-2.5 text-right">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="text-[12px] font-medium text-accent-deep hover:underline"
-          >
-            Edit
-          </button>
-          <form action={toggleAction} className="ml-3 inline">
-            <input type="hidden" name="id" value={cat.id} />
-            <input type="hidden" name="active" value={cat.is_active ? "0" : "1"} />
-            <button type="submit" className="text-[12px] text-ink-soft hover:text-ink-strong">
-              {cat.is_active ? "Hide" : "Show"}
+            {formatCount(cat.pieces)}
+          </Link>
+        </Td>
+        <Td className="whitespace-nowrap text-right">
+          <span className="inline-flex items-center gap-1">
+            <button type="button" onClick={() => setEditing(true)} className="link px-1.5 text-[12px]">
+              Edit
             </button>
-          </form>
-          <button
-            type="button"
-            onClick={() => setConfirming((c) => !c)}
-            className="ml-3 text-[12px] text-ink-soft hover:text-ink-strong"
-          >
-            Delete
-          </button>
-        </td>
-      </tr>
+            <form action={toggleAction} className="inline">
+              <input type="hidden" name="id" value={cat.id} />
+              <input type="hidden" name="active" value={cat.is_active ? "0" : "1"} />
+              <Button type="submit" size="sm" variant="quiet">
+                {cat.is_active ? "Hide" : "Show"}
+              </Button>
+            </form>
+            <Button size="sm" variant="quiet" aria-expanded={confirming} onClick={() => setConfirming((c) => !c)}>
+              Delete
+            </Button>
+          </span>
+        </Td>
+      </Tr>
 
       {confirming ? (
-        <tr className="border-b border-line-soft bg-oranje/5 last:border-0">
-          <td colSpan={reorderable ? 6 : 5} className="px-4 py-3">
-            {cat.pieces === 0 ? (
-              <form action={deleteAction} className="flex flex-wrap items-center gap-3">
-                <input type="hidden" name="id" value={cat.id} />
-                <span className="text-[13px] text-ink-body">
-                  Delete <strong>{cat.name}</strong>? No works use it — this cannot be undone.
-                  If you only want it out of the pickers, use <strong>Hide</strong> instead.
-                </span>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-tag-dark px-3 py-1.5 text-[12px] font-semibold text-primary-fg"
-                >
-                  Yes, delete
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirming(false)}
-                  className="text-[12px] text-ink-soft hover:text-ink-strong"
-                >
-                  Cancel
-                </button>
-              </form>
-            ) : (
-              <form action={deleteAction} className="flex flex-wrap items-center gap-3">
-                <input type="hidden" name="id" value={cat.id} />
-                <span className="text-[13px] text-ink-body">
-                  <strong>{cat.name}</strong> is used by{" "}
-                  <strong>
-                    {cat.pieces} work{cat.pieces === 1 ? "" : "s"}
-                  </strong>
-                  . Move {cat.pieces === 1 ? "it" : "them"} to:
-                </span>
-                <select
-                  name="merge_to"
-                  required
-                  value={mergeTo}
-                  onChange={(e) => setMergeTo(e.target.value)}
-                  className={`${cellInput} w-64`}
-                >
-                  <option value="" disabled>
-                    Choose a category…
-                  </option>
-                  {others.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name}
+        <tr>
+          <td colSpan={span} className="border-b border-rule p-0">
+            <Notice tone="danger">
+              {cat.pieces === 0 ? (
+                <form action={deleteAction} className="flex flex-wrap items-center gap-3">
+                  <input type="hidden" name="id" value={cat.id} />
+                  <span className="text-[13px] text-body">
+                    Delete <strong className="text-ink">{cat.name}</strong>? No works use it. This cannot be undone.
+                    If you only want it out of the pickers, use <strong className="text-ink">Hide</strong> instead.
+                  </span>
+                  <Button type="submit" size="sm" variant="danger" pendingLabel="Deleting…">
+                    Yes, delete
+                  </Button>
+                  <Button size="sm" variant="quiet" onClick={() => setConfirming(false)}>
+                    Cancel
+                  </Button>
+                </form>
+              ) : (
+                <form action={deleteAction} className="flex flex-wrap items-center gap-3">
+                  <input type="hidden" name="id" value={cat.id} />
+                  <label htmlFor={`cat-merge-${cat.id}`} className="text-[13px] text-body">
+                    <strong className="text-ink">{cat.name}</strong> is used by{" "}
+                    <strong className="text-ink">
+                      {cat.pieces} work{cat.pieces === 1 ? "" : "s"}
+                    </strong>
+                    . Move {cat.pieces === 1 ? "it" : "them"} to:
+                  </label>
+                  <select
+                    id={`cat-merge-${cat.id}`}
+                    name="merge_to"
+                    required
+                    value={mergeTo}
+                    onChange={(e) => setMergeTo(e.target.value)}
+                    className="field field-sm w-64"
+                  >
+                    <option value="" disabled>
+                      Choose a category…
                     </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  disabled={!mergeTo}
-                  className="rounded-lg bg-tag-dark px-3 py-1.5 text-[12px] font-semibold text-primary-fg disabled:opacity-50"
-                >
-                  Move works &amp; delete
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirming(false)}
-                  className="text-[12px] text-ink-soft hover:text-ink-strong"
-                >
-                  Cancel
-                </button>
-              </form>
-            )}
+                    {others.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button type="submit" size="sm" variant="danger" disabled={!mergeTo} pendingLabel="Moving…">
+                    Move works and delete
+                  </Button>
+                  <Button size="sm" variant="quiet" onClick={() => setConfirming(false)}>
+                    Cancel
+                  </Button>
+                </form>
+              )}
+            </Notice>
           </td>
         </tr>
       ) : null}

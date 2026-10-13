@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { Dropzone } from "@/components/dropzone";
 import { uploadDocument } from "@/lib/upload-signed";
 import { DOC_TYPE_LABELS } from "@/lib/labels";
+import { Button } from "@/components/ui/button";
+import { Panel } from "@/components/ui/section";
+import { Notice } from "@/components/ui/notice";
+import { PlusIcon } from "@/components/ui/icons";
 
 // The shared words, with the same ten choices as before: this upload picker
 // has never offered "Import documents" (import paperwork is filed on the
@@ -26,8 +30,8 @@ export function NewDocument() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const field = "mt-1 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
-  const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
+  const field = "field";
+  const label = "label mb-1";
 
   async function create() {
     if (!file) {
@@ -61,56 +65,62 @@ export function NewDocument() {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg"
-      >
+      <Button variant="primary" icon={<PlusIcon size={14} />} onClick={() => setOpen(true)}>
         New document
-      </button>
+      </Button>
     );
   }
 
   return (
-    <div className="w-full border border-line bg-cell p-5">
+    <Panel title="New document" className="w-full">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label className={label}>
-          Type
-          <select value={docType} onChange={(e) => setDocType(e.target.value)} className={field}>
+        <div>
+          <label htmlFor="newdoc-type" className={label}>
+            Type
+          </label>
+          <select id="newdoc-type" value={docType} onChange={(e) => setDocType(e.target.value)} className={field}>
             {DOC_TYPES.map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}
           </select>
-        </label>
-        <label className={label}>
-          Reference
-          <input value={reference} onChange={(e) => setReference(e.target.value)} className={field} />
-        </label>
-        <label className={label}>
-          Date
-          <input type="date" value={docDate} onChange={(e) => setDocDate(e.target.value)} className={field} />
-        </label>
-        <label className={label}>
-          Title (optional)
-          <input value={title} onChange={(e) => setTitle(e.target.value)} className={field} />
-        </label>
+        </div>
+        <div>
+          <label htmlFor="newdoc-reference" className={label}>
+            Reference
+          </label>
+          <input id="newdoc-reference" value={reference} onChange={(e) => setReference(e.target.value)} className={field} />
+        </div>
+        <div>
+          <label htmlFor="newdoc-date" className={label}>
+            Date
+          </label>
+          <input id="newdoc-date" type="date" value={docDate} onChange={(e) => setDocDate(e.target.value)} className={field} />
+        </div>
+        <div>
+          <label htmlFor="newdoc-title" className={label}>
+            Title <span className="font-normal normal-case tracking-normal">(optional)</span>
+          </label>
+          <input id="newdoc-title" value={title} onChange={(e) => setTitle(e.target.value)} className={field} />
+        </div>
       </div>
       <div className="mt-3">
         <Dropzone onFiles={(l) => setFile(l?.[0] ?? null)} accept=".pdf,.jpg,.jpeg,.png,.tiff,.doc,.docx,.heic" disabled={busy}>
-          <p className="text-[13px] font-medium text-ink-body">
+          <p className="text-[13px] font-medium text-ink">
             {file ? file.name : "Drag the file here, or click to choose"}
           </p>
         </Dropzone>
       </div>
-      {error ? <p className="mt-2 text-[12px] text-ink-body">{error}</p> : null}
-      <div className="mt-3 flex gap-2">
-        <button type="button" onClick={create} disabled={busy} className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg disabled:opacity-50">
-          {busy ? "Creating…" : "Create & attach items"}
-        </button>
-        <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-line-control bg-control px-3.5 py-2 text-[12.5px] font-medium text-ink-mid">
-          Cancel
-        </button>
+      {error ? (
+        <Notice tone="danger" inline className="mt-2">
+          {error}
+        </Notice>
+      ) : null}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button variant="primary" onClick={create} pending={busy} pendingLabel="Creating…">
+          Create and attach items
+        </Button>
+        <Button onClick={() => setOpen(false)}>Cancel</Button>
       </div>
-    </div>
+    </Panel>
   );
 }

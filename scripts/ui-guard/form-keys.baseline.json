@@ -1197,6 +1197,14 @@
       ],
       "fields": [
         {
+          "name": "attention",
+          "tag": "input",
+          "type": "hidden",
+          "hidden": true,
+          "value": "1",
+          "in": "form method=\"get\""
+        },
+        {
           "name": "from",
           "tag": "input",
           "type": "date",
@@ -2714,6 +2722,61 @@
           "tag": "input",
           "type": "hidden",
           "hidden": true
+        }
+      ],
+      "payloads": []
+    },
+    "components/ui/button-client.tsx": {
+      "forms": [],
+      "fields": [
+        {
+          "name": "{...rest}",
+          "tag": "button",
+          "type": "{type}",
+          "hidden": false,
+          "disabled": "{disabled || busy}"
+        }
+      ],
+      "payloads": []
+    },
+    "components/ui/chips.tsx": {
+      "forms": [],
+      "fields": [
+        {
+          "name": "{...rest}",
+          "tag": "button",
+          "type": "{type}",
+          "hidden": false
+        }
+      ],
+      "payloads": []
+    },
+    "components/ui/field.tsx": {
+      "forms": [],
+      "fields": [
+        {
+          "name": "{...props} {...wiring}",
+          "tag": "input",
+          "type": "text",
+          "hidden": false
+        },
+        {
+          "name": "{...props} {...wiring}",
+          "tag": "select",
+          "type": "select",
+          "hidden": false
+        },
+        {
+          "name": "{...props} {...wiring}",
+          "tag": "textarea",
+          "type": "textarea",
+          "hidden": false
+        },
+        {
+          "name": "{...props}",
+          "tag": "input",
+          "type": "{type}",
+          "hidden": false
         }
       ],
       "payloads": []

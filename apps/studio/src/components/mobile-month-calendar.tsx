@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ButtonLink } from "@/components/ui/button";
+import { ChevronRightIcon, PlusIcon, RefreshIcon } from "@/components/ui/icons";
 
 /**
  * Phone-sized month calendar, iPhone Calendar style: a compact grid of day
@@ -41,20 +43,16 @@ function agendaHeading(iso: string, today: string): string {
   return label;
 }
 
+/** An event in its calendar's colour; an appointment as a hollow square (the legend's marks). */
 function Dot({ color, kind }: { color: string | null; kind: "event" | "appointment" }) {
   if (kind === "appointment") {
-    return (
-      <span
-        aria-hidden
-        className="inline-block h-[5px] w-[5px] shrink-0 border border-ink-faint"
-      />
-    );
+    return <span aria-hidden className="inline-block h-[5px] w-[5px] shrink-0 border border-body" />;
   }
   return (
     <span
       aria-hidden
       className="inline-block h-[5px] w-[5px] shrink-0 rounded-full"
-      style={{ backgroundColor: color ?? "var(--jvb-ink-label, currentColor)" }}
+      style={{ backgroundColor: color ?? "var(--jvb-body)" }}
     />
   );
 }
@@ -80,13 +78,10 @@ export function MobileMonthCalendar({
 
   return (
     <div>
-      <div className="border border-line bg-cell px-1 pb-1 pt-2">
-        <div className="grid grid-cols-7">
+      <div className="border border-rule-strong px-1 pb-1 pt-2">
+        <div className="grid grid-cols-7" aria-hidden>
           {WEEKDAY_INITIALS.map((d, i) => (
-            <div
-              key={`${d}-${i}`}
-              className="pb-1 text-center text-[10px] font-medium uppercase tracking-[0.06em] text-ink-faint"
-            >
+            <div key={`${d}-${i}`} className="label pb-1 text-center">
               {d}
             </div>
           ))}
@@ -103,18 +98,20 @@ export function MobileMonthCalendar({
                 onClick={() => setSelected(day.iso)}
                 aria-pressed={isSelected}
                 aria-label={`${day.iso}${dayItems.length > 0 ? `, ${dayItems.length} item${dayItems.length === 1 ? "" : "s"}` : ""}`}
-                className={`flex min-h-[46px] flex-col items-center gap-[3px] rounded-lg pt-[5px] [-webkit-tap-highlight-color:transparent] ${
-                  day.inMonth ? "" : "opacity-40"
-                }`}
+                className="flex min-h-[46px] flex-col items-center gap-[3px] pt-[5px] [-webkit-tap-highlight-color:transparent]"
               >
+                {/* Selected: an ink square. Today: an accent underline (the
+                    place marker), kept when selected too. */}
                 <span
-                  className={`inline-flex h-[28px] w-[28px] items-center justify-center rounded-full text-[13px] tabular-nums transition-transform duration-100 active:scale-90 ${
+                  className={`tabular inline-flex h-[28px] w-[28px] items-center justify-center text-[13px] ${
                     isSelected
-                      ? "bg-[var(--jvb-ink-label)] font-semibold text-cell"
+                      ? "bg-ink font-semibold text-page"
                       : isToday
-                        ? "font-semibold text-[var(--jvb-ink-label)]"
-                        : "text-ink-body"
-                  }`}
+                        ? "font-semibold text-ink"
+                        : day.inMonth
+                          ? "text-body"
+                          : "text-meta"
+                  } ${isToday ? "border-b-2 border-accent" : ""}`}
                 >
                   {day.dayOfMonth}
                 </span>
@@ -133,57 +130,46 @@ export function MobileMonthCalendar({
           reduced-motion reset in globals.css neutralises it. */}
       <div key={selected} className="jvb-rise mt-3">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[12.5px] font-semibold text-ink-strong">
-            {agendaHeading(selected, today)}
-          </h3>
+          <h3 className="text-[13px] font-semibold text-ink">{agendaHeading(selected, today)}</h3>
           {editable ? (
-            <Link
-              href={`/appointments?month=${month}&new=1&day=${selected}`}
-              className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid active:scale-[0.97]"
-            >
-              + Add
-            </Link>
+            <ButtonLink href={`/appointments?month=${month}&new=1&day=${selected}`} size="sm" icon={<PlusIcon size={14} />}>
+              Add
+            </ButtonLink>
           ) : null}
         </div>
 
         {items.length === 0 ? (
-          <p className="mt-2 text-[12.5px] text-ink-muted">Nothing on this day.</p>
+          <p className="mt-2 text-[13px] text-body">Nothing on this day.</p>
         ) : (
-          <ul className="mt-2 overflow-hidden border border-line bg-cell">
+          <ul className="mt-2 border-t border-rule-strong">
             {items.map((it) => {
               const row = (
                 <span className="flex min-h-[44px] items-center gap-2.5 px-3 py-2">
                   <Dot color={it.color} kind={it.kind} />
-                  <span className="w-[52px] shrink-0 font-mono text-[11px] tabular-nums text-ink-muted">
-                    {it.timeLabel ?? ""}
-                  </span>
+                  <span className="tabular w-[52px] shrink-0 text-[12px] text-body">{it.timeLabel ?? ""}</span>
                   <span className={`min-w-0 flex-1 ${it.cancelled ? "line-through opacity-60" : ""}`}>
-                    <span className="block truncate text-[13px] font-medium text-ink-body">
+                    <span className="block truncate text-[13px] font-medium text-ink">
                       {it.title}
                       {it.recurring ? (
-                        <span aria-hidden className="text-ink-faint">
+                        <span className="text-body">
                           {" "}
-                          ↻
+                          <RefreshIcon size={12} className="inline align-[-1px]" />
+                          <span className="sr-only">(repeats)</span>
                         </span>
                       ) : null}
                     </span>
-                    {it.sub ? (
-                      <span className="block truncate text-[11.5px] text-ink-muted">{it.sub}</span>
-                    ) : null}
+                    {it.sub ? <span className="block truncate text-[12px] text-body">{it.sub}</span> : null}
+                    {it.cancelled ? <span className="sr-only">Cancelled</span> : null}
                   </span>
-                  {it.href ? (
-                    <span aria-hidden className="text-[13px] text-ink-faint">
-                      ›
-                    </span>
-                  ) : null}
+                  {it.href ? <ChevronRightIcon size={14} className="shrink-0 text-body" /> : null}
                 </span>
               );
               return (
-                <li key={it.key} className="border-b border-line-soft last:border-0">
+                <li key={it.key} className="border-b border-rule">
                   {it.href ? (
                     <Link
                       href={it.href}
-                      className="block transition-colors duration-100 [-webkit-tap-highlight-color:transparent] active:bg-control"
+                      className="block transition-colors duration-100 [-webkit-tap-highlight-color:transparent] active:bg-band"
                     >
                       {row}
                     </Link>

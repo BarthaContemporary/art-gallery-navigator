@@ -1,34 +1,38 @@
 import Link from "next/link";
 import { getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { loadPieceRows } from "@/lib/piece-store";
+import { formatCount } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Notice } from "@/components/ui/notice";
+import { Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 
 export const metadata = { title: "Data review" };
 
 type PieceRef = { stock_number: string; title: string | null } | null;
 
-const box = "mt-4 overflow-x-auto border border-line";
-const th = "px-4 py-2.5 font-medium";
-const td = "px-4 py-2.5 text-[13px]";
-
 function StockLink({ piece }: { piece: PieceRef }) {
-  if (!piece) return <span className="text-ink-soft">—</span>;
+  if (!piece) return <span className="text-meta">—</span>;
   return (
     <Link
       href={`/inventory/${encodeURIComponent(piece.stock_number)}`}
-      className="font-mono text-[12px] text-ink hover:text-accent-deep"
+      className="link-plain tabular text-ink"
     >
       {piece.stock_number}
     </Link>
   );
 }
 
+const header = <PageHeader back={{ href: "/admin", label: "Admin" }} title="Data review" />;
+
 export default async function DataReview() {
   const session = await getSession();
   if (!session || !hasRole(session.roles, "admin")) {
     return (
-      <p className="text-[13px] text-ink-muted">
-        This review is available to administrators only.
-      </p>
+      <div className="max-w-[var(--jvb-measure)]">
+        {header}
+        <Notice tone="info">This review is available to administrators only.</Notice>
+      </div>
     );
   }
 
@@ -97,142 +101,136 @@ export default async function DataReview() {
     for (const i of r.issues as string[])
       issueTally.set(i, (issueTally.get(i) ?? 0) + 1);
 
+  const none = <p className="text-[13px] text-body">None.</p>;
+
   return (
-    <div className="max-w-[1000px]">
-      <p className="text-[13px] text-ink-muted">
-        Records flagged during the FileMaker import. The complete original row is
-        preserved for every record; these are items to review, not data that was
-        lost. {totalRes.count ?? "—"} pieces imported in total.
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <PageHeader
+        back={{ href: "/admin", label: "Admin" }}
+        title="Data review"
+        meta={`${totalRes.count != null ? formatCount(totalRes.count) : "—"} records imported in total`}
+      />
+      <p className="mb-6 max-w-[70ch] text-[13.5px] leading-[1.5] text-body">
+        Records flagged during the FileMaker import. The complete original row is preserved for
+        every record; these are items to review, not data that was lost.
       </p>
 
-      {/* Duplicate legacy stock numbers */}
-      <section className="mt-6">
-        <h2 className="text-[13px] font-semibold text-ink-strong">
-          Duplicate legacy stock numbers ({dups.length})
-        </h2>
-        <p className="mt-0.5 text-[12px] text-ink-muted">
-          Rows that shared a stock number in FileMaker. Each kept its own new
-          stock number; the legacy number is retained for reference.
-        </p>
-        {dups.length ? (
-          <div className={box}>
-            <table className="w-full min-w-[560px] bg-cell text-left">
-              <thead>
-                <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                  <th className={th}>Stock</th>
-                  <th className={th}>Legacy #</th>
-                  <th className={th}>Title</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dups.map((d) => (
-                  <tr key={d.stock_number} className="border-b border-line-soft last:border-0">
-                    <td className={td}>
-                      <StockLink piece={{ stock_number: d.stock_number, title: d.title }} />
-                    </td>
-                    <td className={`${td} font-mono text-ink-muted`}>
-                      {d.legacy_stock_number ?? "—"}
-                    </td>
-                    <td className={`${td} text-ink-body`}>{d.title ?? "Untitled"}</td>
+      <div className="space-y-8">
+        {/* Duplicate legacy stock numbers */}
+        <Section
+          title={`Duplicate legacy stock numbers (${dups.length})`}
+          meta="Rows that shared a stock number in FileMaker. Each kept its own new stock number; the legacy number is kept for reference."
+        >
+          {dups.length ? (
+            <TableFrame>
+              <Table className="min-w-[560px]">
+                <thead>
+                  <tr>
+                    <Th>Stock</Th>
+                    <Th>Legacy no.</Th>
+                    <Th>Title</Th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="mt-2 text-[12.5px] text-ink-muted">None.</p>
-        )}
-      </section>
+                </thead>
+                <tbody>
+                  {dups.map((d) => (
+                    <Tr key={d.stock_number}>
+                      <Td>
+                        <StockLink piece={{ stock_number: d.stock_number, title: d.title }} />
+                      </Td>
+                      <Td className="tabular text-body">{d.legacy_stock_number ?? "—"}</Td>
+                      <Td className="text-ink">{d.title ?? "Untitled"}</Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableFrame>
+          ) : (
+            none
+          )}
+        </Section>
 
-      {/* Unconverted foreign currency */}
-      <section className="mt-8">
-        <h2 className="text-[13px] font-semibold text-ink-strong">
-          Unconverted foreign-currency amounts ({fxSuspect.length})
-        </h2>
-        <p className="mt-0.5 text-[12px] text-ink-muted">
-          Purchase or sale is in EUR/USD/CHF but the FX rate is still 1. Open each
-          record and set the purchase/sale date — the £ value now recalculates
-          from the spot rate on that date automatically.
-        </p>
-        {fxSuspect.length ? (
-          <div className={box}>
-            <table className="w-full min-w-[560px] bg-cell text-left">
-              <thead>
-                <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                  <th className={th}>Stock</th>
-                  <th className={th}>Title</th>
-                  <th className={th}>Detail</th>
-                </tr>
-              </thead>
-              <tbody>
-                {fxSuspect.map((f, i) => (
-                  <tr key={i} className="border-b border-line-soft last:border-0">
-                    <td className={td}>
-                      <StockLink piece={f.piece} />
-                    </td>
-                    <td className={`${td} text-ink-body`}>{f.piece?.title ?? "Untitled"}</td>
-                    <td className={`${td} text-ink-muted`}>
-                      {f.purchase_currency !== "GBP" && f.purchase_cost != null
-                        ? `Purchase ${f.purchase_cost} ${f.purchase_currency}`
-                        : ""}
-                      {f.sell_currency !== "GBP" && f.sold_price != null
-                        ? `${f.purchase_currency !== "GBP" ? " · " : ""}Sale ${f.sold_price} ${f.sell_currency}`
-                        : ""}
-                    </td>
+        {/* Unconverted foreign currency */}
+        <Section
+          title={`Unconverted foreign-currency amounts (${fxSuspect.length})`}
+          meta="The purchase or sale is in EUR, USD or CHF but the exchange rate is still 1. Open each record: enter the purchase £ by hand, and set the sale date so the sale £ converts from that day's spot rate."
+        >
+          {fxSuspect.length ? (
+            <TableFrame>
+              <Table className="min-w-[560px]">
+                <thead>
+                  <tr>
+                    <Th>Stock</Th>
+                    <Th>Title</Th>
+                    <Th>Detail</Th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="mt-2 text-[12.5px] text-ink-muted">None.</p>
-        )}
-      </section>
+                </thead>
+                <tbody>
+                  {fxSuspect.map((f, i) => (
+                    <Tr key={i}>
+                      <Td>
+                        <StockLink piece={f.piece} />
+                      </Td>
+                      <Td className="text-ink">{f.piece?.title ?? "Untitled"}</Td>
+                      <Td className="tabular text-body">
+                        {f.purchase_currency !== "GBP" && f.purchase_cost != null
+                          ? `Purchase ${f.purchase_cost} ${f.purchase_currency}`
+                          : ""}
+                        {f.sell_currency !== "GBP" && f.sold_price != null
+                          ? `${f.purchase_currency !== "GBP" ? " · " : ""}Sale ${f.sold_price} ${f.sell_currency}`
+                          : ""}
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableFrame>
+          ) : (
+            none
+          )}
+        </Section>
 
-      {/* Other flagged rows (from the import issues log, if recorded) */}
-      <section className="mt-8">
-        <h2 className="text-[13px] font-semibold text-ink-strong">
-          Other flagged rows ({flagged.length})
-        </h2>
-        {issueTally.size ? (
-          <p className="mt-0.5 text-[12px] text-ink-muted">
-            {[...issueTally.entries()]
-              .sort((a, b) => b[1] - a[1])
-              .map(([k, n]) => `${k.replace(/_/g, " ")}: ${n}`)
-              .join(" · ")}
-          </p>
-        ) : null}
-        {flagged.length ? (
-          <div className={box}>
-            <table className="w-full min-w-[560px] bg-cell text-left">
-              <thead>
-                <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                  <th className={th}>Row</th>
-                  <th className={th}>Stock</th>
-                  <th className={th}>Issues</th>
-                </tr>
-              </thead>
-              <tbody>
-                {flagged.slice(0, 500).map((r) => (
-                  <tr key={r.row_number} className="border-b border-line-soft last:border-0">
-                    <td className={`${td} font-mono text-ink-muted`}>{r.row_number}</td>
-                    <td className={td}>
-                      <StockLink piece={r.piece} />
-                    </td>
-                    <td className={`${td} text-ink-muted`}>
-                      {(r.issues as string[]).map((i) => i.replace(/_/g, " ")).join(", ")}
-                    </td>
+        {/* Other flagged rows (from the import issues log, if recorded) */}
+        <Section
+          title={`Other flagged rows (${flagged.length})`}
+          meta={
+            issueTally.size
+              ? [...issueTally.entries()]
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([k, n]) => `${k.replace(/_/g, " ")}: ${n}`)
+                  .join(" · ")
+              : undefined
+          }
+        >
+          {flagged.length ? (
+            <TableFrame>
+              <Table className="min-w-[560px]">
+                <thead>
+                  <tr>
+                    <Th>Row</Th>
+                    <Th>Stock</Th>
+                    <Th>Issues</Th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="mt-2 text-[12.5px] text-ink-muted">
-            No per-row issue log recorded in the database.
-          </p>
-        )}
-      </section>
+                </thead>
+                <tbody>
+                  {flagged.slice(0, 500).map((r) => (
+                    <Tr key={r.row_number}>
+                      <Td className="tabular text-body">{r.row_number}</Td>
+                      <Td>
+                        <StockLink piece={r.piece} />
+                      </Td>
+                      <Td className="text-body">
+                        {(r.issues as string[]).map((i) => i.replace(/_/g, " ")).join(", ")}
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableFrame>
+          ) : (
+            <p className="text-[13px] text-body">No per-row issue log recorded in the database.</p>
+          )}
+        </Section>
+      </div>
     </div>
   );
 }

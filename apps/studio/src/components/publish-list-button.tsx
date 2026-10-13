@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SubmitButton } from "@/components/submit-button";
+import { Button } from "@/components/ui/button";
 
 /**
  * Put every work in a list on the website (or take them all off), with an
@@ -28,38 +28,31 @@ export function PublishListButton({
 
   if (!confirming) {
     return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className={
-          visible
-            ? "rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg"
-            : "text-[12px] font-medium text-ink-soft hover:text-ink-strong"
-        }
-      >
+      <Button size="sm" variant={visible ? "secondary" : "quiet"} onClick={() => setConfirming(true)}>
         {visible ? `Put all ${count} on the website` : `Take all ${onCount} off the website`}
-      </button>
+      </Button>
     );
   }
 
   return (
-    <form action={action} className="flex flex-wrap items-center gap-2 rounded-lg border border-line-soft bg-band/40 px-3 py-2">
+    <form action={action} className="flex basis-full flex-wrap items-center gap-2 border-l-[3px] border-rule-strong bg-band px-3 py-2">
       <input type="hidden" name="visible" value={visible ? "on" : ""} />
-      <span className="text-[12px] text-ink-body">
+      <span className="text-[13px] leading-[1.45] text-body">
         {visible
-          ? `Switch ${affected} work${affected === 1 ? "" : "s"} to “On website — yes”? The site picks them up within a few minutes; a work without a processed image appears without a picture.`
+          ? `Put ${affected} work${affected === 1 ? "" : "s"} on the website? The site picks them up within a few minutes; a work without a processed image appears without a picture.`
           : `Take ${affected} work${affected === 1 ? "" : "s"} off the website? They leave the site within a few minutes.`}
       </span>
-      <SubmitButton
-        variant={visible ? "primary" : "ghost"}
+      <Button
+        type="submit"
+        size="sm"
+        variant={visible ? "primary" : "secondary"}
         pendingLabel={visible ? "Publishing…" : "Removing…"}
-        className="!px-3 !py-1.5 !text-[12px]"
       >
         {visible ? "Yes, publish" : "Yes, take off"}
-      </SubmitButton>
-      <button type="button" onClick={() => setConfirming(false)} className="text-[12px] font-medium text-ink-mid hover:text-ink-strong">
+      </Button>
+      <Button size="sm" variant="secondary" onClick={() => setConfirming(false)}>
         Cancel
-      </button>
+      </Button>
     </form>
   );
 }

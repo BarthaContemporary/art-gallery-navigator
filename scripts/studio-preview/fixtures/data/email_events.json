@@ -1,0 +1,22 @@
+[
+ {
+  "id": 1,
+  "provider": "resend",
+  "event_type": "failed",
+  "payload": {
+   "error": "The recipient's mailbox is full."
+  },
+  "campaign_recipient_id": null,
+  "offer_recipient_id": "0ff20000-0004-4000-8000-0ff200000000",
+  "created_at": "2026-10-07T10:00:00.000Z"
+ },
+ {
+  "id": 2,
+  "provider": "resend",
+  "event_type": "email.opened",
+  "payload": {},
+  "campaign_recipient_id": "ca3b0000-0001-4000-8000-ca3b00000000",
+  "offer_recipient_id": null,
+  "created_at": "2026-08-06T10:00:00.000Z"
+ }
+]

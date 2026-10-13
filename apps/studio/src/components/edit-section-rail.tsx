@@ -12,34 +12,37 @@ const slug = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
+/** The title of a section: a Section's heading, or an <h2> straight inside. */
+function headingOf(el: Element): HTMLElement | null {
+  return el.querySelector<HTMLElement>(":scope > .section-head h2, :scope > h2");
+}
+
 /**
- * Sticky wayfinding for the long edit form. Reads the form's own <section><h2>
- * headings after mount (so role-gated sections just don't appear), assigns
- * anchor ids, and renders a horizontal jump-bar with scrollspy. Clicking a
- * chip scrolls to that section; the visible section stays highlighted.
+ * Wayfinding for the long editor: one entry per titled <section> on the page
+ * (inside the nearest [data-rail-root]), the panels below the main form
+ * included. Read after mount, so role-gated sections just don't appear. Each
+ * section gets an anchor id; the one nearest the top of the viewport is
+ * marked current, with the accent rule the main navigation uses for place.
  */
 export function EditSectionRail() {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLElement>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [active, setActive] = useState<string>("");
 
   useEffect(() => {
-    const form = ref.current?.closest("form");
-    if (!form) return;
+    const root = ref.current?.closest("[data-rail-root]");
+    if (!root) return;
     const found: Section[] = [];
-    form.querySelectorAll("section").forEach((el) => {
-      const h = el.querySelector(":scope > h2");
-      const label = h?.textContent?.trim();
+    root.querySelectorAll("section").forEach((el) => {
+      const label = headingOf(el)?.textContent?.trim();
       if (!label) return;
       const id = el.id || slug(label);
       el.id = id;
-      (el as HTMLElement).style.scrollMarginTop = "calc(var(--app-header-h, 88px) + 52px)";
       found.push({ id, label });
     });
     setSections(found);
     if (found.length === 0) return;
 
-    // Scrollspy — highlight the section nearest the top of the viewport.
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
@@ -53,38 +56,57 @@ export function EditSectionRail() {
       const el = document.getElementById(s.id);
       if (el) observer.observe(el);
     });
+    // A link to a section (the stock book's "#sec-financials") names an id
+    // that exists only from here on, too late for the browser's own jump.
+    const target = decodeURIComponent(window.location.hash.slice(1));
+    if (target && found.some((s) => s.id === target)) jump(target);
     return () => observer.disconnect();
   }, []);
 
   function jump(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Clear the app header and this sticky bar, whatever their height today.
+    const header =
+      parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--app-header-h")) || 88;
+    const bar = ref.current?.parentElement?.offsetHeight ?? 0;
+    const top = el.getBoundingClientRect().top + window.scrollY - header - bar - 12;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top, behavior: still ? "auto" : "smooth" });
+    // Move focus with the view, so Tab carries on from the section reached.
+    const heading = headingOf(el);
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
     setActive(id);
   }
 
-  // Always render the anchor so the effect can find the form; hide the bar
-  // until we've discovered sections.
+  // Always render the anchor so the effect can find the root; hide the bar
+  // until sections are found.
   return (
-    <div
+    <nav
       ref={ref}
-      style={{ top: "calc(var(--app-header-h, 88px) + 40px)" }}
-      className={`sticky z-[9] -mx-1 mb-4 overflow-x-auto ${sections.length === 0 ? "hidden" : ""}`}
+      aria-label="Sections of this record"
+      data-inset-focus
+      className={`-mb-px overflow-x-auto ${sections.length === 0 ? "hidden" : ""}`}
     >
-      <div className="flex w-max gap-1 rounded-full border border-line-soft bg-cell/80 p-1 backdrop-blur-sm">
+      <ul className="flex w-max gap-4">
         {sections.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => jump(s.id)}
-            className={`whitespace-nowrap px-3 py-1.5 text-[12px] font-medium transition-colors ${
-              active === s.id
-                ? "bg-primary text-primary-fg"
-                : "text-ink-mid hover:text-ink-strong"
-            }`}
-          >
-            {s.label}
-          </button>
+          <li key={s.id}>
+            <button
+              type="button"
+              onClick={() => jump(s.id)}
+              aria-current={active === s.id ? "location" : undefined}
+              className={`relative whitespace-nowrap border-b-2 py-2 text-[12px] font-medium leading-[1.4] ${
+                active === s.id ? "border-accent text-ink" : "border-transparent text-meta hover:text-ink"
+              }`}
+            >
+              {s.label}
+            </button>
+          </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </nav>
   );
 }

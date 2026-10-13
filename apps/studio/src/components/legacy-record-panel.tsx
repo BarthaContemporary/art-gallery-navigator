@@ -1,4 +1,6 @@
 import { createServiceClient } from "@/lib/supabase";
+import { Section } from "@/components/ui/section";
+import { formatCount } from "@/lib/format";
 
 /**
  * The complete original FileMaker row for a piece, from the permanent
@@ -21,24 +23,26 @@ export async function LegacyRecordPanel({ pieceId }: { pieceId: string }) {
   );
   if (entries.length === 0) return null;
 
+  // A titled section (so the editor's rail lists it), with the fields
+  // folded away: they are rarely needed and run long.
   return (
-    <details className="mt-6 border border-line bg-cell p-5">
-      <summary className="cursor-pointer text-[13px] font-semibold text-ink-strong">
-        Original FileMaker record{" "}
-        <span className="font-normal text-ink-muted">
-          (row {(data as { row_number: number }).row_number} · {entries.length} fields)
-        </span>
-      </summary>
-      <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-        {entries.map(([k, v]) => (
-          <div key={k} className="grid grid-cols-[130px_1fr] gap-2">
-            <dt className="text-[10px] uppercase tracking-[0.06em] text-ink-faint">{k}</dt>
-            <dd className="whitespace-pre-wrap break-words text-[12.5px] text-ink-body">
-              {String(v)}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </details>
+    <Section
+      title="Original FileMaker record"
+      meta={`Row ${(data as { row_number: number }).row_number} · ${formatCount(entries.length)} fields`}
+    >
+      <details>
+        <summary className="link w-fit cursor-pointer text-[12px]">Show the original fields</summary>
+        <dl className="mt-3 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+          {entries.map(([k, v]) => (
+            <div key={k} className="grid grid-cols-[130px_minmax(0,1fr)] gap-3 border-t border-rule py-1.5">
+              <dt className="truncate text-[11.5px] font-semibold uppercase leading-[1.45] tracking-[0.06em] text-meta">{k}</dt>
+              <dd className="whitespace-pre-wrap break-words text-[13px] leading-[1.45] text-body">
+                {String(v)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </details>
+    </Section>
   );
 }

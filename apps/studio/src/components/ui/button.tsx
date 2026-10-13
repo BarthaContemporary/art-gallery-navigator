@@ -1,0 +1,104 @@
+/*
+ * Buttons (spec section 4). Import from here in server and client components
+ * alike.
+ *
+ *   <Button variant? size? icon? pending? pendingLabel? type? …button props>
+ *     variant  "secondary" (default) | "primary" | "danger" | "quiet"
+ *     size     "md" (default, 32px; 44px on touch) | "sm" (28px; 36px on touch)
+ *     icon     a leading icon from ./icons
+ *     type     "button" by default. type="submit" is pending-aware: while the
+ *              surrounding form's action runs it is disabled, aria-busy, and
+ *              shows pendingLabel. `pending` forces that state for work the
+ *              caller tracks itself (a fetch).
+ *     iconOnly + label   a square icon button; label is required and becomes
+ *              aria-label and title. <Button iconOnly label="Close"><CloseIcon /></Button>
+ *     Every other prop (name, value, form, formAction, onClick, aria-*) is
+ *     passed to the native <button> untouched.
+ *
+ *   <ButtonLink href variant? size? icon? disabled? native? iconOnly+label …>
+ *     A link that looks like a button (next/link). `native` renders a plain
+ *     <a> for downloads, API routes and new tabs. `disabled` renders an inert
+ *     <span aria-disabled> in the same look.
+ *
+ *   buttonClass({ variant, size, iconOnly }, extra?)  the class string, for
+ *     elements these do not cover.
+ *
+ *   SubmitButton (components/submit-button.tsx) is now a thin wrapper of
+ *   Button; new code uses <Button type="submit"> directly.
+ *
+ * Press feedback (a fill, plus a small scale when motion is allowed) and the
+ * focus ring come from the .btn classes in globals.css.
+ */
+import Link from "next/link";
+import type { ComponentProps, ComponentPropsWithRef, ReactNode } from "react";
+import { buttonClass, type ButtonSize, type ButtonVariant } from "./button-class";
+import type { Labelled } from "./button-client";
+
+export { Button, type ButtonProps, type Labelled } from "./button-client";
+export { buttonClass, type ButtonSize, type ButtonStyle, type ButtonVariant } from "./button-class";
+
+export type ButtonLinkProps = Omit<ComponentPropsWithRef<"a">, "href" | "children"> &
+  Pick<ComponentProps<typeof Link>, "prefetch" | "replace" | "scroll"> & {
+    href: string;
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+    icon?: ReactNode;
+    /** Renders an inert, faded <span aria-disabled="true"> instead of a link. */
+    disabled?: boolean;
+    /** A plain <a> rather than next/link: file downloads, API routes, new tabs. */
+    native?: boolean;
+    children?: ReactNode;
+  } & Labelled;
+
+export function ButtonLink({
+  variant,
+  size,
+  iconOnly,
+  label,
+  icon,
+  disabled,
+  native,
+  prefetch,
+  replace,
+  scroll,
+  className,
+  title,
+  children,
+  href,
+  ...rest
+}: ButtonLinkProps) {
+  const cls = buttonClass({ variant, size, iconOnly }, className);
+  const name = iconOnly ? label : rest["aria-label"];
+  const tip = title ?? (iconOnly ? label : undefined);
+  if (disabled) {
+    return (
+      <span aria-disabled="true" aria-label={name} title={tip} className={cls}>
+        {icon}
+        {children}
+      </span>
+    );
+  }
+  if (native) {
+    return (
+      <a {...rest} href={href} aria-label={name} title={tip} className={cls}>
+        {icon}
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link
+      {...rest}
+      href={href}
+      prefetch={prefetch}
+      replace={replace}
+      scroll={scroll}
+      aria-label={name}
+      title={tip}
+      className={cls}
+    >
+      {icon}
+      {children}
+    </Link>
+  );
+}

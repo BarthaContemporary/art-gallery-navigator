@@ -6,7 +6,10 @@ import { WebsitePanel } from "@/components/website-panel";
 import { NationalityPie } from "@/components/nationality-pie";
 import { BackupPanel } from "@/components/backup-panel";
 import { UpcomingEventsPanel } from "@/components/upcoming-events-panel";
-import { CountUp } from "@/components/count-up";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatCount, formatDate } from "@/lib/format";
 
 export default async function Dashboard() {
   const supabase = await getSupabase();
@@ -84,7 +87,7 @@ export default async function Dashboard() {
     },
     {
       label: "On temporary export",
-      hint: "Out on loan — track return",
+      hint: "Out on loan, track the return",
       value: onExport.count ?? 0,
       href: "/inventory?loan=1",
     },
@@ -95,7 +98,7 @@ export default async function Dashboard() {
       ? [
           {
             label: "Needs purchase £",
-            hint: "Sold — enter the real purchase cost",
+            hint: "Sold, enter the real purchase cost",
             value: noPurchase.count ?? 0,
             href: "/inventory?nopurchase=1",
           },
@@ -108,58 +111,61 @@ export default async function Dashboard() {
   // last card feeling late.
   const base = (triage.length + stats.length) * 60;
 
+  // Columns follow the number of figures, so three or four fill the grid with
+  // no empty cell (the "Not JvdB" figure only shows once that register is in
+  // use): three in a row at every width, four as two by two until there is
+  // room for one row. Literal class names, so Tailwind sees them.
+  const statCols = stats.length === 4 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3";
+
   return (
     <div>
-      {/* Needs attention — triage cockpit. Hidden entirely when all clear. */}
+      <PageHeader title="Dashboard" meta={formatDate(new Date(), "long", { weekday: true })} />
+
+      {/* Needs attention: the few states that want a person. Hidden entirely
+          when all is clear. */}
       {triage.length > 0 ? (
-        <div className="mb-4">
-          <div className="mb-2 flex items-center gap-2">
-            <span aria-hidden className="inline-block h-[7px] w-[7px] rounded-full bg-warn" />
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.07em] text-ink-label">
-              Needs attention
-            </h2>
-          </div>
-          {/* Wrapping flex, not a fixed 3-col grid: three or four cards share the row evenly. */}
+        <Section title="Needs attention" className="mb-6">
+          {/* Wrapping flex, not a fixed grid: three or four cards share the row evenly. */}
           <div className="flex flex-wrap gap-3">
             {triage.map((t, i) => (
               <Link
                 key={t.label}
                 href={t.href}
                 style={{ "--jvb-stagger": `${i * 60}ms` } as React.CSSProperties}
-                className="jvb-rise jvb-lift group min-w-[200px] flex-1 basis-[220px] border border-warn-soft bg-warn-soft/40 px-4 py-3.5 transition-colors hover:border-warn"
+                // The warn rule marks these as needing attention (the heading
+                // says so in words); hover is an ink edge, which keeps the
+                // meta hint on the page ground.
+                className="jvb-rise group min-w-[200px] flex-1 basis-[220px] border border-l-[3px] border-rule border-l-warn px-4 py-3 transition-colors hover:border-ink hover:border-l-warn"
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-[12.5px] font-medium text-ink-strong">{t.label}</span>
-                  <CountUp
-                    value={t.value}
-                    className="font-mono text-[22px] leading-none text-ink-strong"
-                  />
+                  <span className="text-[13px] font-medium text-ink">{t.label}</span>
+                  <span className="tabular text-[22px] font-light leading-none text-ink">{formatCount(t.value)}</span>
                 </div>
-                <p className="mt-1 text-[11.5px] text-ink-muted">{t.hint}</p>
+                <p className="mt-1 text-[12px] leading-[1.4] text-meta">{t.hint}</p>
               </Link>
             ))}
           </div>
-        </div>
+        </Section>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-px overflow-hidden border border-line bg-line sm:grid-cols-3">
+      {/* Headline figures on hairlines: a row of four columns or three. */}
+      <div className={`grid gap-px border-y border-rule-strong bg-rule ${statCols}`}>
         {stats.map((s, i) => (
           <Link
             key={s.label}
             href={s.href}
             style={{ "--jvb-stagger": `${triage.length * 60 + i * 60}ms` } as React.CSSProperties}
-            className="jvb-rise bg-cell px-4 py-4 transition-colors hover:bg-control"
+            className="jvb-rise group bg-page px-4 py-4 transition-colors hover:bg-band"
           >
-            <div className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              {s.label}
-            </div>
-            <CountUp value={s.value} className="mt-1 block font-mono text-[26px] text-ink-strong" />
+            {/* body while hovered: meta is not readable on band (spec R3) */}
+            <div className="label group-hover:text-body">{s.label}</div>
+            <div className="tabular mt-1.5 text-[26px] font-light leading-[1.15] text-ink">{formatCount(s.value)}</div>
           </Link>
         ))}
       </div>
 
       {isAdmin ? (
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-3">
           {(
             [
               ["Objects added", "added"],
@@ -178,16 +184,16 @@ export default async function Dashboard() {
         </div>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-2">
         <div
           style={{ "--jvb-stagger": `${base + 200}ms` } as React.CSSProperties}
-          className="jvb-rise"
+          className="jvb-rise min-w-0"
         >
           <WebsitePanel />
         </div>
         <div
           style={{ "--jvb-stagger": `${base + 260}ms` } as React.CSSProperties}
-          className="jvb-rise"
+          className="jvb-rise min-w-0"
         >
           <NationalityPie />
         </div>
@@ -195,15 +201,19 @@ export default async function Dashboard() {
 
       <div
         style={{ "--jvb-stagger": `${base + 320}ms` } as React.CSSProperties}
-        className="jvb-rise mt-4"
+        className="jvb-rise mt-6"
       >
         {/* Streams in so a slow calendar server never holds up the dashboard. */}
         <Suspense
           fallback={
-            <div className="border border-line bg-cell p-4">
-              <h2 className="text-[13px] font-semibold text-ink-strong">Next 10 days</h2>
-              <p className="mt-3 text-[12.5px] text-ink-muted">Loading…</p>
-            </div>
+            <Section title="Next 10 days">
+              <div role="status" className="space-y-2 py-1">
+                <span className="sr-only">Loading</span>
+                <Skeleton width="40%" />
+                <Skeleton width="55%" />
+                <Skeleton width="30%" />
+              </div>
+            </Section>
           }
         >
           <UpcomingEventsPanel />
@@ -213,7 +223,7 @@ export default async function Dashboard() {
       {isAdmin ? (
         <div
           style={{ "--jvb-stagger": `${base + 380}ms` } as React.CSSProperties}
-          className="jvb-rise mt-4"
+          className="jvb-rise mt-6"
         >
           <BackupPanel />
         </div>

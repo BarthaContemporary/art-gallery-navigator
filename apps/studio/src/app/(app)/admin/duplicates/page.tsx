@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import { requireSession, hasRole, getSupabase } from "@/lib/supabase";
 // London dates: this page renders on the server, where the zone is UTC.
 import { formatDate } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink } from "@/components/ui/button";
+import { Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 
 export const metadata = { title: "Duplicate contacts" };
 export const dynamic = "force-dynamic";
@@ -68,74 +73,86 @@ export default async function DuplicateContactsPage() {
   }
 
   return (
-    <div className="max-w-[980px]">
-      <Link href="/admin" className="text-[12.5px] text-ink-soft">← Admin</Link>
-      <h1 className="mt-2 text-[22px] font-semibold text-ink-strong">Duplicate contacts</h1>
-      <p className="mt-2 max-w-[70ch] text-[13px] text-ink-muted">
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <PageHeader
+        back={{ href: "/admin", label: "Admin" }}
+        title="Duplicate contacts"
+        meta={
+          groups.length === 0
+            ? "No duplicates"
+            : `${groups.length} group${groups.length === 1 ? "" : "s"} to review`
+        }
+      />
+      <p className="mb-6 max-w-[70ch] text-[13.5px] leading-[1.5] text-body">
         Contacts sharing the same name, found during the legacy import. Review each pair: open both,
-        copy anything worth keeping (notes, tags, address, purchases link automatically to whichever
-        you keep — move them first if needed) into the record you keep, then delete the other. This
+        copy anything worth keeping (notes, tags, address) into the record you keep, then delete the
+        other. Purchases stay linked to the record they are on, so move them first if needed. This
         list recomputes on every visit, so it empties as you go.
       </p>
 
-      <p className="mt-4 text-[13px] font-medium text-ink-body">
-        {groups.length === 0 ? "No duplicates — all clean. 🎉" : `${groups.length} group${groups.length === 1 ? "" : "s"} to review`}
-      </p>
-
-      <div className="mt-4 space-y-4">
-        {groups.map((g) => {
-          const first = g[0]!;
-          return (
-          <div key={first.id} className="border border-line bg-cell p-4">
-            <p className="text-[13px] font-semibold text-ink-strong">
-              {first.first_name} {first.last_name}
-              <span className="ml-2 font-normal text-ink-soft">({g.length} records)</span>
-            </p>
-            <div className="mt-2 overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left">
-                <thead>
-                  <tr className="border-b border-line-soft text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                    <th className="py-1.5 pr-3 font-medium">Contact</th>
-                    <th className="py-1.5 pr-3 font-medium">Email / phone</th>
-                    <th className="py-1.5 pr-3 font-medium">Place</th>
-                    <th className="py-1.5 pr-3 font-medium">Tags</th>
-                    <th className="py-1.5 pr-3 font-medium">Purchases</th>
-                    <th className="py-1.5 pr-3 font-medium">Notes</th>
-                    <th className="py-1.5 font-medium">Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {g.map((c) => (
-                    <tr key={c.id} className="border-b border-line-soft align-top last:border-0">
-                      <td className="py-2 pr-3">
-                        <Link href={`/crm/contacts/${c.id}`} className="text-[13px] font-medium text-accent-deep hover:underline">
-                          Open →
-                        </Link>
-                      </td>
-                      <td className="py-2 pr-3 text-[12.5px] text-ink-body">
-                        {c.email ?? "—"}
-                        {c.phone ? <span className="block text-ink-muted">{c.phone}</span> : null}
-                      </td>
-                      <td className="py-2 pr-3 text-[12.5px] text-ink-muted">
-                        {[c.city, c.country].filter(Boolean).join(", ") || "—"}
-                      </td>
-                      <td className="py-2 pr-3 text-[12px] text-ink-muted">{(c.tags ?? []).join(", ") || "—"}</td>
-                      <td className="py-2 pr-3 text-[12.5px] text-ink-body">{purchasesById.get(c.id) ?? 0}</td>
-                      <td className="max-w-[220px] py-2 pr-3 text-[12px] text-ink-muted">
-                        {c.notes ? (c.notes.length > 120 ? `${c.notes.slice(0, 120)}…` : c.notes) : "—"}
-                      </td>
-                      <td className="py-2 font-mono text-[11.5px] text-ink-soft">
-                        {formatDate(c.created_at, "numeric")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          );
-        })}
-      </div>
+      {groups.length === 0 ? (
+        <EmptyState action={<ButtonLink href="/crm/contacts">Open contacts</ButtonLink>}>
+          No duplicates left: every contact name is unique.
+        </EmptyState>
+      ) : (
+        <div className="space-y-8">
+          {groups.map((g) => {
+            const first = g[0]!;
+            return (
+              <Section
+                key={first.id}
+                level={2}
+                title={`${first.first_name ?? ""} ${first.last_name ?? ""}`.trim()}
+                meta={`${g.length} records`}
+              >
+                <TableFrame>
+                  <Table className="min-w-[720px]">
+                    <thead>
+                      <tr>
+                        <Th>Contact</Th>
+                        <Th>Email and phone</Th>
+                        <Th>Place</Th>
+                        <Th>Tags</Th>
+                        <Th numeric>Purchases</Th>
+                        <Th>Notes</Th>
+                        <Th>Created</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {g.map((c) => (
+                        <Tr key={c.id} className="align-top">
+                          <Td className="align-top">
+                            <Link href={`/crm/contacts/${c.id}`} className="link">
+                              Open
+                            </Link>
+                          </Td>
+                          <Td className="align-top text-ink">
+                            {c.email ?? "—"}
+                            {c.phone ? <span className="block text-[12px] text-meta">{c.phone}</span> : null}
+                          </Td>
+                          <Td className="align-top text-body">
+                            {[c.city, c.country].filter(Boolean).join(", ") || "—"}
+                          </Td>
+                          <Td className="align-top text-[12px] text-body">{(c.tags ?? []).join(", ") || "—"}</Td>
+                          <Td numeric className="align-top text-ink">
+                            {purchasesById.get(c.id) ?? 0}
+                          </Td>
+                          <Td className="max-w-[220px] align-top text-[12px] text-body">
+                            {c.notes ? (c.notes.length > 120 ? `${c.notes.slice(0, 120)}…` : c.notes) : "—"}
+                          </Td>
+                          <Td className="tabular align-top text-[12px] text-meta">
+                            {formatDate(c.created_at, "numeric")}
+                          </Td>
+                        </Tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </TableFrame>
+              </Section>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

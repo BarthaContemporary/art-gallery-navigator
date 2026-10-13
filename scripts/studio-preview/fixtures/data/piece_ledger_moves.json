@@ -1,0 +1,13 @@
+[
+ {
+  "id": "1ed90000-0001-4000-8000-1ed900000000",
+  "piece_id": "e7e70000-0001-4000-8000-e7e700000000",
+  "from_ledger": "jvb",
+  "to_ledger": "external",
+  "from_stock_number": "2024-0099",
+  "to_stock_number": "X-2026-0001",
+  "note": "Belongs to the consignor; moved off JvdB stock.",
+  "moved_by": "a0000000-0000-4000-8000-000000000001",
+  "moved_at": "2026-07-25T10:00:00.000Z"
+ }
+]

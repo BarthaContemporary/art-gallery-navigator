@@ -1,0 +1,16 @@
+[
+ {
+  "id": "5d0c0000-0001-4000-8000-5d0c00000000",
+  "shipment_id": "5a1b0000-0001-4000-8000-5a1b00000000",
+  "title": "Airway bill",
+  "storage_path": "shipments/5a1b0000-0001-4000-8000-5a1b00000000/awb.pdf",
+  "created_at": "2026-03-15T10:00:00.000Z"
+ },
+ {
+  "id": "5d0c0000-0002-4000-8000-5d0c00000000",
+  "shipment_id": "5a1b0000-0003-4000-8000-5a1b00000000",
+  "title": "ATA carnet",
+  "storage_path": "shipments/5a1b0000-0003-4000-8000-5a1b00000000/carnet.pdf",
+  "created_at": "2026-09-11T10:00:00.000Z"
+ }
+]

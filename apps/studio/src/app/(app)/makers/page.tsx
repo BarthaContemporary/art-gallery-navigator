@@ -2,6 +2,12 @@ import { getSupabase } from "@/lib/supabase";
 import { sanitizeFilterTerm } from "@/lib/search";
 import { MakerRow } from "@/components/maker-row";
 import { addMaker, deleteMaker } from "./actions";
+import { formatCount } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { EmptyRow, Table, TableFrame, Th } from "@/components/ui/table";
 
 export const metadata = { title: "Makers" };
 
@@ -31,83 +37,120 @@ export default async function MakersPage({
   }
   const { data: makers } = await query;
 
+  const list = makers ?? [];
+  const onSite = list.filter((m) => m.web_visible).length;
+
   return (
     <div>
-      {error ? (
-        <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
-          {error}
-        </p>
-      ) : null}
-      <form action={addMaker} className="flex flex-wrap items-end gap-2">
-        {[
-          ["display_name", "Name (romanized)", "Kobayashi Shōmin"],
-          ["native_name", "Native name", "小林紹民"],
-          ["life_dates", "Life dates", "1912–1994"],
-          ["region", "Region", "Japan"],
-        ].map(([name, label, ph]) => (
-          <label key={name} className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-            {label}
-            <input name={name} placeholder={ph} lang={name === "native_name" ? "ja" : undefined} className="mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
-          </label>
-        ))}
-        <button type="submit" className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">
-          Add maker
-        </button>
-      </form>
+      <PageHeader
+        title="Makers"
+        meta={
+          <span className="tabular">
+            {q
+              ? `${formatCount(list.length)} ${list.length === 1 ? "maker" : "makers"} matching “${q}”`
+              : `${formatCount(list.length)} ${list.length === 1 ? "maker" : "makers"} · ${formatCount(onSite)} on the website`}
+          </span>
+        }
+      />
 
-      <form method="get" className="mt-5 flex flex-wrap items-center gap-2">
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          placeholder="Search makers — name, native name, region, school…"
-          className="w-full max-w-md rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body sm:w-96"
-        />
-        <button type="submit" className="rounded-lg border border-line-control bg-control px-3 py-2 text-[12.5px] font-medium text-ink-mid">
-          Search
-        </button>
-        {q ? (
-          <a href="/makers" className="text-[12.5px] text-accent-deep">
-            Clear
-          </a>
-        ) : null}
-      </form>
-      {q ? (
-        <p className="mt-2 text-[12px] text-ink-soft">
-          {(makers ?? []).length} maker{(makers ?? []).length === 1 ? "" : "s"} matching “{q}”.
-        </p>
-      ) : null}
-      <p className="mt-2 text-[12px] text-ink-soft">
-        {(makers ?? []).filter((m) => m.web_visible).length} of {(makers ?? []).length} have an artist page on the
-        website — every maker does unless switched off here. Changes reach the site within a minute.
-      </p>
+      <div className="space-y-6">
+        {error ? <Notice tone="danger">{error}</Notice> : null}
 
-      <div className="mt-3 overflow-x-auto border border-line">
-        <table className="w-full min-w-[560px] bg-cell text-left">
-          <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              <th className="px-4 py-2.5 font-medium">Name</th>
-              <th className="px-4 py-2.5 font-medium">Native</th>
-              <th className="px-4 py-2.5 font-medium">Dates</th>
-              <th className="px-4 py-2.5 font-medium">Region</th>
-              <th className="px-4 py-2.5 font-medium">School / workshop</th>
-              <th className="px-4 py-2.5 font-medium">Website</th>
-              <th className="px-4 py-2.5 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(makers ?? []).map((m) => (
-              <MakerRow key={m.id} maker={m} deleteAction={deleteMaker} />
+        <Section title="New maker">
+          <form action={addMaker} className="flex flex-wrap items-end gap-2">
+            {[
+              ["display_name", "Name (romanized)", "Kobayashi Shōmin"],
+              ["native_name", "Native name", "小林紹民"],
+              ["life_dates", "Life dates", "1912–1994"],
+              ["region", "Region", "Japan"],
+            ].map(([name, label, ph]) => (
+              <div key={name} className="flex w-full min-w-0 flex-col gap-1 sm:w-48">
+                <label htmlFor={`new-maker-${name}`} className="label">
+                  {label}
+                </label>
+                <input
+                  id={`new-maker-${name}`}
+                  name={name}
+                  placeholder={ph}
+                  lang={name === "native_name" ? "ja" : undefined}
+                  className="field"
+                />
+              </div>
             ))}
-            {(makers ?? []).length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-[13px] text-ink-soft">
-                  {q ? "No makers match your search." : "No makers yet."}
-                </td>
-              </tr>
+            <Button type="submit" variant="primary" pendingLabel="Adding…">
+              Add maker
+            </Button>
+          </form>
+        </Section>
+
+        <Section
+          title="All makers"
+          meta="Every maker has an artist page on the website unless switched off here. Changes reach the site within a minute."
+        >
+          <form method="get" role="search" className="mb-3 flex max-w-[34rem] flex-wrap items-end gap-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <label htmlFor="makers-q" className="label">
+                Search makers
+              </label>
+              <input
+                id="makers-q"
+                type="search"
+                name="q"
+                defaultValue={q}
+                placeholder="Name, native name, region or school"
+                className="field"
+              />
+            </div>
+            <Button type="submit">Search</Button>
+            {q ? (
+              <ButtonLink href="/makers" variant="quiet">
+                Clear
+              </ButtonLink>
             ) : null}
-          </tbody>
-        </table>
+          </form>
+
+          <TableFrame bordered>
+            {/* 8px cell sides and wrapping dates and heads, so the whole row,
+                Edit and Delete included, fits the 768 tablet width as it did;
+                narrower, the frame scrolls sideways. */}
+            <Table className="min-w-[640px] [&_td]:px-2 [&_th]:px-2">
+              <thead>
+                <tr>
+                  <Th>Name</Th>
+                  <Th>Native</Th>
+                  <Th>Dates</Th>
+                  <Th>Region</Th>
+                  <Th>
+                    <span className="inline-block whitespace-normal">School or workshop</span>
+                  </Th>
+                  <Th>Website</Th>
+                  <Th className="relative text-right">
+                    <span className="sr-only">Actions</span>
+                  </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((m) => (
+                  <MakerRow key={m.id} maker={m} deleteAction={deleteMaker} />
+                ))}
+                {list.length === 0 ? (
+                  <EmptyRow
+                    colSpan={7}
+                    action={
+                      q ? (
+                        <ButtonLink href="/makers" size="sm">
+                          Clear the search
+                        </ButtonLink>
+                      ) : undefined
+                    }
+                  >
+                    {q ? "No makers match your search." : "No makers yet. Add the first one above."}
+                  </EmptyRow>
+                ) : null}
+              </tbody>
+            </Table>
+          </TableFrame>
+        </Section>
       </div>
     </div>
   );

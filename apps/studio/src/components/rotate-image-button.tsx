@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 /**
- * Rotate an image 90° counter-clockwise. Each press rotates and saves; there is
+ * Rotate an image 90° anticlockwise. Each press rotates and saves; there is
  * no separate confirm, because the operation is cheap and trivially undone by
  * pressing three more times.
  *
@@ -41,41 +42,40 @@ export function RotateImageButton({
 
   return (
     <>
-      <button
-        type="button"
+      {/* The shared icon set has only a clockwise arrow, so the
+          anticlockwise one stays drawn here, at the set's stroke weight. */}
+      <Button
+        size="sm"
+        iconOnly
+        label="Rotate 90° anticlockwise"
         onClick={() => void rotate()}
-        disabled={busy || disabled}
-        title="Rotate 90° anticlockwise"
-        aria-label="Rotate 90° anticlockwise"
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-line-control bg-control text-ink-mid hover:text-ink-strong disabled:opacity-50"
+        disabled={disabled}
+        pending={busy}
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden
-          className={busy ? "animate-spin" : undefined}
-        >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
           {/* arrow curving anticlockwise over the top */}
           <path
             d="M4 9a8 8 0 1 1 1.5 7"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="1.7"
             strokeLinecap="round"
             fill="none"
           />
           <path
             d="M3.5 4.5V9.5H8.5"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="1.7"
             strokeLinecap="round"
             strokeLinejoin="round"
             fill="none"
           />
         </svg>
-      </button>
-      {error ? <span className="ml-1 text-[11px] text-danger">{error}</span> : null}
+      </Button>
+      {error ? (
+        <span role="alert" className="ml-1 text-[12px] text-danger">
+          {error}
+        </span>
+      ) : null}
     </>
   );
 }

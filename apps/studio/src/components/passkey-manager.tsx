@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { startRegistration } from "@simplewebauthn/browser";
+import { Button } from "@/components/ui/button";
+import { Notice, type NoticeTone } from "@/components/ui/notice";
+import { Section } from "@/components/ui/section";
+import { formatDate } from "@/lib/format";
 
 type Passkey = {
   id: string;
@@ -26,7 +30,7 @@ function suggestLabel(): string {
 export function PasskeyManager() {
   const [keys, setKeys] = useState<Passkey[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ tone: NoticeTone; text: string } | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -55,12 +59,12 @@ export function PasskeyManager() {
       });
       const json = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !json.ok) throw new Error(json.error ?? "Could not save the passkey");
-      setMsg("Passkey added — it syncs to your other Apple devices via iCloud Keychain.");
+      setMsg({ tone: "ok", text: "Passkey added. It syncs to your other Apple devices through iCloud Keychain." });
       await refresh();
     } catch (e) {
       const name = (e as { name?: string })?.name;
       if (name !== "NotAllowedError" && name !== "AbortError")
-        setMsg(e instanceof Error ? e.message : "Could not add the passkey");
+        setMsg({ tone: "danger", text: e instanceof Error ? e.message : "Could not add the passkey" });
     } finally {
       setBusy(false);
     }
@@ -74,40 +78,46 @@ export function PasskeyManager() {
   }
 
   return (
-    <section className="mt-8 max-w-md border border-line bg-cell p-5">
-      <h2 className="text-[13px] font-semibold text-ink-strong">Passkeys</h2>
-      <p className="mt-1 text-[12.5px] text-ink-muted">
-        Sign in with Face ID / Touch ID instead of the password. Add it once — iCloud Keychain
-        makes it available on your Mac, iPhone and iPad.
-      </p>
-      {msg ? <p className="mt-3 text-[12.5px] text-ink-body">{msg}</p> : null}
-      <ul className="mt-3 space-y-2">
+    <Section
+      title="Passkeys"
+      meta="Sign in with Face ID or Touch ID instead of the password. Add it once: iCloud Keychain makes it available on your Mac, iPhone and iPad."
+    >
+      {msg ? (
+        <Notice tone={msg.tone} className="mb-3">
+          {msg.text}
+        </Notice>
+      ) : null}
+      <ul>
         {(keys ?? []).map((k) => (
-          <li key={k.id} className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2">
-            <span className="text-[13px] text-ink-body">
+          <li
+            key={k.id}
+            className="flex items-center justify-between gap-3 border-b border-rule py-1.5"
+          >
+            <span className="min-w-0 text-[13px] text-ink">
               {k.device_label ?? "Passkey"}
-              <span className="ml-2 font-mono text-[11px] text-ink-soft">
-                added {new Date(k.created_at).toLocaleDateString("en-GB")}
-                {k.last_used_at ? ` · last used ${new Date(k.last_used_at).toLocaleDateString("en-GB")}` : ""}
+              <span className="block text-[12px] text-meta">
+                Added {formatDate(k.created_at, "numeric")}
+                {k.last_used_at ? ` · last used ${formatDate(k.last_used_at, "numeric")}` : ""}
               </span>
             </span>
-            <button type="button" onClick={() => void remove(k)} className="text-[12px] text-ink-soft hover:text-accent-deep">
+            <Button variant="quiet" size="sm" onClick={() => void remove(k)}>
               Remove
-            </button>
+            </Button>
           </li>
         ))}
         {keys !== null && keys.length === 0 ? (
-          <li className="text-[12.5px] text-ink-muted">No passkeys yet.</li>
+          <li className="py-1.5 text-[13px] text-body">No passkeys yet.</li>
         ) : null}
       </ul>
-      <button
-        type="button"
+      <Button
+        className="mt-3"
         onClick={() => void addDevice()}
-        disabled={busy || keys === null}
-        className="mt-4 rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg disabled:opacity-60"
+        disabled={keys === null}
+        pending={busy}
+        pendingLabel="Follow the prompt…"
       >
-        {busy ? "Follow the prompt…" : "Add a passkey for this device"}
-      </button>
-    </section>
+        Add a passkey for this device
+      </Button>
+    </Section>
   );
 }

@@ -5,6 +5,14 @@ import { ReorderGrid } from "@/components/reorder-grid";
 import { persistOrder } from "@/lib/reorder";
 import { loadThumbnails } from "@/lib/thumbnails";
 import { countListMembers, resolveListPieceIds, type ListLike } from "@/lib/list-members";
+import { formatCount } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Section } from "@/components/ui/section";
+import { WebsiteDot } from "@/components/ui/website-switch";
+import { ImageIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "Inventory lists" };
 
@@ -12,7 +20,7 @@ export default async function InventoryListsPage() {
   const supabase = await getSupabase();
   const { data: lists } = await supabase
     .from("piece_lists")
-    .select("id, name, description, is_dynamic, filter_rules, piece_list_items(count)")
+    .select("id, name, description, is_dynamic, filter_rules, web_visible, piece_list_items(count)")
     // Hand-set order first; name only to break ties, so rows sharing a
     // sort_order (a new list defaults to 0) stay put between requests.
     .order("sort_order")
@@ -76,95 +84,107 @@ export default async function InventoryListsPage() {
     revalidatePath("/inventory/lists");
   }
 
+  const count = (lists ?? []).length;
+
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/inventory" className="text-[12.5px] text-ink-soft">
-          ← Inventory
-        </Link>
-      </div>
-
-      <form action={addList} className="mt-3 flex flex-wrap items-end gap-2">
-        <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          List name
-          <input
-            name="name"
-            placeholder="Asian Art in London 2026"
-            className="mt-1 block w-72 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]"
-          />
-        </label>
-        <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Description
-          <input
-            name="description"
-            className="mt-1 block w-80 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]"
-          />
-        </label>
-        <button
-          type="submit"
-          className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg"
-        >
-          Create list
-        </button>
-      </form>
-
-      {(lists ?? []).length === 0 ? (
-        <p className="mt-5 text-[13px] text-ink-muted">
-          No lists yet — create one to group works (fair selections, viewing sets…).
-        </p>
-      ) : (
-      <ReorderGrid
-        order={(lists ?? []).map((l) => l.id as string)}
-        onReorder={reorderLists}
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
-        hint="Drag a grip to reorder these cards."
-        showPosition={false}
-        tiles={Object.fromEntries(
-          (lists ?? []).map((l) => [
-            l.id as string,
-            <div key={l.id as string} className="h-full border border-line bg-cell p-4 pl-9">
-            <a href={`/inventory/lists/${l.id}`} className="block">
-              {(previewIds.get(l.id as string) ?? []).length > 0 ? (
-                <div className="mb-3 flex gap-1.5">
-                  {(previewIds.get(l.id as string) ?? []).map((pid) =>
-                    previewThumbs.get(pid) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={pid}
-                        src={previewThumbs.get(pid)}
-                        alt=""
-                        loading="lazy"
-                        className="h-14 w-14 rounded-md object-cover"
-                      />
-                    ) : (
-                      <span key={pid} aria-hidden className="jvb-hatch block h-14 w-14 rounded-md" />
-                    ),
-                  )}
-                </div>
-              ) : null}
-              <div className="flex items-center gap-2">
-                <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-accent-deep">
-                  {l.name}
-                </h2>
-                {l.is_dynamic ? (
-                  <span className="bg-oranje/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-accent-deep">
-                    Live
-                  </span>
-                ) : null}
-              </div>
-              {l.description ? (
-                <p className="mt-1 text-[12.5px] text-ink-muted">{l.description}</p>
-              ) : null}
-              <p className="mt-2 font-mono text-[11.5px] text-ink-soft">
-                {counts.get(l.id) ?? 0} work{(counts.get(l.id) ?? 0) === 1 ? "" : "s"}
-                {l.is_dynamic ? " · saved view, membership is live" : ""}
-              </p>
-            </a>
-            </div>,
-          ]),
-        )}
+      <PageHeader
+        back={{ href: "/inventory", label: "Inventory" }}
+        title="Inventory lists"
+        meta={`${formatCount(count)} ${count === 1 ? "list" : "lists"}`}
       />
-      )}
+
+      <Section title="New list" meta="Group works for a fair, a viewing or a catalogue. Add works from the list page or from the inventory.">
+        <form action={addList} className="flex flex-wrap items-end gap-2">
+          <div className="flex w-full min-w-0 flex-col gap-1 sm:w-72">
+            <label htmlFor="new-list-name" className="label">
+              List name
+            </label>
+            <input
+              id="new-list-name"
+              name="name"
+              placeholder="e.g. Asian Art in London 2026"
+              className="field"
+            />
+          </div>
+          <div className="flex w-full min-w-0 flex-col gap-1 sm:w-80">
+            <label htmlFor="new-list-description" className="label">
+              Description <span className="font-normal normal-case tracking-normal">(optional)</span>
+            </label>
+            <input id="new-list-description" name="description" className="field" />
+          </div>
+          <Button type="submit" variant="primary" pendingLabel="Creating…">
+            Create list
+          </Button>
+        </form>
+      </Section>
+
+      <Section title="All lists" className="mt-6">
+        {count === 0 ? (
+          <EmptyState>No lists yet. Create one above to group works for a fair, a viewing or a catalogue.</EmptyState>
+        ) : (
+          <ReorderGrid
+            order={(lists ?? []).map((l) => l.id as string)}
+            onReorder={reorderLists}
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            hint="Drag a grip, or focus it and press the arrow keys, to reorder these cards."
+            showPosition={false}
+            tiles={Object.fromEntries(
+              (lists ?? []).map((l) => {
+                const n = counts.get(l.id) ?? 0;
+                const preview = previewIds.get(l.id as string) ?? [];
+                return [
+                  l.id as string,
+                  <div key={l.id as string} className="h-full border border-rule p-4 pl-11">
+                    <Link href={`/inventory/lists/${l.id}`} className="group block">
+                      {preview.length > 0 ? (
+                        <div className="mb-3 flex gap-1.5">
+                          {preview.map((pid) =>
+                            previewThumbs.get(pid) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                key={pid}
+                                src={previewThumbs.get(pid)}
+                                alt=""
+                                loading="lazy"
+                                className="h-14 w-14 object-cover"
+                              />
+                            ) : (
+                              <span
+                                key={pid}
+                                aria-hidden
+                                className="jvb-hatch flex h-14 w-14 items-center justify-center text-meta"
+                              >
+                                <ImageIcon size={14} />
+                              </span>
+                            ),
+                          )}
+                        </div>
+                      ) : null}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-[14.5px] font-semibold leading-[1.45] text-ink group-hover:underline group-hover:underline-offset-2">
+                          {l.name}
+                        </h2>
+                        {l.is_dynamic ? <Badge tone="info">Live</Badge> : null}
+                      </div>
+                      {l.description ? (
+                        <p className="mt-1 text-[13px] leading-[1.45] text-body">{l.description}</p>
+                      ) : null}
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] leading-[1.4] text-meta">
+                        <span className="tabular">
+                          {formatCount(n)} work{n === 1 ? "" : "s"}
+                          {l.is_dynamic ? ", membership is live" : ""}
+                        </span>
+                        <WebsiteDot on={Boolean(l.web_visible)} />
+                      </div>
+                    </Link>
+                  </div>,
+                ];
+              }),
+            )}
+          />
+        )}
+      </Section>
     </div>
   );
 }

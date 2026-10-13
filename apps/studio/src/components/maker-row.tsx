@@ -1,7 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { scriptLang } from "@/lib/script-lang";
+import { Td, Tr } from "@/components/ui/table";
+import { WebsiteSwitch } from "@/components/ui/website-switch";
+import { buttonClass } from "@/components/ui/button";
 
 export type Maker = {
   id: string;
@@ -12,8 +16,6 @@ export type Maker = {
   school_or_workshop: string | null;
   web_visible: boolean;
 };
-
-const td = "px-4 py-2.5 align-middle";
 
 /**
  * A single maker row. All editing happens on the maker profile page (the one
@@ -53,63 +55,56 @@ export function MakerRow({
   }
 
   return (
-    <tr className="border-b border-line-soft last:border-0">
-      <td className={`${td} text-[13.5px] text-ink-body`}>
-        <a href={`/makers/${maker.id}`} className="hover:text-accent-deep" title="Open maker profile">
+    <Tr>
+      <Td>
+        <Link href={`/makers/${maker.id}`} className="link-plain font-medium text-ink" title="Open maker profile">
           {maker.display_name}
-        </a>
-      </td>
-      <td lang={scriptLang(maker.native_name)} className={`${td} text-[13.5px] text-ink-muted`}>{maker.native_name ?? "—"}</td>
-      <td className={`${td} font-mono text-[12px] text-ink-muted`}>{maker.life_dates ?? "—"}</td>
-      <td className={`${td} text-[13px] text-ink-muted`}>{maker.region ?? "—"}</td>
-      <td className={`${td} text-[13px] text-ink-muted`}>{maker.school_or_workshop ?? "—"}</td>
-      <td className={`${td} whitespace-nowrap`}>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={visible}
-          disabled={busy}
+        </Link>
+      </Td>
+      <Td lang={scriptLang(maker.native_name)} className="text-body">
+        {maker.native_name ?? "—"}
+      </Td>
+      <Td className="tabular text-body">{maker.life_dates ?? "—"}</Td>
+      <Td className="text-body">{maker.region ?? "—"}</Td>
+      <Td className="text-body">{maker.school_or_workshop ?? "—"}</Td>
+      <Td className="whitespace-nowrap">
+        <WebsiteSwitch
+          on={visible}
+          pending={busy}
           onClick={toggleVisible}
-          title={visible ? "Artist page is on the website — click to take it off" : "Not on the website — click to publish the artist page"}
-          className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-[12px] font-medium disabled:opacity-60 ${
-            visible ? "border-status-green/60 bg-control text-ink-mid" : "border-line-control bg-control text-body"
-          }`}
-        >
-          <span
-            aria-hidden
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ background: visible ? "var(--jvb-status-green)" : "var(--jvb-danger)" }}
-          />
-          {visible ? "On website" : "Off"}
-        </button>
-        {failed ? <span className="ml-2 text-[11px] text-danger">Couldn’t save</span> : null}
-      </td>
-      <td className={`${td} whitespace-nowrap text-right`}>
-        <a
-          href={`/makers/${maker.id}`}
-          className="inline-block align-middle text-[12px] font-medium leading-none text-[var(--jvb-ink-desc)] hover:text-ink-strong"
-        >
-          Edit
-        </a>
-        <form
-          action={deleteAction}
-          className="ml-3 inline-block align-middle"
-          onSubmit={(e) => {
-            if (
-              !window.confirm(
-                `Delete “${maker.display_name}”? Any works by this maker will be left without a maker (they aren’t deleted).`,
-              )
-            ) {
-              e.preventDefault();
-            }
-          }}
-        >
-          <input type="hidden" name="id" value={maker.id} />
-          <button type="submit" className="text-[12px] leading-none text-ink-soft hover:text-accent-deep">
-            Delete
-          </button>
-        </form>
-      </td>
-    </tr>
+          title={visible ? "Artist page is on the website. Select to take it off" : "Not on the website. Select to publish the artist page"}
+        />
+        {failed ? (
+          <span role="alert" className="ml-2 text-[12px] text-danger">
+            Couldn’t save
+          </span>
+        ) : null}
+      </Td>
+      <Td className="whitespace-nowrap text-right">
+        <span className="inline-flex items-center justify-end gap-1">
+          <Link href={`/makers/${maker.id}`} className="link px-1.5 text-[12px]">
+            Edit
+          </Link>
+          <form
+            action={deleteAction}
+            className="inline-block"
+            onSubmit={(e) => {
+              if (
+                !window.confirm(
+                  `Delete “${maker.display_name}”? Any works by this maker will be left without a maker (they aren’t deleted).`,
+                )
+              ) {
+                e.preventDefault();
+              }
+            }}
+          >
+            <input type="hidden" name="id" value={maker.id} />
+            <button type="submit" className={buttonClass({ variant: "quiet", size: "sm" })}>
+              Delete
+            </button>
+          </form>
+        </span>
+      </Td>
+    </Tr>
   );
 }

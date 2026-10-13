@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { STATUS_LABELS } from "@/components/status-pill";
+import { Button } from "@/components/ui/button";
+import { SearchIcon } from "@/components/ui/icons";
+import { cx } from "@/components/ui/cx";
 
 type NavItem = { href: string; label: string; group?: string };
 type Piece = {
@@ -20,10 +23,27 @@ type Row =
   | { kind: "contact"; href: string; label: string; sub?: string };
 
 /**
+ * A button that opens the palette from inside a page (the not-found page),
+ * through the same event the header's Search button sends.
+ */
+export function OpenSearchButton({ children = "Search" }: { children?: React.ReactNode }) {
+  return (
+    <Button
+      icon={<SearchIcon size={16} />}
+      onClick={() => window.dispatchEvent(new Event("jvb:command-palette"))}
+    >
+      {children}
+    </Button>
+  );
+}
+
+/**
  * Global ⌘K palette. Opens on ⌘K / Ctrl-K from anywhere, blends page
  * navigation with live piece + contact search (via /api/search, which reuses
  * the pieces_search + crm_contacts_search RPCs). Fully keyboard-driven:
- * ↑/↓ to move, ⏎ to go, Esc to close.
+ * ↑/↓ to move, ⏎ to go, Esc to close. A combobox over a listbox: focus stays
+ * in the field and aria-activedescendant names the highlighted row, so a
+ * screen reader follows the arrows. Closing hands focus back to where it was.
  */
 export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
   const router = useRouter();
@@ -35,6 +55,9 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Where focus was before the palette opened, to return it on close.
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const listId = useId();
 
   // Global open shortcut + a custom event the header search button dispatches
   // (so pointer-only users on mobile can open it too).
@@ -63,9 +86,11 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
     };
   }, []);
 
-  // Reset + focus on open; lock body scroll while open.
+  // Reset + focus on open; lock body scroll while open. Escape closes from
+  // anywhere in the page, not only from the field.
   useEffect(() => {
     if (!open) return;
+    returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setQ("");
     setPieces([]);
     setContacts([]);
@@ -73,9 +98,18 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
     const t = setTimeout(() => inputRef.current?.focus(), 20);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
     return () => {
       clearTimeout(t);
       document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+      // Back to the control that opened it (the header's Search button), unless
+      // the palette navigated away and that control is gone.
+      const back = returnFocus.current;
+      if (back && back.isConnected) back.focus();
     };
   }, [open]);
 
@@ -153,9 +187,7 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
   );
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      setOpen(false);
-    } else if (e.key === "ArrowDown") {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       setActive((a) => Math.min(a + 1, rows.length - 1));
     } else if (e.key === "ArrowUp") {
@@ -177,34 +209,53 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
     contact: "Contacts",
   };
 
+  const optionId = (i: number) => `${listId}-${i}`;
+
   return (
     <div
       className="jvb-scrim-enter fixed inset-0 z-[60] flex items-start justify-center p-4 pt-[12vh]"
-      style={{ background: "var(--jvb-bg-overlay)", backdropFilter: "blur(2px)" }}
+      style={{ background: "var(--jvb-scrim)" }}
       onClick={(e) => {
         if (e.target === e.currentTarget) setOpen(false);
       }}
       role="dialog"
       aria-modal="true"
-      aria-label="Command palette"
+      aria-label="Search"
     >
-      <div className="jvb-pop-enter w-full max-w-lg overflow-hidden border border-line bg-cell shadow-2xl">
-        <input
-          ref={inputRef}
-          type="text"
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setActive(0);
-          }}
-          onKeyDown={onKeyDown}
-          placeholder="Search inventory, contacts, or jump to a page…"
-          aria-label="Search"
-          className="w-full border-b border-line-soft bg-transparent px-4 py-3.5 text-[14px] text-ink-body outline-none placeholder:text-ink-faint"
-        />
+      {/* A floating layer over a scrim: the one place a shadow belongs (spec
+          R5). data-inset-focus draws the field's ring inside the frame. */}
+      <div
+        data-inset-focus
+        className="jvb-pop-enter w-full max-w-[560px] overflow-hidden border border-rule-strong bg-page shadow-[var(--jvb-shadow-pop)]"
+      >
+        {/* The icon sits inside the field's padding, so the inset focus ring
+            frames the whole search row rather than hugging the typed text. */}
+        <div className="relative border-b border-rule">
+          <SearchIcon size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-meta" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setActive(0);
+            }}
+            onKeyDown={onKeyDown}
+            placeholder="Search works and contacts, or go to a page"
+            aria-label="Search"
+            role="combobox"
+            aria-expanded={rows.length > 0}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={rows[active] ? optionId(active) : undefined}
+            autoComplete="off"
+            spellCheck={false}
+            className="block h-12 w-full bg-transparent pl-11 pr-4 text-[14.5px] text-ink placeholder:text-light"
+          />
+        </div>
         <div className="max-h-[52vh] overflow-y-auto py-1.5">
           {rows.length === 0 ? (
-            <p className="px-4 py-6 text-center text-[12.5px] text-ink-muted">
+            <p role="status" className="px-4 py-6 text-center text-[13px] text-meta">
               {loading
                 ? "Searching…"
                 : q.trim().length >= 2
@@ -212,45 +263,69 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
                   : "Type to search, or pick a page."}
             </p>
           ) : (
-            rows.map((row, i) => {
-              const showHeading = row.kind !== lastKind;
-              lastKind = row.kind;
-              return (
-                <div key={`${row.kind}-${row.href}-${i}`}>
-                  {showHeading ? (
-                    <p className="px-4 pb-1 pt-2 text-[10.5px] font-medium uppercase tracking-[0.08em] text-ink-faint">
-                      {heading[row.kind]}
-                    </p>
-                  ) : null}
-                  <button
-                    type="button"
-                    onMouseEnter={() => setActive(i)}
-                    onClick={() => go(row)}
-                    className={`flex w-full items-center justify-between gap-3 px-4 py-2 text-left ${
-                      i === active ? "bg-oranje/10" : ""
-                    }`}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13.5px] text-ink-body">{row.label}</span>
-                      {row.sub ? (
-                        <span className="block truncate text-[11.5px] text-ink-muted">{row.sub}</span>
-                      ) : null}
-                    </span>
-                    {i === active ? (
-                      <span aria-hidden className="shrink-0 text-[11px] text-ink-faint">
-                        ⏎
-                      </span>
+            <div id={listId} role="listbox" aria-label="Results">
+              {rows.map((row, i) => {
+                const showHeading = row.kind !== lastKind;
+                lastKind = row.kind;
+                const current = i === active;
+                return (
+                  <div key={`${row.kind}-${row.href}-${i}`} role="presentation">
+                    {showHeading ? (
+                      <p
+                        role="presentation"
+                        className="px-4 pb-1 pt-2.5 text-[11.5px] font-semibold uppercase leading-[1.3] tracking-[0.06em] text-meta"
+                      >
+                        {heading[row.kind]}
+                      </p>
                     ) : null}
-                  </button>
-                </div>
-              );
-            })
+                    {/* The highlighted row is the keyboard row of a table:
+                        band with a 2px accent rule. */}
+                    <div
+                      id={optionId(i)}
+                      role="option"
+                      aria-selected={current}
+                      onMouseMove={() => {
+                        if (!current) setActive(i);
+                      }}
+                      onClick={() => go(row)}
+                      className={cx(
+                        "relative flex cursor-pointer items-center justify-between gap-3 px-4 py-2",
+                        current && "bg-band before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-accent before:content-['']",
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13.5px] text-ink">{row.label}</span>
+                        {row.sub ? (
+                          <span className={cx("block truncate text-[12px]", current ? "text-body" : "text-meta")}>
+                            {row.sub}
+                          </span>
+                        ) : null}
+                      </span>
+                      {current ? (
+                        <kbd aria-hidden className="shrink-0 font-sans text-[11px] text-body">
+                          ⏎
+                        </kbd>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-3 border-t border-line-soft px-4 py-2 text-[10.5px] text-ink-faint">
-          <span>↑↓ move</span>
-          <span>⏎ open</span>
-          <span>esc close</span>
+        <div
+          aria-hidden
+          className="flex items-center gap-4 border-t border-rule px-4 py-2 text-[11px] leading-[1.3] text-meta"
+        >
+          <span>
+            <kbd className="font-sans">↑↓</kbd> move
+          </span>
+          <span>
+            <kbd className="font-sans">⏎</kbd> open
+          </span>
+          <span>
+            <kbd className="font-sans">esc</kbd> close
+          </span>
         </div>
       </div>
     </div>

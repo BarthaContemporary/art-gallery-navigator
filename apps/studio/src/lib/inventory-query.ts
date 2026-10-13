@@ -63,6 +63,23 @@ export function applyFlagFilters<T extends { eq: (column: string, value: unknown
 }
 
 /**
+ * The "On website" facet: `web=on` keeps the works shown on the website,
+ * `web=off` the works that are not, anything else both. pieces.web_visible is
+ * not null, so the two answers split the stock with nothing left over.
+ */
+export function webFilterOf(raw: string | null | undefined): boolean | null {
+  return raw === "on" ? true : raw === "off" ? false : null;
+}
+
+export function applyWebFilter<T extends { eq: (column: string, value: unknown) => unknown }>(
+  query: T,
+  raw: string | null | undefined,
+): T {
+  const want = webFilterOf(raw);
+  return want === null ? query : (query.eq("web_visible", want) as T);
+}
+
+/**
  * Apply the inventory URL's filters to a `vw_pieces_list` query.
  *
  * The register default matches the list itself: JvdB stock unless asked
@@ -89,6 +106,7 @@ export function applyInventoryFilters<
     needs: params.get("needs"),
     nopurchase: params.get("nopurchase"),
   });
+  q = applyWebFilter(q, params.get("web"));
 
   const ledger = params.get("ledger");
   if (ledger !== "all") q = q.eq("ledger", ledger === "external" ? "external" : "jvb");
@@ -187,7 +205,7 @@ type SearchHit = {
  * filtered query cannot express them: a text search (the ranked
  * pieces_search RPC), a list (static or live, through the one list resolver)
  * or the current user's flags. Every other filter on the URL (register,
- * facets, the three flag pills) is applied on top.
+ * facets, the three flag pills, the website facet) is applied on top.
  *
  * Returns null when the URL has none of the three, so the caller can count,
  * sort and page in SQL with applyInventoryFilters. The inventory page and all
@@ -256,15 +274,17 @@ export async function resolveInventoryIds(
       filtered = filtered.filter((h) => inList.has(h.id));
     }
     const ids = filtered.map((h) => h.id);
-    if (ids.length === 0 || (!order && activeFlags(flags).length === 0)) return ids;
+    const web = params.get("web");
+    if (ids.length === 0 || (!order && activeFlags(flags).length === 0 && webFilterOf(web) === null)) return ids;
 
-    // The flag columns, and most sort columns, live on the view rather than on
-    // the hits, so resolve them through the view for the matching ids only.
+    // The flag and website columns, and most sort columns, live on the view
+    // rather than on the hits, so resolve them through the view for the
+    // matching ids only.
     const columns: string = order ? `id, ${order.column}` : "id";
     const rows = await selectInChunks<ViewRow>(ids, (chunk) =>
-      applyFlagFilters(
-        supabase.from("vw_pieces_list").select(columns).in("id", chunk),
-        flags,
+      applyWebFilter(
+        applyFlagFilters(supabase.from("vw_pieces_list").select(columns).in("id", chunk), flags),
+        web,
       ) as unknown as PromiseLike<ViewResult>,
     );
     if (order) return sortRows(rows, order).map((r) => r.id);
@@ -303,10 +323,10 @@ export async function selectInventoryRows<Row extends { id: string }>(
 }
 
 /**
- * Every row an export of this inventory URL contains: the screen's rows (search,
- * list, flagged, register, facets and flag pills all honoured) in the screen's
- * order when a sort is chosen or a search ranks them, oldest stock number
- * first otherwise. Throws on a failed query.
+ * Every row an export of this inventory URL contains: the screen's rows
+ * (search, list, flagged, register, facets, flag pills and website all
+ * honoured) in the screen's order when a sort is chosen or a search ranks
+ * them, oldest stock number first otherwise. Throws on a failed query.
  */
 export async function loadInventoryExportRows(
   supabase: SupabaseClient,

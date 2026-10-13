@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { Button, ButtonLink } from "./ui/button";
+import { Section, Panel } from "./ui/section";
+import { Notice } from "./ui/notice";
+import { DownloadIcon, FileIcon } from "./ui/icons";
 
 /**
  * The contact's data-protection controls: export (subject access), log a
@@ -21,76 +25,92 @@ export function DataProtectionPanel({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [logging, setLogging] = useState(false);
-  const btn = "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong";
 
   return (
-    <section className="mt-8 border border-line bg-cell p-4">
-      <h2 className="text-[13px] font-semibold text-ink-strong">Data protection</h2>
-      <p className="mt-1 text-[12px] text-ink-soft">
-        Requests must be answered within one month (UK GDPR Arts. 12–22). Log the request first so the deadline is tracked in Admin → Data protection.
-      </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <a href={`/crm/contacts/${contactId}/data`} className={btn}>
-          View everything held (print / PDF)
-        </a>
-        <a href={`/api/crm/contacts/${contactId}/export`} className={btn}>
+    <Section
+      title="Data protection"
+      meta="Requests must be answered within one month (UK GDPR Arts. 12 to 22). Log the request first, so its deadline is tracked on the Data protection page in Admin."
+      className="mt-8"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <ButtonLink href={`/crm/contacts/${contactId}/data`} size="sm" icon={<FileIcon size={14} />}>
+          View everything held (print or PDF)
+        </ButtonLink>
+        <ButtonLink href={`/api/crm/contacts/${contactId}/export`} native size="sm" icon={<DownloadIcon size={14} />}>
           Download as JSON
-        </a>
-        <button type="button" onClick={() => setLogging((v) => !v)} className={btn}>
+        </ButtonLink>
+        <Button size="sm" aria-expanded={logging} onClick={() => setLogging((v) => !v)}>
           Log a request…
-        </button>
+        </Button>
         {!erased ? (
-          <button
-            type="button"
+          <Button
+            variant="danger"
+            size="sm"
+            aria-expanded={confirming}
             onClick={() => setConfirming((v) => !v)}
-            className="ml-auto rounded-lg border border-danger/40 px-3 py-1.5 text-[12px] font-semibold text-danger"
+            className="sm:ml-auto"
           >
             Erase personal data…
-          </button>
+          </Button>
         ) : (
-          <span className="ml-auto text-[12px] text-ink-soft">Personal data erased.</span>
+          <span className="text-[12px] leading-[1.4] text-meta sm:ml-auto">Personal data erased.</span>
         )}
       </div>
 
       {logging ? (
-        <form action={logRequestAction} className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-line-soft bg-band/40 p-3">
-          <label className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-            Request
-            <select name="kind" className="mt-1 block rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body">
-              <option value="access">Access (copy of data)</option>
-              <option value="erasure">Erasure</option>
-              <option value="rectification">Rectification</option>
-              <option value="restriction">Restriction</option>
-              <option value="objection">Objection</option>
-              <option value="portability">Portability</option>
-              <option value="withdraw_consent">Withdraw consent</option>
-              <option value="other">Other</option>
-            </select>
-          </label>
-          <label className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-            Received
-            <input type="date" name="received_at" defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 block rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body" />
-          </label>
-          <label className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-            How it arrived
-            <input name="channel" placeholder="email, letter, in person…" className="mt-1 block w-44 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body" />
-          </label>
-          <button type="submit" className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg">
-            Log request
-          </button>
-        </form>
+        <Panel className="mt-3">
+          <form action={logRequestAction} className="flex flex-wrap items-end gap-3">
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="dp-kind" className="label">
+                Request
+              </label>
+              <select id="dp-kind" name="kind" className="field">
+                <option value="access">Access (copy of data)</option>
+                <option value="erasure">Erasure</option>
+                <option value="rectification">Rectification</option>
+                <option value="restriction">Restriction</option>
+                <option value="objection">Objection</option>
+                <option value="portability">Portability</option>
+                <option value="withdraw_consent">Withdraw consent</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="dp-received" className="label">
+                Received
+              </label>
+              <input
+                id="dp-received"
+                type="date"
+                name="received_at"
+                defaultValue={new Date().toISOString().slice(0, 10)}
+                className="field"
+              />
+            </div>
+            <div className="flex w-full min-w-0 flex-col gap-1 sm:w-48">
+              <label htmlFor="dp-channel" className="label">
+                How it arrived
+              </label>
+              <input id="dp-channel" name="channel" placeholder="Email, letter, in person" className="field" />
+            </div>
+            <Button type="submit" variant="primary" pendingLabel="Logging…">
+              Log request
+            </Button>
+          </form>
+        </Panel>
       ) : null}
 
       {confirming ? (
-        <div className="mt-3 rounded-lg border border-danger/40 bg-danger/5 p-3 text-[12.5px] text-ink-body">
+        <Notice tone="danger" className="mt-3">
           {holds.length > 0 ? (
             <>
               <p>
                 This contact appears in records the gallery must keep by law, so the record itself stays but
-                <strong> everything identifying is removed</strong>: name, contact details, addresses, notes, interests,
-                marketing data, list memberships, newsletter and offer history, and the change log.
+                <strong className="font-semibold text-ink"> everything identifying is removed</strong>: name, contact
+                details, addresses, notes, interests, marketing data, list memberships, newsletter and offer history,
+                and the change log.
               </p>
-              <ul className="mt-2 list-disc pl-5 text-ink-muted">
+              <ul className="mt-2 list-disc pl-5">
                 {holds.map((h) => (
                   <li key={h}>{h}</li>
                 ))}
@@ -99,19 +119,20 @@ export function DataProtectionPanel({
           ) : (
             <p>
               No legal hold applies. The contact and everything attached (notes, list memberships, newsletter and offer
-              history, change log) will be <strong>deleted permanently</strong>; enquiries and appointments are kept without the name.
+              history, change log) will be <strong className="font-semibold text-ink">deleted permanently</strong>;
+              enquiries and appointments are kept without the name.
             </p>
           )}
-          <form action={eraseAction} className="mt-3 flex items-center gap-2">
-            <button type="submit" className="rounded-lg border border-danger bg-danger-soft px-3 py-1.5 text-[12px] font-semibold text-danger">
+          <form action={eraseAction} className="mt-3 flex flex-wrap items-center gap-2">
+            <Button type="submit" variant="danger" size="sm" pendingLabel="Erasing…">
               {holds.length > 0 ? "Erase identifying data" : "Delete contact"}
-            </button>
-            <button type="button" onClick={() => setConfirming(false)} className="text-[12px] font-medium text-ink-mid hover:text-ink-strong">
+            </Button>
+            <Button variant="quiet" size="sm" onClick={() => setConfirming(false)}>
               Cancel
-            </button>
+            </Button>
           </form>
-        </div>
+        </Notice>
       ) : null}
-    </section>
+    </Section>
   );
 }

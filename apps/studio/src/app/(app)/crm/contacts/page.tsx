@@ -1,8 +1,14 @@
-import { SaveToDriveLink } from "@/components/save-to-drive";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { formatCount } from "@/lib/format";
+import { CONTACT_TYPE_LABELS, KYC_STATUS_LABELS, KYC_STATUS_TONES, labelOf } from "@/lib/labels";
+import { ExportMenu } from "@/components/export-menu";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
+import { SearchIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "Contacts" };
 
@@ -77,98 +83,154 @@ export default async function ContactsPage({
     redirect("/crm/contacts");
   }
 
+  // The header's count: every contact when browsing, the matches when searching.
+  const meta = term
+    ? `${formatCount(contacts.length)}${contacts.length >= SEARCH_LIMIT ? "+" : ""} ${
+        contacts.length === 1 ? "match" : "matches"
+      } for “${term}”`
+    : `${formatCount(total)} ${total === 1 ? "contact" : "contacts"}`;
+
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <SaveToDriveLink
-            href="/api/export/contacts.csv"
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
-          >
-            Export CSV / vCard
-          </SaveToDriveLink>
-          <SaveToDriveLink
-            href="/api/export/contacts.xlsx"
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
-          >
-            Export XLSX
-          </SaveToDriveLink>
-          <Link
-            href="/crm/contacts/import"
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
-          >
-            Import CSV
-          </Link>
-          <form action={addContact}>
-            <button
-              type="submit"
-              className="rounded-lg bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-fg"
-            >
-              Add contact
-            </button>
-          </form>
-        </div>
-      </div>
+      <PageHeader
+        title="Contacts"
+        meta={<span className="tabular">{meta}</span>}
+        actions={
+          <>
+            <ButtonLink href="/crm/contacts/import" variant="quiet">
+              Import CSV
+            </ButtonLink>
+            <ExportMenu
+              noun="contacts"
+              items={[
+                { href: "/api/export/contacts.csv", label: "CSV and vCard" },
+                { href: "/api/export/contacts.xlsx", label: "Excel (XLSX)" },
+              ]}
+            />
+            <form action={addContact}>
+              <Button type="submit" variant="primary" pendingLabel="Adding…">
+                Add contact
+              </Button>
+            </form>
+          </>
+        }
+      />
 
-      <form method="get" className="mt-4">
-        <input
-          type="search"
-          name="q"
-          defaultValue={q ?? ""}
-          placeholder="Search name or email…"
-          className="w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] sm:w-80"
-        />
+      <form method="get" role="search" aria-label="Search contacts" className="flex flex-wrap items-end gap-2">
+        <div className="flex w-full min-w-0 flex-col gap-1 sm:w-80">
+          <label htmlFor="contacts-search" className="label">
+            Search
+          </label>
+          <input
+            id="contacts-search"
+            type="search"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Name or email"
+            className="field"
+          />
+        </div>
+        <Button type="submit" icon={<SearchIcon size={14} />}>
+          Search
+        </Button>
+        {term ? (
+          <ButtonLink href="/crm/contacts" variant="quiet">
+            Clear search
+          </ButtonLink>
+        ) : null}
       </form>
 
       {term ? (
         contacts.length >= SEARCH_LIMIT ? (
-          <p className="mt-3 text-[12.5px] text-ink-muted">
+          <p className="mt-3 text-[12px] leading-[1.4] text-meta">
             Showing the first {SEARCH_LIMIT} matches. Narrow the search to find the rest.
           </p>
         ) : null
       ) : (
-        <ContactPager page={page} pages={pages} total={total} label="Pagination, top" className="mt-3" />
+        <ContactPager page={page} pages={pages} total={total} label="Pagination, top" className="mt-4" />
       )}
 
-      <div className="mt-4 overflow-x-auto border border-line">
-        <table className="w-full min-w-[640px] bg-cell text-left">
+      {/* relative: the frame contains the sr-only head words, which
+          otherwise sit outside the scroll and widen a phone page. */}
+      <TableFrame className="relative mt-3">
+        <Table className="min-w-[720px]">
           <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              <th className="px-4 py-2.5 font-medium">Name</th>
-              <th className="px-4 py-2.5 font-medium">Email</th>
-              <th className="px-4 py-2.5 font-medium">Type</th>
-              <th className="px-4 py-2.5 font-medium">Place</th>
-              <th className="px-4 py-2.5 font-medium">Consent</th>
-              <th className="px-4 py-2.5 font-medium">AML</th>
+            <tr>
+              <Th>Name</Th>
+              <Th>Email</Th>
+              <Th>Type</Th>
+              <Th>Place</Th>
+              <Th>Consent</Th>
+              <Th>AML</Th>
             </tr>
           </thead>
           <tbody>
-            {(contacts ?? []).map((c) => (
-              <tr key={c.id} className="border-b border-line-soft last:border-0 hover:bg-control">
-                <td className="px-4 py-2.5 text-[13.5px] text-ink-body">
-                  <Link href={`/crm/contacts/${c.id}`} className="hover:text-ink-strong">
-                    {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
-                  </Link>
-                </td>
-                <td className="px-4 py-2.5 text-[13px] text-ink-muted">{c.email ?? "—"}</td>
-                <td className="px-4 py-2.5 text-[12.5px] text-ink-muted">{c.contact_type}</td>
-                <td className="px-4 py-2.5 text-[12.5px] text-ink-muted">
-                  {[c.city, c.country].filter(Boolean).join(", ") || "—"}
-                </td>
-                <td className="px-4 py-2.5 text-[12px]">{c.marketing_consent ? "✓" : "—"}</td>
-                <td className="px-4 py-2.5 text-[12px] text-ink-muted">{(c.kyc_status ?? "not started").replace(/_/g, " ")}</td>
-              </tr>
-            ))}
-            {(contacts ?? []).length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-[13px] text-ink-muted">
-                  No contacts yet — add one or import a CSV.
-                </td>
-              </tr>
+            {contacts.map((c) => {
+              const kyc = c.kyc_status ?? "not_started";
+              const kycTone = KYC_STATUS_TONES[kyc] ?? "neutral";
+              return (
+                // nowrap: on a phone the table scrolls sideways rather than
+                // breaking every name over two lines.
+                <Tr key={c.id} className="whitespace-nowrap">
+                  <Td>
+                    <Link href={`/crm/contacts/${c.id}`} className="link-plain font-medium text-ink">
+                      {[c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed contact"}
+                    </Link>
+                  </Td>
+                  <Td className="text-body">{c.email ?? "—"}</Td>
+                  <Td className="text-body">{labelOf(CONTACT_TYPE_LABELS, c.contact_type)}</Td>
+                  <Td className="text-body">{[c.city, c.country].filter(Boolean).join(", ") || "—"}</Td>
+                  <Td>
+                    {c.marketing_consent ? (
+                      <Badge variant="dot" tone="ok">
+                        Yes
+                      </Badge>
+                    ) : (
+                      <span className="text-meta">No</span>
+                    )}
+                  </Td>
+                  <Td>
+                    {/* Not started is most rows: plain words, marked only
+                        where the check asks something of the gallery. */}
+                    {kycTone === "neutral" ? (
+                      <span className="text-meta">{labelOf(KYC_STATUS_LABELS, kyc)}</span>
+                    ) : (
+                      <Badge variant="dot" tone={kycTone}>
+                        {labelOf(KYC_STATUS_LABELS, kyc)}
+                      </Badge>
+                    )}
+                  </Td>
+                </Tr>
+              );
+            })}
+            {contacts.length === 0 ? (
+              term ? (
+                <EmptyRow
+                  colSpan={6}
+                  action={
+                    <ButtonLink href="/crm/contacts" size="sm">
+                      Clear search
+                    </ButtonLink>
+                  }
+                >
+                  No contact matches “{term}”.
+                </EmptyRow>
+              ) : (
+                <EmptyRow
+                  colSpan={6}
+                  action={
+                    <ButtonLink href="/crm/contacts/import" size="sm">
+                      Import CSV
+                    </ButtonLink>
+                  }
+                >
+                  No contacts yet. Add one, or import a CSV file.
+                </EmptyRow>
+              )
             ) : null}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      </TableFrame>
 
       {term ? null : (
         <ContactPager page={page} pages={pages} total={total} label="Pagination, bottom" className="mt-3" />
@@ -178,7 +240,7 @@ export default async function ContactsPage({
 }
 
 /**
- * "101–200 of 869" with Prev and Next, above and below the table (the
+ * "101–200 of 869" with Previous and Next, above and below the table (the
  * inventory's pattern: a full page is long to scroll back up). Search results
  * are not paged, so it only carries `page`.
  */
@@ -199,23 +261,22 @@ function ContactPager({
   const first = (page - 1) * PAGE_SIZE + 1;
   const last = Math.min(page * PAGE_SIZE, total);
   const href = (p: number) => (p > 1 ? `/crm/contacts?page=${p}` : "/crm/contacts");
-  const step = (p: number, text: string, disabled: boolean) =>
-    disabled ? (
-      <span className="rounded-lg border border-line-soft px-2.5 py-1 text-ink-faint opacity-50">{text}</span>
-    ) : (
-      <Link href={href(p)} className="rounded-lg border border-line-control px-2.5 py-1 hover:bg-control">
-        {text}
-      </Link>
-    );
   return (
     <div className={`flex flex-wrap items-center justify-between gap-2 ${className}`}>
-      <p className="tabular text-[12.5px] text-ink-muted">
+      <p className="tabular text-[12px] leading-[1.4] text-meta">
         {formatCount(first)}–{formatCount(last)} of {formatCount(total)}
       </p>
       {pages > 1 ? (
-        <nav aria-label={label} className="flex items-center gap-1.5 text-[12px] text-ink-muted">
-          {step(page - 1, "‹ Prev", page === 1)}
-          {step(page + 1, "Next ›", page >= pages)}
+        <nav aria-label={label} className="flex items-center gap-1.5">
+          <ButtonLink href={href(page - 1)} size="sm" disabled={page === 1}>
+            Previous
+          </ButtonLink>
+          <span className="tabular px-1.5 text-[12px] text-meta">
+            Page {page} of {pages}
+          </span>
+          <ButtonLink href={href(page + 1)} size="sm" disabled={page >= pages}>
+            Next
+          </ButtonLink>
         </nav>
       ) : null}
     </div>

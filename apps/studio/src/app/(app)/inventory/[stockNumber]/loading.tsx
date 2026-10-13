@@ -1,47 +1,60 @@
+import { Skeleton } from "@/components/ui/skeleton";
+
 /**
- * Route-level skeleton for the piece-detail page, which fires ~13 queries and
- * then signs image URLs — so navigation used to block on a blank screen. This
- * mirrors the real layout: sticky header strip, gallery + title, spec grid.
+ * Route-level skeleton for the piece-detail page, which fires a dozen queries
+ * and then signs image URLs, so navigation would otherwise block on a blank
+ * screen. It mirrors the real layout in the wide measure: the record bar, the
+ * square gallery beside the title and the facts on hairlines, then a section.
+ * The edit and images pages have their own (edit/loading.tsx,
+ * images/loading.tsx).
  */
 export default function PieceDetailLoading() {
   return (
-    <div className="animate-pulse">
-      {/* breadcrumb / header strip */}
-      <div className="flex items-center justify-between px-5 py-3 md:px-8">
-        <div className="h-3 w-48 rounded bg-placeholder" />
-        <div className="h-7 w-24 rounded-lg bg-placeholder" />
+    <div role="status" className="max-w-[var(--jvb-measure-wide)]">
+      <span className="sr-only">Loading the record</span>
+
+      {/* record bar */}
+      <div className="-mt-2 mb-6 flex items-center justify-between gap-4 border-b border-rule py-2.5">
+        <Skeleton width={180} height={12} />
+        <div className="flex gap-2">
+          <Skeleton width={84} height={32} />
+          <Skeleton width={104} height={32} />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 px-5 py-4 md:px-8 lg:grid-cols-[minmax(0,640px)_1fr]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
         {/* gallery */}
         <div>
-          <div className="jvb-hatch aspect-[4/5] w-full" />
-          <div className="mt-3 flex gap-2">
+          <span aria-hidden className="jvb-hatch block aspect-square w-full" />
+          <div className="mt-2.5 flex gap-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="jvb-hatch h-16 w-16" />
+              <span key={i} aria-hidden className="jvb-hatch block aspect-square w-full max-w-[96px]" />
             ))}
           </div>
         </div>
 
-        {/* title + spec */}
+        {/* identity + facts */}
         <div>
-          <div className="h-3 w-32 rounded bg-placeholder" />
-          <div className="mt-3 h-8 w-3/4 rounded bg-placeholder" />
-          <div className="mt-2 h-4 w-40 rounded bg-placeholder" />
-
-          <div className="mt-6 grid grid-cols-3 gap-px overflow-hidden border border-line bg-line">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className="bg-cell px-3 py-3">
-                <div className="h-2.5 w-12 rounded bg-placeholder" />
-                <div className="mt-2 h-3.5 w-16 rounded bg-placeholder" />
+          <div className="flex gap-3">
+            <Skeleton width={64} height={20} />
+            <Skeleton width={96} height={20} />
+          </div>
+          <Skeleton width={140} height={12} className="mt-6" />
+          <Skeleton width="80%" height={28} className="mt-2" />
+          <Skeleton width={160} height={14} className="mt-2" />
+          <div className="mt-6 grid grid-cols-2 border-t border-rule-strong">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="border-b border-rule py-2.5 pr-3">
+                <Skeleton width={64} height={10} />
+                <Skeleton width="70%" height={14} className="mt-2" />
               </div>
             ))}
           </div>
-
-          <div className="mt-6 space-y-2">
-            <div className="h-3 w-full rounded bg-placeholder" />
-            <div className="h-3 w-11/12 rounded bg-placeholder" />
-            <div className="h-3 w-4/5 rounded bg-placeholder" />
+          <div className="section mt-8 space-y-2">
+            <Skeleton width={96} height={14} />
+            <Skeleton width="96%" />
+            <Skeleton width="100%" />
+            <Skeleton width="72%" />
           </div>
         </div>
       </div>

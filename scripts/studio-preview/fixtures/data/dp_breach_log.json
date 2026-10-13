@@ -1,0 +1,17 @@
+[
+ {
+  "id": "db0a0000-0001-4000-8000-db0a00000000",
+  "occurred_at": "2026-05-16T10:00:00.000Z",
+  "discovered_at": "2026-05-17T10:00:00.000Z",
+  "description": "A newsletter test was sent to the full TEFAF list instead of the test address.",
+  "data_affected": "Names and email addresses",
+  "people_affected": 85,
+  "likely_risk": "Low",
+  "reported_to_ico": false,
+  "reported_at": null,
+  "subjects_notified": false,
+  "actions_taken": "Apology sent; test sends now go to one address only.",
+  "created_by": "a0000000-0000-4000-8000-000000000001",
+  "created_at": "2026-05-17T10:00:00.000Z"
+ }
+]

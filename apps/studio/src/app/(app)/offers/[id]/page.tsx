@@ -1,5 +1,4 @@
 import { SaveToDriveLink } from "@/components/save-to-drive";
-import { SubmitButton } from "@/components/submit-button";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
@@ -20,7 +19,15 @@ import {
 } from "@/lib/email";
 import { parseAmount } from "@/lib/amount";
 // London time: this page renders on the server, where the zone is UTC.
-import { formatDate } from "@/lib/format";
+import { formatCount, formatDate } from "@/lib/format";
+import { OFFER_KIND_LABELS, labelOf, type Tone } from "@/lib/labels";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button, buttonClass } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { FlashNotice } from "@/components/ui/notice";
+import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
+import { MailIcon, PlusIcon, SearchIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "Offer" };
 
@@ -39,15 +46,6 @@ const GALLERY_NAME = "Joost van den Bergh";
 const REPLY_MATCH_MS = 10 * 60_000;
 /** The enquiry text the route writes when the client left no note. */
 const AUTO_REPLY_TEXT = /^Interested in offer "[\s\S]*"\.$/;
-
-const gbp = (n: number | null | undefined) =>
-  n == null
-    ? "—"
-    : new Intl.NumberFormat("en-GB", {
-        style: "currency",
-        currency: "GBP",
-        maximumFractionDigits: 0,
-      }).format(n);
 
 const longDate = (iso: string) =>
   new Intl.DateTimeFormat("en-GB", {
@@ -94,12 +92,22 @@ type Recipient = {
   } | null;
 };
 
-const fieldCls =
-  "mt-1 block w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
-const labelCls =
-  "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const btnGhost =
-  "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid";
+/**
+ * A recipient's state in a word and a tone. The client's own answer comes
+ * first; a refused send is the one error, so the only danger.
+ */
+function recipientState(
+  r: Recipient,
+  failure: string | undefined,
+): { word: string; tone: Tone; hollow?: boolean } {
+  if (r.response === "interested") return { word: "Interested", tone: "ok" };
+  if (r.response === "declined") return { word: "Declined", tone: "neutral" };
+  if (r.response) return { word: labelOf({}, r.response), tone: "neutral" };
+  if (r.first_viewed_at) return { word: "Viewed", tone: "info" };
+  if (r.sent_at) return { word: "Sent", tone: "neutral" };
+  if (failure !== undefined) return { word: `Send failed (${describeEmailError(failure)})`, tone: "danger" };
+  return { word: "Not sent", tone: "neutral", hollow: true };
+}
 
 export default async function OfferDetail({
   params,
@@ -534,368 +542,381 @@ export default async function OfferDetail({
     );
   }
 
-  // ---- send banner --------------------------------------------------------
-  let banner: string | null = null;
-  if (sp.sent === "nokey")
-    banner = "No RESEND_API_KEY configured — set it to send offers.";
-  else if (sp.sent === "noitems")
-    banner = "Add at least one work before sending.";
-  else if (sp.sent)
-    banner = `Sent ${sp.sent} email${sp.sent === "1" ? "" : "s"}${
-      sp.skipped && sp.skipped !== "0" ? ` · ${sp.skipped} skipped` : ""
-    }${
-      sp.failed && sp.failed !== "0"
-        ? ` · ${sp.failed} failed (${describeEmailError(sp.reason)}). They are still unsent: press Send again to retry them`
-        : ""
-    }.`;
-
   const expiryValue = offer.expires_at
     ? new Date(offer.expires_at).toISOString().slice(0, 10)
     : "";
+  const expired = offer.expires_at != null && new Date(offer.expires_at).getTime() < Date.now();
+  const contactName = (c: { first_name: string | null; last_name: string | null } | null) =>
+    [c?.first_name, c?.last_name].filter(Boolean).join(" ") || "Unnamed";
 
   return (
-    <div className="max-w-[1000px]">
-      <Link href="/offers" className="text-[12.5px] text-ink-soft">
-        ← All offers
-      </Link>
-      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
-        <h1 className="text-[26px] font-semibold text-ink-strong">
-          {offer.title}
-        </h1>
-        <p className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
-          {offer.kind.replace(/_/g, " ")} · {recipients.length} recipient
-          {recipients.length === 1 ? "" : "s"} · {sentCount} sent
-        </p>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-3 text-[12px]">
-        <SaveToDriveLink
-          href={`/api/export/offer-presentation.docx?offer=${id}`}
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 font-medium text-ink-mid hover:text-ink-strong"
-        >
-          Presentation DOCX
-        </SaveToDriveLink>
-      </div>
-
-      {banner ? (
-        <p className="mt-4 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
-          {banner}
-        </p>
-      ) : null}
-
-      {/* Settings */}
-      <form
-        action={updateOffer}
-        className="mt-6 grid grid-cols-1 gap-4 border border-line bg-cell p-5 sm:grid-cols-2"
-      >
-        <label className={labelCls}>
-          Title
-          <input name="title" defaultValue={offer.title} className={fieldCls} />
-        </label>
-        <label className={labelCls}>
-          Kind
-          <select name="kind" defaultValue={offer.kind} className={fieldCls}>
-            <option value="offer">Offer</option>
-            <option value="fair_preview">Fair preview</option>
-            <option value="viewing_room">Viewing room</option>
-          </select>
-        </label>
-        <label className={labelCls}>
-          Expires
-          <input
-            type="date"
-            name="expires_at"
-            defaultValue={expiryValue}
-            className={fieldCls}
-          />
-        </label>
-        <label className={`${labelCls} flex items-end gap-2`}>
-          <input
-            type="checkbox"
-            name="show_prices"
-            defaultChecked={offer.show_prices}
-            className="mb-2"
-          />
-          <span className="mb-1.5 normal-case tracking-normal text-[12.5px] text-ink-body">
-            Show prices on the public page
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <PageHeader
+        back={{ href: "/offers", label: "All offers" }}
+        title={offer.title}
+        meta={
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+            {expired ? <Badge>Expired</Badge> : null}
+            <span className="tabular">
+              {labelOf(OFFER_KIND_LABELS, offer.kind)} · {formatCount(recipients.length)} recipient
+              {recipients.length === 1 ? "" : "s"} · {formatCount(sentCount)} sent
+            </span>
           </span>
-        </label>
-        <label className={labelCls}>
-          Access password (optional)
-          <input
-            name="access_password"
-            defaultValue={offer.access_password ?? ""}
-            className={fieldCls}
-            placeholder="leave blank for no password"
-            autoComplete="off"
-          />
-          <span className="mt-1 block text-[11px] normal-case tracking-normal text-ink-soft">
-            When set, the private page asks for this before showing the works. It’s included
-            in the invitation email, and clients can request a temporary sign-in link instead.
-          </span>
-        </label>
-        <label className={`${labelCls} sm:col-span-2`}>
-          Introduction (personalised greeting)
-          <textarea
-            name="intro"
-            rows={3}
-            defaultValue={offer.intro ?? ""}
-            className={fieldCls}
-            placeholder="We have set aside the following works, which we thought would be of particular interest…"
-          />
-        </label>
-        <div className="sm:col-span-2">
-          <SubmitButton pendingLabel="Saving…">Save details</SubmitButton>
-        </div>
-      </form>
+        }
+        actions={
+          <SaveToDriveLink
+            href={`/api/export/offer-presentation.docx?offer=${id}`}
+            className={buttonClass({})}
+          >
+            Presentation DOCX
+          </SaveToDriveLink>
+        }
+      />
 
-      {/* Works */}
-      <section className="mt-8">
-        <h2 className="text-[15px] font-semibold text-ink-strong">
-          Works ({items.length})
-        </h2>
-        <OfferItemsEditor
-          items={items}
-          updateItem={updateItem}
-          removeItem={removeItem}
-          reorderItems={reorderItems}
-        />
+      <div className="space-y-6">
+        <FlashNotice searchParams={sp} codes="offer" />
 
-        {/* Add works */}
-        <form method="get" className="mt-4 flex items-center gap-2">
-          {rcQ ? <input type="hidden" name="rc" value={rcQ} /> : null}
-          <input
-            type="search"
-            name="add"
-            defaultValue={addQ}
-            placeholder="Search works to add — stock no., title, maker…"
-            className="w-full max-w-md rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
-          />
-          <button type="submit" className={btnGhost}>
-            Search
-          </button>
-        </form>
-        {addQ ? (
-          <div className="mt-2 space-y-1">
-            {workResults.map((w) => (
-              <form
-                key={w.id}
-                action={addItem}
-                className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2"
-              >
-                <input type="hidden" name="piece_id" value={w.id} />
-                <span className="text-[13px] text-ink-body">
-                  <span className="font-mono text-[12px] text-ink-muted">
-                    {w.stock_number ?? "—"}
-                  </span>{" "}
-                  {w.title ?? "Untitled"}
-                </span>
-                <button type="submit" className={btnGhost}>
-                  Add
-                </button>
-              </form>
-            ))}
-            {workResults.length === 0 ? (
-              <p className="text-[12.5px] text-ink-muted">No matches.</p>
-            ) : null}
-          </div>
-        ) : null}
-
-        {/* Add every work from a saved inventory list */}
-        {(pieceLists ?? []).length > 0 ? (
-          <form action={addListItems} className="mt-4 flex flex-wrap items-center gap-2 border-t border-line-soft pt-4">
-            <span className="text-[12px] text-ink-muted">Add works from a list</span>
-            <select
-              name="piece_list_id"
-              defaultValue=""
-              required
-              className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[13px] text-ink-body"
-            >
-              <option value="" disabled>
-                Choose an inventory list…
-              </option>
-              {listOptions.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name} ({l.count}){l.isDynamic ? " · live" : ""}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className={btnGhost}>
-              Add all
-            </button>
+        {/* Settings */}
+        <Section title="Details">
+          <form action={updateOffer} className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="offer-title" className="label">
+                Title
+              </label>
+              <input id="offer-title" name="title" defaultValue={offer.title} className="field" />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="offer-kind" className="label">
+                Kind
+              </label>
+              <select id="offer-kind" name="kind" defaultValue={offer.kind} className="field">
+                {Object.entries(OFFER_KIND_LABELS).map(([value, word]) => (
+                  <option key={value} value={value}>
+                    {word}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="offer-expires" className="label">
+                Expires
+              </label>
+              <input id="offer-expires" type="date" name="expires_at" defaultValue={expiryValue} className="field" />
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 self-end text-[13px] leading-[1.45] text-ink sm:h-[var(--jvb-control-h)]">
+              <input type="checkbox" name="show_prices" defaultChecked={offer.show_prices} className="h-4 w-4 shrink-0" />
+              Show prices on the public page
+            </label>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="offer-password" className="label">
+                Access password <span className="font-normal normal-case tracking-normal">(optional)</span>
+              </label>
+              <input
+                id="offer-password"
+                name="access_password"
+                defaultValue={offer.access_password ?? ""}
+                className="field"
+                placeholder="Leave empty for no password"
+                autoComplete="off"
+                aria-describedby="offer-password-hint"
+              />
+              <p id="offer-password-hint" className="text-[12px] leading-[1.4] text-meta">
+                When set, the private page asks for this before showing the works. It’s included in the invitation
+                email, and clients can request a temporary sign-in link instead.
+              </p>
+            </div>
+            <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
+              <label htmlFor="offer-intro" className="label">
+                Introduction (personalised greeting)
+              </label>
+              <textarea
+                id="offer-intro"
+                name="intro"
+                rows={3}
+                defaultValue={offer.intro ?? ""}
+                className="field"
+                placeholder="We have set aside the following works, which we thought would be of particular interest…"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              {/* Secondary: Send, below, is the page's one primary action. */}
+              <Button type="submit" pendingLabel="Saving…">
+                Save details
+              </Button>
+            </div>
           </form>
-        ) : null}
-      </section>
+        </Section>
 
-      {/* Recipients */}
-      <section className="mt-8">
-        <h2 className="text-[15px] font-semibold text-ink-strong">
-          Recipients ({recipients.length})
-        </h2>
-        <div className="mt-3 overflow-x-auto border border-line">
-          <table className="w-full min-w-[640px] bg-cell text-left text-[13px]">
-            <thead>
-              <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                <th className="px-4 py-2.5 font-medium">Contact</th>
-                <th className="px-4 py-2.5 font-medium">Email</th>
-                <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 font-medium">Views</th>
-                <th className="px-4 py-2.5 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {recipients.map((r) => {
-                const name =
-                  [r.contact?.first_name, r.contact?.last_name]
-                    .filter(Boolean)
-                    .join(" ") || "—";
-                const failure = r.sent_at ? undefined : sendFailures.get(r.id);
-                const status = r.response
-                  ? r.response
-                  : r.first_viewed_at
-                    ? "viewed"
-                    : r.sent_at
-                      ? "sent"
-                      : failure !== undefined
-                        ? `send failed (${describeEmailError(failure)})`
-                        : "not sent";
-                const note = replyNotes.get(r.id);
-                return (
-                  <tr key={r.id} className="border-b border-line-soft last:border-0">
-                    <td className="px-4 py-2 text-ink-body">{name}</td>
-                    <td className="px-4 py-2 text-ink-muted">
-                      {r.contact?.email ?? "—"}
-                      {r.contact?.unsubscribed_at ? (
-                        <span className="ml-1 text-[11px] text-ink-soft">
-                          (unsubscribed)
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-2 text-ink-muted">
-                      {status}
-                      {r.response && r.responded_at
-                        ? ` · ${formatDate(r.responded_at)}`
-                        : null}
-                      {note ? (
-                        <p className="mt-0.5 max-w-[360px] whitespace-pre-line text-[12.5px] text-ink-body">
-                          “{note}”
-                        </p>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-2 font-mono text-[12px] text-ink-muted">
-                      {r.view_count ?? 0}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <form action={removeRecipient}>
-                        <input type="hidden" name="recipient_id" value={r.id} />
-                        <button
-                          type="submit"
-                          className="text-[12px] text-ink-soft hover:text-ink-strong"
-                        >
-                          Remove
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                );
-              })}
-              {recipients.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-ink-muted">
-                    No recipients yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+        {/* Works */}
+        <Section title={<SectionCount title="Works" n={items.length} />}>
+          <OfferItemsEditor
+            items={items}
+            updateItem={updateItem}
+            removeItem={removeItem}
+            reorderItems={reorderItems}
+          />
 
-        {/* Add recipients */}
-        <div className="mt-4 flex flex-wrap items-start gap-6">
-          <form action={addListRecipients} className="flex items-center gap-2">
-            <select
-              name="list_id"
-              defaultValue=""
-              className="rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
-            >
-              <option value="" disabled>
-                Add a contact list…
-              </option>
-              {(lists ?? []).map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className={btnGhost}>
-              Add list
-            </button>
-          </form>
-
-          <form method="get" className="flex items-center gap-2">
-            {addQ ? <input type="hidden" name="add" value={addQ} /> : null}
-            <input
-              type="search"
-              name="rc"
-              defaultValue={rcQ}
-              placeholder="Search contacts by name or email…"
-              className="w-72 rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
-            />
-            <button type="submit" className={btnGhost}>
+          {/* Add works */}
+          <form method="get" role="search" className="mt-4 flex flex-wrap items-end gap-2">
+            {rcQ ? <input type="hidden" name="rc" value={rcQ} /> : null}
+            <div className="flex w-full min-w-0 max-w-md flex-col gap-1">
+              <label htmlFor="offer-add-works" className="label">
+                Find works to add
+              </label>
+              <input
+                id="offer-add-works"
+                type="search"
+                name="add"
+                defaultValue={addQ}
+                placeholder="Stock no., title, maker…"
+                className="field"
+              />
+            </div>
+            <Button type="submit" icon={<SearchIcon size={14} />}>
               Search
-            </button>
+            </Button>
           </form>
-        </div>
-        {rcQ ? (
-          <div className="mt-2 space-y-1">
-            {contactResults.map((c) =>
-              c ? (
-                <form
-                  key={c.id}
-                  action={addRecipient}
-                  className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2"
-                >
-                  <input type="hidden" name="contact_id" value={c.id} />
-                  <span className="text-[13px] text-ink-body">
-                    {[c.first_name, c.last_name].filter(Boolean).join(" ") ||
-                      "Unnamed"}
-                    <span className="ml-2 text-[12px] text-ink-soft">
-                      {c.email ?? "no email"}
-                    </span>
-                  </span>
-                  <button type="submit" className={btnGhost}>
-                    Add
-                  </button>
-                </form>
-              ) : null,
-            )}
-            {contactResults.length === 0 ? (
-              <p className="text-[12.5px] text-ink-muted">No matches.</p>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
+          {addQ ? (
+            workResults.length > 0 ? (
+              <ul className="mt-3 border-t border-rule">
+                {workResults.map((w) => (
+                  <li key={w.id} className="border-b border-rule">
+                    <form action={addItem} className="flex items-center justify-between gap-3 py-2">
+                      <input type="hidden" name="piece_id" value={w.id} />
+                      <span className="min-w-0 text-[13px] leading-[1.45] text-ink">
+                        <span className="tabular text-meta">{w.stock_number ?? "—"}</span> {w.title ?? "Untitled"}
+                      </span>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        pendingLabel="Adding…"
+                        icon={<PlusIcon size={14} />}
+                        aria-label={`Add ${w.stock_number ?? w.title ?? "this work"}`}
+                      >
+                        Add
+                      </Button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-[13px] leading-[1.45] text-body">
+                No works match “{addQ}” that are not already on the offer.
+              </p>
+            )
+          ) : null}
 
-      {/* Send */}
-      <section className="mt-8 border border-line bg-band p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-[15px] font-semibold text-ink-strong">
-              Send private links
-            </h2>
-            <p className="mt-1 text-[12.5px] text-body">
-              {sendable > 0
-                ? `${sendable} recipient${sendable === 1 ? "" : "s"} ready to send (unsent, with an email address).`
-                : "No unsent recipients with an email address."}
-            </p>
+          {/* Add every work from a saved inventory list */}
+          {(pieceLists ?? []).length > 0 ? (
+            <form action={addListItems} className="mt-4 flex flex-wrap items-end gap-2 border-t border-rule pt-4">
+              <div className="flex w-full min-w-0 max-w-md flex-col gap-1">
+                <label htmlFor="offer-add-list" className="label">
+                  Add works from a list
+                </label>
+                <select id="offer-add-list" name="piece_list_id" defaultValue="" required className="field">
+                  <option value="" disabled>
+                    Choose an inventory list…
+                  </option>
+                  {listOptions.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name} ({l.count}){l.isDynamic ? " · live" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button type="submit" pendingLabel="Adding…">
+                Add all
+              </Button>
+            </form>
+          ) : null}
+        </Section>
+
+        {/* Recipients */}
+        <Section title={<SectionCount title="Recipients" n={recipients.length} />}>
+          {/* relative: the frame contains the sr-only head words, which
+              otherwise sit outside the scroll and widen a phone page. */}
+          <TableFrame className="relative">
+            <Table className="min-w-[640px]">
+              <thead>
+                <tr>
+                  <Th>Contact</Th>
+                  <Th>Email</Th>
+                  <Th>Status</Th>
+                  <Th numeric>Views</Th>
+                  <Th className="w-24">
+                    <span className="sr-only">Actions</span>
+                  </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {recipients.map((r) => {
+                  const failure = r.sent_at ? undefined : sendFailures.get(r.id);
+                  const state = recipientState(r, failure);
+                  const note = replyNotes.get(r.id);
+                  return (
+                    <Tr key={r.id}>
+                      <Td className="whitespace-nowrap text-ink">
+                        {r.contact?.id ? (
+                          <Link href={`/crm/contacts/${r.contact.id}`} className="link-plain font-medium">
+                            {contactName(r.contact)}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </Td>
+                      <Td className="whitespace-nowrap text-body">
+                        {r.contact?.email ?? "—"}
+                        {r.contact?.unsubscribed_at ? (
+                          <span className="ml-1 text-[12px] text-meta">(unsubscribed)</span>
+                        ) : null}
+                      </Td>
+                      <Td className="min-w-[220px]">
+                        <Badge variant="dot" tone={state.tone} hollow={state.hollow}>
+                          {state.word}
+                          {r.response && r.responded_at ? `, ${formatDate(r.responded_at)}` : null}
+                        </Badge>
+                        {note ? (
+                          <p className="mt-0.5 max-w-[360px] whitespace-pre-line text-[12px] leading-[1.4] text-body">
+                            “{note}”
+                          </p>
+                        ) : null}
+                      </Td>
+                      <Td numeric className="text-body">
+                        {formatCount(r.view_count ?? 0)}
+                      </Td>
+                      <Td className="py-0 text-right">
+                        <form action={removeRecipient}>
+                          <input type="hidden" name="recipient_id" value={r.id} />
+                          <Button
+                            type="submit"
+                            variant="quiet"
+                            size="sm"
+                            pendingLabel="Removing…"
+                            aria-label={`Remove ${contactName(r.contact)} from this offer`}
+                          >
+                            Remove
+                          </Button>
+                        </form>
+                      </Td>
+                    </Tr>
+                  );
+                })}
+                {recipients.length === 0 ? (
+                  <EmptyRow colSpan={5}>No recipients yet. Add a contact list or find contacts below.</EmptyRow>
+                ) : null}
+              </tbody>
+            </Table>
+          </TableFrame>
+
+          {/* Add recipients */}
+          <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-4">
+            <form action={addListRecipients} className="flex w-full flex-wrap items-end gap-2 sm:w-auto">
+              <div className="flex w-full min-w-0 flex-col gap-1 sm:w-64">
+                <label htmlFor="offer-add-contact-list" className="label">
+                  Add a contact list
+                </label>
+                <select id="offer-add-contact-list" name="list_id" defaultValue="" className="field">
+                  <option value="" disabled>
+                    Choose a list…
+                  </option>
+                  {(lists ?? []).map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button type="submit" pendingLabel="Adding…">
+                Add list
+              </Button>
+            </form>
+
+            <form method="get" role="search" className="flex w-full flex-wrap items-end gap-2 sm:w-auto">
+              {addQ ? <input type="hidden" name="add" value={addQ} /> : null}
+              <div className="flex w-full min-w-0 flex-col gap-1 sm:w-72">
+                <label htmlFor="offer-find-contacts" className="label">
+                  Find contacts to add
+                </label>
+                <input
+                  id="offer-find-contacts"
+                  type="search"
+                  name="rc"
+                  defaultValue={rcQ}
+                  placeholder="Name or email"
+                  className="field"
+                />
+              </div>
+              <Button type="submit" icon={<SearchIcon size={14} />}>
+                Search
+              </Button>
+            </form>
           </div>
-          <form action={sendOffer}>
-            <SubmitButton pendingLabel="Sending…" disabled={sendable === 0 || items.length === 0}>
-              Send to {sendable}
-            </SubmitButton>
-          </form>
-        </div>
-      </section>
+          {rcQ ? (
+            contactResults.length > 0 ? (
+              <ul className="mt-3 border-t border-rule">
+                {contactResults.map((c) =>
+                  c ? (
+                    <li key={c.id} className="border-b border-rule">
+                      <form action={addRecipient} className="flex items-center justify-between gap-3 py-2">
+                        <input type="hidden" name="contact_id" value={c.id} />
+                        <span className="min-w-0 text-[13px] leading-[1.45] text-ink">
+                          {contactName(c)}
+                          <span className="ml-2 text-[12px] text-meta">{c.email ?? "no email"}</span>
+                        </span>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          pendingLabel="Adding…"
+                          icon={<PlusIcon size={14} />}
+                          aria-label={`Add ${contactName(c)}`}
+                        >
+                          Add
+                        </Button>
+                      </form>
+                    </li>
+                  ) : null,
+                )}
+              </ul>
+            ) : (
+              <p className="mt-3 text-[13px] leading-[1.45] text-body">
+                No contacts match “{rcQ}” who are not already recipients.
+              </p>
+            )
+          ) : null}
+        </Section>
+
+        {/* Send */}
+        <Section
+          title="Send private links"
+          meta={
+            sendable > 0
+              ? `${sendable} recipient${sendable === 1 ? "" : "s"} ready to send (unsent, with an email address).`
+              : "No unsent recipients with an email address."
+          }
+          actions={
+            <form action={sendOffer}>
+              <Button
+                type="submit"
+                variant="primary"
+                pendingLabel="Sending…"
+                disabled={sendable === 0 || items.length === 0}
+                icon={<MailIcon size={14} />}
+              >
+                Send to {sendable}
+              </Button>
+            </form>
+          }
+        />
+      </div>
     </div>
+  );
+}
+
+/** A section heading with its count beside it, as the page always showed. */
+function SectionCount({ title, n }: { title: string; n: number }) {
+  return (
+    <>
+      {title} <span className="tabular font-normal text-meta">{formatCount(n)}</span>
+    </>
   );
 }

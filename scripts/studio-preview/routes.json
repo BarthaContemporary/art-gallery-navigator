@@ -1,0 +1,380 @@
+{
+  "baseUrl": "http://localhost:3011",
+  "notes": "One entry per page.tsx under apps/studio/src/app (40), plus variants that show a different state of the same page. Ids come from fixtures/generate.mjs, which derives them from counters, so they stay put when it is rerun. adminOnly: the page refuses or redirects any other role. session false: shot signed out (the middleware sends a signed-in user from /login to the dashboard). redirectsTo: the page is a redirect by design.",
+  "routes": [
+    {
+      "name": "dashboard",
+      "path": "/",
+      "area": "shell",
+      "page": "(app)/page.tsx"
+    },
+    {
+      "name": "analytics",
+      "path": "/analytics",
+      "area": "shell",
+      "page": "(app)/analytics/page.tsx"
+    },
+    {
+      "name": "admin",
+      "path": "/admin",
+      "area": "shell",
+      "page": "(app)/admin/page.tsx"
+    },
+    {
+      "name": "admin-data-protection",
+      "path": "/admin/data-protection",
+      "area": "shell",
+      "page": "(app)/admin/data-protection/page.tsx",
+      "adminOnly": true
+    },
+    {
+      "name": "admin-duplicates",
+      "path": "/admin/duplicates",
+      "area": "shell",
+      "page": "(app)/admin/duplicates/page.tsx"
+    },
+    {
+      "name": "account",
+      "path": "/account",
+      "area": "shell",
+      "page": "(app)/account/page.tsx",
+      "redirectsTo": "/admin"
+    },
+    {
+      "name": "settings",
+      "path": "/settings",
+      "area": "shell",
+      "page": "(app)/settings/page.tsx",
+      "redirectsTo": "/admin"
+    },
+    {
+      "name": "connectivity",
+      "path": "/connectivity",
+      "area": "shell",
+      "page": "(app)/connectivity/page.tsx"
+    },
+    {
+      "name": "migration",
+      "path": "/migration",
+      "area": "shell",
+      "page": "(app)/migration/page.tsx",
+      "adminOnly": true
+    },
+    {
+      "name": "login",
+      "path": "/login",
+      "area": "shell",
+      "page": "login/page.tsx",
+      "session": false
+    },
+    {
+      "name": "set-password",
+      "path": "/set-password",
+      "area": "shell",
+      "page": "set-password/page.tsx",
+      "session": false
+    },
+    {
+      "name": "inventory",
+      "path": "/inventory",
+      "area": "inventory",
+      "page": "(app)/inventory/page.tsx"
+    },
+    {
+      "name": "inventory-new",
+      "path": "/inventory/new",
+      "area": "inventory",
+      "page": "(app)/inventory/new/page.tsx"
+    },
+    {
+      "name": "inventory-lists",
+      "path": "/inventory/lists",
+      "area": "inventory",
+      "page": "(app)/inventory/lists/page.tsx"
+    },
+    {
+      "name": "inventory-list-full",
+      "path": "/inventory/lists/11570000-0001-4000-8000-115700000000",
+      "area": "inventory",
+      "page": "(app)/inventory/lists/[id]/page.tsx",
+      "variant": "static list, 64 works"
+    },
+    {
+      "name": "inventory-list-empty",
+      "path": "/inventory/lists/11570000-0004-4000-8000-115700000000",
+      "area": "inventory",
+      "page": "(app)/inventory/lists/[id]/page.tsx",
+      "variant": "static list, no works"
+    },
+    {
+      "name": "inventory-list-live",
+      "path": "/inventory/lists/11570000-0005-4000-8000-115700000000",
+      "area": "inventory",
+      "page": "(app)/inventory/lists/[id]/page.tsx",
+      "variant": "live list (all tantric paintings)"
+    },
+    {
+      "name": "library",
+      "path": "/library",
+      "area": "inventory",
+      "page": "(app)/library/page.tsx"
+    },
+    {
+      "name": "inventory-trash",
+      "path": "/inventory/trash",
+      "area": "inventory",
+      "page": "(app)/inventory/trash/page.tsx"
+    },
+    {
+      "name": "record",
+      "path": "/inventory/2019-0001",
+      "area": "record",
+      "page": "(app)/inventory/[stockNumber]/page.tsx",
+      "variant": "five images"
+    },
+    {
+      "name": "record-no-images",
+      "path": "/inventory/2025-0003",
+      "area": "record",
+      "page": "(app)/inventory/[stockNumber]/page.tsx",
+      "variant": "no images"
+    },
+    {
+      "name": "record-external",
+      "path": "/inventory/X-2026-0001",
+      "area": "record",
+      "page": "(app)/inventory/[stockNumber]/page.tsx",
+      "variant": "Not JvdB register"
+    },
+    {
+      "name": "record-sold-loss",
+      "path": "/inventory/2023-0010",
+      "area": "record",
+      "page": "(app)/inventory/[stockNumber]/page.tsx",
+      "variant": "sold below cost (negative margin)"
+    },
+    {
+      "name": "record-edit",
+      "path": "/inventory/2019-0001/edit",
+      "area": "record",
+      "page": "(app)/inventory/[stockNumber]/edit/page.tsx"
+    },
+    {
+      "name": "record-edit-external",
+      "path": "/inventory/X-2026-0001/edit",
+      "area": "record",
+      "page": "(app)/inventory/[stockNumber]/edit/page.tsx",
+      "variant": "Not JvdB register"
+    },
+    {
+      "name": "record-images",
+      "path": "/inventory/2019-0001/images",
+      "area": "record",
+      "page": "(app)/inventory/[stockNumber]/images/page.tsx",
+      "variant": "five images"
+    },
+    {
+      "name": "record-images-empty",
+      "path": "/inventory/2025-0003/images",
+      "area": "record",
+      "page": "(app)/inventory/[stockNumber]/images/page.tsx",
+      "variant": "no images"
+    },
+    {
+      "name": "crm-contacts",
+      "path": "/crm/contacts",
+      "area": "crm",
+      "page": "(app)/crm/contacts/page.tsx"
+    },
+    {
+      "name": "crm-contact",
+      "path": "/crm/contacts/c0c70000-0001-4000-8000-c0c700000000",
+      "area": "crm",
+      "page": "(app)/crm/contacts/[id]/page.tsx",
+      "variant": "buyer with enquiries and an offer reply"
+    },
+    {
+      "name": "crm-contact-sanctions",
+      "path": "/crm/contacts/c0c70000-00a9-4000-8000-c0c700000000",
+      "area": "crm",
+      "page": "(app)/crm/contacts/[id]/page.tsx",
+      "variant": "sanctions potential match"
+    },
+    {
+      "name": "crm-contact-data",
+      "path": "/crm/contacts/c0c70000-0001-4000-8000-c0c700000000/data",
+      "area": "crm",
+      "page": "(app)/crm/contacts/[id]/data/page.tsx"
+    },
+    {
+      "name": "crm-contacts-import",
+      "path": "/crm/contacts/import",
+      "area": "crm",
+      "page": "(app)/crm/contacts/import/page.tsx"
+    },
+    {
+      "name": "crm-lists",
+      "path": "/crm/lists",
+      "area": "crm",
+      "page": "(app)/crm/lists/page.tsx"
+    },
+    {
+      "name": "crm-list",
+      "path": "/crm/lists/c1570000-0002-4000-8000-c15700000000",
+      "area": "crm",
+      "page": "(app)/crm/lists/[id]/page.tsx",
+      "variant": "static list, 85 contacts"
+    },
+    {
+      "name": "crm-campaigns",
+      "path": "/crm/campaigns",
+      "area": "crm",
+      "page": "(app)/crm/campaigns/page.tsx"
+    },
+    {
+      "name": "crm-campaign-partial",
+      "path": "/crm/campaigns/ca3a0000-0002-4000-8000-ca3a00000000",
+      "area": "crm",
+      "page": "(app)/crm/campaigns/[id]/page.tsx",
+      "variant": "part-sent"
+    },
+    {
+      "name": "crm-campaign-sent",
+      "path": "/crm/campaigns/ca3a0000-0001-4000-8000-ca3a00000000",
+      "area": "crm",
+      "page": "(app)/crm/campaigns/[id]/page.tsx",
+      "variant": "sent, with tracking"
+    },
+    {
+      "name": "crm-campaign-draft",
+      "path": "/crm/campaigns/ca3a0000-0003-4000-8000-ca3a00000000",
+      "area": "crm",
+      "page": "(app)/crm/campaigns/[id]/page.tsx",
+      "variant": "draft"
+    },
+    {
+      "name": "offers",
+      "path": "/offers",
+      "area": "crm",
+      "page": "(app)/offers/page.tsx"
+    },
+    {
+      "name": "offer",
+      "path": "/offers/0ffe0000-0001-4000-8000-0ffe00000000",
+      "area": "crm",
+      "page": "(app)/offers/[id]/page.tsx",
+      "variant": "sent, one reply, one refused send"
+    },
+    {
+      "name": "offer-expired",
+      "path": "/offers/0ffe0000-0002-4000-8000-0ffe00000000",
+      "area": "crm",
+      "page": "(app)/offers/[id]/page.tsx",
+      "variant": "expired"
+    },
+    {
+      "name": "stock-book",
+      "path": "/stock-book",
+      "area": "ops",
+      "page": "(app)/stock-book/page.tsx",
+      "adminOnly": true,
+      "variant": "all schemes"
+    },
+    {
+      "name": "stock-book-margin",
+      "path": "/stock-book?scheme=margin",
+      "area": "ops",
+      "page": "(app)/stock-book/page.tsx",
+      "adminOnly": true,
+      "variant": "margin scheme"
+    },
+    {
+      "name": "stock-book-standard",
+      "path": "/stock-book?scheme=standard",
+      "area": "ops",
+      "page": "(app)/stock-book/page.tsx",
+      "adminOnly": true,
+      "variant": "standard rated"
+    },
+    {
+      "name": "stock-book-zero-rated",
+      "path": "/stock-book?scheme=zero_rated",
+      "area": "ops",
+      "page": "(app)/stock-book/page.tsx",
+      "adminOnly": true,
+      "variant": "zero rated"
+    },
+    {
+      "name": "stock-book-outside-scope",
+      "path": "/stock-book?scheme=outside_scope",
+      "area": "ops",
+      "page": "(app)/stock-book/page.tsx",
+      "adminOnly": true,
+      "variant": "outside scope"
+    },
+    {
+      "name": "appointments",
+      "path": "/appointments",
+      "area": "ops",
+      "page": "(app)/appointments/page.tsx"
+    },
+    {
+      "name": "shipments",
+      "path": "/shipments",
+      "area": "ops",
+      "page": "(app)/shipments/page.tsx"
+    },
+    {
+      "name": "shipment",
+      "path": "/shipments/5a1b0000-0001-4000-8000-5a1b00000000",
+      "area": "ops",
+      "page": "(app)/shipments/[id]/page.tsx",
+      "variant": "import, 12 works"
+    },
+    {
+      "name": "documents",
+      "path": "/documents",
+      "area": "ops",
+      "page": "(app)/documents/page.tsx"
+    },
+    {
+      "name": "document",
+      "path": "/documents/d0c50000-0001-4000-8000-d0c500000000",
+      "area": "ops",
+      "page": "(app)/documents/[id]/page.tsx",
+      "variant": "invoice linked to nine works"
+    },
+    {
+      "name": "makers",
+      "path": "/makers",
+      "area": "ops",
+      "page": "(app)/makers/page.tsx"
+    },
+    {
+      "name": "maker",
+      "path": "/makers/3a6e0000-0001-4000-8000-3a6e00000000",
+      "area": "ops",
+      "page": "(app)/makers/[id]/page.tsx",
+      "variant": "portrait and profile"
+    },
+    {
+      "name": "locations",
+      "path": "/locations",
+      "area": "ops",
+      "page": "(app)/locations/page.tsx"
+    },
+    {
+      "name": "categories",
+      "path": "/categories",
+      "area": "ops",
+      "page": "(app)/categories/page.tsx"
+    },
+    {
+      "name": "ui-kit",
+      "path": "/ui-kit",
+      "area": "ui-kit",
+      "page": "(dev)/ui-kit/page.tsx",
+      "variant": "dev-only component reference (notFound in production)"
+    }
+  ]
+}

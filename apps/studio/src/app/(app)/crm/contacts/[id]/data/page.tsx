@@ -3,6 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { buildContactExport } from "@/lib/contact-export";
 import { formatDateTime } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { ArrowLeftIcon, DownloadIcon, PrintIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "Personal data" };
 
@@ -27,67 +31,85 @@ export default async function ContactDataPage({ params }: { params: Promise<{ id
     if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T/.test(v)) return formatDateTime(v, "numeric", { seconds: true });
     return String(v);
   };
-  const Section = ({ title, rows }: { title: string; rows: Record<string, unknown>[] }) => (
-    <section className="mt-6 break-inside-avoid">
-      <h2 className="text-[13px] font-semibold text-ink-strong">{title}</h2>
+  // Each record as label-value pairs. Not the shared Section component: that
+  // name is the container below.
+  const DataSection = ({ title, rows }: { title: string; rows: Record<string, unknown>[] }) => (
+    <Section title={title} className="break-inside-avoid">
       {rows.length === 0 ? (
-        <p className="mt-1 text-[12.5px] text-ink-soft">None held.</p>
+        <p className="text-[13px] leading-[1.45] text-body">None held.</p>
       ) : (
-        <div className="mt-2 space-y-2">
+        <div className="space-y-2">
           {rows.map((r, i) => (
-            <dl key={i} className="grid grid-cols-[180px_1fr] gap-x-4 gap-y-0.5 rounded-lg border border-line-soft px-3 py-2 text-[12.5px]">
+            <dl
+              key={i}
+              className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)] gap-x-4 gap-y-1 border border-rule px-3 py-2 text-[13px] leading-[1.45] sm:grid-cols-[180px_minmax(0,1fr)]"
+            >
               {Object.entries(r)
                 .filter(([, v]) => v !== undefined)
                 .map(([k, v]) => (
                   <div key={k} className="contents">
-                    <dt className="text-ink-soft">{k.replace(/_/g, " ")}</dt>
-                    <dd className="text-ink-body">{fmt(v)}</dd>
+                    <dt className="text-meta">{k.replace(/_/g, " ")}</dt>
+                    <dd className="break-words text-ink">{fmt(v)}</dd>
                   </div>
                 ))}
             </dl>
           ))}
         </div>
       )}
-    </section>
+    </Section>
   );
 
   return (
-    <div className="max-w-[900px]">
-      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <Link href={`/crm/contacts/${id}`} className="text-[12.5px] text-ink-soft">
-          ← {name}
-        </Link>
-        <div className="flex gap-2">
-          <a href={`/api/crm/contacts/${id}/export`} className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid">
-            Download JSON
-          </a>
-          <PrintButton />
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      {/* The back link and the actions stay off the printed copy, so the
+          person receives the record and nothing of the studio around it.
+          PageHeader's own back link cannot be hidden in print, hence this
+          one above it. */}
+      <Link
+        href={`/crm/contacts/${id}`}
+        className="mb-1 inline-flex items-center gap-1 text-[12px] leading-[1.4] text-meta hover:text-ink print:hidden"
+      >
+        <ArrowLeftIcon size={14} />
+        {name}
+      </Link>
+      <PageHeader
+        title={`Personal data held about ${name}`}
+        meta={`Prepared ${formatDateTime(data.exported_at, "numeric", { seconds: true })}`}
+        actions={
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <ButtonLink href={`/api/crm/contacts/${id}/export`} native icon={<DownloadIcon size={14} />}>
+              Download JSON
+            </ButtonLink>
+            <PrintButton />
+          </div>
+        }
+      >
+        <div className="max-w-[var(--jvb-measure)] space-y-2 text-[13px] leading-[1.45] text-body">
+          <p>
+            This is the complete record held in the gallery system, for a subject access request under Article 15 UK
+            GDPR.
+          </p>
+          {data.legal_holds.length > 0 ? (
+            <p>Records we must keep by law: {data.legal_holds.join("; ")}.</p>
+          ) : null}
         </div>
+      </PageHeader>
+      <div className="space-y-6">
+        <DataSection title="Contact details" rows={[data.contact]} />
+        <DataSection title="Marketing consent" rows={[data.consent]} />
+        <DataSection title="Notes of contact with the gallery" rows={data.interactions} />
+        <DataSection title="Mailing lists" rows={data.lists.length ? [{ lists: data.lists }] : []} />
+        <DataSection title="Newsletters received" rows={data.newsletters} />
+        <DataSection title="Private offers" rows={data.offers} />
+        <DataSection title="Private offer page views" rows={data.offer_views} />
+        <DataSection title="Enquiries" rows={data.enquiries} />
+        <DataSection title="Appointments" rows={data.appointments} />
+        <DataSection title="Purchases from the gallery" rows={data.purchases} />
+        <DataSection title="Sales to the gallery" rows={data.sales_to_gallery} />
+        <DataSection title="Consignments" rows={data.consignments} />
+        <DataSection title="Anti-money-laundering checks" rows={data.aml} />
+        <DataSection title="Previous data-protection requests" rows={data.requests} />
       </div>
-      <h1 className="mt-3 text-[22px] font-semibold text-ink-strong">Personal data held about {name}</h1>
-      <p className="mt-1 text-[12.5px] text-ink-muted">
-        Prepared {formatDateTime(data.exported_at, "numeric", { seconds: true })}. This is the complete record held in the gallery system,
-        for a subject access request under Article 15 UK GDPR.
-      </p>
-      {data.legal_holds.length > 0 ? (
-        <p className="mt-2 text-[12.5px] text-ink-body">
-          Records we must keep by law: {data.legal_holds.join("; ")}.
-        </p>
-      ) : null}
-      <Section title="Contact details" rows={[data.contact]} />
-      <Section title="Marketing consent" rows={[data.consent]} />
-      <Section title="Notes of contact with the gallery" rows={data.interactions} />
-      <Section title="Mailing lists" rows={data.lists.length ? [{ lists: data.lists }] : []} />
-      <Section title="Newsletters received" rows={data.newsletters} />
-      <Section title="Private offers" rows={data.offers} />
-      <Section title="Private offer page views" rows={data.offer_views} />
-      <Section title="Enquiries" rows={data.enquiries} />
-      <Section title="Appointments" rows={data.appointments} />
-      <Section title="Purchases from the gallery" rows={data.purchases} />
-      <Section title="Sales to the gallery" rows={data.sales_to_gallery} />
-      <Section title="Consignments" rows={data.consignments} />
-      <Section title="Anti-money-laundering checks" rows={data.aml} />
-      <Section title="Previous data-protection requests" rows={data.requests} />
     </div>
   );
 }
@@ -95,9 +117,9 @@ export default async function ContactDataPage({ params }: { params: Promise<{ id
 function PrintButton() {
   return (
     <form action="javascript:window.print()">
-      <button type="submit" className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg">
-        Print / save as PDF
-      </button>
+      <Button type="submit" variant="primary" icon={<PrintIcon size={14} />}>
+        Print or save as PDF
+      </Button>
     </form>
   );
 }

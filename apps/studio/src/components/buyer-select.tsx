@@ -2,20 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import { STATUS_LABELS } from "@/components/status-pill";
+import { Button } from "@/components/ui/button";
+import { CloseIcon } from "@/components/ui/icons";
 
 type Result = { id: string; name: string; email: string | null };
-
-const input =
-  "w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
 
 // Mirrors the status options in piece-form.tsx.
 const STATUSES = Object.keys(STATUS_LABELS);
 const label = (s: string) => STATUS_LABELS[s] ?? s.replace(/_/g, " ");
 
 export function BuyerSelect({
+  id: inputId,
   initialId,
   initialName,
 }: {
+  /** For the search box, so the form's "Buyer" label names it. */
+  id?: string;
   initialId?: string | null;
   initialName?: string | null;
 }) {
@@ -138,49 +140,50 @@ export function BuyerSelect({
 
       {id && !searching ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 border border-line-control px-2.5 py-0.5 text-[12px] text-ink-body">
+          <span className="inline-flex min-h-[var(--jvb-control-h-sm)] items-center gap-1 border border-rule-strong pl-2.5 text-[13px] text-ink">
             {name || "Selected contact"}
-            <button type="button" onClick={clear} aria-label="Clear buyer" className="text-ink-muted hover:text-accent-deep">
-              ×
-            </button>
+            <Button variant="quiet" size="sm" iconOnly label="Clear buyer" onClick={clear}>
+              <CloseIcon size={14} />
+            </Button>
           </span>
-          <button type="button" onClick={() => setSearching(true)} className="text-[12px] text-accent-deep">
-            change
+          <button type="button" onClick={() => setSearching(true)} className="link text-[12px]">
+            Change
           </button>
         </div>
       ) : (
         <div>
           <input
+            id={inputId}
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search CRM contacts…"
-            className={input}
+            className="field"
           />
           {loading ? (
-            <p className="mt-1 text-[12px] text-ink-muted">Searching…</p>
+            <p className="mt-1 text-[12px] text-meta">Searching…</p>
           ) : results.length > 0 ? (
-            <ul className="mt-1 divide-y divide-line-control overflow-hidden rounded-lg border border-line-control">
+            <ul data-inset-focus className="mt-1 divide-y divide-rule overflow-hidden border border-rule-strong">
               {results.map((r) => (
                 <li key={r.id}>
                   <button
                     type="button"
                     onClick={() => pick(r)}
-                    className="flex w-full flex-col items-start px-3 py-2 text-left text-[13.5px] text-ink-body hover:bg-control"
+                    className="flex w-full flex-col items-start px-3 py-2 text-left text-[13px] text-ink hover:bg-band"
                   >
                     <span>{r.name}</span>
-                    {r.email ? <span className="text-[12px] text-ink-muted">{r.email}</span> : null}
+                    {r.email ? <span className="text-[12px] text-body">{r.email}</span> : null}
                   </button>
                 </li>
               ))}
             </ul>
           ) : q.trim().length >= 2 ? (
-            <p className="mt-1 text-[12px] text-ink-muted">No matches.</p>
+            <p className="mt-1 text-[12px] text-meta">No matches.</p>
           ) : null}
           {id ? (
-            <button type="button" onClick={() => setSearching(false)} className="mt-1 text-[12px] text-ink-muted hover:text-accent-deep">
-              cancel
-            </button>
+            <Button variant="quiet" size="sm" onClick={() => setSearching(false)} className="mt-1 -ml-1.5">
+              Cancel
+            </Button>
           ) : null}
         </div>
       )}
@@ -188,48 +191,44 @@ export function BuyerSelect({
       {prompt ? (
         <div
           className="jvb-scrim-enter fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "var(--jvb-bg-overlay)", backdropFilter: "blur(2px)" }}
+          style={{ background: "var(--jvb-scrim)" }}
           role="dialog"
           aria-modal="true"
           onClick={(e) => {
             if (e.target === e.currentTarget) setPrompt(null);
           }}
         >
-          <div className="jvb-pop-enter w-full max-w-sm border border-line bg-cell p-5 shadow-xl">
-            <h2 className="text-[15px] font-semibold text-ink-strong">Update the status?</h2>
-            <p className="mt-1.5 text-[13px] text-ink-muted">
+          <div
+            className="jvb-pop-enter w-full max-w-sm border border-rule-strong bg-page p-5"
+            style={{ boxShadow: "var(--jvb-shadow-pop)" }}
+          >
+            <h2 className="text-[14.5px] font-semibold leading-[1.45] text-ink">Update the status?</h2>
+            <p className="mt-1.5 text-[13px] leading-[1.45] text-body">
               This work has a buyer but its status is “{label(prompt.current)}”. Would you like to
               change it?
             </p>
-            <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-              New status
+            <div className="mt-4 flex flex-col gap-1">
+              <label htmlFor="buyer-new-status" className="label">
+                New status
+              </label>
               <select
+                id="buyer-new-status"
                 value={chosen}
                 onChange={(e) => setChosen(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] capitalize text-ink-body"
+                className="field"
               >
                 {STATUSES.map((s) => (
-                  <option key={s} value={s} className="capitalize">
+                  <option key={s} value={s}>
                     {label(s)}
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
             <div className="mt-5 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPrompt(null)}
-                className="rounded-lg border border-line-control bg-control px-3.5 py-2 text-[12.5px] font-medium text-ink-mid"
-              >
-                Leave unchanged
-              </button>
-              <button
-                type="button"
-                onClick={applyStatus}
-                className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg"
-              >
+              <Button onClick={() => setPrompt(null)}>Leave unchanged</Button>
+              <Button variant="primary" onClick={applyStatus}>
                 Update status
-              </button>
+              </Button>
             </div>
           </div>
         </div>

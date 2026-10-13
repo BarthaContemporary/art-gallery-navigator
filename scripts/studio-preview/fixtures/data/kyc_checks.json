@@ -1,0 +1,12 @@
+[
+ {
+  "id": "c4c10000-0001-4000-8000-c4c100000000",
+  "profile_id": "c4c00000-0001-4000-8000-c4c000000000",
+  "check_type": "identity",
+  "provider": "Manual",
+  "provider_check_id": null,
+  "result": "pass",
+  "raw_result": null,
+  "checked_at": "2021-04-22T10:00:00.000Z"
+ }
+]

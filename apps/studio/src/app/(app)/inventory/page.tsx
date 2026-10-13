@@ -1,4 +1,3 @@
-import { SaveToDriveLink } from "@/components/save-to-drive";
 import { signedThumbnail, THUMB_WIDTH } from "@/lib/thumbnails";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -6,13 +5,22 @@ import { getSupabase } from "@/lib/supabase";
 import { InventoryTable, type InventoryRow } from "@/components/inventory-table";
 import { NewRecordButton } from "@/components/new-record-button";
 import { InventoryFilters } from "@/components/inventory-filters";
+import { ExportMenu } from "@/components/export-menu";
 import { STATUS_LABELS } from "@/components/status-pill";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
+import { FlashNotice, Notice } from "@/components/ui/notice";
+import { Panel } from "@/components/ui/section";
+import { chipClass } from "@/components/ui/chips";
+import { CloseIcon, FlagIcon } from "@/components/ui/icons";
+import { formatCount } from "@/lib/format";
 import { createDraftPiece } from "./actions";
 import { applyFacet, parseFacet } from "@/lib/facet";
 import {
   FLAG_FILTERS,
   SCREEN_ORDER,
   applyFlagFilters,
+  applyWebFilter,
   inventoryOrder,
   resolveInventoryIds,
   selectInventoryRows,
@@ -33,6 +41,8 @@ type Search = {
   loan?: string;
   needs?: string;
   nopurchase?: string;
+  /** "on" = only works on the website, "off" = only works not on it. */
+  web?: string;
   page?: string;
   sort?: string;
   dir?: string;
@@ -118,6 +128,7 @@ export default async function InventoryPage({
     ledger: "jvb" | "external";
     primary_image_id: string | null;
     needs_completion: boolean | null;
+    web_visible: boolean | null;
   };
 
   let rows: ListRow[] = [];
@@ -156,6 +167,7 @@ export default async function InventoryPage({
     query = applyFacet(query, "category_id", sp.category, { nullable: true });
     query = applyFacet(query, "location_id", sp.location, { nullable: true });
     query = applyFlagFilters(query, sp);
+    query = applyWebFilter(query, sp.web);
 
     const res = await query;
     rows = (res.data ?? []) as ListRow[];
@@ -208,84 +220,57 @@ export default async function InventoryPage({
     ...FLAG_FILTERS.filter(([param]) => sp[param]).map(([, , label]) => label),
     ...(sp.flagged ? ["Flagged only"] : []),
     ...(sp.list ? ["List filter"] : []),
+    ...(sp.web === "on" || sp.web === "off" ? ["Website filter"] : []),
   ];
 
+  // "1–100 of 869". A page past the end (an old link) shows the total alone.
+  const first = (page - 1) * PAGE_SIZE + 1;
+  const range =
+    total === 0
+      ? "No records"
+      : rows.length === 0
+        ? `${formatCount(total)} ${total === 1 ? "record" : "records"}`
+        : `${formatCount(first)}–${formatCount(first + rows.length - 1)} of ${formatCount(total)}`;
+
   return (
-    <div className="jvb-content-enter">
-      {sp.error ? (
-        <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
-          {sp.error}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <div className="flex items-center gap-2">
-          <Link
-            href={
-              sp.flagged
-                ? qs({ ...sp, flagged: undefined, page: undefined }) || "/inventory"
-                : qs({ ...sp, flagged: "1", page: undefined })
-            }
-            title={sp.flagged ? "Show everything again" : "Show only the works you have flagged"}
-            className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
-              sp.flagged ? "border-warn text-warn" : "border-line-control bg-control text-ink-mid"
-            }`}
-          >
-            ⚑ Flagged{flaggedIds.size > 0 ? ` (${flaggedIds.size})` : ""}
-          </Link>
-          {/* Each pill toggles its own flag and keeps every other filter, like
-              the Flagged pill beside it (it used to reset the whole URL). */}
-          {FLAG_FILTERS.map(([param, , label]) => (
-            <Link
-              key={param}
-              href={qs({ ...sp, [param]: sp[param] ? undefined : "1", page: undefined }) || "/inventory"}
-              className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
-                sp[param] ? "border-oranje text-accent-deep" : "border-line-control bg-control text-ink-mid"
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
-          <Link
-            href="/inventory/lists"
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
-          >
-            Lists
-          </Link>
-          <Link
-            href="/inventory/trash"
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
-          >
-            Trash
-          </Link>
-          <SaveToDriveLink
-            href={`/api/export/inventory.csv${qs(sp)}`}
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
-          >
-            Export CSV
-          </SaveToDriveLink>
-          <SaveToDriveLink
-            href={`/api/export/inventory.docx${qs(sp)}`}
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
-          >
-            Export DOCX
-          </SaveToDriveLink>
-          <SaveToDriveLink
-            href={`/api/export/inventory.xlsx${qs(sp)}`}
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
-          >
-            Export XLSX
-          </SaveToDriveLink>
-          {/* One rule wherever this button appears, rather than one that
-              depends on the filter behind it: tap for JvdB stock, hold to
-              switch it to a non-JvdB record. */}
-          <NewRecordButton action={createDraftPiece} />
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="Inventory"
+        meta={`${formatCount(total)} ${total === 1 ? "record" : "records"}`}
+        actions={
+          <>
+            <ButtonLink href="/inventory/lists" variant="quiet">
+              Lists
+            </ButtonLink>
+            <ButtonLink href="/inventory/trash" variant="quiet">
+              Trash
+            </ButtonLink>
+            {/* The exports are exactly the rows on screen, in the screen's
+                order (lib/inventory-query), so the button says how many. */}
+            <ExportMenu
+              count={total}
+              items={[
+                { href: `/api/export/inventory.csv${qs(sp)}`, label: "CSV" },
+                { href: `/api/export/inventory.docx${qs(sp)}`, label: "Word (DOCX)" },
+                { href: `/api/export/inventory.xlsx${qs(sp)}`, label: "Excel (XLSX)" },
+              ]}
+            />
+            {/* One rule wherever this button appears, rather than one that
+                depends on the filter behind it: tap for JvdB stock, hold to
+                switch it to a non-JvdB record. */}
+            <NewRecordButton action={createDraftPiece} className={buttonClass({ variant: "primary" })} />
+          </>
+        }
+      />
+
+      <FlashNotice searchParams={sp} className="mb-4" />
 
       <InventoryFilters
         categories={(categories ?? []).map((c) => ({ id: c.id, name: c.name }))}
         locations={(locations ?? []).map((l) => ({ id: l.id, name: l.name ?? l.code }))}
         lists={(pieceLists ?? []).map((l) => ({ id: l.id, name: l.name }))}
+        flags={FLAG_FILTERS.map(([param, , label]) => ({ param, label }))}
+        flaggedCount={flaggedIds.size}
       />
 
       {(() => {
@@ -298,7 +283,7 @@ export default async function InventoryPage({
         const locMatch = (locations ?? []).find((l) => l.id === fLoc?.value);
         const locName = locMatch?.name ?? locMatch?.code;
         const listName = (pieceLists ?? []).find((l) => l.id === sp.list)?.name;
-        const chips: Array<{ key: keyof Search; label: string }> = [];
+        const chips: Array<{ key: keyof Search; label: string; flag?: boolean }> = [];
         if (q) chips.push({ key: "q", label: `“${q}”` });
         if (sp.ledger === "external") chips.push({ key: "ledger", label: "Not JvdB" });
         else if (sp.ledger === "all") chips.push({ key: "ledger", label: "Both registers" });
@@ -310,88 +295,88 @@ export default async function InventoryPage({
         if (fCat && catName) chips.push({ key: "category", label: not(fCat, catName) });
         if (fLoc && locName) chips.push({ key: "location", label: not(fLoc, locName) });
         if (sp.list && listName) chips.push({ key: "list", label: `List: ${listName}` });
-        if (sp.flagged) chips.push({ key: "flagged", label: "⚑ Flagged only" });
+        if (sp.web === "on") chips.push({ key: "web", label: "On website" });
+        else if (sp.web === "off") chips.push({ key: "web", label: "Not on website" });
+        if (sp.flagged) chips.push({ key: "flagged", label: "Flagged only", flag: true });
         for (const [param, , label] of FLAG_FILTERS) {
           if (sp[param]) chips.push({ key: param, label });
         }
         if (chips.length === 0) return null;
         return (
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label="Active filters" role="group">
             {chips.map((chip) => (
-              <a
+              <Link
                 key={chip.key}
                 href={qs({ ...sp, [chip.key]: undefined, page: undefined }) || "/inventory"}
-                className="inline-flex items-center gap-1.5 border border-line-control bg-control px-2.5 py-1 text-[11.5px] text-ink-mid hover:text-ink-strong"
-                title={`Remove ${chip.key} filter`}
+                className={chipClass()}
+                aria-label={`Remove filter: ${chip.label}`}
+                title="Remove this filter"
               >
+                {chip.flag ? <FlagIcon size={14} className="text-warn" /> : null}
                 {chip.label}
-                <span aria-hidden className="text-ink-faint">
-                  ×
-                </span>
-              </a>
+                <CloseIcon size={14} className="text-meta" />
+              </Link>
             ))}
-            <a
-              href="/inventory"
-              className="px-1.5 text-[11.5px] text-ink-soft underline hover:text-ink-strong"
-            >
+            <ButtonLink href="/inventory" variant="quiet" size="sm">
               Clear all
-            </a>
+            </ButtonLink>
           </div>
         );
       })()}
 
       {q || sp.status || sp.category || sp.location || sp.ledger ? (
-        <form
-          action={saveAsList}
-          className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-line-soft bg-control/40 px-3 py-2"
-        >
-          <input type="hidden" name="q" value={q ?? ""} />
-          <input type="hidden" name="status" value={sp.status ?? ""} />
-          <input type="hidden" name="category" value={sp.category ?? ""} />
-          <input type="hidden" name="location" value={sp.location ?? ""} />
-          <input type="hidden" name="ledger" value={sp.ledger ?? ""} />
-          <span className="text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
-            Save these filters as a live list
-          </span>
-          <input
-            name="name"
-            required
-            placeholder="e.g. Everything at the fair"
-            className="w-56 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px]"
-          />
-          <button
-            type="submit"
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
-          >
-            Save as list
-          </button>
-          <span className="text-[11px] text-ink-soft">
-            Membership stays live — it re-runs these filters each time you open it.
-          </span>
-          {/* A live list keeps the search, register and facets only, so say
-              which of the screen's filters it will not carry rather than
-              quietly saving a wider list than the one on screen. */}
-          {notSaved.length > 0 ? (
-            <span className="text-[11px] text-warn">
-              Not saved in a live list: {notSaved.join(", ")}.
-            </span>
-          ) : null}
-        </form>
+        <Panel className="mt-3">
+          <form action={saveAsList}>
+            <input type="hidden" name="q" value={q ?? ""} />
+            <input type="hidden" name="status" value={sp.status ?? ""} />
+            <input type="hidden" name="category" value={sp.category ?? ""} />
+            <input type="hidden" name="location" value={sp.location ?? ""} />
+            <input type="hidden" name="ledger" value={sp.ledger ?? ""} />
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="flex min-w-0 flex-col gap-1">
+                <label htmlFor="live-list-name" className="label">
+                  Save these filters as a live list
+                </label>
+                <input
+                  id="live-list-name"
+                  name="name"
+                  required
+                  placeholder="e.g. Everything at the fair"
+                  className="field field-sm w-64 max-w-full"
+                />
+              </div>
+              <Button type="submit" size="sm" pendingLabel="Saving…">
+                Save as list
+              </Button>
+            </div>
+            <p className="mt-2 text-[12px] leading-[1.4] text-meta">
+              Membership stays live: the list re-runs these filters each time you open it.
+            </p>
+            {/* A live list keeps the search, register and facets only, so say
+                which of the screen's filters it will not carry rather than
+                quietly saving a wider list than the one on screen. */}
+            {notSaved.length > 0 ? (
+              <p className="mt-1 text-[12px] leading-[1.4] text-warn">
+                Not saved in a live list: {notSaved.join(", ")}.
+              </p>
+            ) : null}
+          </form>
+        </Panel>
       ) : null}
 
       {/* Paging sits above the results as well as below: on a full page of 100
           records, reaching the bottom pager means scrolling past everything you
           have already decided you don't want. */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint">
-          {total.toLocaleString("en-GB")} records · page {page} of {pages}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
+        <p className="tabular text-[12px] leading-[1.4] text-meta">
+          {range}
           {searching ? (
             order ? (
               <>
                 {" · "}
                 <Link
                   href={qs({ ...sp, sort: undefined, dir: undefined, page: undefined })}
-                  className="underline hover:text-ink-strong"
+                  className="link"
                 >
                   Rank by relevance
                 </Link>
@@ -407,9 +392,11 @@ export default async function InventoryPage({
       </div>
 
       {error ? (
-        <p className="mt-4 text-[13px] text-ink-body">Could not load inventory: {error.message}</p>
+        <Notice tone="danger" className="mt-3">
+          Could not load the inventory: {error.message}
+        </Notice>
       ) : (
-        <div className="mt-3">
+        <div className="mt-2">
           <InventoryTable
             rows={(rows ?? []).map(
               (r): InventoryRow => ({
@@ -428,6 +415,7 @@ export default async function InventoryPage({
                 ledger: r.ledger,
                 needs_completion: Boolean(r.needs_completion),
                 flagged: flaggedIds.has(r.id),
+                web_visible: Boolean(r.web_visible),
               }),
             )}
             flagTotal={flaggedIds.size}
@@ -471,17 +459,14 @@ function Pager({
 }) {
   if (pages <= 1) return null;
   return (
-    <nav
-      aria-label={label}
-      className={`flex items-center gap-1.5 font-mono text-[12px] text-ink-muted ${className}`}
-    >
-      <PageLink sp={sp} page={1} disabled={page === 1} label="« First" />
-      <PageLink sp={sp} page={page - 1} disabled={page === 1} label="‹ Prev" />
-      <span className="px-2">
-        {page} / {pages}
+    <nav aria-label={label} className={`flex flex-wrap items-center gap-1.5 ${className}`}>
+      <PageLink sp={sp} page={1} disabled={page === 1} label="First" />
+      <PageLink sp={sp} page={page - 1} disabled={page === 1} label="Previous" />
+      <span className="tabular px-1.5 text-[12px] text-meta">
+        Page {page} of {pages}
       </span>
-      <PageLink sp={sp} page={page + 1} disabled={page === pages} label="Next ›" />
-      <PageLink sp={sp} page={pages} disabled={page === pages} label="Last »" />
+      <PageLink sp={sp} page={page + 1} disabled={page === pages} label="Next" />
+      <PageLink sp={sp} page={pages} disabled={page === pages} label="Last" />
     </nav>
   );
 }
@@ -497,22 +482,12 @@ function PageLink({
   disabled: boolean;
   label: string;
 }) {
-  if (disabled) {
-    return (
-      <span className="rounded-lg border border-line-soft px-2.5 py-1 text-ink-faint opacity-50">
-        {label}
-      </span>
-    );
-  }
   const params = new URLSearchParams(strip(sp));
   params.set("page", String(page));
   return (
-    <Link
-      href={`?${params.toString()}`}
-      className="rounded-lg border border-line-control px-2.5 py-1 hover:bg-control"
-    >
+    <ButtonLink href={`?${params.toString()}`} size="sm" disabled={disabled}>
       {label}
-    </Link>
+    </ButtonLink>
   );
 }
 

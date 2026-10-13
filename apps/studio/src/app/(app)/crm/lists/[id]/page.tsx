@@ -6,6 +6,14 @@ import { getSupabase } from "@/lib/supabase";
 import { LabelPdfButton } from "@/components/label-pdf-button";
 import { loadListContacts, isDynamic, describeRules } from "@/lib/crm-list-members";
 import { ConfirmDelete } from "./confirm-delete";
+import { formatCount } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button, buttonClass } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Notice } from "@/components/ui/notice";
+import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
+import { PlusIcon, SearchIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "List" };
 
@@ -30,9 +38,6 @@ async function isInterestList(
     .maybeSingle();
   return Boolean(data);
 }
-
-const btnGhost =
-  "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid";
 
 export default async function ListDetail({
   params,
@@ -109,129 +114,160 @@ export default async function ListDetail({
 
   const nameOf = (c: { first_name: string | null; last_name: string | null }) =>
     [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed";
+  const n = members.length;
 
   return (
-    <div className="max-w-[820px]">
-      <Link href="/crm/lists" className="text-[12.5px] text-ink-soft">
-        ← All lists
-      </Link>
-      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
-        <div>
-          <h1 className="text-[24px] font-semibold text-ink-strong">{list.name}</h1>
-          {list.description ? (
-            <p className="mt-0.5 text-[12.5px] text-ink-muted">{list.description}</p>
-          ) : null}
-        </div>
-        <p className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
-          {members.length} member{members.length === 1 ? "" : "s"}
-        </p>
-      </div>
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <PageHeader
+        back={{ href: "/crm/lists", label: "All lists" }}
+        title={list.name}
+        meta={
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+            {dynamic ? <Badge tone="info">Live</Badge> : autoList ? <Badge>Interest</Badge> : null}
+            <span className="tabular">
+              {formatCount(n)} member{n === 1 ? "" : "s"}
+            </span>
+          </span>
+        }
+        actions={
+          <>
+            <LabelPdfButton listId={id} className={buttonClass({ size: "sm" })} />
+            <SaveToDriveLink href={`/api/export/contacts.vcf?list=${id}`} className={buttonClass({ size: "sm" })}>
+              vCards
+            </SaveToDriveLink>
+          </>
+        }
+      >
+        {list.description ? (
+          <p className="max-w-[var(--jvb-measure)] text-[13px] leading-[1.45] text-body">{list.description}</p>
+        ) : null}
+      </PageHeader>
 
-      <div className="mt-4 flex flex-wrap gap-3 text-[12px]">
-        <LabelPdfButton listId={id} className="font-medium text-primary" />
-        <SaveToDriveLink href={`/api/export/contacts.vcf?list=${id}`} className="font-medium text-primary">
-          vCards
-        </SaveToDriveLink>
-      </div>
-
-      {/* Members */}
-      <div className="mt-4 overflow-x-auto border border-line">
-        <table className="w-full min-w-[520px] bg-cell text-left text-[13px]">
-          <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              <th className="px-4 py-2.5 font-medium">Contact</th>
-              <th className="px-4 py-2.5 font-medium">Email</th>
-              <th className="px-4 py-2.5 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((m) => (
-              <tr key={m.id} className="border-b border-line-soft last:border-0">
-                <td className="px-4 py-2 text-ink-body">
-                  <Link href={`/crm/contacts/${m.id}`} className="hover:text-ink-strong">
-                    {nameOf(m)}
-                  </Link>
-                </td>
-                <td className="px-4 py-2 text-ink-muted">{m.email ?? "—"}</td>
-                <td className="px-4 py-2 text-right">
-                  {/* Membership is computed on a dynamic list, so there is
-                      nothing to remove — change the rules instead. */}
+      <div className="space-y-6">
+        <Section title="Members">
+          {/* relative: the frame contains the sr-only head words, which
+              otherwise sit outside the scroll and widen a phone page. */}
+          <TableFrame className="relative">
+            <Table className="min-w-[520px]">
+              <thead>
+                <tr>
+                  <Th>Contact</Th>
+                  <Th>Email</Th>
                   {dynamic ? null : (
-                    <form action={removeMember}>
-                      <input type="hidden" name="contact_id" value={m.id} />
-                      <button type="submit" className="text-[12px] text-ink-soft hover:text-ink-strong">
-                        Remove
-                      </button>
-                    </form>
+                    <Th className="w-24">
+                      <span className="sr-only">Actions</span>
+                    </Th>
                   )}
-                </td>
-              </tr>
-            ))}
-            {members.length === 0 ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-ink-muted">
-                  {dynamic
-                    ? "No contacts match this list's rules."
-                    : "No members yet — search below to add contacts."}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((m) => (
+                  <Tr key={m.id}>
+                    <Td>
+                      <Link href={`/crm/contacts/${m.id}`} className="link-plain font-medium text-ink">
+                        {nameOf(m)}
+                      </Link>
+                    </Td>
+                    <Td className="text-body">{m.email ?? "—"}</Td>
+                    {/* Membership is computed on a dynamic list, so there is
+                        nothing to remove: change the rules instead. */}
+                    {dynamic ? null : (
+                      <Td className="py-0 text-right">
+                        <form action={removeMember}>
+                          <input type="hidden" name="contact_id" value={m.id} />
+                          <Button
+                            type="submit"
+                            variant="quiet"
+                            size="sm"
+                            pendingLabel="Removing…"
+                            aria-label={`Remove ${nameOf(m)} from this list`}
+                          >
+                            Remove
+                          </Button>
+                        </form>
+                      </Td>
+                    )}
+                  </Tr>
+                ))}
+                {n === 0 ? (
+                  <EmptyRow colSpan={dynamic ? 2 : 3}>
+                    {dynamic
+                      ? "No contacts match this list’s rules."
+                      : "No members yet. Search above to add contacts."}
+                  </EmptyRow>
+                ) : null}
+              </tbody>
+            </Table>
+          </TableFrame>
+        </Section>
 
-      {/* Add members — curated lists only. */}
-      {dynamic ? (
-        <p className="mt-4 max-w-prose text-[12.5px] text-ink-muted">
-          This is a live list: it holds <strong>{describeRules(list)}</strong> and updates
-          itself as contacts are added, changed or removed. There is nothing to add or
-          remove by hand.
-        </p>
-      ) : (
-      <>
-      <form method="get" className="mt-4 flex items-center gap-2">
-        <input
-          type="search"
-          name="q"
-          defaultValue={term}
-          placeholder="Search contacts by name or email…"
-          className="w-72 rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
-        />
-        <button type="submit" className={btnGhost}>
-          Search
-        </button>
-      </form>
-      {term ? (
-        <div className="mt-2 space-y-1">
-          {results.map((c) => (
-            <form
-              key={c.id}
-              action={addMember}
-              className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2"
-            >
-              <input type="hidden" name="contact_id" value={c.id} />
-              <span className="text-[13px] text-ink-body">
-                {nameOf(c)}
-                <span className="ml-2 text-[12px] text-ink-soft">{c.email ?? "no email"}</span>
-              </span>
-              <button type="submit" className={btnGhost}>
-                Add
-              </button>
+        {/* Add members: curated lists only. */}
+        {dynamic ? (
+          <Notice tone="info">
+            This is a live list: it holds <strong className="font-semibold text-ink">{describeRules(list)}</strong> and
+            updates itself as contacts are added, changed or removed. There is nothing to add or remove by hand.
+          </Notice>
+        ) : (
+          <Section title="Add members">
+            <form method="get" role="search" className="flex flex-wrap items-end gap-2">
+              <div className="flex w-full min-w-0 max-w-md flex-col gap-1">
+                <label htmlFor="list-member-search" className="label">
+                  Find contacts to add
+                </label>
+                <input
+                  id="list-member-search"
+                  type="search"
+                  name="q"
+                  defaultValue={term}
+                  placeholder="Name or email"
+                  className="field"
+                />
+              </div>
+              <Button type="submit" icon={<SearchIcon size={14} />}>
+                Search
+              </Button>
             </form>
-          ))}
-          {results.length === 0 ? (
-            <p className="text-[12.5px] text-ink-muted">No matches (or already members).</p>
-          ) : null}
-        </div>
-      ) : null}
-      </>
-      )}
+            {term ? (
+              results.length > 0 ? (
+                <ul className="mt-3 border-t border-rule">
+                  {results.map((c) => (
+                    <li key={c.id} className="border-b border-rule">
+                      <form action={addMember} className="flex items-center justify-between gap-3 py-2">
+                        <input type="hidden" name="contact_id" value={c.id} />
+                        <span className="min-w-0 text-[13px] leading-[1.45] text-ink">
+                          {nameOf(c)}
+                          <span className="ml-2 text-[12px] text-meta">{c.email ?? "no email"}</span>
+                        </span>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          pendingLabel="Adding…"
+                          icon={<PlusIcon size={14} />}
+                          aria-label={`Add ${nameOf(c)}`}
+                        >
+                          Add
+                        </Button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-[13px] leading-[1.45] text-body">
+                  No contacts match “{term}” who are not already on the list.
+                </p>
+              )
+            ) : null}
+          </Section>
+        )}
 
-      {autoList ? null : (
-        <form action={deleteList} className="mt-8">
-          <ConfirmDelete name={list.name} />
-        </form>
-      )}
+        {autoList ? null : (
+          <Section title="Delete list">
+            <form action={deleteList}>
+              <ConfirmDelete name={list.name} />
+            </form>
+          </Section>
+        )}
+      </div>
     </div>
   );
 }

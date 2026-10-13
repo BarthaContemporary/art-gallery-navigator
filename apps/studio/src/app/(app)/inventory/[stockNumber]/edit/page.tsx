@@ -5,15 +5,18 @@ import { revalidatePath } from "next/cache";
 import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
 import { PieceFormFields } from "@/components/piece-form";
 import { DocumentsPanel } from "@/components/documents-panel";
-import { EditHeader } from "@/components/edit-header";
+import { EditHeader, EditHeaderFields, EditHeaderProvider } from "@/components/edit-header";
 import { AutosaveForm } from "@/components/autosave-form";
-import { EditSectionRail } from "@/components/edit-section-rail";
+import { EditorSaveRoot, FormSaveReporter } from "@/components/editor-save";
 import { LegacyRecordPanel } from "@/components/legacy-record-panel";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { ConsignmentPanel } from "@/components/consignment-panel";
 import { ImportVatFields } from "@/components/import-vat-fields";
 import { EditFinancialsProvider, type EditFinancialsState } from "@/components/edit-financials-context";
 import { resolvePiece, type PieceRef } from "@/lib/piece-store";
+import { formatDate } from "@/lib/format";
+import { Button } from "@/components/ui/button";
+import { Section } from "@/components/ui/section";
 
 export const metadata = { title: "Edit record" };
 
@@ -283,234 +286,264 @@ export default async function EditPiecePage({
     importVatGbp: numOr0(fin?.import_vat_gbp),
   };
 
+  const enc = encodeURIComponent(stockNumber);
+  // "12 Oct 2026 · ref · → France": how a linked shipment reads here.
+  const shipmentText = (
+    sh: { shipment_date: string | null; reference: string | null; destination_country: string | null },
+    withCountry: boolean,
+  ) =>
+    `${sh.shipment_date ? formatDate(sh.shipment_date, "short") : "No date"}${sh.reference ? ` · ${sh.reference}` : ""}${
+      withCountry && sh.destination_country ? ` · → ${sh.destination_country}` : ""
+    }`;
+  const rowClass = "flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-rule py-2 first:border-t-0";
+
   return (
     <EditFinancialsProvider initial={initialFinState}>
-    <div>
-      <AutosaveForm
-        endpoint={`/api/inventory/${encodeURIComponent(stockNumber)}`}
-        doneHref={`/inventory/${encodeURIComponent(stockNumber)}`}
-      >
-        <EditHeader
-          thumbUrl={thumbUrl}
-          stockNumber={piece.stock_number}
-          title={piece.title ?? null}
-          year={piece.year ?? null}
-          legacyStock={piece.legacy_stock_number ?? null}
-          legacyConflict={Boolean(piece.legacy_stock_number_conflict)}
-          ledger={store.ledger}
-          imageCount={imageCount.count ?? 0}
-          webVisible={Boolean(piece.web_visible)}
-          needsCompletion={Boolean(piece.needs_completion)}
-        />
-        <EditSectionRail />
-        <div className="mt-6">
-          <PieceFormFields
-            piece={piece}
-            financials={financials.data}
-            makers={(makers.data ?? []).map((m) => ({
-            id: m.id,
-            label: m.life_dates ? `${m.display_name} (${m.life_dates})` : m.display_name,
-          }))}
-            categories={categoryOptions}
-            locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
-            originRegions={originOptions}
-            showFinancials={showFinancials}
-            buyerName={buyerName}
-            squareGuess={squareGuess}
-          />
-        </div>
-      </AutosaveForm>
+      <EditHeaderProvider webVisible={Boolean(piece.web_visible)} needsCompletion={Boolean(piece.needs_completion)}>
+        {/* One save line and Done for every autosaving part of the page, and a
+            section rail over all of it (W14). */}
+        <EditorSaveRoot
+          doneHref={`/inventory/${enc}`}
+          header={
+            <EditHeader
+              thumbUrl={thumbUrl}
+              stockNumber={piece.stock_number}
+              title={piece.title ?? null}
+              year={piece.year ?? null}
+              legacyStock={piece.legacy_stock_number ?? null}
+              legacyConflict={Boolean(piece.legacy_stock_number_conflict)}
+              ledger={store.ledger}
+              imageCount={imageCount.count ?? 0}
+            />
+          }
+        >
+          <AutosaveForm endpoint={`/api/inventory/${encodeURIComponent(stockNumber)}`} what="the record">
+            <EditHeaderFields />
+            <PieceFormFields
+              piece={piece}
+              financials={financials.data}
+              makers={(makers.data ?? []).map((m) => ({
+                id: m.id,
+                label: m.life_dates ? `${m.display_name} (${m.life_dates})` : m.display_name,
+              }))}
+              categories={categoryOptions}
+              locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
+              originRegions={originOptions}
+              showFinancials={showFinancials}
+              buyerName={buyerName}
+              squareGuess={squareGuess}
+            />
+          </AutosaveForm>
 
-      {/* Import / export shipments */}
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {(["import", "export"] as const).map((kind) => {
-          const current = shipmentByKind.get(kind);
-          const opts = shipmentOptions.filter((s) => s.kind === kind);
-          return (
-            <section key={kind} className="border border-line bg-cell p-5">
-              <h2 className="text-[13px] font-semibold capitalize text-ink-strong">{kind} shipment</h2>
-              {current ? (
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <Link href={`/shipments/${current.id}`} className="text-[13px] text-ink-body hover:text-accent-deep">
-                    {current.shipment_date ? new Date(current.shipment_date).toLocaleDateString("en-GB") : "No date"}
-                    {current.reference ? ` · ${current.reference}` : ""}
-                    {kind === "export" && current.destination_country ? ` · → ${current.destination_country}` : ""}
-                  </Link>
-                  <form action={unlinkShipment}>
-                    <input type="hidden" name="kind" value={kind} />
-                    <button className="text-[12px] text-ink-soft hover:text-ink-strong">Unlink</button>
-                  </form>
-                </div>
-              ) : (
-                <p className="mt-2 text-[12.5px] text-ink-muted">Not linked to an {kind}.</p>
-              )}
-              <form action={linkShipment} className="mt-3 flex items-center gap-2">
-                <input type="hidden" name="kind" value={kind} />
-                <select name="shipment_id" defaultValue="" required className="flex-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body">
-                  <option value="" disabled>Link to an existing {kind}…</option>
-                  {opts.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.shipment_date ? new Date(s.shipment_date).toLocaleDateString("en-GB") : "No date"}
-                      {s.reference ? ` · ${s.reference}` : ""}
-                    </option>
+          <div className="mt-8 space-y-8">
+            {/* Import / export shipments */}
+            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+              {(["import", "export"] as const).map((kind) => {
+                const current = shipmentByKind.get(kind);
+                const opts = shipmentOptions.filter((s) => s.kind === kind);
+                return (
+                  <Section key={kind} title={kind === "import" ? "Import shipment" : "Export shipment"}>
+                    {current ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <Link href={`/shipments/${current.id}`} className="link-plain text-[13px] text-ink">
+                          {shipmentText(current, kind === "export")}
+                        </Link>
+                        <form action={unlinkShipment}>
+                          <input type="hidden" name="kind" value={kind} />
+                          <FormSaveReporter source={`shipment-${kind}-unlink`} />
+                          <Button type="submit" variant="quiet" size="sm" pendingLabel="Unlinking…">
+                            Unlink
+                          </Button>
+                        </form>
+                      </div>
+                    ) : (
+                      <p className="text-[13px] text-meta">Not linked to an {kind}.</p>
+                    )}
+                    <form action={linkShipment} className="mt-3 flex flex-col gap-1">
+                      <input type="hidden" name="kind" value={kind} />
+                      <FormSaveReporter source={`shipment-${kind}-link`} />
+                      <label htmlFor={`link-${kind}`} className="label">
+                        {current ? `Link to another ${kind}` : `Link to an ${kind}`}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <select id={`link-${kind}`} name="shipment_id" defaultValue="" required className="field min-w-0 flex-1">
+                          <option value="" disabled>Choose an existing {kind}…</option>
+                          {opts.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {shipmentText(s, false)}
+                            </option>
+                          ))}
+                        </select>
+                        <Button type="submit" pendingLabel="Linking…">Link</Button>
+                      </div>
+                    </form>
+                    <Link href="/shipments" className="link mt-2 inline-block text-[12px]">
+                      Manage shipments →
+                    </Link>
+                    {kind === "import" && showFinancials ? (
+                      <ImportVatFields
+                        stockNumber={piece.stock_number}
+                        initial={{
+                          importType: (fin?.import_type as string) ?? "",
+                          importVatGbp: fin?.import_vat_gbp != null ? String(fin.import_vat_gbp) : "",
+                        }}
+                      />
+                    ) : null}
+                  </Section>
+                );
+              })}
+            </div>
+
+            {/* Temporary imports / exports, half width like the panels above */}
+            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+              {/* Temporary imports: many per piece (e.g. a UK exhibition or fair) */}
+              <Section
+                title="Temporary imports"
+                meta="Goods brought in temporarily, for example for a UK exhibition or fair."
+              >
+                <div>
+                  {tempImports.map((t) => (
+                    <div key={t.shipment!.id} className={rowClass}>
+                      <Link href={`/shipments/${t.shipment!.id}`} className="link-plain text-[13px] text-ink">
+                        In {shipmentText(t.shipment!, false)}
+                      </Link>
+                      <form action={unlinkTempImport}>
+                        <input type="hidden" name="shipment_id" value={t.shipment!.id} />
+                        <FormSaveReporter source={`temp-import-${t.shipment!.id}`} />
+                        <Button type="submit" variant="quiet" size="sm" pendingLabel="Removing…">
+                          Remove
+                        </Button>
+                      </form>
+                    </div>
                   ))}
-                </select>
-                <button className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid">Link</button>
-              </form>
-              <Link href="/shipments" className="mt-2 inline-block text-[11.5px] text-accent-deep hover:underline">
-                Manage shipments →
-              </Link>
-              {kind === "import" && showFinancials ? (
-                <ImportVatFields
-                  stockNumber={piece.stock_number}
-                  initial={{
-                    importType: (fin?.import_type as string) ?? "",
-                    importVatGbp: fin?.import_vat_gbp != null ? String(fin.import_vat_gbp) : "",
-                  }}
-                />
-              ) : null}
-            </section>
-          );
-        })}
-      </div>
-
-      {/* Temporary imports / exports — half-width like the import/export panels */}
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-      {/* Temporary imports — many per piece (e.g. a UK exhibition/fair) */}
-      <section className="border border-line bg-cell p-5">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Temporary imports</h2>
-        <p className="mt-0.5 text-[12px] text-ink-muted">
-          Goods brought in temporarily (e.g. for a UK exhibition or fair).
-        </p>
-        <div className="mt-3 space-y-1.5">
-          {tempImports.map((t) => (
-            <div key={t.shipment!.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2 text-[12.5px]">
-              <Link href={`/shipments/${t.shipment!.id}`} className="text-ink-body hover:text-accent-deep">
-                In {t.shipment!.shipment_date ? new Date(t.shipment!.shipment_date).toLocaleDateString("en-GB") : "—"}
-                {t.shipment!.reference ? ` · ${t.shipment!.reference}` : ""}
-              </Link>
-              <form action={unlinkTempImport}>
-                <input type="hidden" name="shipment_id" value={t.shipment!.id} />
-                <button className="text-[11.5px] text-ink-soft hover:text-ink-strong">Remove</button>
-              </form>
-            </div>
-          ))}
-          {tempImports.length === 0 ? <p className="text-[12.5px] text-ink-muted">Not on any temporary import.</p> : null}
-        </div>
-        <form action={linkTempImport} className="mt-3 flex items-center gap-2">
-          <select name="shipment_id" defaultValue="" required className="flex-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body">
-            <option value="" disabled>Link to a temporary import…</option>
-            {shipmentOptions.filter((s) => s.kind === "temporary_import").map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.shipment_date ? new Date(s.shipment_date).toLocaleDateString("en-GB") : "No date"}
-                {s.reference ? ` · ${s.reference}` : ""}
-              </option>
-            ))}
-          </select>
-          <button className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid">Link</button>
-        </form>
-        <Link href="/shipments?kind=temporary_import" className="mt-2 inline-block text-[11.5px] text-accent-deep hover:underline">
-          Manage temporary imports →
-        </Link>
-      </section>
-
-      {/* Temporary exports (carnets) — many per piece, chronological */}
-      <section className="border border-line bg-cell p-5">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Temporary exports</h2>
-        <p className="mt-0.5 text-[12px] text-ink-muted">
-          Exhibition / fair loans abroad. A work can be on several over time.
-        </p>
-        <div className="mt-3 space-y-1.5">
-          {tempExports.map((t) => (
-            <div key={t.shipment!.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2 text-[12.5px]">
-              <Link href={`/shipments/${t.shipment!.id}`} className="text-ink-body hover:text-accent-deep">
-                Out {t.shipment!.shipment_date ? new Date(t.shipment!.shipment_date).toLocaleDateString("en-GB") : "—"}
-                {t.shipment!.reference ? ` · ${t.shipment!.reference}` : ""}
-                {t.shipment!.destination_country ? ` · → ${t.shipment!.destination_country}` : ""}
-              </Link>
-              <div className="flex items-center gap-2">
-                {t.returned_at ? (
-                  <span className="text-[11.5px] text-status-green">Returned {new Date(t.returned_at).toLocaleDateString("en-GB")}</span>
-                ) : t.closed_reason ? (
-                  <span className="text-[11.5px] text-ink-soft">Not returned · {t.closed_reason.replace(/_/g, " ")}</span>
-                ) : (
-                  <form action={returnTempExport} className="flex items-center gap-1">
-                    <input type="hidden" name="shipment_id" value={t.shipment!.id} />
-                    <input type="date" name="return_date" required className="rounded-md border border-line-control bg-control px-2 py-1 text-[11.5px]" />
-                    <button className="text-[11.5px] font-medium text-[var(--jvb-ink-desc)]">Returned</button>
-                  </form>
-                )}
-                <form action={unlinkTempExport}>
-                  <input type="hidden" name="shipment_id" value={t.shipment!.id} />
-                  <button className="text-[11.5px] text-ink-soft hover:text-ink-strong">Remove</button>
+                  {tempImports.length === 0 ? <p className="text-[13px] text-meta">Not on any temporary import.</p> : null}
+                </div>
+                <form action={linkTempImport} className="mt-3 flex flex-col gap-1">
+                  <FormSaveReporter source="temp-import-link" />
+                  <label htmlFor="link-temp-import" className="label">
+                    Link to a temporary import
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select id="link-temp-import" name="shipment_id" defaultValue="" required className="field min-w-0 flex-1">
+                      <option value="" disabled>Choose a temporary import…</option>
+                      {shipmentOptions.filter((s) => s.kind === "temporary_import").map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {shipmentText(s, false)}
+                        </option>
+                      ))}
+                    </select>
+                    <Button type="submit" pendingLabel="Linking…">Link</Button>
+                  </div>
                 </form>
-              </div>
+                <Link href="/shipments?kind=temporary_import" className="link mt-2 inline-block text-[12px]">
+                  Manage temporary imports →
+                </Link>
+              </Section>
+
+              {/* Temporary exports (carnets): many per piece, newest first */}
+              <Section
+                title="Temporary exports"
+                meta="Exhibition and fair loans abroad. A work can be on several over time."
+              >
+                <div>
+                  {tempExports.map((t) => (
+                    <div key={t.shipment!.id} className={rowClass}>
+                      <Link href={`/shipments/${t.shipment!.id}`} className="link-plain text-[13px] text-ink">
+                        Out {shipmentText(t.shipment!, true)}
+                      </Link>
+                      <div className="flex flex-wrap items-end gap-2">
+                        {t.returned_at ? (
+                          <span className="text-[12px] text-ok">Returned {formatDate(t.returned_at, "short")}</span>
+                        ) : t.closed_reason ? (
+                          <span className="text-[12px] text-meta">Not returned · {t.closed_reason.replace(/_/g, " ")}</span>
+                        ) : (
+                          <form action={returnTempExport} className="flex items-end gap-1.5">
+                            <input type="hidden" name="shipment_id" value={t.shipment!.id} />
+                            <FormSaveReporter source={`temp-export-return-${t.shipment!.id}`} />
+                            <div className="flex flex-col gap-1">
+                              <label htmlFor={`return-${t.shipment!.id}`} className="label">
+                                Returned on
+                              </label>
+                              <input
+                                id={`return-${t.shipment!.id}`}
+                                type="date"
+                                name="return_date"
+                                required
+                                className="field field-sm w-[150px]"
+                              />
+                            </div>
+                            <Button type="submit" size="sm" pendingLabel="Saving…">Returned</Button>
+                          </form>
+                        )}
+                        <form action={unlinkTempExport}>
+                          <input type="hidden" name="shipment_id" value={t.shipment!.id} />
+                          <FormSaveReporter source={`temp-export-${t.shipment!.id}`} />
+                          <Button type="submit" variant="quiet" size="sm" pendingLabel="Removing…">
+                            Remove
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
+                  ))}
+                  {tempExports.length === 0 ? <p className="text-[13px] text-meta">Not on any temporary export.</p> : null}
+                </div>
+                <form action={linkTempExport} className="mt-3 flex flex-col gap-1">
+                  <FormSaveReporter source="temp-export-link" />
+                  <label htmlFor="link-temp-export" className="label">
+                    Link to a temporary export
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select id="link-temp-export" name="shipment_id" defaultValue="" required className="field min-w-0 flex-1">
+                      <option value="" disabled>Choose a temporary export…</option>
+                      {shipmentOptions.filter((s) => s.kind === "temporary_export").map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {shipmentText(s, false)}
+                        </option>
+                      ))}
+                    </select>
+                    <Button type="submit" pendingLabel="Linking…">Link</Button>
+                  </div>
+                </form>
+                <Link href="/shipments?kind=temporary_export" className="link mt-2 inline-block text-[12px]">
+                  Manage temporary exports →
+                </Link>
+              </Section>
             </div>
-          ))}
-          {tempExports.length === 0 ? <p className="text-[12.5px] text-ink-muted">Not on any temporary export.</p> : null}
-        </div>
-        <form action={linkTempExport} className="mt-3 flex items-center gap-2">
-          <select name="shipment_id" defaultValue="" required className="flex-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body">
-            <option value="" disabled>Link to a temporary export…</option>
-            {shipmentOptions.filter((s) => s.kind === "temporary_export").map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.shipment_date ? new Date(s.shipment_date).toLocaleDateString("en-GB") : "No date"}
-                {s.reference ? ` · ${s.reference}` : ""}
-              </option>
-            ))}
-          </select>
-          <button className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid">Link</button>
-        </form>
-        <Link href="/shipments?kind=temporary_export" className="mt-2 inline-block text-[11.5px] text-accent-deep hover:underline">
-          Manage temporary exports →
-        </Link>
-      </section>
-      </div>
 
-      {/* Consignment — after temporary exports; own autosaving panel */}
-      <ConsignmentPanel
-        stockNumber={piece.stock_number}
-        initial={{
-          coOwner: (piece.shares_note as string | null) ?? "",
-          coOwnerContactId: (piece.consignee_contact_id as string | null) ?? "",
-          notes: (piece.consignment_details as string | null) ?? "",
-          sharePct:
-            piece.consignment_share_pct != null ? String(piece.consignment_share_pct) : "",
-          saleHandled:
-            piece.sale_handled_by_jvb === true ? "yes" : piece.sale_handled_by_jvb === false ? "no" : "",
-        }}
-        settlement={
-          showFinancials
-            ? {
-                soldGbp: (financials.data?.sold_price_gbp as number | null) ?? null,
-                totalCostGbp: (financials.data?.total_cost_gbp as number | null) ?? null,
-                vatTreatment: (financials.data?.vat_treatment as string | null) ?? "margin_scheme",
+            {/* Consignment: after temporary exports; its own autosaving panel */}
+            <ConsignmentPanel
+              stockNumber={piece.stock_number}
+              initial={{
+                coOwner: (piece.shares_note as string | null) ?? "",
+                coOwnerContactId: (piece.consignee_contact_id as string | null) ?? "",
+                notes: (piece.consignment_details as string | null) ?? "",
+                sharePct:
+                  piece.consignment_share_pct != null ? String(piece.consignment_share_pct) : "",
+                saleHandled:
+                  piece.sale_handled_by_jvb === true ? "yes" : piece.sale_handled_by_jvb === false ? "no" : "",
+              }}
+              settlement={
+                showFinancials
+                  ? {
+                      soldGbp: (financials.data?.sold_price_gbp as number | null) ?? null,
+                      totalCostGbp: (financials.data?.total_cost_gbp as number | null) ?? null,
+                      vatTreatment: (financials.data?.vat_treatment as string | null) ?? "margin_scheme",
+                    }
+                  : null
               }
-            : null
-        }
-      />
+            />
 
-      <div className="mt-6">
-        <DocumentsPanel pieceId={piece.id} initial={pieceDocs} />
-      </div>
+            <DocumentsPanel pieceId={piece.id} initial={pieceDocs} />
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border border-line-soft bg-band px-4 py-3">
-        <div>
-          <p className="text-[13px] font-medium text-ink-strong">Delete this record</p>
-          <p className="text-[12px] text-body">
-            Moves it to the trash for 30 days — you can reinstate it until then.
-          </p>
-        </div>
-        <DeleteListButton action={deletePiece} id={piece.id} name={piece.stock_number} />
-      </div>
+            <Section title="Delete this record" meta="Moves it to the trash for 30 days. You can reinstate it until then.">
+              <DeleteListButton action={deletePiece} id={piece.id} name={piece.stock_number} />
+            </Section>
 
-      {/* Original FileMaker record — kept at the bottom of the page */}
-      {showFinancials ? (
-        <div className="mt-8">
-          <LegacyRecordPanel pieceId={piece.id} />
-        </div>
-      ) : null}
-    </div>
+            {/* Original FileMaker record: kept at the bottom of the page */}
+            {showFinancials ? <LegacyRecordPanel pieceId={piece.id} /> : null}
+          </div>
+        </EditorSaveRoot>
+      </EditHeaderProvider>
     </EditFinancialsProvider>
   );
 }

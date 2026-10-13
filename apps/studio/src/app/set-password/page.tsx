@@ -4,6 +4,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
 import { PASSWORD_MIN } from "@/lib/auth-rules";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Notice } from "@/components/ui/notice";
 
 type Phase = "loading" | "ready" | "invalid" | "saving" | "done";
 
@@ -67,62 +70,68 @@ export default function SetPasswordPage() {
     setTimeout(() => router.push("/login"), 1500);
   }
 
+  // Native inputs in the .field look under Field (ids passed to both), so
+  // the ui:guard baseline of this form stays as it was.
   return (
-    <main className="flex min-h-dvh items-center justify-center p-6">
-      <div className="w-full max-w-sm border border-line bg-cell p-8">
-        <h1 className="text-[22px] font-bold tracking-[-0.01em] text-ink-strong">
-          Set your password
-        </h1>
-        <p className="mt-1 text-[13px] text-ink-muted">Joost van den Bergh · Studio</p>
+    <main className="flex min-h-dvh items-center justify-center p-4 sm:p-6">
+      <div className="panel w-full max-w-sm p-6 sm:p-8">
+        <p className="text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-accent">Joost van den Bergh</p>
+        <h1 className="mt-4 text-title text-ink">Set your password</h1>
+        <p className="mt-1 text-[13px] text-meta">Studio</p>
 
         {phase === "loading" ? (
-          <p className="mt-6 text-[13px] text-ink-soft">Checking your link…</p>
+          <p role="status" className="mt-6 text-[13px] text-meta">
+            Checking your link…
+          </p>
         ) : phase === "invalid" ? (
-          <p className="mt-6 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
-            This link is invalid or has expired. Ask an administrator to re-send your
-            invitation.
-          </p>
+          <Notice tone="danger" className="mt-6">
+            This link is invalid or has expired. Ask an administrator to send your invitation again.
+          </Notice>
         ) : phase === "done" ? (
-          <p className="mt-6 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
-            Password set. Redirecting you to sign in…
-          </p>
+          <Notice tone="ok" className="mt-6">
+            Password set. Taking you to sign in…
+          </Notice>
         ) : (
           <form onSubmit={onSubmit} className="mt-6">
             {error ? (
-              <p className="mb-3 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
+              <Notice tone="danger" className="mb-4">
                 {error}
-              </p>
+              </Notice>
             ) : null}
-            <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-              New password
-              <input
-                name="password"
-                type="password"
-                required
-                minLength={PASSWORD_MIN}
-                autoComplete="new-password"
-                className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px]"
-              />
-            </label>
-            <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-              Confirm password
-              <input
-                name="confirm"
-                type="password"
-                required
-                minLength={PASSWORD_MIN}
-                autoComplete="new-password"
-                className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px]"
-              />
-            </label>
-            <button
+            <div className="space-y-4">
+              <Field id="set-password-new" label="New password" hint={`At least ${PASSWORD_MIN} characters.`}>
+                <input
+                  id="set-password-new"
+                  name="password"
+                  type="password"
+                  required
+                  minLength={PASSWORD_MIN}
+                  autoComplete="new-password"
+                  aria-describedby="set-password-new-hint"
+                  className="field"
+                />
+              </Field>
+              <Field id="set-password-confirm" label="Confirm password">
+                <input
+                  id="set-password-confirm"
+                  name="confirm"
+                  type="password"
+                  required
+                  minLength={PASSWORD_MIN}
+                  autoComplete="new-password"
+                  className="field"
+                />
+              </Field>
+            </div>
+            <Button
               type="submit"
-              disabled={phase === "saving"}
-              className="mt-6 w-full rounded-lg bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-fg disabled:opacity-60"
+              variant="primary"
+              className="mt-6 w-full"
+              pending={phase === "saving"}
+              pendingLabel="Saving…"
             >
-              {phase === "saving" ? "Saving…" : "Set password"}
-            </button>
-            <p className="mt-3 text-[12px] text-ink-soft">Minimum {PASSWORD_MIN} characters.</p>
+              Set password
+            </Button>
           </form>
         )}
       </div>

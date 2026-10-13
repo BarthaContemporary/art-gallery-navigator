@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
+import { ChevronRightIcon } from "@/components/ui/icons";
 
 /**
  * A collapsible section for the Inventory Lists & Docs hub. Each panel opens
  * independently, revealing its content inline instead of navigating away.
+ * Drawn as a Section (a rule-strong top edge and a heading, no box) whose
+ * heading is the toggle.
  */
 export function FoldPanel({
   title,
@@ -20,34 +23,33 @@ export function FoldPanel({
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const bodyId = useId();
   return (
-    <div className="overflow-hidden border border-line bg-cell">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-control/40"
-      >
-        <span className="flex items-baseline gap-2">
-          <span className="text-[15px] font-semibold text-ink-strong">{title}</span>
-          {count != null ? <span className="font-mono text-[12px] text-ink-soft">{count}</span> : null}
-        </span>
-        <svg
-          aria-hidden
-          width="14"
-          height="14"
-          viewBox="0 0 16 16"
-          className={`shrink-0 text-ink-soft transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+    <section className="border-t border-rule-strong">
+      <h2>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls={open ? bodyId : undefined}
+          className="flex w-full items-center justify-between gap-3 py-3 text-left"
         >
-          <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
+          <span className="flex items-baseline gap-2">
+            <span className="text-[14.5px] font-semibold leading-[1.45] text-ink">{title}</span>
+            {count != null ? <span className="tabular text-[12px] leading-[1.4] text-meta">{count}</span> : null}
+          </span>
+          <ChevronRightIcon
+            size={16}
+            className={`shrink-0 text-meta transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+          />
+        </button>
+      </h2>
       {open ? (
-        <div className="border-t border-line-soft px-5 py-4">
+        <div id={bodyId} className="pb-5">
           {action ? <div className="mb-3 flex flex-wrap items-center gap-2">{action}</div> : null}
           {children}
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }

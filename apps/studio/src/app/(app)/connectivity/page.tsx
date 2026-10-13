@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Badge, type Tone } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { CopyIcon } from "@/components/ui/icons";
 
 /**
  * Connectivity self-test — open this page ON THE MACHINE THAT HAS TROUBLE.
@@ -27,10 +32,10 @@ type Result = {
 
 const INITIAL: Result[] = [
   { name: "Studio (Vercel)", detail: "This page loaded, so this leg works.", state: "ok" },
-  { name: "Gallery server — API", detail: `${API}/auth/v1/health`, state: "pending" },
-  { name: "Gallery server — small upload (64 KB)", detail: "signed upload, direct to storage", state: "pending" },
-  { name: "Gallery server — larger upload (4 MB)", detail: "same route, real-file sized", state: "pending" },
-  { name: "Drive — reachability", detail: DRIVE, state: "pending" },
+  { name: "Gallery server: API", detail: `${API}/auth/v1/health`, state: "pending" },
+  { name: "Gallery server: small upload (64 KB)", detail: "Signed upload, direct to storage", state: "pending" },
+  { name: "Gallery server: larger upload (4 MB)", detail: "Same route, real-file sized", state: "pending" },
+  { name: "Drive: reachability", detail: DRIVE, state: "pending" },
 ];
 
 export default function ConnectivityPage() {
@@ -92,7 +97,7 @@ export default function ConnectivityPage() {
           ? { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY }
           : undefined,
       });
-      if (!res.ok) throw new Error(`reachable — server answered ${res.status}`);
+      if (!res.ok) throw new Error(`reachable: server answered ${res.status}`);
     });
     update(1, {
       // A thrown fetch = no response = genuinely unreachable. An HTTP status,
@@ -147,10 +152,10 @@ export default function ConnectivityPage() {
       (r) =>
         `${r.state === "ok" ? "OK  " : r.state === "fail" ? "FAIL" : "—   "} ${r.name}` +
         (r.ms != null ? ` (${r.ms} ms)` : "") +
-        (r.note ? ` — ${r.note}` : ""),
+        (r.note ? `: ${r.note}` : ""),
     );
     return [
-      `Connectivity report — ${new Date().toISOString()}`,
+      `Connectivity report, ${new Date().toISOString()}`,
       `Browser: ${navigator.userAgent}`,
       ...lines,
     ].join("\n");
@@ -166,66 +171,70 @@ export default function ConnectivityPage() {
     }
   }
 
-  const dot = (s: Result["state"]) =>
-    s === "ok" ? "bg-status-green" : s === "fail" ? "bg-danger" : s === "running" ? "bg-warn" : "bg-line-control";
+  // Each state in a word as well as a tone (spec R4).
+  const STATE: Record<Result["state"], { tone: Tone; word: string; hollow?: boolean }> = {
+    ok: { tone: "ok", word: "Passed" },
+    fail: { tone: "danger", word: "Failed" },
+    running: { tone: "info", word: "Testing…" },
+    pending: { tone: "neutral", word: "Not run", hollow: true },
+  };
 
   return (
-    <div className="max-w-[720px]">
-      <h1 className="text-[24px] font-semibold text-ink-strong">Connection test</h1>
-      <p className="mt-1 text-[13px] text-ink-muted">
-        Run this on the computer that is having trouble. It tests each connection this
-        computer needs, from here. If something fails, run it again on a different
-        network (e.g. an iPhone hotspot) and compare — that tells us whose network is
-        at fault.
+    <div className="max-w-[var(--jvb-measure)]">
+      <PageHeader title="Connection test" />
+      <p className="text-[13.5px] leading-[1.5] text-body">
+        Run this on the computer that is having trouble. It tests each connection this computer
+        needs, from here. If something fails, run it again on a different network (an iPhone
+        hotspot, say) and compare: that shows whose network is at fault.
       </p>
+      <Button variant="primary" className="mb-6 mt-4" onClick={() => void run()} pending={running} pendingLabel="Testing…">
+        {done ? "Run again" : "Run the test"}
+      </Button>
 
-      <button
-        type="button"
-        onClick={() => void run()}
-        disabled={running}
-        className="mt-4 rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-primary-fg disabled:opacity-60"
-      >
-        {running ? "Testing…" : done ? "Run again" : "Run the test"}
-      </button>
-
-      <ul className="mt-5 space-y-2">
-        {results.map((r) => (
-          <li
-            key={r.name}
-            className="flex flex-wrap items-center gap-2.5 rounded-lg border border-line-soft bg-cell px-3.5 py-2.5"
-          >
-            <span aria-hidden className={`h-[9px] w-[9px] shrink-0 rounded-full ${dot(r.state)}`} />
-            <span className="text-[13.5px] font-medium text-ink-body">{r.name}</span>
-            {r.ms != null ? (
-              <span className="font-mono text-[11.5px] text-ink-soft">{r.ms} ms</span>
-            ) : null}
-            <span className="w-full pl-5 text-[12px] text-ink-soft sm:w-auto sm:flex-1 sm:pl-0">
-              {r.note ?? r.detail}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <Section title="Connections">
+        <ul aria-live="polite">
+          {results.map((r) => {
+            const st = STATE[r.state];
+            return (
+              <li key={r.name} className="border-b border-rule py-2.5">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <span className="text-[13.5px] font-medium text-ink">{r.name}</span>
+                  <span className="flex items-baseline gap-3 text-[12px]">
+                    {r.ms != null ? <span className="tabular text-meta">{r.ms} ms</span> : null}
+                    <Badge variant="dot" tone={st.tone} hollow={st.hollow}>
+                      {st.word}
+                    </Badge>
+                  </span>
+                </div>
+                <p className="mt-0.5 break-words text-[12px] leading-[1.4] text-meta">{r.note ?? r.detail}</p>
+              </li>
+            );
+          })}
+        </ul>
+      </Section>
 
       {done ? (
-        <div className="mt-5">
-          <button
-            type="button"
-            onClick={() => void copy()}
-            className="rounded-lg border border-line-control bg-control px-3.5 py-2 text-[12.5px] font-medium text-ink-mid"
-          >
-            {copied ? "Copied ✓" : "Copy report"}
-          </button>
+        <Section
+          title="Report"
+          className="mt-6"
+          actions={
+            <Button size="sm" icon={<CopyIcon size={14} />} onClick={() => void copy()}>
+              {copied ? "Copied" : "Copy report"}
+            </Button>
+          }
+        >
           <textarea
             readOnly
             value={report()}
             rows={8}
-            className="mt-2 w-full rounded-lg border border-line-control bg-control p-3 font-mono text-[11.5px] text-ink-body"
+            aria-label="Connectivity report"
+            className="field tabular text-[12px] leading-[1.5]"
           />
-          <p className="mt-1.5 text-[12px] text-ink-soft">
-            Send the report (or a screenshot) to the office — and say which network you
-            were on when you ran it.
+          <p className="mt-1.5 text-[12px] leading-[1.4] text-meta">
+            Send the report (or a screenshot) to the office, and say which network you were on when
+            you ran it.
           </p>
-        </div>
+        </Section>
       ) : null}
     </div>
   );

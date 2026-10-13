@@ -5,6 +5,9 @@ import { verifyTurnstile } from "@/lib/turnstile";
 import { Turnstile } from "@/components/turnstile";
 import { PasskeyLogin } from "@/components/passkey-login";
 import { safeNextPath } from "@/lib/auth-rules";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Notice } from "@/components/ui/notice";
 
 export default async function LoginPage({
   searchParams,
@@ -41,55 +44,50 @@ export default async function LoginPage({
     redirect(back ?? "/");
   }
 
+  // Native inputs in the .field look under Field (ids passed to both), so
+  // the ui:guard baseline of this form stays as it was.
   return (
-    <main className="flex min-h-dvh items-center justify-center p-6">
-      <form
-        action={signIn}
-        className="w-full max-w-sm border border-line bg-cell p-8"
-      >
-        <h1 className="text-[22px] font-bold tracking-[-0.01em] text-ink-strong">
-          Joost van den Bergh
-        </h1>
-        <p className="mt-1 text-[13px] text-ink-muted">
-          Inventory · CRM · Website
-        </p>
+    <main className="flex min-h-dvh items-center justify-center p-4 sm:p-6">
+      <form action={signIn} className="panel w-full max-w-sm p-6 sm:p-8">
+        <p className="text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-accent">Joost van den Bergh</p>
+        <h1 className="mt-4 text-title text-ink">Sign in</h1>
+        <p className="mt-1 text-[13px] text-meta">Inventory · CRM · Website</p>
         {error ? (
-          <p className="mt-4 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
+          <Notice tone="danger" className="mt-4">
             {error}
-          </p>
+          </Notice>
         ) : null}
         <div className="mt-6">
           <PasskeyLogin next={next} />
         </div>
-        <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Email
-          <input
-            name="email"
-            type="email"
-            required
-            autoComplete="username webauthn"
-            className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink"
-          />
-        </label>
-        <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Password
-          <input
-            name="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink"
-          />
-        </label>
+        <div className="mt-4 space-y-4">
+          <Field id="login-email" label="Email">
+            <input
+              id="login-email"
+              name="email"
+              type="email"
+              required
+              autoComplete="username webauthn"
+              className="field"
+            />
+          </Field>
+          <Field id="login-password" label="Password">
+            <input
+              id="login-password"
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              className="field"
+            />
+          </Field>
+        </div>
         <Turnstile className="mt-5" />
-        <button
-          type="submit"
-          className="mt-6 w-full rounded-lg bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-fg"
-        >
+        <Button type="submit" variant="primary" className="mt-6 w-full" pendingLabel="Signing in…">
           Sign in
-        </button>
-        <p className="mt-4 text-[12px] text-ink-soft">
-          Access is invite-only. Ask an administrator for an invitation.
+        </Button>
+        <p className="mt-4 text-[12px] leading-[1.4] text-meta">
+          Access is by invitation only. Ask an administrator for an invitation.
         </p>
       </form>
     </main>

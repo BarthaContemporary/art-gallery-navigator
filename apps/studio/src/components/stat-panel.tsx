@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CountUp } from "@/components/count-up";
+import { Select } from "@/components/ui/field";
+import { Section } from "@/components/ui/section";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatCount, gbpDisplay } from "@/lib/format";
 
+// Trailing windows, as /api/dashboard/metric counts them (30, 91, 365 days).
 const PERIODS: [string, string][] = [
-  ["month", "Month"],
-  ["quarter", "Quarter"],
-  ["year", "Year"],
+  ["month", "Last 30 days"],
+  ["quarter", "Last 3 months"],
+  ["year", "Last 12 months"],
 ];
 
-/** Dashboard KPI card with a month/quarter/year selector (fetches on change). */
+/** Dashboard KPI with a period selector (fetches on change). */
 export function StatPanel({ title, metric }: { title: string; metric: string }) {
   const [period, setPeriod] = useState("month");
   const [value, setValue] = useState<number | null>(null);
@@ -43,36 +46,37 @@ export function StatPanel({ title, metric }: { title: string; metric: string }) 
   const fmt = (n: number) => (format === "gbp" ? gbpDisplay(n) : formatCount(n));
 
   return (
-    <div className="border border-line bg-cell p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-          {title} · last
-        </span>
-        <select
+    <Section
+      title={title}
+      actions={
+        <Select
+          fieldSize="sm"
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          className="rounded-md border border-line-control bg-control px-1.5 py-0.5 text-[11px] text-ink-mid"
           aria-label={`${title} period`}
+          className="w-auto"
         >
           {PERIODS.map(([v, l]) => (
             <option key={v} value={v}>
               {l}
             </option>
           ))}
-        </select>
-      </div>
-      <div className="mt-2 font-mono text-[26px] text-ink-strong">
+        </Select>
+      }
+    >
+      <div className="tabular text-[26px] font-light leading-[1.15] text-ink" aria-live="polite">
         {loading ? (
-          <span
-            className="jvb-shimmer inline-block h-[26px] w-20 rounded align-middle"
-            aria-label="Loading"
-          />
+          <Skeleton width={96} height={30} />
         ) : value == null ? (
-          "—"
+          // No figure (the request failed): the empty mark, with words for
+          // a screen reader.
+          <span title="Not available">
+            —<span className="sr-only">Not available</span>
+          </span>
         ) : (
-          <CountUp value={value} format={fmt} />
+          fmt(value)
         )}
       </div>
-    </div>
+    </Section>
   );
 }

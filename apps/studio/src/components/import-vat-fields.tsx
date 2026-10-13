@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { parseAmount } from "@/lib/amount";
 import { AmountInput } from "@/components/amount-input";
 import { useEditFinancials } from "@/components/edit-financials-context";
-
-const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const field = "mt-1.5 w-full rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[13px] text-ink";
+import { useSaveReporter } from "@/components/ui/save-status";
+import { Field } from "@/components/ui/field";
+import { useFlushForDone } from "@/components/editor-save";
 
 const TYPES: [string, string][] = [
   ["", "—"],
@@ -18,7 +18,8 @@ const TYPES: [string, string][] = [
 /**
  * Import type + import VAT for the piece, inside the Import shipment panel.
  * Autosaves to piece_financials and feeds the shared financials state (so the
- * VAT / net / margin figures update live) and the stock book.
+ * VAT / net / margin figures update live) and the stock book. Its save state
+ * goes to the editor's one status line, and Done saves it before leaving.
  */
 export function ImportVatFields({
   stockNumber,
@@ -33,6 +34,10 @@ export function ImportVatFields({
 
   const ctx = useEditFinancials();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attempt = useRef(0);
+  // An edit the server does not hold yet (waiting or failed).
+  const unsaved = useRef(false);
   const first = useRef(true);
 
   useEffect(() => {
@@ -43,20 +48,36 @@ export function ImportVatFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [importType, importVat]);
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (): Promise<boolean> => {
+    if (timer.current) clearTimeout(timer.current);
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    timer.current = null;
+    retryTimer.current = null;
     setStatus("saving");
     const body = new FormData();
     body.set("import_type", importType);
     body.set("import_vat_gbp", importType === "import_vat_paid" ? importVat : "");
+    let ok = false;
     try {
       const res = await fetch(`/api/inventory/${encodeURIComponent(stockNumber)}/import-vat`, {
         method: "PATCH",
         body,
       });
-      setStatus(res.ok ? "saved" : "error");
+      ok = res.ok;
     } catch {
-      setStatus("error");
+      ok = false;
     }
+    if (ok) {
+      attempt.current = 0;
+      unsaved.current = false;
+      setStatus("saved");
+      return true;
+    }
+    // Capped backoff, as the main form: 2s, 4s, 8s … 30s.
+    setStatus("error");
+    attempt.current += 1;
+    retryTimer.current = setTimeout(() => void save(), Math.min(2000 * 2 ** (attempt.current - 1), 30000));
+    return false;
   }, [importType, importVat, stockNumber]);
 
   useEffect(() => {
@@ -64,41 +85,58 @@ export function ImportVatFields({
       first.current = false;
       return;
     }
+    unsaved.current = true;
     setStatus("saving");
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(save, 700);
+    timer.current = setTimeout(() => void save(), 700);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
   }, [importType, importVat, save]);
+  useEffect(
+    () => () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    },
+    [],
+  );
+
+  // Into the editor's one status line, and Done's list of parts to save.
+  const report = useSaveReporter("import-vat");
+  useEffect(() => {
+    report({ state: status, what: "the import VAT", onRetry: status === "error" ? () => void save() : undefined });
+  }, [report, status, save]);
+  const flush = useCallback(() => (unsaved.current ? save() : Promise.resolve(true)), [save]);
+  useFlushForDone("import-vat", flush);
 
   return (
-    <div className="mt-3 border-t border-line-soft pt-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">Import VAT (stock book)</span>
-        <span className={`text-[10.5px] ${status === "error" ? "text-danger" : "text-ink-soft"}`}>
-          {status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "error" ? "Couldn’t save" : ""}
-        </span>
+    <div className="mt-4 border-t border-rule pt-3">
+      <p className="label">Import VAT (stock book)</p>
+      <div className="mt-2 flex flex-col gap-3">
+        <Field label="Type of import" id="import-vat-type">
+          <select id="import-vat-type" value={importType} onChange={(e) => setImportType(e.target.value)} className="field">
+            {TYPES.map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {importType === "import_vat_paid" ? (
+          <Field
+            label="Import VAT paid £"
+            id="import-vat-paid"
+            hint="Margin scheme: added to costs. Standard or zero-rated: reclaimable, noted in the stock book."
+          >
+            <AmountInput
+              id="import-vat-paid"
+              value={importVat}
+              onChange={(e) => setImportVat(e.target.value)}
+              aria-describedby="import-vat-paid-hint"
+              className="field tabular"
+            />
+          </Field>
+        ) : null}
       </div>
-      <label className={`${label} mt-2`}>
-        Type of import
-        <select value={importType} onChange={(e) => setImportType(e.target.value)} className={field}>
-          {TYPES.map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </select>
-      </label>
-      {importType === "import_vat_paid" ? (
-        <label className={`${label} mt-2`}>
-          Import VAT paid £
-          <AmountInput value={importVat} onChange={(e) => setImportVat(e.target.value)} className={field} />
-          <span className="mt-1 block text-[10px] text-ink-soft">
-            Margin scheme: added to costs. Standard / zero-rated: reclaimable — noted in the stock book.
-          </span>
-        </label>
-      ) : null}
     </div>
   );
 }

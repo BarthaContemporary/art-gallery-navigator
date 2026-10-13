@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useFormStatus } from "react-dom";
+import { PageHeader } from "./ui/page-header";
+import { Panel } from "./ui/section";
+import { Button } from "./ui/button";
+import { Field, Input, Select, Textarea } from "./ui/field";
+import { Notice } from "./ui/notice";
+import { SaveStatus } from "./ui/save-status";
+import { ChevronDownIcon, ChevronUpIcon, CloseIcon, MailIcon, PlusIcon } from "./ui/icons";
 import {
   compileNewsletter,
   type Block,
@@ -30,8 +36,6 @@ type Props = {
   sendCampaign: () => Promise<void>;
   /** sending: another run holds the send; stale/partial: it can be resumed. */
   sendState: "draft" | "sending" | "stale" | "partial";
-  /** The back link, shown left of the send controls. */
-  header?: ReactNode;
   /** The page's banner, shown under the send controls. */
   notice?: ReactNode;
 };
@@ -73,34 +77,11 @@ function blankBlock(type: Block["type"]): Block {
   }
 }
 
-const inputCls =
-  "w-full rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[13px] text-ink-body";
-const labelCls =
-  "block text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const miniBtn =
-  "rounded-md border border-line-control bg-control px-1.5 py-0.5 text-[11px] text-ink-mid hover:text-ink-strong disabled:opacity-40";
-
-/** A submit button that disables itself while its form's action runs. */
-function PendingSubmit({
-  children,
-  pendingLabel,
-  disabled = false,
-  title,
-  className,
-}: {
-  children: ReactNode;
-  pendingLabel: string;
-  disabled?: boolean;
-  title?: string;
-  className: string;
-}) {
-  const { pending } = useFormStatus();
-  return (
-    <button type="submit" disabled={pending || disabled} title={title} className={className}>
-      {pending ? pendingLabel : children}
-    </button>
-  );
-}
+/** The palette's words, for the block headings too. */
+const BLOCK_LABELS = Object.fromEntries(BLOCK_PALETTE.map((p) => [p.type, p.label])) as Record<
+  Block["type"],
+  string
+>;
 
 export function CampaignDesigner(props: Props) {
   const [name, setName] = useState(props.initialName);
@@ -263,37 +244,53 @@ export function CampaignDesigner(props: Props) {
     });
   const addBlock = (type: Block["type"]) => setBlocks((bs) => [...bs, blankBlock(type)]);
 
+  const sendLabel = busy
+    ? "Sending…"
+    : resuming
+      ? `Resume sending (${reach})`
+      : `Send to list${listId ? ` (${reach})` : ""}`;
+
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {props.header}
-        <div className="flex flex-wrap items-center gap-2">
+      <PageHeader
+        back={{ href: "/crm/campaigns", label: "All newsletters" }}
+        title={name.trim() || "Untitled newsletter"}
+        meta={busy ? "Being sent" : resuming ? "Part-sent" : "Draft"}
+      >
+        {/* Test and send: the test address on the left, the one send on the
+            right with how many it would reach. */}
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <form
             action={(formData) => afterSave(() => props.sendTest(formData))}
-            className="flex items-center gap-2"
+            className="flex flex-wrap items-end gap-2"
           >
-            <input
-              type="email"
-              name="test_email"
-              placeholder="you@gallery.com"
-              className="w-48 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px]"
-            />
-            <PendingSubmit
-              pendingLabel="Sending…"
-              className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong disabled:opacity-50"
-            >
+            <div className="flex w-full min-w-0 flex-col gap-1 sm:w-56">
+              <label htmlFor={`test-email-${props.campaignId}`} className="label">
+                Send a test to
+              </label>
+              <input
+                id={`test-email-${props.campaignId}`}
+                type="email"
+                name="test_email"
+                placeholder="you@gallery.com"
+                className="field"
+              />
+            </div>
+            <Button type="submit" pendingLabel="Sending…" icon={<MailIcon size={14} />}>
               Send test
-            </PendingSubmit>
+            </Button>
           </form>
-          <form action={() => afterSave(props.sendCampaign)} className="flex items-center gap-2">
+          <form action={() => afterSave(props.sendCampaign)} className="flex flex-wrap items-center gap-x-3 gap-y-2">
             {listId ? (
-              <span className="text-[12px] text-ink-muted">
+              <span className="tabular text-[12px] leading-[1.4] text-meta">
                 {resuming
                   ? `Will reach ${reach} more`
                   : `Will reach ${reach} of ${selectedList?.count ?? 0}`}
               </span>
             ) : null}
-            <PendingSubmit
+            <Button
+              type="submit"
+              variant="primary"
               pendingLabel="Sending…"
               disabled={!listId || busy || (reach === 0 && !resuming)}
               title={
@@ -303,177 +300,136 @@ export function CampaignDesigner(props: Props) {
                     ? "This newsletter is being sent"
                     : `Send to ${reach} recipient${reach === 1 ? "" : "s"} with consent (of ${selectedList?.count ?? 0} on the list)`
               }
-              className="rounded-lg bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-fg disabled:opacity-50"
             >
-              {busy
-                ? "Sending…"
-                : resuming
-                  ? `Resume sending (${reach})`
-                  : `Send to list${listId ? ` (${reach})` : ""}`}
-            </PendingSubmit>
+              {sendLabel}
+            </Button>
           </form>
         </div>
+      </PageHeader>
+
+      <div className="space-y-3">
+        {actionNote ? <Notice tone="danger">{actionNote}</Notice> : null}
+        {props.notice}
       </div>
 
-      {actionNote ? (
-        <p role="alert" className="mt-3 text-[12.5px] text-danger">
-          {actionNote}
-        </p>
-      ) : null}
-      {props.notice}
+      <SaveStatus
+        sticky={false}
+        state={status}
+        what="the newsletter"
+        onRetry={
+          status === "error"
+            ? () => {
+                attempt.current = 0;
+                void save();
+              }
+            : undefined
+        }
+        className="mt-3"
+      />
 
-      <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)]">
+      <div className="mt-3 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)]">
         {/* ---- editor column ---- */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              data-keep-font-size
-              className="w-full max-w-[380px] rounded-lg border border-transparent bg-transparent px-0 py-1 text-[18px] font-semibold text-ink-strong focus:border-line-control focus:bg-control focus:px-2"
-              aria-label="Newsletter name"
-            />
-            <span className="flex shrink-0 items-center gap-2 text-[11.5px] text-ink-faint" aria-live="polite">
-              {status === "saving"
-                ? "Saving…"
-                : status === "saved"
-                  ? "All changes saved ✓"
-                  : status === "error"
-                    ? "Couldn’t save. Retrying automatically."
-                    : ""}
-              {status === "error" ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    attempt.current = 0;
-                    void save();
-                  }}
-                  className={miniBtn}
-                >
-                  Retry now
-                </button>
-              ) : null}
-            </span>
-          </div>
+        <div className="min-w-0 space-y-4">
+          {/* The name stays editable once a send has started; it is only the
+              studio's own label for the newsletter. */}
+          <Field label="Newsletter name" hint="For the studio only; readers never see it.">
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
 
           {/* Once a send has started, the content and audience are fixed:
               those still to be mailed must get what the others got, and the
-              per-email send keys depend on it. The name stays editable. */}
+              per-email send keys depend on it. */}
           {locked ? (
-            <p className="border-l-[3px] border-warn bg-warn-wash px-3 py-2 text-[12.5px] text-body">
-              Sending has started, so the subject, sender, list and design can
-              no longer change. Resume sending mails the rest exactly what the
-              others received.
-            </p>
+            <Notice tone="warn">
+              Sending has started, so the subject, sender, list and design can no longer change. Resume sending mails
+              the rest exactly what the others received.
+            </Notice>
           ) : null}
           <fieldset disabled={locked} className="m-0 min-w-0 space-y-4 border-0 p-0">
-          {/* settings */}
-          <div className="grid grid-cols-1 gap-3 border border-line bg-cell p-4 sm:grid-cols-2">
-            <label className={labelCls}>
-              Subject line
-              <input
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="A new selection of Japanese works"
-                className={`mt-1 ${inputCls}`}
-              />
-            </label>
-            <label className={labelCls}>
-              Preview text (inbox preheader)
-              <input
-                value={preview}
-                onChange={(e) => setPreview(e.target.value)}
-                placeholder="Shown after the subject in most inboxes"
-                className={`mt-1 ${inputCls}`}
-              />
-            </label>
-            <label className={labelCls}>
-              Audience list
-              <select
-                value={listId}
-                onChange={(e) => setListId(e.target.value)}
-                className={`mt-1 ${inputCls}`}
-              >
-                <option value="">— choose a list —</option>
-                {props.lists.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name} ({l.count})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={labelCls}>
-              From address
-              <input
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                placeholder={props.defaultFrom}
-                className={`mt-1 ${inputCls}`}
-              />
-            </label>
-          </div>
-
-          {/* blocks */}
-          <div className="space-y-3">
-            {blocks.map((b, idx) => (
-              <div key={b.id} className="border border-line bg-cell p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-                    {b.type}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => move(idx, -1)}
-                      disabled={idx === 0}
-                      className={miniBtn}
-                      aria-label="Move up"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => move(idx, 1)}
-                      disabled={idx === blocks.length - 1}
-                      className={miniBtn}
-                      aria-label="Move down"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeBlock(b.id)}
-                      className={`${miniBtn} text-ink-soft`}
-                      aria-label="Remove block"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-                <BlockEditor block={b} onChange={(patch) => patchBlock(b.id, patch)} />
+            {/* settings */}
+            <Panel>
+              <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                <Field label="Subject line">
+                  <Input
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="A new selection of Japanese works"
+                  />
+                </Field>
+                <Field label="Preview text" hint="Shown after the subject in most inboxes.">
+                  <Input value={preview} onChange={(e) => setPreview(e.target.value)} />
+                </Field>
+                <Field label="Audience list">
+                  <Select value={listId} onChange={(e) => setListId(e.target.value)}>
+                    <option value="">Choose a list</option>
+                    {props.lists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name} ({l.count})
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="From address" hint="Leave empty for the gallery’s usual sender, shown in the box.">
+                  <Input value={from} onChange={(e) => setFrom(e.target.value)} placeholder={props.defaultFrom} />
+                </Field>
               </div>
-            ))}
-            {blocks.length === 0 ? (
-              <p className="border border-dashed border-line-control px-3 py-6 text-center text-[12.5px] text-ink-muted">
-                Empty newsletter — add a block below.
-              </p>
-            ) : null}
-          </div>
+            </Panel>
 
-          {/* palette */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] uppercase tracking-[0.06em] text-ink-faint">Add</span>
-            {BLOCK_PALETTE.map((p) => (
-              <button
-                key={p.type}
-                type="button"
-                onClick={() => addBlock(p.type)}
-                className="rounded-lg border border-line-control bg-control px-2.5 py-1 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
-              >
-                + {p.label}
-              </button>
-            ))}
-          </div>
+            {/* blocks */}
+            <div className="space-y-3">
+              {blocks.map((b, idx) => (
+                <div key={b.id} className="border border-rule p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <h3 className="text-[13px] font-semibold leading-[1.45] text-ink">
+                      {BLOCK_LABELS[b.type] ?? b.type}
+                    </h3>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        iconOnly
+                        label="Move up"
+                        size="sm"
+                        variant="quiet"
+                        onClick={() => move(idx, -1)}
+                        disabled={idx === 0}
+                      >
+                        <ChevronUpIcon size={14} />
+                      </Button>
+                      <Button
+                        iconOnly
+                        label="Move down"
+                        size="sm"
+                        variant="quiet"
+                        onClick={() => move(idx, 1)}
+                        disabled={idx === blocks.length - 1}
+                      >
+                        <ChevronDownIcon size={14} />
+                      </Button>
+                      <Button iconOnly label="Remove block" size="sm" variant="quiet" onClick={() => removeBlock(b.id)}>
+                        <CloseIcon size={14} />
+                      </Button>
+                    </div>
+                  </div>
+                  <BlockEditor block={b} onChange={(patch) => patchBlock(b.id, patch)} />
+                </div>
+              ))}
+              {blocks.length === 0 ? (
+                <p className="border border-rule px-3 py-6 text-center text-[13px] leading-[1.45] text-body">
+                  This newsletter is empty. Add a block below.
+                </p>
+              ) : null}
+            </div>
+
+            {/* palette */}
+            <div role="group" aria-labelledby={`add-block-${props.campaignId}`} className="flex flex-wrap items-center gap-1.5">
+              <span id={`add-block-${props.campaignId}`} className="label mr-1">
+                Add a block
+              </span>
+              {BLOCK_PALETTE.map((p) => (
+                <Button key={p.type} size="sm" icon={<PlusIcon size={14} />} onClick={() => addBlock(p.type)}>
+                  {p.label}
+                </Button>
+              ))}
+            </div>
           </fieldset>
         </div>
 
@@ -481,15 +437,11 @@ export function CampaignDesigner(props: Props) {
             Sticks below the header's measured height, not a fixed 64px that
             let the header cover the preview's top. Below lg the box is not
             sticky, so the offset has no effect there. */}
-        <div style={{ top: "var(--app-header-h, 88px)" }} className="lg:sticky lg:self-start">
-          <p className="mb-2 text-[11px] uppercase tracking-[0.06em] text-ink-faint">
-            Live preview
-          </p>
-          <iframe
-            title="Newsletter preview"
-            srcDoc={html}
-            className="h-[640px] w-full border border-line bg-white"
-          />
+        <div style={{ top: "var(--app-header-h, 88px)" }} className="min-w-0 lg:sticky lg:self-start">
+          <p className="label mb-2">Live preview</p>
+          {/* White on purpose, in both themes: this is the email as a
+              reader's mail program draws it. */}
+          <iframe title="Newsletter preview" srcDoc={html} className="h-[640px] w-full border border-rule bg-white" />
         </div>
       </div>
     </>
@@ -506,93 +458,80 @@ function BlockEditor({
   switch (block.type) {
     case "heading":
       return (
-        <div className="flex items-center gap-2">
-          <input
-            value={block.text}
-            onChange={(e) => onChange({ text: e.target.value } as Partial<Block>)}
-            className={inputCls}
-            placeholder="Heading text"
-          />
-          <select
-            value={block.level ?? 1}
-            onChange={(e) => onChange({ level: Number(e.target.value) as 1 | 2 } as Partial<Block>)}
-            className="shrink-0 rounded-lg border border-line-control bg-control px-2 py-1.5 text-[12.5px] text-ink-mid"
-          >
-            <option value={1}>Large</option>
-            <option value={2}>Small</option>
-          </select>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+          <Field label="Heading text">
+            <Input value={block.text} onChange={(e) => onChange({ text: e.target.value } as Partial<Block>)} />
+          </Field>
+          <Field label="Size">
+            <Select
+              value={block.level ?? 1}
+              onChange={(e) => onChange({ level: Number(e.target.value) as 1 | 2 } as Partial<Block>)}
+            >
+              <option value={1}>Large</option>
+              <option value={2}>Small</option>
+            </Select>
+          </Field>
         </div>
       );
     case "text":
       return (
-        <textarea
-          value={block.text}
-          onChange={(e) => onChange({ text: e.target.value } as Partial<Block>)}
-          rows={4}
-          className={`${inputCls} font-serif leading-relaxed`}
-          placeholder="Paragraph text. Leave a blank line to start a new paragraph."
-        />
+        <Field label="Paragraphs" hint="Leave a blank line to start a new paragraph.">
+          <Textarea
+            value={block.text}
+            onChange={(e) => onChange({ text: e.target.value } as Partial<Block>)}
+            rows={4}
+            className="font-serif leading-relaxed"
+          />
+        </Field>
       );
     case "image":
       return (
-        <div className="space-y-2">
-          <input
-            value={block.url}
-            onChange={(e) => onChange({ url: e.target.value } as Partial<Block>)}
-            className={inputCls}
-            placeholder="Image URL (https://…)"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              value={block.alt ?? ""}
-              onChange={(e) => onChange({ alt: e.target.value } as Partial<Block>)}
-              className={inputCls}
-              placeholder="Alt text"
+        <div className="grid grid-cols-1 gap-x-2 gap-y-3 sm:grid-cols-2">
+          <Field label="Image URL" className="sm:col-span-2">
+            <Input
+              value={block.url}
+              onChange={(e) => onChange({ url: e.target.value } as Partial<Block>)}
+              placeholder="https://"
             />
-            <input
-              value={block.href ?? ""}
-              onChange={(e) => onChange({ href: e.target.value } as Partial<Block>)}
-              className={inputCls}
-              placeholder="Link URL (optional)"
-            />
-          </div>
+          </Field>
+          <Field label="Alt text">
+            <Input value={block.alt ?? ""} onChange={(e) => onChange({ alt: e.target.value } as Partial<Block>)} />
+          </Field>
+          <Field label="Link URL" optional>
+            <Input value={block.href ?? ""} onChange={(e) => onChange({ href: e.target.value } as Partial<Block>)} />
+          </Field>
         </div>
       );
     case "button":
       return (
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            value={block.label}
-            onChange={(e) => onChange({ label: e.target.value } as Partial<Block>)}
-            className={inputCls}
-            placeholder="Button label"
-          />
-          <input
-            value={block.href}
-            onChange={(e) => onChange({ href: e.target.value } as Partial<Block>)}
-            className={inputCls}
-            placeholder="Link URL"
-          />
+        <div className="grid grid-cols-1 gap-x-2 gap-y-3 sm:grid-cols-2">
+          <Field label="Button label">
+            <Input value={block.label} onChange={(e) => onChange({ label: e.target.value } as Partial<Block>)} />
+          </Field>
+          <Field label="Link URL">
+            <Input value={block.href} onChange={(e) => onChange({ href: e.target.value } as Partial<Block>)} />
+          </Field>
         </div>
       );
     case "spacer":
       return (
-        <div className="flex items-center gap-2">
-          <input
-            type="range"
-            min={4}
-            max={80}
-            value={block.size ?? 20}
-            onChange={(e) => onChange({ size: Number(e.target.value) } as Partial<Block>)}
-            className="w-full"
-          />
-          <span className="w-10 shrink-0 font-mono text-[12px] text-ink-muted">
-            {block.size ?? 20}px
-          </span>
-        </div>
+        <Field id={`spacer-${block.id}`} label="Height">
+          <div className="flex items-center gap-2">
+            <input
+              id={`spacer-${block.id}`}
+              type="range"
+              min={4}
+              max={80}
+              value={block.size ?? 20}
+              onChange={(e) => onChange({ size: Number(e.target.value) } as Partial<Block>)}
+              className="w-full"
+            />
+            <span className="tabular w-10 shrink-0 text-[12px] text-meta">{block.size ?? 20}px</span>
+          </div>
+        </Field>
       );
     case "divider":
-      return <p className="text-[12px] text-ink-muted">A horizontal rule.</p>;
+      return <p className="text-[13px] leading-[1.45] text-body">A horizontal rule.</p>;
     case "works":
       return <WorksEditor items={block.items} onChange={(items) => onChange({ items } as Partial<Block>)} />;
     default:
@@ -612,57 +551,39 @@ function WorksEditor({
   return (
     <div className="space-y-2">
       {items.map((it, i) => (
-        <div key={i} className="rounded-lg border border-line-soft p-2">
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              value={it.title}
-              onChange={(e) => patch(i, { title: e.target.value })}
-              className={inputCls}
-              placeholder="Title"
-            />
-            <input
-              value={it.maker ?? ""}
-              onChange={(e) => patch(i, { maker: e.target.value })}
-              className={inputCls}
-              placeholder="Maker"
-            />
-            <input
-              value={it.imageUrl ?? ""}
-              onChange={(e) => patch(i, { imageUrl: e.target.value })}
-              className={inputCls}
-              placeholder="Image URL"
-            />
-            <input
-              value={it.url ?? ""}
-              onChange={(e) => patch(i, { url: e.target.value })}
-              className={inputCls}
-              placeholder="Link URL"
-            />
-            <input
-              value={it.price ?? ""}
-              onChange={(e) => patch(i, { price: e.target.value })}
-              className={inputCls}
-              placeholder="Price / POA (optional)"
-            />
+        <div key={i} className="border-t border-rule pt-2">
+          <div className="grid grid-cols-1 gap-x-2 gap-y-3 sm:grid-cols-2">
+            <Field label="Title">
+              <Input value={it.title} onChange={(e) => patch(i, { title: e.target.value })} />
+            </Field>
+            <Field label="Maker">
+              <Input value={it.maker ?? ""} onChange={(e) => patch(i, { maker: e.target.value })} />
+            </Field>
+            <Field label="Image URL">
+              <Input value={it.imageUrl ?? ""} onChange={(e) => patch(i, { imageUrl: e.target.value })} />
+            </Field>
+            <Field label="Link URL">
+              <Input value={it.url ?? ""} onChange={(e) => patch(i, { url: e.target.value })} />
+            </Field>
+            <Field label="Price or POA" optional>
+              <Input value={it.price ?? ""} onChange={(e) => patch(i, { price: e.target.value })} />
+            </Field>
           </div>
           <div className="mt-1.5 text-right">
-            <button
-              type="button"
+            <Button
+              variant="quiet"
+              size="sm"
               onClick={() => onChange(items.filter((_, j) => j !== i))}
-              className="text-[11.5px] text-ink-soft hover:text-ink-strong"
+              aria-label={`Remove work ${i + 1}${it.title ? `, ${it.title}` : ""}`}
             >
               Remove work
-            </button>
+            </Button>
           </div>
         </div>
       ))}
-      <button
-        type="button"
-        onClick={() => onChange([...items, { title: "", maker: "", imageUrl: "", url: "" }])}
-        className="rounded-lg border border-line-control bg-control px-2.5 py-1 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
-      >
-        + Add work
-      </button>
+      <Button size="sm" icon={<PlusIcon size={14} />} onClick={() => onChange([...items, { title: "", maker: "", imageUrl: "", url: "" }])}>
+        Add work
+      </Button>
     </div>
   );
 }

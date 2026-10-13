@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 
 export type GalleryImage = {
   id: string;
@@ -115,41 +116,43 @@ export function PieceGallery({
             }`}
           />
         ) : (
-          <div className="jvb-hatch h-full w-full" aria-label="No image" />
+          <div role="img" className="jvb-hatch h-full w-full" aria-label="No image" />
         )}
         {hero ? (
           <>
             {count > 1 && !zoomed ? (
               <>
+                {/* Shown on hover with a pointer, always on touch; focus
+                    shows them too, so a keyboard user can find them. */}
                 <button
                   type="button"
                   onClick={() => go(-1)}
                   aria-label="Previous image"
-                  className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-line-control bg-[var(--jvb-bg-overlay)] text-ink-body backdrop-blur-[6px] transition-opacity md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
+                  className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center border border-rule-strong bg-[var(--jvb-header-bg)] text-ink backdrop-blur-[6px] transition-opacity hover:border-ink focus-visible:opacity-100 md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
                 >
-                  ‹
+                  <ChevronLeftIcon />
                 </button>
                 <button
                   type="button"
                   onClick={() => go(1)}
                   aria-label="Next image"
-                  className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-line-control bg-[var(--jvb-bg-overlay)] text-ink-body backdrop-blur-[6px] transition-opacity md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
+                  className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center border border-rule-strong bg-[var(--jvb-header-bg)] text-ink backdrop-blur-[6px] transition-opacity hover:border-ink focus-visible:opacity-100 md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
                 >
-                  ›
+                  <ChevronRightIcon />
                 </button>
               </>
             ) : null}
             {!zoomed ? (
               <>
-                <span className="pointer-events-none absolute left-3 top-3 rounded-lg bg-[var(--jvb-bg-overlay)] px-2.5 py-1 text-[11px] font-medium text-ink-body backdrop-blur-[6px]">
+                <span className="pointer-events-none absolute left-2 top-2 bg-[var(--jvb-header-bg)] px-2 py-1 text-[11px] font-medium leading-none text-ink backdrop-blur-[6px]">
                   {hero.caption}
                 </span>
-                <span className="pointer-events-none absolute right-3 top-3 rounded-lg bg-[var(--jvb-bg-overlay)] px-2.5 py-1 font-mono text-[10.5px] text-ink-body backdrop-blur-[6px]">
-                  {heroIndex + 1} / {images.length}
+                <span className="tabular pointer-events-none absolute right-2 top-2 bg-[var(--jvb-header-bg)] px-2 py-1 text-[11px] leading-none text-ink backdrop-blur-[6px]">
+                  {heroIndex + 1} of {images.length}
                 </span>
                 {hero.url ? (
-                  <span className="pointer-events-none absolute bottom-3 right-3 rounded-lg bg-[var(--jvb-bg-overlay)] px-2.5 py-1 text-[11px] font-medium text-ink-body backdrop-blur-[6px] transition-opacity md:opacity-0 md:group-hover:opacity-100">
-                    ⚲ Click or pinch to zoom
+                  <span className="pointer-events-none absolute bottom-2 right-2 bg-[var(--jvb-header-bg)] px-2 py-1 text-[11px] font-medium leading-none text-ink backdrop-blur-[6px] transition-opacity md:opacity-0 md:group-hover:opacity-100">
+                    Click or pinch to zoom
                   </span>
                 ) : null}
               </>
@@ -159,7 +162,7 @@ export function PieceGallery({
       </div>
 
       {images.length > 1 ? (
-        <div className="mt-2.5 flex gap-[9px]">
+        <div className="mt-2.5 flex gap-2">
           {images.map((img, i) => (
             <button
               key={img.id}
@@ -170,10 +173,10 @@ export function PieceGallery({
               }}
               aria-label={`Show image ${i + 1}: ${img.caption}`}
               aria-current={i === heroIndex}
-              className={`relative aspect-square min-w-0 flex-1 overflow-hidden rounded-lg transition-shadow duration-150 ${
-                i === heroIndex
-                  ? "shadow-[inset_0_0_0_2px_var(--jvb-border-ring)]"
-                  : ""
+              // Square thumbnails, as the website's; the one on show carries
+              // the 2px accent rule inside its edge (accent marks selection).
+              className={`relative aspect-square min-w-0 max-w-[96px] flex-1 overflow-hidden bg-band ${
+                i === heroIndex ? "outline outline-2 -outline-offset-2 outline-accent" : ""
               }`}
             >
               {img.url ? (
@@ -181,7 +184,7 @@ export function PieceGallery({
                 <img
                   src={img.thumb ?? img.preview ?? img.url}
                   alt=""
-                  className={`h-full w-full object-cover ${i === heroIndex ? "opacity-90" : ""}`}
+                  className="h-full w-full object-cover"
                 />
               ) : (
                 <span className="jvb-hatch block h-full w-full" />
@@ -191,12 +194,9 @@ export function PieceGallery({
         </div>
       ) : null}
 
-      <div className="mt-4 flex items-center justify-between border-t border-line-soft pt-3">
-        <span className="text-[12px] text-ink-soft">{imagesMeta}</span>
-        <Link
-          href={`/inventory/${encodeURIComponent(stockNumber)}/images`}
-          className="text-[12px] font-medium text-[var(--jvb-ink-desc)]"
-        >
+      <div className="mt-3 flex items-center justify-between border-t border-rule pt-2.5">
+        <span className="text-[12px] leading-[1.4] text-meta">{imagesMeta}</span>
+        <Link href={`/inventory/${encodeURIComponent(stockNumber)}/images`} className="link text-[12px]">
           Manage images
         </Link>
       </div>

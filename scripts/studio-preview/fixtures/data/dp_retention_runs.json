@@ -1,0 +1,32 @@
+[
+ {
+  "id": 1,
+  "ran_at": "2026-09-12T10:00:00.000Z",
+  "triggered_by": "cron",
+  "result": {
+   "email_events": 3,
+   "offer_views": 12,
+   "campaign_recipients": 0,
+   "enquiries": 1,
+   "appointments": 2,
+   "unconfirmed_signups": 4,
+   "activity_log": 0,
+   "ran_at": "2026-09-12T10:00:00.000Z"
+  }
+ },
+ {
+  "id": 2,
+  "ran_at": "2026-10-12T10:00:00.000Z",
+  "triggered_by": "cron",
+  "result": {
+   "email_events": 0,
+   "offer_views": 2,
+   "campaign_recipients": 0,
+   "enquiries": 0,
+   "appointments": 0,
+   "unconfirmed_signups": 1,
+   "activity_log": 0,
+   "ran_at": "2026-10-12T10:00:00.000Z"
+  }
+ }
+]

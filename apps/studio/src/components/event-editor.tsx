@@ -1,11 +1,14 @@
-import Link from "next/link";
 import type { CalDavCalendar, CalendarEvent } from "@/lib/caldav";
 import { londonTime } from "@/lib/caldav";
+import { Panel } from "@/components/ui/section";
+import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
+import { CloseIcon } from "@/components/ui/icons";
 
-// 16px on phones — anything smaller makes iOS Safari zoom the page on focus.
-const field =
-  "mt-1 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[16px] text-ink-body sm:text-[13.5px]";
-const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
+// The studio's field look (.field, .label). Native elements throughout, so
+// the posted names stay exactly what the server actions read; the touch-size
+// rule in globals.css lifts them to 16px on phones, so iOS does not zoom.
+const field = "field";
+const label = "label mb-1";
 
 type Action = (formData: FormData) => Promise<void>;
 
@@ -46,17 +49,16 @@ export function EventEditor({
       : "11:00";
 
   return (
-    <div className="mt-3 border border-line bg-cell p-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[13px] font-semibold text-ink-strong">
-          {mode === "new" ? "New event" : "Edit event"}
-        </h3>
-        <Link href={closeHref} className="text-[12px] text-ink-muted hover:text-ink-strong">
-          Close ✕
-        </Link>
-      </div>
-
-      <form action={mode === "new" ? createAction : updateAction} className="mt-3">
+    <Panel
+      className="mb-3"
+      title={mode === "new" ? "New event" : "Edit event"}
+      actions={
+        <ButtonLink href={closeHref} variant="quiet" size="sm" icon={<CloseIcon size={14} />}>
+          Close
+        </ButtonLink>
+      }
+    >
+      <form action={mode === "new" ? createAction : updateAction}>
         <input type="hidden" name="month" value={month} />
         {event ? (
           <>
@@ -99,16 +101,18 @@ export function EventEditor({
             )
           ) : null}
 
-          <div className="flex items-end pb-2">
-            <label className="inline-flex items-center gap-2 text-[13px] text-ink-body">
+          <div className="flex items-end pb-1.5">
+            <label className="inline-flex cursor-pointer items-start gap-2 text-[13px] leading-[1.45] text-ink">
               <input
                 type="checkbox"
                 name="allDay"
                 value="1"
                 defaultChecked={event?.allDay ?? false}
-                className="h-4 w-4"
+                className="mt-[2px] h-4 w-4"
               />
-              All day <span className="text-[11.5px] text-ink-faint">(times ignored)</span>
+              <span>
+                All day <span className="text-[12px] text-meta">(times ignored)</span>
+              </span>
             </label>
           </div>
 
@@ -186,37 +190,31 @@ export function EventEditor({
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <button
-              type="submit"
-              className="rounded-lg bg-[var(--jvb-ink-label)] px-4 py-2 text-[13px] font-semibold text-cell transition-transform duration-100 [-webkit-tap-highlight-color:transparent] hover:opacity-90 active:scale-[0.97]"
-            >
+            <Button type="submit" variant="primary" pendingLabel="Saving…">
               {mode === "new" ? "Add event" : "Save changes"}
-            </button>
-            <Link
-              href={closeHref}
-              className="rounded-lg border border-line-control bg-control px-4 py-2 text-[13px] font-medium text-ink-mid hover:text-ink-strong"
-            >
-              Cancel
-            </Link>
+            </Button>
+            <ButtonLink href={closeHref}>Cancel</ButtonLink>
           </div>
           {mode === "edit" ? (
+            // A native button: the form-key guard records this formAction
+            // override by its element.
             <button
               type="submit"
               formAction={deleteAction}
               formNoValidate
-              className="rounded-lg border border-line-control bg-control px-4 py-2 text-[13px] font-medium text-danger hover:border-danger"
+              className={buttonClass({ variant: "danger" })}
             >
               Delete event
             </button>
           ) : null}
         </div>
       </form>
-      <p className="mt-3 text-[11.5px] text-ink-faint">
+      <p className="mt-3 text-[12px] leading-[1.4] text-meta">
         Changes sync to everyone&rsquo;s Apple Calendar within a few minutes. Repeating events
         are created and edited in Apple Calendar.
       </p>
-    </div>
+    </Panel>
   );
 }

@@ -1,0 +1,26 @@
+[
+ {
+  "id": "a9700000-0001-4000-8000-a97000000000",
+  "name": "Gallery visit",
+  "duration_minutes": 45,
+  "location_id": "10c00000-0001-4000-8000-10c000000000",
+  "active": true,
+  "created_at": "2025-09-08T10:00:00.000Z"
+ },
+ {
+  "id": "a9700000-0002-4000-8000-a97000000000",
+  "name": "Private viewing",
+  "duration_minutes": 90,
+  "location_id": "10c00000-0001-4000-8000-10c000000000",
+  "active": true,
+  "created_at": "2025-09-08T10:00:00.000Z"
+ },
+ {
+  "id": "a9700000-0003-4000-8000-a97000000000",
+  "name": "Valuation",
+  "duration_minutes": 60,
+  "location_id": "10c00000-0001-4000-8000-10c000000000",
+  "active": true,
+  "created_at": "2025-09-08T10:00:00.000Z"
+ }
+]

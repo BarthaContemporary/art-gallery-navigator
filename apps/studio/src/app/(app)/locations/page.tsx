@@ -4,6 +4,14 @@ import { getSupabase, getSession, hasRole } from "@/lib/supabase";
 import { ReorderGrid } from "@/components/reorder-grid";
 import { persistOrder } from "@/lib/reorder";
 import { LocationTableRow, type LocationRow } from "@/components/location-row";
+import { LOCATION_TYPE_LABELS } from "@/lib/labels";
+import { formatCount } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button } from "@/components/ui/button";
+import { FlashNotice } from "@/components/ui/notice";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableFrame, Th } from "@/components/ui/table";
 
 export const metadata = { title: "Locations" };
 
@@ -142,63 +150,99 @@ export default async function LocationsPage({
 
   return (
     <div>
-      {sp.error ? (
-        <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
-          {sp.error}
-        </p>
-      ) : null}
-      <form action={addLocation} className="flex flex-wrap items-end gap-2">
-        <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Code
-          <input name="code" placeholder="SJ-B2" className="mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
-        </label>
-        <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Name
-          <input name="name" placeholder="St James, shelf B2" className="mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
-        </label>
-        <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Type
-          <select name="type" className="mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]">
-            {["gallery", "storage", "fair", "restorer", "consignee", "auction", "other"].map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </label>
-        <button type="submit" className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">
-          Add location
-        </button>
-      </form>
-      <div className="mt-5 overflow-x-auto border border-line">
-        <table className="w-full min-w-[560px] bg-cell text-left">
-          <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-              {isAdmin ? <th className="w-8 px-2 py-2.5" /> : null}
-              <th className="px-4 py-2.5 font-medium">Code</th>
-              <th className="px-4 py-2.5 font-medium">Name</th>
-              <th className="px-4 py-2.5 font-medium">Type</th>
-              <th className="px-4 py-2.5 font-medium">Pieces</th>
-              <th className="px-4 py-2.5" />
-            </tr>
-          </thead>
-          <ReorderGrid
-            variant="rows"
-            order={rows.map((l) => l.id)}
-            onReorder={reorder}
-            tiles={Object.fromEntries(
-              rows.map((l) => [
-                l.id,
-                <LocationTableRow
-                  key={l.id}
-                  loc={l}
-                  reorderable={isAdmin}
-                  others={rows.filter((o) => o.id !== l.id).map((o) => ({ id: o.id, code: o.code, name: o.name }))}
-                  updateAction={updateLocation}
-                  deleteAction={deleteLocation}
-                />,
-              ]),
-            )}
-          />
-        </table>
+      <PageHeader
+        title="Locations"
+        meta={
+          <span className="tabular">
+            {formatCount(rows.length)} {rows.length === 1 ? "location" : "locations"}
+          </span>
+        }
+      />
+
+      <div className="space-y-6">
+        <FlashNotice searchParams={sp} />
+
+        <Section title="New location">
+          <form action={addLocation} className="flex flex-wrap items-end gap-2">
+            <div className="flex w-full min-w-0 flex-col gap-1 sm:w-36">
+              <label htmlFor="new-location-code" className="label">
+                Code
+              </label>
+              <input id="new-location-code" name="code" placeholder="SJ-B2" className="field tabular" />
+            </div>
+            <div className="flex w-full min-w-0 flex-col gap-1 sm:w-64">
+              <label htmlFor="new-location-name" className="label">
+                Name
+              </label>
+              <input id="new-location-name" name="name" placeholder="St James, shelf B2" className="field" />
+            </div>
+            <div className="flex w-full min-w-0 flex-col gap-1 sm:w-40">
+              <label htmlFor="new-location-type" className="label">
+                Type
+              </label>
+              <select id="new-location-type" name="type" className="field">
+                {["gallery", "storage", "fair", "restorer", "consignee", "auction", "other"].map((t) => (
+                  <option key={t} value={t}>{LOCATION_TYPE_LABELS[t] ?? t}</option>
+                ))}
+              </select>
+            </div>
+            <Button type="submit" variant="primary" pendingLabel="Adding…">
+              Add location
+            </Button>
+          </form>
+        </Section>
+
+        <Section
+          title="All locations"
+          meta={
+            isAdmin
+              ? "Pieces counts both registers. The order here is the order of the picker on a work: drag a grip, or focus it and use the arrow keys."
+              : "Pieces counts both registers."
+          }
+        >
+          {rows.length === 0 ? (
+            <EmptyState>No locations yet. Add the first one above.</EmptyState>
+          ) : (
+            <TableFrame bordered>
+              <Table className="min-w-[600px]">
+                <thead>
+                  <tr>
+                    {isAdmin ? (
+                      <Th className="relative w-10">
+                        <span className="sr-only">Order</span>
+                      </Th>
+                    ) : null}
+                    <Th>Code</Th>
+                    <Th>Name</Th>
+                    <Th>Type</Th>
+                    <Th numeric>Pieces</Th>
+                    <Th className="relative text-right">
+                      <span className="sr-only">Actions</span>
+                    </Th>
+                  </tr>
+                </thead>
+                <ReorderGrid
+                  variant="rows"
+                  order={rows.map((l) => l.id)}
+                  onReorder={reorder}
+                  tiles={Object.fromEntries(
+                    rows.map((l) => [
+                      l.id,
+                      <LocationTableRow
+                        key={l.id}
+                        loc={l}
+                        reorderable={isAdmin}
+                        others={rows.filter((o) => o.id !== l.id).map((o) => ({ id: o.id, code: o.code, name: o.name }))}
+                        updateAction={updateLocation}
+                        deleteAction={deleteLocation}
+                      />,
+                    ]),
+                  )}
+                />
+              </Table>
+            </TableFrame>
+          )}
+        </Section>
       </div>
     </div>
   );

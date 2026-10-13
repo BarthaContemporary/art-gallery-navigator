@@ -9,19 +9,19 @@ import { AutosaveForm } from "@/components/autosave-form";
 import { loadPieceSummaries, type PieceSummary } from "@/lib/piece-store";
 import { loadThumbnails } from "@/lib/thumbnails";
 import { PieceLine } from "@/components/piece-line";
+import { formatCount, formatDate } from "@/lib/format";
+import { SHIPMENT_KIND_LABELS as KIND_LABEL } from "@/lib/labels";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export const metadata = { title: "Shipment" };
 
-const field = "mt-1 block w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
-const labelCls = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const btnGhost = "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid";
-
-const KIND_LABEL: Record<string, string> = {
-  import: "Import",
-  temporary_import: "Temporary import",
-  export: "Export",
-  temporary_export: "Temporary export",
-};
+// The shared field look on native elements, so the autosave form posts
+// exactly the names it always did (CLAUDE.md autosave rule).
+const field = "field";
+const labelCls = "label mb-1";
 
 // The attached list and the search results below show the same four things —
 // thumbnail, stock number, title with year, maker — so both run through the
@@ -30,7 +30,7 @@ const KIND_LABEL: Record<string, string> = {
 type PieceLite = PieceSummary;
 type LinkRow = { piece: PieceLite | null; returned_at: string | null; closed_reason: string | null };
 
-const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB") : "—");
+const fmtDate = (d: string | null) => formatDate(d, "numeric");
 
 export default async function ShipmentDetail({
   params,
@@ -207,137 +207,203 @@ export default async function ShipmentDetail({
   const dateValue = shipment.shipment_date ? new Date(shipment.shipment_date).toISOString().slice(0, 10) : "";
   const stillOut = links.filter((l) => !l.returned_at && !l.closed_reason).length;
 
+  const kindLabel = KIND_LABEL[shipment.kind] ?? "Shipment";
+
   return (
-    <div className="max-w-[900px]">
-      <Link href="/shipments" className="text-[12.5px] text-ink-soft">← All shipments</Link>
-      <h1 className="mt-2 text-[22px] font-semibold text-ink-strong">{KIND_LABEL[shipment.kind]}</h1>
+    <div className="max-w-[var(--jvb-measure-wide)]">
+      <PageHeader
+        back={{ href: "/shipments", label: "All shipments" }}
+        title={kindLabel}
+        meta={
+          <span className="tabular">
+            {[
+              shipment.shipment_date ? formatDate(shipment.shipment_date) : "No date yet",
+              shipment.reference,
+              `${formatCount(links.length)} ${links.length === 1 ? "item" : "items"}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        }
+      />
 
-      <AutosaveForm endpoint={`/api/shipments/${id}`} className="mt-5">
-        <div className="grid grid-cols-1 gap-4 border border-line bg-cell p-5 sm:grid-cols-2">
-          <label className={labelCls}>
-            {`${KIND_LABEL[shipment.kind] ?? "Shipment"} date`}
-            <input type="date" name="shipment_date" defaultValue={dateValue} className={field} />
-          </label>
-          <label className={labelCls}>
-            Reference number
-            <input name="reference" defaultValue={shipment.reference ?? ""} className={field} />
-          </label>
-          {shipment.kind === "export" || shipment.kind === "temporary_export" ? (
-            <label className={`${labelCls} sm:col-span-2`}>
-              Destination country
-              <input
-                name="destination_country"
-                defaultValue={shipment.destination_country ?? ""}
-                placeholder="e.g. United States, Japan, France"
-                className={field}
-              />
-            </label>
-          ) : null}
-          <label className={`${labelCls} sm:col-span-2`}>
-            Notes
-            <textarea name="notes" rows={2} defaultValue={shipment.notes ?? ""} className={field} />
-          </label>
-        </div>
-      </AutosaveForm>
-
-      <section className="mt-6 border border-line bg-cell p-5">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Documents</h2>
-        <p className="mt-0.5 text-[12px] text-ink-muted">
-          Upload the paperwork once here — it applies to every item below.
-        </p>
-        <div className="mt-3">
-          <RecordFiles scope="shipment" recordId={id} initial={files} />
-        </div>
-      </section>
-
-      {/* Bulk return (temporary exports only) */}
-      {isTemp && stillOut > 0 ? (
-        <section className="mt-6 border border-oranje/30 bg-oranje/5 p-5">
-          <h2 className="text-[13px] font-semibold text-ink-strong">Record return</h2>
-          <p className="mt-0.5 text-[12px] text-ink-muted">
-            Pick a date and preview which of the {stillOut} item{stillOut === 1 ? "" : "s"} still
-            out will be returned before confirming.
-          </p>
-          <div className="mt-3">
-            <RecordReturn shipmentId={id} action={recordReturn} />
-          </div>
-        </section>
-      ) : null}
-
-      <section className="mt-6 border border-line bg-cell p-5">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Inventory items ({links.length})</h2>
-        <div className="mt-3 space-y-1.5">
-          {links.map((l) => {
-            const p = l.piece!;
-            return (
-              <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2">
-                <Link href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`} className="min-w-0">
-                  <PieceLine
-                    stockNumber={p.stock_number}
-                    title={p.title}
-                    year={p.year}
-                    makerName={p.maker_name}
-                    thumbUrl={thumbs.get(p.id)}
-                  />
-                </Link>
-                <div className="flex items-center gap-3">
-                  {isTemp ? (
-                    l.returned_at ? (
-                      <span className="text-[11.5px] text-status-green">Returned {fmtDate(l.returned_at)}</span>
-                    ) : l.closed_reason ? (
-                      <span className="text-[11.5px] text-ink-soft">Not returned · {l.closed_reason.replace(/_/g, " ")}</span>
-                    ) : (
-                      <form action={markReturned} className="flex items-center gap-1">
-                        <input type="hidden" name="piece_id" value={p.id} />
-                        <input type="date" name="return_date" required className="rounded-md border border-line-control bg-control px-2 py-1 text-[11.5px]" />
-                        <button className="text-[11.5px] font-medium text-[var(--jvb-ink-desc)]">Returned</button>
-                      </form>
-                    )
-                  ) : null}
-                  {isTemp && (l.returned_at || l.closed_reason) ? (
-                    <form action={reopen}>
-                      <input type="hidden" name="piece_id" value={p.id} />
-                      <button className="text-[11.5px] text-ink-soft hover:text-ink-strong">Reopen</button>
-                    </form>
-                  ) : null}
-                  <form action={removePiece}>
-                    <input type="hidden" name="piece_id" value={p.id} />
-                    <button className="text-[12px] text-ink-soft hover:text-ink-strong">Remove</button>
-                  </form>
-                </div>
+      <div className="space-y-6">
+        <Section title="Details">
+          <AutosaveForm endpoint={`/api/shipments/${id}`}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="sh-date" className={labelCls}>{`${kindLabel} date`}</label>
+                <input id="sh-date" type="date" name="shipment_date" defaultValue={dateValue} className={field} />
               </div>
-            );
-          })}
-          {links.length === 0 ? <p className="text-[12.5px] text-ink-muted">No items attached yet.</p> : null}
-        </div>
+              <div>
+                <label htmlFor="sh-reference" className={labelCls}>
+                  Reference number
+                </label>
+                <input id="sh-reference" name="reference" defaultValue={shipment.reference ?? ""} className={field} />
+              </div>
+              {shipment.kind === "export" || shipment.kind === "temporary_export" ? (
+                <div className="sm:col-span-2">
+                  <label htmlFor="sh-destination" className={labelCls}>
+                    Destination country
+                  </label>
+                  <input
+                    id="sh-destination"
+                    name="destination_country"
+                    defaultValue={shipment.destination_country ?? ""}
+                    placeholder="e.g. United States, Japan, France"
+                    className={field}
+                  />
+                </div>
+              ) : null}
+              <div className="sm:col-span-2">
+                <label htmlFor="sh-notes" className={labelCls}>
+                  Notes
+                </label>
+                <textarea id="sh-notes" name="notes" rows={2} defaultValue={shipment.notes ?? ""} className={field} />
+              </div>
+            </div>
+          </AutosaveForm>
+        </Section>
 
-        <form method="get" className="mt-4 flex items-center gap-2">
-          <input type="search" name="add" defaultValue={addQ} placeholder="Search works to attach — stock no., title, maker…" className="w-full max-w-md rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]" />
-          <button className={btnGhost}>Search</button>
-        </form>
-        {addQ ? (
-          <div className="mt-2 space-y-1">
-            {results.map((w) => (
-              <form key={w.id} action={addPiece} className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2">
-                <input type="hidden" name="piece_id" value={w.id} />
-                <PieceLine
-                  stockNumber={w.stock_number}
-                  title={w.title}
-                  year={w.year}
-                  makerName={w.maker_name}
-                  thumbUrl={thumbs.get(w.id)}
-                />
-                <button className={btnGhost}>Attach</button>
-              </form>
-            ))}
-            {results.length === 0 ? <p className="text-[12.5px] text-ink-muted">No matches.</p> : null}
-          </div>
+        <Section title="Documents" meta="Upload the paperwork once here. It applies to every item below.">
+          <RecordFiles scope="shipment" recordId={id} initial={files} />
+        </Section>
+
+        {/* Bulk return (temporary exports only) */}
+        {isTemp && stillOut > 0 ? (
+          <Section
+            title="Record return"
+            meta={`Pick a date and preview which of the ${stillOut} item${stillOut === 1 ? "" : "s"} still out will be returned before confirming.`}
+          >
+            <RecordReturn shipmentId={id} action={recordReturn} />
+          </Section>
         ) : null}
-      </section>
 
-      <div className="mt-8 flex items-center justify-between border border-line-soft bg-band px-4 py-3">
-        <p className="text-[13px] text-ink-strong">Delete this shipment</p>
-        <DeleteListButton action={deleteShipment} id={id} name={(KIND_LABEL[shipment.kind] ?? shipment.kind).toLowerCase()} />
+        <Section
+          title="Inventory items"
+          meta={<span className="tabular">{`${formatCount(links.length)} attached`}</span>}
+        >
+          {links.length > 0 ? (
+            <ul className="border-t border-rule">
+              {links.map((l) => {
+                const p = l.piece!;
+                return (
+                  <li
+                    key={p.id}
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-rule py-2 sm:flex-nowrap"
+                  >
+                    {/* flex-1 + min-w-0: a long title truncates rather than
+                        pushing the row's buttons onto a line of their own. */}
+                    <Link
+                      href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
+                      className="link-plain min-w-0 flex-1"
+                    >
+                      <PieceLine
+                        stockNumber={p.stock_number}
+                        title={p.title}
+                        year={p.year}
+                        makerName={p.maker_name}
+                        thumbUrl={thumbs.get(p.id)}
+                      />
+                    </Link>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      {isTemp ? (
+                        l.returned_at ? (
+                          <Badge tone="ok" variant="dot">
+                            <span className="tabular">Returned {fmtDate(l.returned_at)}</span>
+                          </Badge>
+                        ) : l.closed_reason ? (
+                          <Badge variant="dot">Not returned · {l.closed_reason.replace(/_/g, " ")}</Badge>
+                        ) : (
+                          <form action={markReturned} className="flex items-center gap-1.5">
+                            <input type="hidden" name="piece_id" value={p.id} />
+                            <input
+                              type="date"
+                              name="return_date"
+                              required
+                              aria-label={`Return date for ${p.stock_number ?? "this work"}`}
+                              className="field field-sm w-[150px]"
+                            />
+                            <Button type="submit" size="sm">
+                              Returned
+                            </Button>
+                          </form>
+                        )
+                      ) : null}
+                      {isTemp && (l.returned_at || l.closed_reason) ? (
+                        <form action={reopen}>
+                          <input type="hidden" name="piece_id" value={p.id} />
+                          <Button type="submit" size="sm" variant="quiet">
+                            Reopen
+                          </Button>
+                        </form>
+                      ) : null}
+                      <form action={removePiece}>
+                        <input type="hidden" name="piece_id" value={p.id} />
+                        <Button type="submit" size="sm" variant="quiet">
+                          Remove
+                        </Button>
+                      </form>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-[13px] text-body">No items attached yet. Find them below.</p>
+          )}
+
+          <form method="get" className="mt-4 flex max-w-[34rem] flex-wrap items-end gap-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <label htmlFor="sh-add" className="label">
+                Attach works
+              </label>
+              <input
+                id="sh-add"
+                type="search"
+                name="add"
+                defaultValue={addQ}
+                placeholder="Stock no., title or maker"
+                className="field"
+              />
+            </div>
+            <Button type="submit">Search</Button>
+          </form>
+          {addQ ? (
+            <div className="mt-2">
+              {results.length > 0 ? (
+                <ul className="border-t border-rule">
+                  {results.map((w) => (
+                    <li key={w.id} className="border-b border-rule">
+                      <form action={addPiece} className="flex items-center justify-between gap-3 py-2">
+                        <input type="hidden" name="piece_id" value={w.id} />
+                        <span className="min-w-0 flex-1">
+                          <PieceLine
+                            stockNumber={w.stock_number}
+                            title={w.title}
+                            year={w.year}
+                            makerName={w.maker_name}
+                            thumbUrl={thumbs.get(w.id)}
+                          />
+                        </span>
+                        <Button type="submit" size="sm" className="shrink-0">
+                          Attach
+                        </Button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[13px] text-body">No works match &ldquo;{addQ}&rdquo;.</p>
+              )}
+            </div>
+          ) : null}
+        </Section>
+
+        <section className="flex flex-wrap items-center justify-between gap-3 border-t border-rule-strong pt-3">
+          <p className="text-[13px] text-ink">Delete this shipment</p>
+          <DeleteListButton action={deleteShipment} id={id} name={(KIND_LABEL[shipment.kind] ?? shipment.kind).toLowerCase()} />
+        </section>
       </div>
     </div>
   );

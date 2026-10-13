@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { SaveToDriveLink } from "@/components/save-to-drive";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
@@ -6,8 +7,14 @@ import { LabelPdfButton } from "@/components/label-pdf-button";
 import { countMembersForLists, isDynamic, describeRules } from "@/lib/crm-list-members";
 import { ReorderGrid } from "@/components/reorder-grid";
 import { persistOrder } from "@/lib/reorder";
+import { formatCount } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
-export const metadata = { title: "Contact list" };
+export const metadata = { title: "Contact lists" };
 
 const AUTO = "Area of interest (auto)";
 
@@ -80,120 +87,131 @@ export default async function ListsPage() {
   }
 
   const memberCount = (l: ListRow) => counts.get(l.id) ?? 0;
+  const members = (n: number) => `${formatCount(n)} ${n === 1 ? "member" : "members"}`;
+  // The small outputs every card carries: mailing labels and vCards.
+  const outputs = (l: ListRow) => (
+    <>
+      {/* Same Avery prompt everywhere: a plain link would silently pick a
+          layout for the user. */}
+      <LabelPdfButton listId={l.id} className={buttonClass({ variant: "quiet", size: "sm" })} />
+      <SaveToDriveLink
+        href={`/api/export/contacts.vcf?list=${l.id}`}
+        className={buttonClass({ variant: "quiet", size: "sm" })}
+      >
+        vCards
+      </SaveToDriveLink>
+    </>
+  );
 
   return (
     <div>
-      <form action={addList} className="flex flex-wrap items-end gap-2">
-        <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Name
-          <input
-            name="name"
-            placeholder="Japanese bronzes collectors"
-            className="mt-1 block w-72 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]"
-          />
-        </label>
-        <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Description
-          <input
-            name="description"
-            className="mt-1 block w-80 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]"
-          />
-        </label>
-        <button
-          type="submit"
-          className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg"
-        >
-          Create list
-        </button>
-      </form>
-
-      {/* Custom lists first */}
-      {custom.length === 0 ? (
-        <p className="mt-5 text-[13px] text-ink-muted">No custom lists yet — create one above.</p>
-      ) : (
-      <ReorderGrid
-        order={custom.map((l) => l.id)}
-        onReorder={reorderLists}
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
-        hint="Drag a grip to reorder these cards."
-        showPosition={false}
-        tiles={Object.fromEntries(
-          custom.map((l) => [
-            l.id,
-            <div key={l.id} className="h-full border border-line bg-cell p-4 pl-9">
-            <a href={`/crm/lists/${l.id}`} className="block">
-              <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-accent-deep">
-                {l.name}
-              </h2>
-              {l.description ? (
-                <p className="mt-1 text-[12.5px] text-ink-muted">{l.description}</p>
-              ) : null}
-              <p className="mt-2 font-mono text-[11.5px] text-ink-soft">
-                {memberCount(l)} members
-                {isDynamic(l) ? (
-                  <span className="ml-1.5 font-sans normal-case text-ink-faint">
-                    · live ({describeRules(l)})
-                  </span>
-                ) : null}
-              </p>
-            </a>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <a href={`/crm/lists/${l.id}`} className="text-[12px] font-medium text-primary">
-                Manage
-              </a>
-              <LabelPdfButton listId={l.id} />
-              <SaveToDriveLink href={`/api/export/contacts.vcf?list=${l.id}`} className="text-[12px] font-medium text-primary">
-                vCards
-              </SaveToDriveLink>
-              <DeleteListButton action={deleteList} id={l.id} name={l.name} />
-            </div>
-            </div>,
-          ]),
-        )}
+      <PageHeader
+        title="Contact lists"
+        meta={<span className="tabular">{`${formatCount(lists.length)} ${lists.length === 1 ? "list" : "lists"}`}</span>}
       />
-      )}
 
-      {/* Areas of interest (auto) — tinted, not deletable */}
-      {auto.length ? (
-        <>
-          <h2 className="mt-8 text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-            Areas of interest — auto-updated
-          </h2>
-          <ul className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {auto.map((l) => (
-              <li
-                key={l.id}
-                className="border border-oranje/25 bg-oranje/5 p-4"
-              >
-                <a href={`/crm/lists/${l.id}`} className="block">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-accent-deep">
-                      {l.name}
-                    </h2>
-                    <span className="bg-oranje/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-accent-deep">
-                      Interest
-                    </span>
+      <div className="space-y-6">
+        <Section title="New list" meta="A hand-picked group of contacts, for a newsletter, an offer or a mailing.">
+          <form action={addList} className="flex flex-wrap items-end gap-2">
+            <div className="flex w-full min-w-0 flex-col gap-1 sm:w-72">
+              <label htmlFor="new-contact-list-name" className="label">
+                Name
+              </label>
+              <input
+                id="new-contact-list-name"
+                name="name"
+                placeholder="Japanese bronzes collectors"
+                className="field"
+              />
+            </div>
+            <div className="flex w-full min-w-0 flex-col gap-1 sm:w-80">
+              <label htmlFor="new-contact-list-description" className="label">
+                Description <span className="font-normal normal-case tracking-normal">(optional)</span>
+              </label>
+              <input id="new-contact-list-description" name="description" className="field" />
+            </div>
+            <Button type="submit" variant="primary" pendingLabel="Creating…">
+              Create list
+            </Button>
+          </form>
+        </Section>
+
+        {/* Custom lists first */}
+        <Section title="Your lists">
+          {custom.length === 0 ? (
+            <EmptyState>No lists of your own yet. Create one above.</EmptyState>
+          ) : (
+            <ReorderGrid
+              order={custom.map((l) => l.id)}
+              onReorder={reorderLists}
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+              hint="Drag a grip, or focus it and press the arrow keys, to reorder these cards."
+              showPosition={false}
+              tiles={Object.fromEntries(
+                custom.map((l) => [
+                  l.id,
+                  <div key={l.id} className="h-full border border-rule p-4 pl-11">
+                    <Link href={`/crm/lists/${l.id}`} className="group block">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-[14.5px] font-semibold leading-[1.45] text-ink group-hover:underline group-hover:underline-offset-2">
+                          {l.name}
+                        </h3>
+                        {isDynamic(l) ? <Badge tone="info">Live</Badge> : null}
+                      </div>
+                      {l.description ? (
+                        <p className="mt-1 text-[13px] leading-[1.45] text-body">{l.description}</p>
+                      ) : null}
+                      <p className="mt-2 text-[12px] leading-[1.4] text-meta">
+                        <span className="tabular">{members(memberCount(l))}</span>
+                        {isDynamic(l) ? `, ${describeRules(l)}` : null}
+                      </p>
+                    </Link>
+                    <div className="-ml-1.5 mt-3 flex flex-wrap items-center gap-1">
+                      <ButtonLink href={`/crm/lists/${l.id}`} variant="quiet" size="sm">
+                        Manage
+                      </ButtonLink>
+                      {outputs(l)}
+                      <DeleteListButton action={deleteList} id={l.id} name={l.name} />
+                    </div>
+                  </div>,
+                ]),
+              )}
+            />
+          )}
+        </Section>
+
+        {/* Areas of interest: kept by the system, so no grip and no Delete. */}
+        {auto.length ? (
+          <Section
+            title="Areas of interest"
+            meta="Updated automatically from the areas of interest on each contact. They cannot be deleted here."
+          >
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {auto.map((l) => (
+                <li key={l.id} className="border border-rule p-4">
+                  <Link href={`/crm/lists/${l.id}`} className="group block">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-[14.5px] font-semibold leading-[1.45] text-ink group-hover:underline group-hover:underline-offset-2">
+                        {l.name}
+                      </h3>
+                      <Badge>Interest</Badge>
+                    </div>
+                    <p className="mt-2 text-[12px] leading-[1.4] text-meta">
+                      <span className="tabular">{members(memberCount(l))}</span>, updated automatically
+                    </p>
+                  </Link>
+                  <div className="-ml-1.5 mt-3 flex flex-wrap items-center gap-1">
+                    <ButtonLink href={`/crm/lists/${l.id}`} variant="quiet" size="sm">
+                      View
+                    </ButtonLink>
+                    {outputs(l)}
                   </div>
-                  <p className="mt-2 font-mono text-[11.5px] text-ink-soft">
-                    {memberCount(l)} members · auto-updated
-                  </p>
-                </a>
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <a href={`/crm/lists/${l.id}`} className="text-[12px] font-medium text-primary">
-                    View
-                  </a>
-                  {/* Same Avery prompt as the custom cards — a plain link would
-                      silently pick a layout for the user. */}
-                  <LabelPdfButton listId={l.id} />
-                  <SaveToDriveLink href={`/api/export/contacts.vcf?list=${l.id}`} className="text-[12px] font-medium text-primary">
-                    vCards
-                  </SaveToDriveLink>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
+                </li>
+              ))}
+            </ul>
+          </Section>
+        ) : null}
+      </div>
     </div>
   );
 }
