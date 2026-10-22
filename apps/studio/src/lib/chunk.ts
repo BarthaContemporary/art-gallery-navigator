@@ -22,13 +22,16 @@ export function chunkIds<T>(ids: readonly T[], size = ID_CHUNK): T[][] {
   return out;
 }
 
+/** Chunks in flight at once: enough to overlap round trips, not a burst. */
+const CHUNK_CONCURRENCY = 4;
+
 /**
- * Run `query` once per chunk and concatenate the rows.
+ * Run `query` once per chunk and concatenate the rows, in chunk order.
  *
- * Chunks run in sequence rather than in parallel: these lists reach a few
- * hundred works, so the extra round trips are cheap, and a burst of parallel
- * requests against a single-VPS PostgREST is a worse trade than a few
- * milliseconds.
+ * Up to CHUNK_CONCURRENCY chunks run at a time. Strictly one after another
+ * made a 425-work list pay five round trips per pass; a burst of every chunk
+ * at once would be a worse trade against a single-VPS PostgREST, so this
+ * sits between the two.
  *
  * Errors are thrown, not swallowed — the whole point of this module.
  */
@@ -37,13 +40,19 @@ export async function selectInChunks<Row>(
   query: (chunk: string[]) => PromiseLike<{ data: Row[] | null; error: { message: string } | null }>,
 ): Promise<Row[]> {
   const unique = [...new Set(ids.filter(Boolean))];
-  const out: Row[] = [];
-  for (const chunk of chunkIds(unique)) {
-    const { data, error } = await query(chunk);
-    if (error) throw new Error(error.message);
-    if (data) out.push(...data);
-  }
-  return out;
+  const chunks = chunkIds(unique);
+  const results: Row[][] = new Array(chunks.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < chunks.length) {
+      const i = next++;
+      const { data, error } = await query(chunks[i] as string[]);
+      if (error) throw new Error(error.message);
+      results[i] = data ?? [];
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(CHUNK_CONCURRENCY, chunks.length) }, worker));
+  return results.flat();
 }
 
 /**

@@ -2,9 +2,13 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
 import { Panel } from "@/components/ui/section";
+
+// The browser Supabase client is loaded when it is first needed (an upload,
+// a delete, a signed link), not with the page: it is about 70 kB of the
+// first-load JavaScript of the record, editor, images and shipment pages.
+const browserClient = () => import("@jvb/db/browser").then((m) => m.createClient());
 
 const ROLES = ["front", "back", "side", "signature", "box", "detail", "condition", "document", "other"];
 // The stored role, as a word.
@@ -32,7 +36,7 @@ export function ImageUploader({ pieceId, nextSortOrder }: { pieceId: string; nex
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...p } : it)));
 
   async function uploadOne(file: File, sort: number) {
-    const supabase = createClient();
+    const supabase = await browserClient();
     const imageId = crypto.randomUUID();
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
     const path = `${pieceId}/${imageId}.${ext}`;

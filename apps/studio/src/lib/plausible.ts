@@ -31,7 +31,23 @@ type QueryBody = {
 
 type QueryResult = { results: { metrics: number[]; dimensions: string[] }[] };
 
+/*
+ * The analytics page and the dashboard's website panel waited for these
+ * queries on every view, with no time limit: a slow or stopped Plausible held
+ * the page until the function timed out. Each query now gives up after
+ * QUERY_TIMEOUT_MS, and answers are kept for CACHE_MS in the warm function.
+ * They are site-wide visitor aggregates with nothing per user in them, so
+ * sharing them between staff is safe; failures are not cached.
+ */
+const QUERY_TIMEOUT_MS = 5000;
+const CACHE_MS = 5 * 60 * 1000;
+const answers = new Map<string, { at: number; result: QueryResult }>();
+
 async function query(cfg: PlausibleConfig, body: QueryBody): Promise<QueryResult | null> {
+  const payload = JSON.stringify({ site_id: cfg.siteId, ...body });
+  const key = `${cfg.host}|${payload}`;
+  const cached = answers.get(key);
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached.result;
   try {
     const res = await fetch(`${cfg.host}/api/v2/query`, {
       method: "POST",
@@ -39,11 +55,15 @@ async function query(cfg: PlausibleConfig, body: QueryBody): Promise<QueryResult
         Authorization: `Bearer ${cfg.apiKey}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ site_id: cfg.siteId, ...body }),
+      body: payload,
       cache: "no-store",
+      signal: AbortSignal.timeout(QUERY_TIMEOUT_MS),
     });
     if (!res.ok) return null;
-    return (await res.json()) as QueryResult;
+    const result = (await res.json()) as QueryResult;
+    if (answers.size > 200) answers.clear();
+    answers.set(key, { at: Date.now(), result });
+    return result;
   } catch {
     return null;
   }

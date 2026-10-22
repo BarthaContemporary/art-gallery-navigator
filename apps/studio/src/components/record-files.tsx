@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
 import { FilePreviewLink } from "@/components/file-preview";
 import { DOCUMENTS_BUCKET, signDocumentUrl } from "@/lib/document-files";
@@ -10,6 +9,11 @@ import { uploadDocument, type UploadScope } from "@/lib/upload-signed";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { CloseIcon, DownloadIcon, UploadIcon } from "@/components/ui/icons";
+
+// The browser Supabase client is loaded when it is first needed (an upload,
+// a delete, a signed link), not with the page: it is about 70 kB of the
+// first-load JavaScript of the record, editor, images and shipment pages.
+const browserClient = () => import("@jvb/db/browser").then((m) => m.createClient());
 
 export type RecordFile = { id: string; title: string; storage_path: string };
 
@@ -90,7 +94,7 @@ export function RecordFiles({
   }
 
   async function remove(f: RecordFile) {
-    const supabase = createClient();
+    const supabase = await browserClient();
     setError(null);
     setRemoving(f.id);
     try {

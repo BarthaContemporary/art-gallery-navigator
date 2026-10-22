@@ -366,6 +366,22 @@ async function listCalendars(): Promise<CalDavCalendar[]> {
   return calendars;
 }
 
+/*
+ * Every calendar view listed the account's calendars (a PROPFIND) before it
+ * could ask for events, a second round trip on each render. The list rarely
+ * changes, so the read path keeps it for a few minutes in the warm function.
+ * Writes still check against a fresh list.
+ */
+const CALENDAR_LIST_MS = 5 * 60 * 1000;
+let calendarList: { at: number; calendars: CalDavCalendar[] } | null = null;
+
+async function listCalendarsCached(): Promise<CalDavCalendar[]> {
+  if (calendarList && Date.now() - calendarList.at < CALENDAR_LIST_MS) return calendarList.calendars;
+  const calendars = await listCalendars();
+  calendarList = { at: Date.now(), calendars };
+  return calendars;
+}
+
 function toIcsUtc(d: Date): string {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
@@ -428,7 +444,7 @@ async function eventsForCalendar(
 export async function fetchCalendarFeed(from: Date, to: Date): Promise<CalendarFeed> {
   if (!calendarConfigured()) return { status: "unconfigured" };
   try {
-    const calendars = await listCalendars();
+    const calendars = await listCalendarsCached();
     const perCalendar = await Promise.all(calendars.map((c) => eventsForCalendar(c, from, to)));
     const events = perCalendar.flat();
     events.sort((a, b) => {

@@ -1,4 +1,4 @@
-import { signedThumbnail, THUMB_WIDTH } from "@/lib/thumbnails";
+import { IMAGE_VERSION_COLUMNS, imageVersion, signedThumbnail, THUMB_WIDTH } from "@/lib/thumbnails";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
@@ -201,13 +201,15 @@ export default async function InventoryPage({
   if (imageIds.length > 0) {
     const { data: imgs } = await supabase
       .from("piece_images")
-      .select("id, piece_id, storage_path_display")
+      .select(`id, piece_id, storage_path_display, ${IMAGE_VERSION_COLUMNS}`)
       .in("id", imageIds)
       .not("storage_path_display", "is", null);
     const paths = (imgs ?? []).filter((i) => i.storage_path_display);
     if (paths.length > 0) {
       const signed = await Promise.all(
-        paths.map((p) => signedThumbnail(supabase, "piece-derivatives", p.storage_path_display as string, THUMB_WIDTH)),
+        paths.map((p) =>
+          signedThumbnail(supabase, "piece-derivatives", p.storage_path_display as string, THUMB_WIDTH, undefined, imageVersion(p)),
+        ),
       );
       signed.forEach((url, i) => {
         const pieceId = paths[i]?.piece_id;
