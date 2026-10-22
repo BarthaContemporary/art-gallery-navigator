@@ -1,10 +1,12 @@
 import { cx } from "./cx";
 
 /**
- * secondary (the default): rule-strong edge, ink text, ink edge on hover.
- * primary: ink fill, page text. At most one per view header.
- * danger: destructive actions only, danger text and edge.
- * quiet: no edge, meta text. On the page ground only (meta fails on band).
+ * secondary (the default): ink edge and text; an ink wash rises on hover.
+ * primary: the Moon Gate block (ink, two square notches), page text; the
+ *   seal stamps in on hover and focus. At most one per view header.
+ * danger: destructive actions only; the secondary pattern in danger.
+ * quiet: no edge, meta text, an underline drawn on hover. On the page
+ *   ground only (meta is 4.31:1 on band).
  */
 export type ButtonVariant = "secondary" | "primary" | "danger" | "quiet";
 /** md: 32px (44px on touch). sm: 28px (36px on touch), 12px text. */

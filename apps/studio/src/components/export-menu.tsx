@@ -91,7 +91,7 @@ export function ExportMenu({
         ref={panel}
         id={panelId}
         hidden={!open}
-        className={`absolute z-30 mt-1 w-56 max-w-[calc(100vw-32px)] border border-rule-strong bg-page py-1 shadow-[var(--jvb-shadow-pop)] ${
+        className={`jvb-slide-enter absolute z-30 mt-1 w-56 max-w-[calc(100vw-32px)] border border-rule-strong bg-page py-1 shadow-[var(--jvb-shadow-pop)] ${
           side === "right" ? "right-0" : "left-0"
         }`}
       >

@@ -19,12 +19,18 @@
  * new component reaches for:
  *   - accent marks place, selection, focus and progress only, never status,
  *     error or decoration, and is never text under 18px (3.58:1 on white).
- *     accent-deep is the only orange text (5.46:1).
- *   - meta (#767676) is for text on the page ground only: 4.54:1 on white but
- *     4.09:1 on band or form. On band/form use body. light is for disabled or
- *     decorative marks, never for text that must be read.
+ *     accent-deep is the only orange text (5.46:1). The Moon Gate seal (the
+ *     dot of the gallery's mark, on primary buttons, the website switch's
+ *     knob and the loader) is the accent too.
+ *   - meta (#767676) is for text on white: the page and the field ground
+ *     (4.54:1). On band it gives 4.31:1, so text there that must be read is
+ *     body. light is for disabled or decorative marks, never for text that
+ *     must be read.
+ *   - Grounds are white, or the website's off-white (#faf9f6) for a quiet
+ *     band (owner request 2026-10: fresher, fewer grey blocks). Fields are
+ *     white in a soft hairline frame (field-frame), never a grey fill.
  *   - A state colour always comes with a word. Radius is 0 everywhere except
- *     status dots and switch knobs.
+ *     dots, switch knobs and the loader ring.
  *
  * The old --jvb-* names at the bottom of each block are aliases kept for one
  * release so every existing class and var() keeps working while pages move
@@ -35,12 +41,14 @@
 
   /* A. Shared core: website values ------------------------------------- */
 
-  /* grounds */
+  /* grounds (2026-10: the grey blocks became white or the website's
+     off-white; the old values were band and form #f3f3f3, form-hover
+     #e9e9e9) */
   --jvb-page: #ffffff;
   --jvb-overlay: #faf9f6; /* search overlay, fold-out ground */
-  --jvb-band: #f3f3f3;
-  --jvb-form: #f3f3f3; /* field fill */
-  --jvb-form-hover: #e9e9e9;
+  --jvb-band: #faf9f6; /* quiet ground: hovered rows, read-only and disabled fields, neutral notices */
+  --jvb-form: #ffffff; /* field ground: white inside the field frame */
+  --jvb-form-hover: #f4f2ed; /* hover ground of quiet icon buttons; neutral badges */
   --jvb-placeholder: #ebe8e2; /* image placeholder (the website's "field") */
 
   /* inks */
@@ -87,10 +95,22 @@
   --jvb-measure-wide: 960px; /* record and detail pages */
   --jvb-pad: 16px; /* page side padding; 32px from 768px, below */
 
-  /* rules */
-  --jvb-rule: #e6e6e6; /* row hairlines */
-  --jvb-rule-strong: #d4d4d4; /* table-head underline, Section top rule, panel and button edges */
-  --jvb-field-edge: #767676; /* input bottom rule: 4.54:1 on white, 4.09:1 on the field fill */
+  /* rules (2026-10: a touch lighter, and the website's own warm hairline;
+     were #e6e6e6 and #d4d4d4) */
+  --jvb-rule: #ebe8e2; /* row hairlines: the website's hairline */
+  --jvb-rule-strong: #dcd9d2; /* table-head underline, Section top rule, panel and chip edges */
+  /* A bottom rule at text contrast (4.54:1), for the few hand-built controls
+     that still draw one. Fields use the frame below. */
+  --jvb-field-edge: #767676;
+
+  /* fields: a soft hairline frame on all four sides (1.71:1 on white), a
+     darker frame on hover (3.35:1), and on focus an ink frame with a faint
+     accent halo (the halo is a 3px box-shadow ring) */
+  --jvb-field-bg: var(--jvb-form);
+  --jvb-field-frame: #c9c6bf;
+  --jvb-field-frame-hover: #8f8c86;
+  --jvb-focus-halo: rgb(232 89 12 / 0.22);
+  --jvb-danger-halo: rgb(179 38 30 / 0.16);
 
   /* accent wash: selected rows and tiles (with a 2px accent rule, never alone).
      The washes are written out rather than color-mix()ed: where color-mix is
@@ -215,19 +235,20 @@
 
 /*
  * C. Dark ramp. Only the new names are redefined; the aliases above follow.
- * meta stays readable here (7.43:1 on the page), light does not and stays
- * decorative. The accent holds its hue (5.23:1 on the page); accent-deep
+ * meta stays readable here (7.43:1 on the page, 7.04:1 on band and the
+ * field ground), light does not and stays decorative. The accent holds its hue (5.23:1 on the page); accent-deep
  * turns lighter so orange text keeps its contrast (6.74:1).
  */
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  /* grounds */
+  /* grounds (2026-10: band and form closer to the page; were #1c1c1c,
+     #232323 and form-hover #2a2a2a) */
   --jvb-page: #121212;
   --jvb-overlay: #161616;
-  --jvb-band: #1c1c1c;
-  --jvb-form: #232323;
-  --jvb-form-hover: #2a2a2a;
+  --jvb-band: #181818;
+  --jvb-form: #181818; /* field ground */
+  --jvb-form-hover: #1f1f1f;
   --jvb-placeholder: #262420;
 
   /* inks */
@@ -241,10 +262,16 @@
   --jvb-accent-deep: #f07a3a;
   --jvb-accent-wash: #251811; /* accent 9% over the dark page */
 
-  /* rules */
-  --jvb-rule: #262626;
-  --jvb-rule-strong: #3a3a3a;
+  /* rules (were #262626 and #3a3a3a) */
+  --jvb-rule: #232323;
+  --jvb-rule-strong: #333333;
   --jvb-field-edge: #8f8f8f;
+
+  /* fields: frame 1.77:1 on the field ground, 3.33:1 on hover */
+  --jvb-field-frame: #424242;
+  --jvb-field-frame-hover: #6b6b6b;
+  --jvb-focus-halo: rgb(232 89 12 / 0.38);
+  --jvb-danger-halo: rgb(242 133 125 / 0.28);
 
   /* states: each tone reads 5.88 to 7.04:1 on its wash */
   --jvb-ok: #6cc28a;

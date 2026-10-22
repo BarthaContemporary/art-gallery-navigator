@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata = { title: "Shipment" };
 
@@ -350,7 +351,7 @@ export default async function ShipmentDetail({
               })}
             </ul>
           ) : (
-            <p className="text-[13px] text-body">No items attached yet. Find them below.</p>
+            <EmptyState compact>No items attached yet. Find them below.</EmptyState>
           )}
 
           <form method="get" className="mt-4 flex max-w-[34rem] flex-wrap items-end gap-2">

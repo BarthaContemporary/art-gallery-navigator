@@ -34,8 +34,14 @@
  *   SubmitButton (components/submit-button.tsx) is now a thin wrapper of
  *   Button; new code uses <Button type="submit"> directly.
  *
- * Press feedback (a fill, plus a small scale when motion is allowed) and the
- * focus ring come from the .btn classes in globals.css.
+ * The look is the Moon Gate language in globals.css (.btn): secondary is
+ * outlined in ink and fills with an ink wash rising on hover; primary is an
+ * ink block with the mark's two square notches, and a seal dot stamps in
+ * on hover or focus while its label eases aside; quiet draws an underline;
+ * icon-only buttons move their icon. Every press scales to 0.97. Both
+ * components wrap their content in a .btn-label span, which the primary's
+ * label motion needs; pending shows the Moon Gate loader (MoonGateLoader in
+ * ./moon-gate) in place of the leading icon.
  */
 import Link from "next/link";
 import type { ComponentProps, ComponentPropsWithRef, ReactNode } from "react";
@@ -81,19 +87,28 @@ export function ButtonLink({
   const cls = buttonClass({ variant, size, iconOnly, wrap }, className);
   const name = iconOnly ? label : rest["aria-label"];
   const tip = title ?? (iconOnly ? label : undefined);
+  const content = iconOnly ? (
+    <>
+      {icon}
+      {children}
+    </>
+  ) : (
+    <span className="btn-label">
+      {icon}
+      {children}
+    </span>
+  );
   if (disabled) {
     return (
       <span aria-disabled="true" aria-label={name} title={tip} className={cls}>
-        {icon}
-        {children}
+        {content}
       </span>
     );
   }
   if (native) {
     return (
       <a {...rest} href={href} aria-label={name} title={tip} className={cls}>
-        {icon}
-        {children}
+        {content}
       </a>
     );
   }
@@ -108,8 +123,7 @@ export function ButtonLink({
       title={tip}
       className={cls}
     >
-      {icon}
-      {children}
+      {content}
     </Link>
   );
 }

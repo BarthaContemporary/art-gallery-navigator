@@ -6,6 +6,7 @@ import { ReorderGrid } from "@/components/reorder-grid";
 import { AmountInput } from "@/components/amount-input";
 import { parseAmount } from "@/lib/amount";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export type OfferItem = {
   id: string;
@@ -43,7 +44,7 @@ export function OfferItemsEditor({
   reorderItems: (orderedIds: string[]) => Promise<void>;
 }) {
   if (items.length === 0) {
-    return <p className="text-[13px] leading-[1.45] text-body">No works added yet. Find works below, or add a whole list.</p>;
+    return <EmptyState compact>No works added yet. Find works below, or add a whole list.</EmptyState>;
   }
 
   return (

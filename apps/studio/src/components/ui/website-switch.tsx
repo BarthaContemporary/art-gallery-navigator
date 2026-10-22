@@ -1,7 +1,9 @@
 /*
- * Website state for works, makers and lists (spec section 4). One mark
- * everywhere: an ok-filled dot with "On website", or a hollow ring with
- * "Not on website". The word always comes with it.
+ * Website state for works, makers and lists (spec section 4). The read-only
+ * mark is an ok-filled dot with "On website", or a hollow ring with "Not on
+ * website"; the switch is a small square track whose knob is the Moon Gate
+ * seal: a ring at the start when off, the accent seal at the end when on,
+ * sliding between the two. The word always comes with either.
  *
  *   <WebsiteSwitch on onLabel? offLabel? size? …Button props>
  *     The control that puts a thing on the site or takes it off: a Button
@@ -33,6 +35,15 @@ function Mark({ on }: { on: boolean }) {
   );
 }
 
+/** The switch's track and knob (styles: .ws-track in globals.css). */
+function Knob({ on }: { on: boolean }) {
+  return (
+    <span aria-hidden className="ws-track" data-on={on || undefined}>
+      <span className="ws-knob" />
+    </span>
+  );
+}
+
 export function WebsiteSwitch({
   on,
   onLabel = "On website",
@@ -45,7 +56,7 @@ export function WebsiteSwitch({
   offLabel?: string;
 }) {
   return (
-    <Button {...rest} size={size} role="switch" aria-checked={on} icon={<Mark on={on} />}>
+    <Button {...rest} size={size} role="switch" aria-checked={on} icon={<Knob on={on} />}>
       {on ? onLabel : offLabel}
     </Button>
   );

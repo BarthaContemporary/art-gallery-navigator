@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRightIcon } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata = { title: "Inventory lists & docs" };
 
@@ -18,7 +19,6 @@ const rowCls =
 /** A row that opens its record: the name in ink, underlined on hover. */
 const nameCls = "link-plain min-w-0 truncate text-ink";
 const countCls = "tabular shrink-0 text-[12px] leading-[1.4] text-meta";
-const emptyCls = "text-[13px] leading-[1.45] text-body";
 // shipment_date and doc_date are `date` columns: printed as the day they
 // name, in the studio's date form ("12 Oct 2026").
 const fmt = (d: string | null) => formatDate(d, "short");
@@ -123,7 +123,7 @@ export default async function LibraryPage() {
               ))}
             </div>
           ) : (
-            <p className={emptyCls}>No lists yet.</p>
+            <EmptyState compact>No lists yet.</EmptyState>
           )}
         </FoldPanel>
 
@@ -154,7 +154,7 @@ export default async function LibraryPage() {
               ))}
             </div>
           ) : (
-            <p className={emptyCls}>No shipments yet.</p>
+            <EmptyState compact>No shipments yet.</EmptyState>
           )}
         </FoldPanel>
 
@@ -183,7 +183,7 @@ export default async function LibraryPage() {
               ))}
             </div>
           ) : (
-            <p className={emptyCls}>No documents yet.</p>
+            <EmptyState compact>No documents yet.</EmptyState>
           )}
         </FoldPanel>
 
@@ -198,7 +198,7 @@ export default async function LibraryPage() {
                 <span className={countCls}>{m.life_dates ?? ""}</span>
               </div>
             ))}
-            {makerRows.length === 0 ? <p className={emptyCls}>No makers yet.</p> : null}
+            {makerRows.length === 0 ? <EmptyState compact>No makers yet.</EmptyState> : null}
           </div>
         </FoldPanel>
 
@@ -219,7 +219,7 @@ export default async function LibraryPage() {
                 <span className="shrink-0 text-[12px] leading-[1.4] text-meta">{l.type ?? ""}</span>
               </div>
             ))}
-            {locRows.length === 0 ? <p className={emptyCls}>No locations yet.</p> : null}
+            {locRows.length === 0 ? <EmptyState compact>No locations yet.</EmptyState> : null}
           </div>
         </FoldPanel>
 
@@ -243,7 +243,7 @@ export default async function LibraryPage() {
                 <span className={countCls}>{c.is_active ? c.code : "hidden"}</span>
               </div>
             ))}
-            {catRows.length === 0 ? <p className={emptyCls}>No categories yet.</p> : null}
+            {catRows.length === 0 ? <EmptyState compact>No categories yet.</EmptyState> : null}
           </div>
         </FoldPanel>
       </div>

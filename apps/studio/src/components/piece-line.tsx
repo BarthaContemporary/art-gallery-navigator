@@ -31,7 +31,7 @@ export function PieceLine({
           src={thumbUrl}
           alt=""
           loading="lazy"
-          className="h-9 w-9 shrink-0 rounded-md object-cover"
+          className="h-9 w-9 shrink-0 object-cover"
         />
       ) : (
         <span

@@ -23,6 +23,7 @@ import { PASSWORD_MIN } from "@/lib/auth-rules";
 // London time: this page renders on the server, where the zone is UTC.
 import { formatDate, formatDateTime } from "@/lib/format";
 import { ACTIVITY_ACTION_LABELS, ACTIVITY_ENTITY_LABELS, labelOf } from "@/lib/labels";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata = { title: "Admin" };
 
@@ -539,7 +540,7 @@ export default async function AdminPage({
 
           <Section title="Recent activity">
             {activity.length === 0 ? (
-              <p className="text-[13px] text-body">No activity yet.</p>
+              <EmptyState compact>No activity yet.</EmptyState>
             ) : (
               <ul>
                 {activity.map((a) => (

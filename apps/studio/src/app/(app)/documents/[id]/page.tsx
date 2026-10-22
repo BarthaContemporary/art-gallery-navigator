@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { Button, buttonClass } from "@/components/ui/button";
 import { DownloadIcon, EyeIcon } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata = { title: "Document" };
 
@@ -219,7 +220,7 @@ export default async function DocumentDetail({
               ))}
             </ul>
           ) : (
-            <p className="text-[13px] text-body">No items linked yet. Find them below.</p>
+            <EmptyState compact>No items linked yet. Find them below.</EmptyState>
           )}
 
           <form method="get" className="mt-4 flex max-w-[34rem] flex-wrap items-end gap-2">

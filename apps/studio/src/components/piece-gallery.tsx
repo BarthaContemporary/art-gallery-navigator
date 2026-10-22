@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 
 export type GalleryImage = {
@@ -16,6 +17,15 @@ export type GalleryImage = {
 };
 
 const ZOOM = 2.6;
+
+/**
+ * The previous / next arrows over the hero: icon Buttons (the ink wash
+ * rises on hover and the chevron nudges its way) on the translucent header
+ * ground, in a hairline frame. 44px on touch, 36px from md; with a pointer
+ * they fade in on hover, and focus shows them for the keyboard.
+ */
+const GALLERY_ARROW =
+  "absolute top-1/2 h-11 w-11 -translate-y-1/2 border-rule-strong bg-[var(--jvb-header-bg)] text-ink backdrop-blur-[6px] transition-[opacity,color,border-color,transform] duration-200 hover:border-ink focus-visible:opacity-100 md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100";
 
 /**
  * Hero + thumbnail strip per the design handoff. The hero shows the full image
@@ -124,22 +134,22 @@ export function PieceGallery({
               <>
                 {/* Shown on hover with a pointer, always on touch; focus
                     shows them too, so a keyboard user can find them. */}
-                <button
-                  type="button"
+                <Button
+                  iconOnly
+                  label="Previous image"
                   onClick={() => go(-1)}
-                  aria-label="Previous image"
-                  className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center border border-rule-strong bg-[var(--jvb-header-bg)] text-ink backdrop-blur-[6px] transition-opacity hover:border-ink focus-visible:opacity-100 md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
+                  className={`left-2 ${GALLERY_ARROW}`}
                 >
                   <ChevronLeftIcon />
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  iconOnly
+                  label="Next image"
                   onClick={() => go(1)}
-                  aria-label="Next image"
-                  className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center border border-rule-strong bg-[var(--jvb-header-bg)] text-ink backdrop-blur-[6px] transition-opacity hover:border-ink focus-visible:opacity-100 md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
+                  className={`right-2 ${GALLERY_ARROW}`}
                 >
                   <ChevronRightIcon />
-                </button>
+                </Button>
               </>
             ) : null}
             {!zoomed ? (

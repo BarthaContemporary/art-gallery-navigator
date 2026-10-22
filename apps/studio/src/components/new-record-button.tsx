@@ -164,7 +164,7 @@ function HoldButton({
             transition: holding ? `width ${HOLD_MS}ms linear` : "width 120ms ease-out",
           }}
         />
-        {pending ? "Creating…" : armed ? "New non-JvdB record" : "New record"}
+        <span className="btn-label">{pending ? "Creating…" : armed ? "New non-JvdB record" : "New record"}</span>
       </button>
 
       {/*

@@ -144,7 +144,7 @@ export function LabelPdfButton({
         id={panelId}
         hidden={!open}
         className={cx(
-          "absolute top-[calc(100%+4px)] z-40 w-64 max-w-[calc(100vw-32px)] border border-rule-strong bg-page py-1 shadow-[var(--jvb-shadow-pop)]",
+          "jvb-slide-enter absolute top-[calc(100%+4px)] z-40 w-64 max-w-[calc(100vw-32px)] border border-rule-strong bg-page py-1 shadow-[var(--jvb-shadow-pop)]",
           side === "right" ? "right-0" : "left-0",
         )}
       >
@@ -156,7 +156,7 @@ export function LabelPdfButton({
             disabled={busy !== null}
             aria-busy={busy === a.code || undefined}
             onClick={() => void make(a.code)}
-            className={menuItemClass("disabled:cursor-default disabled:text-meta disabled:hover:bg-transparent")}
+            className={menuItemClass("disabled:cursor-default disabled:text-meta")}
           >
             <span className="block font-medium">Avery {a.code}</span>
             <span className="tabular block text-[12px] leading-[1.4] text-meta">

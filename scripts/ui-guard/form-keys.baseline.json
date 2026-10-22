@@ -2223,7 +2223,14 @@
       "forms": [
         "form onSubmit"
       ],
-      "fields": [],
+      "fields": [
+        {
+          "name": "q",
+          "via": "ExpandingSearch",
+          "hidden": false,
+          "in": "form onSubmit"
+        }
+      ],
       "payloads": []
     },
     "components/inventory-table.tsx": {
@@ -2747,6 +2754,19 @@
           "tag": "button",
           "type": "{type}",
           "hidden": false
+        }
+      ],
+      "payloads": []
+    },
+    "components/ui/expanding-search.tsx": {
+      "forms": [],
+      "fields": [
+        {
+          "name": "{name}",
+          "tag": "input",
+          "type": "search",
+          "hidden": false,
+          "controlled": true
         }
       ],
       "payloads": []

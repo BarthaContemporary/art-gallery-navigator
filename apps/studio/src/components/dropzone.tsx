@@ -50,12 +50,15 @@ export function Dropzone({
       role="button"
       tabIndex={0}
       aria-disabled={disabled}
-      className={`cursor-pointer rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors ${
+      // The field frame, dashed, on the page ground (as the maker portrait's
+      // drop target): the frame turns ink on hover, and a file held over it
+      // gives the accent frame on the accent wash.
+      className={`border border-dashed px-4 py-6 text-center transition-[border-color,background-color] duration-150 ${
         disabled
-          ? "cursor-not-allowed border-line-soft bg-band/40 opacity-60"
+          ? "cursor-not-allowed border-rule-strong bg-band opacity-60"
           : over
-            ? "border-oranje bg-band"
-            : "border-line-control bg-control/40 hover:border-line"
+            ? "cursor-copy border-accent bg-accent-wash"
+            : "cursor-pointer border-[var(--jvb-field-frame)] bg-page hover:border-ink"
       }`}
     >
       <input

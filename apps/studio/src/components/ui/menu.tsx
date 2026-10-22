@@ -97,7 +97,7 @@ export function MenuButton({
         id={panelId}
         hidden={!open}
         className={cx(
-          "absolute top-[calc(100%+4px)] z-40 max-w-[calc(100vw-32px)] border border-rule-strong bg-page shadow-[var(--jvb-shadow-pop)]",
+          "jvb-slide-enter absolute top-[calc(100%+4px)] z-40 max-w-[calc(100vw-32px)] border border-rule-strong bg-page shadow-[var(--jvb-shadow-pop)]",
           align === "right" ? "right-0" : "left-0",
           panelClassName,
         )}

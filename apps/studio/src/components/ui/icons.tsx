@@ -25,6 +25,7 @@ import {
   IconAlertTriangle,
   IconArrowLeft,
   IconArrowRight,
+  IconBold,
   IconCalendar,
   IconCheck,
   IconChevronDown,
@@ -40,9 +41,14 @@ import {
   IconFilter,
   IconFlag,
   IconGripVertical,
+  IconH2,
+  IconH3,
   IconInfoCircle,
+  IconItalic,
   IconKey,
   IconLink,
+  IconList,
+  IconListNumbers,
   IconLock,
   IconMail,
   IconMenu2,
@@ -50,6 +56,7 @@ import {
   IconMoon,
   IconPencil,
   IconPhoto,
+  IconPilcrow,
   IconPlus,
   IconPrinter,
   IconRefresh,
@@ -59,6 +66,7 @@ import {
   IconSelector,
   IconSun,
   IconTrash,
+  IconUnderline,
   IconUpload,
   IconWorld,
   IconX,
@@ -126,6 +134,16 @@ export const MailIcon = icon(IconMail, "MailIcon");
 export const FilterIcon = icon(IconFilter, "FilterIcon");
 export const GripIcon = icon(IconGripVertical, "GripIcon");
 
+// Text formatting (the maker profile's toolbar)
+export const BoldIcon = icon(IconBold, "BoldIcon");
+export const ItalicIcon = icon(IconItalic, "ItalicIcon");
+export const UnderlineIcon = icon(IconUnderline, "UnderlineIcon");
+export const HeadingIcon = icon(IconH2, "HeadingIcon");
+export const SubheadingIcon = icon(IconH3, "SubheadingIcon");
+export const ParagraphIcon = icon(IconPilcrow, "ParagraphIcon");
+export const ListIcon = icon(IconList, "ListIcon");
+export const NumberedListIcon = icon(IconListNumbers, "NumberedListIcon");
+
 // Things and states
 export const FlagIcon = icon(IconFlag, "FlagIcon");
 export const KeyIcon = icon(IconKey, "KeyIcon");
@@ -172,6 +190,14 @@ export const ICONS = {
   MailIcon,
   FilterIcon,
   GripIcon,
+  BoldIcon,
+  ItalicIcon,
+  UnderlineIcon,
+  HeadingIcon,
+  SubheadingIcon,
+  ParagraphIcon,
+  ListIcon,
+  NumberedListIcon,
   FlagIcon,
   KeyIcon,
   LockIcon,

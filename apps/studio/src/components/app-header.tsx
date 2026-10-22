@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Button, buttonClass } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { CloseIcon, SearchIcon } from "@/components/ui/icons";
 import { Kbd } from "@/components/ui/kbd";
+import { MoonGateMark } from "@/components/ui/moon-gate";
 import { cx } from "@/components/ui/cx";
 
 type NavItem = { href: string; label: string; group?: string };
@@ -14,9 +15,11 @@ type NavItem = { href: string; label: string; group?: string };
 const openPalette = () => window.dispatchEvent(new Event("jvb:command-palette"));
 
 /**
- * Back-office header, in the public site's family (spec C1): the wordmark in
- * the accent, the nav in meta with ink for the current page and a square 2px
- * accent rule under it. On top of the website's header it is sticky (the
+ * Back-office header, in the public site's family (spec C1): the Moon Gate
+ * mark (the gallery's icon; its seal pulses once on hover) beside the
+ * wordmark in the accent, the nav in meta with ink for the current page and
+ * a square 2px accent rule under it. The search trigger is drawn as a field
+ * (white in the field frame), since what it opens is a search box. On top of the website's header it is sticky (the
  * page at 92% under a blur), and it carries search, the theme and sign-out.
  * Below md the wordmark stacks ("Joost / van den Bergh") and the nav moves
  * into a full-screen menu behind "Menu", which closes on any link tap and on
@@ -157,8 +160,9 @@ export function AppHeader({
                 logo is exempt from the text-contrast rule). */}
             <Link
               href="/"
-              className="shrink-0 text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-accent transition-[color] hover:text-accent-deep"
+              className="mg-hover flex shrink-0 items-center gap-2.5 text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-accent transition-[color] hover:text-accent-deep"
             >
+              <MoonGateMark pulse="hover" className="h-7 w-7 text-ink md:h-5 md:w-5" />
               <span className="hidden whitespace-nowrap md:inline">Joost van den Bergh</span>
               <span className="md:hidden">{wordmarkStacked}</span>
             </Link>
@@ -170,7 +174,7 @@ export function AppHeader({
                 onClick={openPalette}
                 aria-label="Search"
                 aria-keyshortcuts="Meta+K Control+K /"
-                className={buttonClass({ size: "sm" }, "min-w-[148px] justify-start gap-2 text-body")}
+                className="field field-sm flex w-[180px] cursor-pointer items-center gap-2 text-left text-meta"
               >
                 <SearchIcon size={14} />
                 <span>Search</span>
@@ -190,25 +194,22 @@ export function AppHeader({
 
             {/* Phone and small tablet: search and the menu, 44px targets */}
             <div className="-mr-2 ml-auto flex items-center md:hidden">
-              <button
-                type="button"
-                onClick={openPalette}
-                aria-label="Search"
-                className="grid h-11 w-11 place-items-center text-ink hover:text-accent-deep"
-              >
+              {/* Quiet buttons held at 44px on any phone-width screen: the
+                  search glass grows on hover, "Menu" draws its underline. */}
+              <Button variant="quiet" iconOnly label="Search" onClick={openPalette} className="h-11 w-11 text-ink">
                 <SearchIcon size={20} />
-              </button>
-              <button
+              </Button>
+              <Button
                 ref={menuButtonRef}
-                type="button"
+                variant="quiet"
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
                 aria-controls="app-menu"
                 aria-label={open ? "Close menu" : "Open menu"}
-                className="inline-flex h-11 min-w-11 items-center justify-center px-2 text-[13px] font-medium text-ink"
+                className="h-11 min-w-11 px-2 text-ink"
               >
                 {open ? "Close" : "Menu"}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -261,21 +262,22 @@ export function AppHeader({
           }}
         >
           <div className="page flex items-start justify-between pt-3">
-            <span className="text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-accent">
-              {wordmarkStacked}
+            <span className="flex items-center gap-2.5 text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-accent">
+              <MoonGateMark className="h-7 w-7 text-ink" />
+              <span>{wordmarkStacked}</span>
             </span>
-            <button
-              type="button"
+            <Button
+              variant="quiet"
+              icon={<CloseIcon size={16} />}
               onClick={() => {
                 setOpen(false);
                 menuButtonRef.current?.focus();
               }}
               aria-label="Close menu"
-              className="-mr-2 -mt-1 inline-flex h-11 items-center gap-1.5 px-2 text-[13px] font-medium text-ink"
+              className="-mr-2 -mt-1 h-11 px-2 text-ink"
             >
-              <CloseIcon size={16} />
               Close
-            </button>
+            </Button>
           </div>
           <nav aria-label="Main" className="page mt-8 flex flex-col">
             {items.map((n, i) => {

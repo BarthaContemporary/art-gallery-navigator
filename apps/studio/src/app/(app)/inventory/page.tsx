@@ -4,16 +4,14 @@ import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { InventoryTable, type InventoryRow } from "@/components/inventory-table";
 import { NewRecordButton } from "@/components/new-record-button";
-import { InventoryFilters } from "@/components/inventory-filters";
+import { FiltersToggle, InventoryFilters, InventorySearch } from "@/components/inventory-filters";
+import { InventoryPager } from "@/components/inventory-pager";
+import { ActiveFilters, InventoryView, ViewMenu, type FilterChip } from "@/components/inventory-view";
 import { ExportMenu } from "@/components/export-menu";
 import { STATUS_LABELS } from "@/components/status-pill";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { FlashNotice, Notice } from "@/components/ui/notice";
-import { Panel } from "@/components/ui/section";
-import { Pager } from "@/components/ui/pager";
-import { chipClass } from "@/components/ui/chips";
-import { CloseIcon, FlagIcon } from "@/components/ui/icons";
 import { formatCount } from "@/lib/format";
 import { createDraftPiece } from "./actions";
 import { applyFacet, parseFacet } from "@/lib/facet";
@@ -235,17 +233,114 @@ export default async function InventoryPage({
         ? `${formatCount(total)} ${total === 1 ? "record" : "records"}`
         : `${formatCount(first)}–${formatCount(first + rows.length - 1)} of ${formatCount(total)}`;
 
+  // The filters on screen, each a removable chip: a link to this view
+  // without it, back on page 1.
+  const fStatus = parseFacet(sp.status);
+  const fCat = parseFacet(sp.category);
+  const fLoc = parseFacet(sp.location);
+  const not = (f: { exclude: boolean } | null, label: string) => (f?.exclude ? `Not ${label}` : label);
+  const catName = (categories ?? []).find((c) => c.id === fCat?.value)?.name;
+  const locMatch = (locations ?? []).find((l) => l.id === fLoc?.value);
+  const locName = locMatch?.name ?? locMatch?.code;
+  const listName = (pieceLists ?? []).find((l) => l.id === sp.list)?.name;
+  const chips: FilterChip[] = [];
+  const addChip = (key: keyof Search, label: string, flag?: boolean) =>
+    chips.push({ key, label, flag, href: qs({ ...sp, [key]: undefined, page: undefined }) || "/inventory" });
+  if (q) addChip("q", `“${q}”`);
+  if (sp.ledger === "external") addChip("ledger", "Not JvdB");
+  else if (sp.ledger === "all") addChip("ledger", "Both registers");
+  if (fStatus) addChip("status", not(fStatus, STATUS_LABELS[fStatus.value] ?? fStatus.value.replace(/_/g, " ")));
+  if (fCat && catName) addChip("category", not(fCat, catName));
+  if (fLoc && locName) addChip("location", not(fLoc, locName));
+  if (sp.list && listName) addChip("list", `List: ${listName}`);
+  if (sp.web === "on") addChip("web", "On website");
+  else if (sp.web === "off") addChip("web", "Not on website");
+  if (sp.flagged) addChip("flagged", "Flagged only", true);
+  for (const [param, , label] of FLAG_FILTERS) {
+    if (sp[param]) addChip(param, label);
+  }
+
+  // Save the search and facets as a live list: folded under the chips'
+  // "Save as live list" until asked for.
+  const saveForm =
+    q || sp.status || sp.category || sp.location || sp.ledger ? (
+      <form action={saveAsList}>
+        <input type="hidden" name="q" value={q ?? ""} />
+        <input type="hidden" name="status" value={sp.status ?? ""} />
+        <input type="hidden" name="category" value={sp.category ?? ""} />
+        <input type="hidden" name="location" value={sp.location ?? ""} />
+        <input type="hidden" name="ledger" value={sp.ledger ?? ""} />
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex min-w-0 flex-col gap-1">
+            <label htmlFor="live-list-name" className="label">
+              Name of the live list
+            </label>
+            <input
+              id="live-list-name"
+              name="name"
+              required
+              placeholder="e.g. Everything at the fair"
+              className="field field-sm w-64 max-w-full"
+            />
+          </div>
+          <Button type="submit" size="sm" pendingLabel="Saving…">
+            Save as list
+          </Button>
+        </div>
+        <p className="mt-2 text-[12px] leading-[1.4] text-meta">
+          Membership stays live: the list re-runs these filters each time you open it.
+        </p>
+        {/* A live list keeps the search, register and facets only, so say
+            which of the screen's filters it will not carry rather than
+            quietly saving a wider list than the one on screen. */}
+        {notSaved.length > 0 ? (
+          <p className="mt-1 text-[12px] leading-[1.4] text-warn">
+            Not saved in a live list: {notSaved.join(", ")}.
+          </p>
+        ) : null}
+      </form>
+    ) : undefined;
+
+  // The count line and the top pager, drawn by the table under its bars
+  // and just above the rows: on a full page of 100 records, reaching the
+  // bottom pager means scrolling past everything already passed over.
+  // Keyed: it crosses into the table (a client component) as a prop, and
+  // the development build otherwise reports it as an unkeyed list child.
+  const summary = (
+    <div key="summary" className="inv-summary">
+      <p className="tabular text-[12px] leading-[1.4] text-meta">
+        {range}
+        {searching ? (
+          order ? (
+            <>
+              {" · "}
+              <Link href={qs({ ...sp, sort: undefined, dir: undefined, page: undefined })} className="link">
+                Rank by relevance
+              </Link>
+            </>
+          ) : (
+            " · ranked by relevance"
+          )
+        ) : null}
+      </p>
+      <InventoryPager page={page} pages={pages} href={(p) => pageHref(sp, p)} label="Pagination, top" />
+    </div>
+  );
+
   return (
-    <div>
+    <InventoryView flagParams={FLAG_FILTERS.map(([param]) => param)}>
       <PageHeader
         title="Inventory"
         meta={`${formatCount(total)} ${total === 1 ? "record" : "records"}`}
+        className="mb-4"
         actions={
           <>
-            <ButtonLink href="/inventory/lists" variant="quiet">
+            {/* On a phone these two move down to the toolbar's end (below),
+                so the export and New record keep one line. */}
+            <ButtonLink href="/inventory/lists" variant="quiet" className="max-md:hidden">
               Lists
             </ButtonLink>
-            <ButtonLink href="/inventory/trash" variant="quiet">
+            <ButtonLink href="/inventory/trash" variant="quiet" className="max-md:hidden">
               Trash
             </ButtonLink>
             {/* The exports are exactly the rows on screen, in the screen's
@@ -264,7 +359,25 @@ export default async function InventoryPage({
             <NewRecordButton action={createDraftPiece} className={buttonClass({ variant: "primary" })} />
           </>
         }
-      />
+      >
+        {/* Narrowing the view: the search folded to its icon ("/" opens
+            it), the Filters panel's toggle, and how the table is drawn. */}
+        <div className="inv-toolbar">
+          <InventorySearch />
+          <FiltersToggle />
+          <span className="inv-toolbar-end">
+            <ViewMenu />
+            <span className="inv-phone-links md:hidden">
+              <ButtonLink href="/inventory/lists" variant="quiet">
+                Lists
+              </ButtonLink>
+              <ButtonLink href="/inventory/trash" variant="quiet">
+                Trash
+              </ButtonLink>
+            </span>
+          </span>
+        </div>
+      </PageHeader>
 
       <FlashNotice searchParams={sp} className="mb-4" />
 
@@ -276,176 +389,58 @@ export default async function InventoryPage({
         flaggedCount={flaggedIds.size}
       />
 
-      {(() => {
-        const fStatus = parseFacet(sp.status);
-        const fCat = parseFacet(sp.category);
-        const fLoc = parseFacet(sp.location);
-        const not = (f: { exclude: boolean } | null, label: string) =>
-          f?.exclude ? `Not ${label}` : label;
-        const catName = (categories ?? []).find((c) => c.id === fCat?.value)?.name;
-        const locMatch = (locations ?? []).find((l) => l.id === fLoc?.value);
-        const locName = locMatch?.name ?? locMatch?.code;
-        const listName = (pieceLists ?? []).find((l) => l.id === sp.list)?.name;
-        const chips: Array<{ key: keyof Search; label: string; flag?: boolean }> = [];
-        if (q) chips.push({ key: "q", label: `“${q}”` });
-        if (sp.ledger === "external") chips.push({ key: "ledger", label: "Not JvdB" });
-        else if (sp.ledger === "all") chips.push({ key: "ledger", label: "Both registers" });
-        if (fStatus)
-          chips.push({
-            key: "status",
-            label: not(fStatus, STATUS_LABELS[fStatus.value] ?? fStatus.value.replace(/_/g, " ")),
-          });
-        if (fCat && catName) chips.push({ key: "category", label: not(fCat, catName) });
-        if (fLoc && locName) chips.push({ key: "location", label: not(fLoc, locName) });
-        if (sp.list && listName) chips.push({ key: "list", label: `List: ${listName}` });
-        if (sp.web === "on") chips.push({ key: "web", label: "On website" });
-        else if (sp.web === "off") chips.push({ key: "web", label: "Not on website" });
-        if (sp.flagged) chips.push({ key: "flagged", label: "Flagged only", flag: true });
-        for (const [param, , label] of FLAG_FILTERS) {
-          if (sp[param]) chips.push({ key: param, label });
-        }
-        if (chips.length === 0) return null;
-        return (
-          <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label="Active filters" role="group">
-            {chips.map((chip) => (
-              <Link
-                key={chip.key}
-                href={qs({ ...sp, [chip.key]: undefined, page: undefined }) || "/inventory"}
-                className={chipClass()}
-                aria-label={`Remove filter: ${chip.label}`}
-                title="Remove this filter"
-              >
-                {chip.flag ? <FlagIcon size={14} className="text-warn" /> : null}
-                {chip.label}
-                <CloseIcon size={14} className="text-meta" />
-              </Link>
-            ))}
-            <ButtonLink href="/inventory" variant="quiet" size="sm">
-              Clear all
-            </ButtonLink>
-          </div>
-        );
-      })()}
-
-      {q || sp.status || sp.category || sp.location || sp.ledger ? (
-        <Panel className="mt-3">
-          <form action={saveAsList}>
-            <input type="hidden" name="q" value={q ?? ""} />
-            <input type="hidden" name="status" value={sp.status ?? ""} />
-            <input type="hidden" name="category" value={sp.category ?? ""} />
-            <input type="hidden" name="location" value={sp.location ?? ""} />
-            <input type="hidden" name="ledger" value={sp.ledger ?? ""} />
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="flex min-w-0 flex-col gap-1">
-                <label htmlFor="live-list-name" className="label">
-                  Save these filters as a live list
-                </label>
-                <input
-                  id="live-list-name"
-                  name="name"
-                  required
-                  placeholder="e.g. Everything at the fair"
-                  className="field field-sm w-64 max-w-full"
-                />
-              </div>
-              <Button type="submit" size="sm" pendingLabel="Saving…">
-                Save as list
-              </Button>
-            </div>
-            <p className="mt-2 text-[12px] leading-[1.4] text-meta">
-              Membership stays live: the list re-runs these filters each time you open it.
-            </p>
-            {/* A live list keeps the search, register and facets only, so say
-                which of the screen's filters it will not carry rather than
-                quietly saving a wider list than the one on screen. */}
-            {notSaved.length > 0 ? (
-              <p className="mt-1 text-[12px] leading-[1.4] text-warn">
-                Not saved in a live list: {notSaved.join(", ")}.
-              </p>
-            ) : null}
-          </form>
-        </Panel>
-      ) : null}
-
-      {/* Paging sits above the results as well as below: on a full page of 100
-          records, reaching the bottom pager means scrolling past everything you
-          have already decided you don't want. */}
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
-        <p className="tabular text-[12px] leading-[1.4] text-meta">
-          {range}
-          {searching ? (
-            order ? (
-              <>
-                {" · "}
-                <Link
-                  href={qs({ ...sp, sort: undefined, dir: undefined, page: undefined })}
-                  className="link"
-                >
-                  Rank by relevance
-                </Link>
-              </>
-            ) : (
-              " · ranked by relevance"
-            )
-          ) : (
-            ""
-          )}
-        </p>
-        <Pager page={page} pages={pages} href={(p) => pageHref(sp, p)} label="Pagination, top" />
-      </div>
+      <ActiveFilters chips={chips} clearHref="/inventory" save={saveForm} />
 
       {error ? (
-        <Notice tone="danger" className="mt-3">
-          Could not load the inventory: {error.message}
-        </Notice>
+        <>
+          {summary}
+          <Notice tone="danger" className="mt-3">
+            Could not load the inventory: {error.message}
+          </Notice>
+        </>
       ) : (
-        <div className="mt-2">
-          <InventoryTable
-            rows={(rows ?? []).map(
-              (r): InventoryRow => ({
-                id: r.id,
-                stock_number: r.stock_number,
-                legacy_stock_number: r.legacy_stock_number,
-                title: r.title,
-                year: r.year ?? null,
-                maker_name: r.maker_name,
-                maker_dates: r.maker_id ? makerDatesById.get(r.maker_id) ?? null : null,
-                category_name: r.category_name,
-                location_name: r.location_id
-                  ? locNameById.get(r.location_id) ?? r.location_code
-                  : r.location_code,
-                status: r.status,
-                ledger: r.ledger,
-                needs_completion: Boolean(r.needs_completion),
-                flagged: flaggedIds.has(r.id),
-                web_visible: Boolean(r.web_visible),
-              }),
-            )}
-            flagTotal={flaggedIds.size}
-            showingFlagged={Boolean(sp.flagged)}
-            thumbs={Object.fromEntries(thumbByPiece)}
-            lists={(pieceLists ?? []).map((l) => ({ id: l.id, name: l.name }))}
-            locations={(locations ?? []).map((l) => ({ id: l.id, name: l.name ?? l.code }))}
-          />
-        </div>
+        <InventoryTable
+          rows={(rows ?? []).map(
+            (r): InventoryRow => ({
+              id: r.id,
+              stock_number: r.stock_number,
+              legacy_stock_number: r.legacy_stock_number,
+              title: r.title,
+              year: r.year ?? null,
+              maker_name: r.maker_name,
+              maker_dates: r.maker_id ? makerDatesById.get(r.maker_id) ?? null : null,
+              category_name: r.category_name,
+              location_name: r.location_id ? locNameById.get(r.location_id) ?? r.location_code : r.location_code,
+              status: r.status,
+              ledger: r.ledger,
+              needs_completion: Boolean(r.needs_completion),
+              flagged: flaggedIds.has(r.id),
+              web_visible: Boolean(r.web_visible),
+            }),
+          )}
+          flagTotal={flaggedIds.size}
+          showingFlagged={Boolean(sp.flagged)}
+          thumbs={Object.fromEntries(thumbByPiece)}
+          lists={(pieceLists ?? []).map((l) => ({ id: l.id, name: l.name }))}
+          locations={(locations ?? []).map((l) => ({ id: l.id, name: l.name ?? l.code }))}
+          summary={summary}
+        />
       )}
 
-      {/* justify-end so it sits under the top pager, which the count line's
-          justify-between already pushes to the right edge. */}
-      <Pager
+      <InventoryPager
         page={page}
         pages={pages}
         href={(p) => pageHref(sp, p)}
         label="Pagination, bottom"
         className="mt-4 justify-end"
       />
-    </div>
+    </InventoryView>
   );
 }
 
 /**
- * A page of the current view, for the shared Pager above and below the
- * results: the filters and sort are kept, only `page` changes.
+ * A page of the current view, for the pagers above and below the results:
+ * the filters and sort are kept, only `page` changes.
  */
 function pageHref(sp: Search, page: number): string {
   const params = new URLSearchParams(strip(sp));

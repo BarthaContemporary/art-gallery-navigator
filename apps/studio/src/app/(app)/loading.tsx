@@ -1,3 +1,4 @@
+import { MoonGateMark } from "@/components/ui/moon-gate";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Column widths of the placeholder rows: one wide column, as a name or title.
@@ -12,12 +13,14 @@ const COLUMNS = ["12%", "30%", "16%", "12%", "10%"];
  *
  * Built from bare Skeleton blocks under one role="status", so a screen
  * reader hears "Loading page" once (the SkeletonText/SkeletonTable
- * composites each announce themselves).
+ * composites each announce themselves). The Moon Gate mark heads it, its
+ * seal breathing while the page loads (still under reduced motion).
  */
 export default function AppLoading() {
   return (
     <div role="status">
       <span className="sr-only">Loading page</span>
+      <MoonGateMark size={20} pulse="loop" className="mb-4 block text-ink" />
       <div className="mb-6">
         <Skeleton width={220} height={24} />
         <Skeleton width={140} height={12} className="mt-2.5" />

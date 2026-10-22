@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 /** Delete button with an inline confirm step (server action passed in). */
 export function DeleteContactButton({ action }: { action: () => void }) {
@@ -8,34 +9,21 @@ export function DeleteContactButton({ action }: { action: () => void }) {
 
   if (!confirming) {
     return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-body hover:text-ink-strong"
-      >
+      <Button variant="danger" size="sm" onClick={() => setConfirming(true)}>
         Delete contact
-      </button>
+      </Button>
     );
   }
 
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
-      <span className="text-[12.5px] text-ink-body">
-        Delete this contact permanently? This can’t be undone.
-      </span>
-      <button
-        type="submit"
-        className="rounded-lg border border-oranje bg-oranje/10 px-3 py-1.5 text-[12px] font-semibold text-accent-deep"
-      >
+      <span className="text-[12.5px] text-body">Delete this contact permanently? This can’t be undone.</span>
+      <Button type="submit" variant="danger" size="sm" pendingLabel="Deleting…">
         Yes, delete
-      </button>
-      <button
-        type="button"
-        onClick={() => setConfirming(false)}
-        className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
-      >
+      </Button>
+      <Button variant="quiet" size="sm" onClick={() => setConfirming(false)}>
         Cancel
-      </button>
+      </Button>
     </form>
   );
 }

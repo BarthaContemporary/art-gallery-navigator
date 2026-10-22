@@ -114,7 +114,7 @@ export function MakerSelect({
 
       {id && selected && !searching ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex min-h-[var(--jvb-control-h-sm)] items-center gap-1 border border-rule-strong pl-2.5 text-[13px] text-ink">
+          <span className="inline-flex min-h-[var(--jvb-control-h-sm)] items-center gap-1 border border-[var(--jvb-field-frame)] bg-[var(--jvb-field-bg)] pl-2.5 text-[13px] text-ink">
             {selected.label}
             <Button
               variant="quiet"
@@ -164,13 +164,13 @@ export function MakerSelect({
           {q.trim() ? (
             <>
               {results.length > 0 ? (
-                <ul data-inset-focus className="mt-1 max-h-60 divide-y divide-rule overflow-y-auto border border-rule-strong">
+                <ul data-inset-focus className="jvb-slide-enter mt-1 max-h-60 divide-y divide-rule overflow-y-auto border border-rule-strong">
                   {results.map((o) => (
                     <li key={o.id}>
                       <button
                         type="button"
                         onClick={() => pick(o)}
-                        className="block w-full px-3 py-2 text-left text-[13px] text-ink hover:bg-band"
+                        className="menu-row block w-full px-3 py-2 text-left text-[13px] text-ink"
                       >
                         {o.label}
                       </button>

@@ -16,6 +16,7 @@ import { EditFinancialsProvider, type EditFinancialsState } from "@/components/e
 import { resolvePiece, type PieceRef } from "@/lib/piece-store";
 import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { ArrowRightIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 
 export const metadata = { title: "Edit record" };
@@ -377,8 +378,9 @@ export default async function EditPiecePage({
                         <Button type="submit" pendingLabel="Linking…">Link</Button>
                       </div>
                     </form>
-                    <Link href="/shipments" className="link mt-2 inline-block text-[12px]">
-                      Manage shipments →
+                    <Link href="/shipments" className="link mt-2 inline-flex items-center gap-1 text-[12px]">
+                      Manage shipments
+                      <ArrowRightIcon size={12} />
                     </Link>
                     {kind === "import" && showFinancials ? (
                       <ImportVatFields
@@ -435,8 +437,9 @@ export default async function EditPiecePage({
                     <Button type="submit" pendingLabel="Linking…">Link</Button>
                   </div>
                 </form>
-                <Link href="/shipments?kind=temporary_import" className="link mt-2 inline-block text-[12px]">
-                  Manage temporary imports →
+                <Link href="/shipments?kind=temporary_import" className="link mt-2 inline-flex items-center gap-1 text-[12px]">
+                  Manage temporary imports
+                  <ArrowRightIcon size={12} />
                 </Link>
               </Section>
 
@@ -504,8 +507,9 @@ export default async function EditPiecePage({
                     <Button type="submit" pendingLabel="Linking…">Link</Button>
                   </div>
                 </form>
-                <Link href="/shipments?kind=temporary_export" className="link mt-2 inline-block text-[12px]">
-                  Manage temporary exports →
+                <Link href="/shipments?kind=temporary_export" className="link mt-2 inline-flex items-center gap-1 text-[12px]">
+                  Manage temporary exports
+                  <ArrowRightIcon size={12} />
                 </Link>
               </Section>
             </div>

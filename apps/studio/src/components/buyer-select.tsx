@@ -140,7 +140,7 @@ export function BuyerSelect({
 
       {id && !searching ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex min-h-[var(--jvb-control-h-sm)] items-center gap-1 border border-rule-strong pl-2.5 text-[13px] text-ink">
+          <span className="inline-flex min-h-[var(--jvb-control-h-sm)] items-center gap-1 border border-[var(--jvb-field-frame)] bg-[var(--jvb-field-bg)] pl-2.5 text-[13px] text-ink">
             {name || "Selected contact"}
             <Button variant="quiet" size="sm" iconOnly label="Clear buyer" onClick={clear}>
               <CloseIcon size={14} />
@@ -163,13 +163,13 @@ export function BuyerSelect({
           {loading ? (
             <p className="mt-1 text-[12px] text-meta">Searching…</p>
           ) : results.length > 0 ? (
-            <ul data-inset-focus className="mt-1 divide-y divide-rule overflow-hidden border border-rule-strong">
+            <ul data-inset-focus className="jvb-slide-enter mt-1 divide-y divide-rule overflow-hidden border border-rule-strong">
               {results.map((r) => (
                 <li key={r.id}>
                   <button
                     type="button"
                     onClick={() => pick(r)}
-                    className="flex w-full flex-col items-start px-3 py-2 text-left text-[13px] text-ink hover:bg-band"
+                    className="menu-row flex w-full flex-col items-start px-3 py-2 text-left text-[13px] text-ink"
                   >
                     <span>{r.name}</span>
                     {r.email ? <span className="text-[12px] text-body">{r.email}</span> : null}

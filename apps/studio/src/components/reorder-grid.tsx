@@ -33,6 +33,15 @@ type Ctx = {
 const ReorderCtx = createContext<Ctx | null>(null);
 
 /**
+ * The grip's look: a square in the hairline frame on the page ground. Hover
+ * gives the ink frame and words; held, it takes the ink fill, so the item in
+ * hand is plain to see. touch-none is what stops a touch-drag scrolling the
+ * page instead of moving the item.
+ */
+const GRIP =
+  "inline-flex min-h-[28px] cursor-grab touch-none items-center border border-rule-strong bg-page/90 px-1 text-meta transition-[color,border-color,background-color] duration-150 hover:border-ink hover:text-ink active:cursor-grabbing active:border-ink active:bg-ink active:text-page";
+
+/**
  * The grip. Rendered by ReorderGrid itself in the card layouts; placed by hand
  * inside the item for the table layout, where there is nowhere to overlay it.
  */
@@ -60,7 +69,7 @@ export function ReorderHandle({ id, className = "" }: { id: string; className?: 
       }}
       // touch-none is what stops a touch-drag scrolling the page instead of
       // moving the item.
-      className={`inline-flex min-h-[28px] cursor-grab touch-none items-center border border-rule-strong bg-page/90 px-1 text-meta hover:text-ink active:cursor-grabbing ${className}`}
+      className={`${GRIP} ${className}`}
     >
       <GripIcon size={16} />
     </button>
@@ -265,12 +274,12 @@ export function ReorderGrid({
                 }}
                 // touch-none is what stops a touch-drag scrolling the page
                 // instead of moving the tile.
-                className="inline-flex min-h-[28px] cursor-grab touch-none items-center border border-rule-strong bg-page/90 px-1 text-meta hover:text-ink active:cursor-grabbing"
+                className={GRIP}
               >
                 <GripIcon size={16} />
               </button>
               {showPosition ? (
-                <span className="rounded-md bg-cell/90 px-1.5 py-0.5 font-mono text-[10px] text-ink-faint">
+                <span className="tabular bg-page/90 px-1.5 py-0.5 text-[10px] text-meta">
                   {i + 1}
                 </span>
               ) : null}

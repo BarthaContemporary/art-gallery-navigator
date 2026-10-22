@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { nativeFieldLang } from "@/lib/script-lang";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,18 @@ import { chipClass } from "@/components/ui/chips";
 import { Notice } from "@/components/ui/notice";
 import { SaveStatus } from "@/components/ui/save-status";
 import { WebsiteSwitch } from "@/components/ui/website-switch";
-import { UploadIcon } from "@/components/ui/icons";
+import {
+  BoldIcon,
+  HeadingIcon,
+  ItalicIcon,
+  ListIcon,
+  NumberedListIcon,
+  ParagraphIcon,
+  SubheadingIcon,
+  UnderlineIcon,
+  UploadIcon,
+  type IconProps,
+} from "@/components/ui/icons";
 
 export type MakerFields = {
   display_name: string;
@@ -29,20 +40,20 @@ const FIELD_LABELS: [keyof MakerFields, string, string][] = [
 ];
 
 /**
- * The profile toolbar: each button names what it does (the glyph alone does
- * not) and reports, through aria-pressed, whether the text at the caret
- * already has it.
+ * The profile toolbar: Tabler's formatting icons (no glyphs standing in for
+ * them), each button named by aria-label and tooltip, and reporting through
+ * aria-pressed whether the text at the caret already has it.
  */
-type Tool = { key: string; glyph: string; label: string; run: [string, string?]; className?: string };
+type Tool = { key: string; Icon: ComponentType<IconProps>; label: string; run: [string, string?] };
 const TOOLS: Tool[] = [
-  { key: "bold", glyph: "B", label: "Bold", run: ["bold"], className: "font-bold" },
-  { key: "italic", glyph: "I", label: "Italic", run: ["italic"], className: "italic" },
-  { key: "underline", glyph: "U", label: "Underline", run: ["underline"], className: "underline" },
-  { key: "h2", glyph: "H2", label: "Heading", run: ["formatBlock", "<h2>"] },
-  { key: "h3", glyph: "H3", label: "Subheading", run: ["formatBlock", "<h3>"] },
-  { key: "p", glyph: "¶", label: "Paragraph", run: ["formatBlock", "<p>"] },
-  { key: "ul", glyph: "• List", label: "Bulleted list", run: ["insertUnorderedList"] },
-  { key: "ol", glyph: "1. List", label: "Numbered list", run: ["insertOrderedList"] },
+  { key: "bold", Icon: BoldIcon, label: "Bold", run: ["bold"] },
+  { key: "italic", Icon: ItalicIcon, label: "Italic", run: ["italic"] },
+  { key: "underline", Icon: UnderlineIcon, label: "Underline", run: ["underline"] },
+  { key: "h2", Icon: HeadingIcon, label: "Heading", run: ["formatBlock", "<h2>"] },
+  { key: "h3", Icon: SubheadingIcon, label: "Subheading", run: ["formatBlock", "<h3>"] },
+  { key: "p", Icon: ParagraphIcon, label: "Paragraph", run: ["formatBlock", "<p>"] },
+  { key: "ul", Icon: ListIcon, label: "Bulleted list", run: ["insertUnorderedList"] },
+  { key: "ol", Icon: NumberedListIcon, label: "Numbered list", run: ["insertOrderedList"] },
 ];
 
 /** Which tools apply at the caret, read from the browser's editing state. */
@@ -467,9 +478,9 @@ export function MakerProfileEditor({
                       aria-pressed={Boolean(pressed[t.key])}
                       title={t.label}
                       onClick={() => cmd(t.run[0], t.run[1])}
-                      className={chipClass(`min-w-[28px] justify-center px-2 ${t.className ?? ""}`)}
+                      className={chipClass("w-[var(--jvb-control-h-sm)] justify-center px-0")}
                     >
-                      {t.glyph}
+                      <t.Icon size={15} />
                     </button>
                   ))}
                 </div>
@@ -498,7 +509,7 @@ export function MakerProfileEditor({
                 if (timer.current) clearTimeout(timer.current);
                 void save();
               }}
-              className="prose-maker min-h-[280px] w-full border-b border-field-edge bg-form px-4 py-3 text-[14.5px] leading-[1.6] text-ink transition-colors hover:bg-form-hover focus:border-ink focus:bg-form [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+              className="field-box prose-maker min-h-[280px] w-full px-4 py-3 text-[14.5px] leading-[1.6] text-ink [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
             />
             <p className="mt-1.5 text-[12px] leading-[1.4] text-meta">
               Autosaves as you type. This text feeds the maker profile PDF and website page.

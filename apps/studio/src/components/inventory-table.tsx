@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StatusPill, STATUS_LABELS } from "@/components/status-pill";
 import { RegisterBadge } from "@/components/register-badge";
+import { useInventoryView } from "@/components/inventory-view";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Collapse } from "@/components/ui/collapse";
 import { Checkbox, Field, Input, Select } from "@/components/ui/field";
-import { ArrowRightIcon, FlagIcon, ImageIcon } from "@/components/ui/icons";
-import { Kbd } from "@/components/ui/kbd";
+import { ArrowRightIcon, ChevronDownIcon, FlagIcon, ImageIcon } from "@/components/ui/icons";
+import { MoonGateMark } from "@/components/ui/moon-gate";
 import { Notice } from "@/components/ui/notice";
-import { Panel } from "@/components/ui/section";
 import { ColumnResizer, SortMark, TableFrame, Td, rowClass, thClass } from "@/components/ui/table";
 import { WebsiteDot } from "@/components/ui/website-switch";
 import { cx } from "@/components/ui/cx";
@@ -50,7 +51,8 @@ type Col = {
 const COLS: Col[] = [
   { key: "select", label: "Select", sortable: false, resizable: false, width: 40 },
   { key: "flag", label: "Flag", sortable: false, resizable: false, width: 40 },
-  { key: "image", label: "Image", sortable: false, resizable: false, width: 56 },
+  // A 40px square thumbnail with the cell's 12px sides.
+  { key: "image", label: "Image", sortable: false, resizable: false, width: 64 },
   { key: "stock_number", label: "Stock", sortable: true, resizable: true, width: 130 },
   { key: "title", label: "Title", sortable: true, resizable: true, width: 300 },
   { key: "maker_name", label: "Maker", sortable: true, resizable: true, width: 170 },
@@ -59,9 +61,10 @@ const COLS: Col[] = [
   { key: "status", label: "Status", sortable: true, resizable: true, width: 130 },
 ];
 /**
- * Whether a work is on the website, as a column the user switches on. Off by
- * default: most of the time the question is where a work is and whether it
- * is available, and the facet above answers "which are on the site".
+ * Whether a work is on the website, as a column the user switches on (the
+ * View menu). Off by default: most of the time the question is where a work
+ * is and whether it is available, and the Website filter answers "which are
+ * on the site".
  */
 const WEB_COL: Col = { key: "web_visible", label: "Website", sortable: false, resizable: true, width: 96 };
 /** Heads with no visible words (the checkbox, flag and image columns). */
@@ -70,8 +73,9 @@ const ARIA_SORT = { asc: "ascending", desc: "descending", none: "none" } as cons
 
 const MIN_W = 64;
 const STORAGE_KEY = "jvb:inventory:colwidths:v2";
-const DENSITY_KEY = "jvb:inventory:density:v1";
-const WEB_COL_KEY = "jvb:inventory:webcol:v1";
+
+/** Parameters that only order or page the list; any other one is a filter. */
+const NOT_FILTERS = new Set(["sort", "dir", "page", "error", "notice"]);
 
 /** What the selection bar just filed, for the notice that outlives the bar. */
 type Filed = { listId: string; name: string; added: number; skipped: number };
@@ -83,6 +87,7 @@ export function InventoryTable({
   locations = [],
   flagTotal = 0,
   showingFlagged = false,
+  summary,
 }: {
   rows: InventoryRow[];
   thumbs: Record<string, string>;
@@ -92,12 +97,16 @@ export function InventoryTable({
   flagTotal?: number;
   /** Whether the list is currently narrowed to flagged works. */
   showingFlagged?: boolean;
+  /** The count line and top pager, drawn between the bars and the rows. */
+  summary?: ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const view = useInventoryView();
   const activeSort = params.get("sort");
   const activeDir = (params.get("dir") ?? "asc") as "asc" | "desc";
+  const filtered = [...params.keys()].some((k) => !NOT_FILTERS.has(k));
 
   // ---- multi-select (add to list / bulk edit) ----
   // Persisted to sessionStorage so a selection survives paging and sorting
@@ -209,48 +218,21 @@ export function InventoryTable({
     });
   }
 
-  // ---- view settings: density and the optional Website column ----
-  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
-  const [showWeb, setShowWeb] = useState(false);
-
-  // Load the persisted settings after mount (avoids SSR hydration mismatch).
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(DENSITY_KEY) === "compact") setDensity("compact");
-      if (localStorage.getItem(WEB_COL_KEY) === "on") setShowWeb(true);
-    } catch {
-      /* storage blocked: the defaults stand */
-    }
-  }, []);
-
-  function toggleDensity() {
-    setDensity((d) => {
-      const next = d === "compact" ? "comfortable" : "compact";
-      try {
-        localStorage.setItem(DENSITY_KEY, next);
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }
-  function toggleWebColumn() {
-    setShowWeb((on) => {
-      try {
-        if (on) localStorage.removeItem(WEB_COL_KEY);
-        else localStorage.setItem(WEB_COL_KEY, "on");
-      } catch {
-        /* ignore */
-      }
-      return !on;
-    });
-  }
+  // ---- view settings (the header's View menu, components/inventory-view) ----
+  const { density, showWeb } = view;
+  const compact = density === "compact";
 
   // Column widths: drag, ←/→ on a focused handle, double-click to reset;
   // remembered under STORAGE_KEY (hooks/use-resizable-columns). The Website
-  // column's width is kept there too, under its own key.
+  // column's width is kept there too, under its own key. The View menu
+  // offers "Reset column widths" while any differ from the defaults.
   const columns = showWeb ? [...COLS, WEB_COL] : COLS;
   const cols = useResizableColumns(columns, { storageKey: STORAGE_KEY, minWidth: MIN_W });
+  const { setWidthsCustomised, resetWidths } = view;
+  useEffect(() => setWidthsCustomised(cols.isCustomised), [cols.isCustomised, setWidthsCustomised]);
+  useEffect(() => {
+    resetWidths.current = cols.resetAll;
+  });
 
   function sort(column: string, dir: "asc" | "desc") {
     const p = new URLSearchParams(params.toString());
@@ -266,10 +248,17 @@ export function InventoryTable({
     sort(column, nextDir);
   }
 
-  const isCustomised = cols.isCustomised;
-
   function href(r: InventoryRow) {
     return `/inventory/${encodeURIComponent(r.stock_number)}`;
+  }
+
+  // A page holds up to 100 rows, each linking to its record three times.
+  // Prefetching every link in view asked the server for up to 100 record
+  // shells per inventory page; a record is now fetched ahead only when the
+  // pointer reaches one of its links, a finger lands on it or it takes focus.
+  function rowLink(r: InventoryRow) {
+    const ahead = () => router.prefetch(href(r));
+    return { prefetch: false, onPointerEnter: ahead, onTouchStart: ahead, onFocus: ahead } as const;
   }
 
   // ---- j/k row navigation ----
@@ -389,14 +378,14 @@ export function InventoryTable({
         // The title and stock number already link to the record; a second,
         // unnamed link per row would only add a blank tab stop.
         return (
-          <Link href={href(r)} aria-hidden tabIndex={-1} className="block w-9">
-            <Thumb src={thumbs[r.id]} size="h-9 w-9" />
+          <Link href={href(r)} prefetch={false} aria-hidden tabIndex={-1} className="inv-thumb-link">
+            <Thumb src={thumbs[r.id]} size={compact ? "h-8 w-8" : "h-10 w-10"} lazy />
           </Link>
         );
       case "stock_number":
         return (
           <span className="flex min-w-0 items-center gap-1.5">
-            <Link href={href(r)} className="link-plain tabular truncate text-ink">
+            <Link href={href(r)} {...rowLink(r)} className="link-plain tabular truncate text-ink">
               {r.stock_number}
             </Link>
             {r.legacy_stock_number ? (
@@ -413,7 +402,7 @@ export function InventoryTable({
                 Finish
               </Badge>
             ) : null}
-            <Link href={href(r)} className="link-plain truncate text-ink">
+            <Link href={href(r)} {...rowLink(r)} className="link-plain truncate text-ink">
               {titleWithYear(r.title, r.year)}
             </Link>
           </span>
@@ -438,12 +427,28 @@ export function InventoryTable({
     }
   }
 
+  const empty = (
+    <>
+      <MoonGateMark size={24} className="mx-auto mb-3 block text-rule-strong" />
+      <p className="mx-auto max-w-[46ch] text-[13px] leading-[1.45] text-body">
+        {filtered ? "No records match these filters." : "No records yet."}
+      </p>
+      {filtered ? (
+        <div className="mt-3 flex justify-center">
+          <ButtonLink href="/inventory" size="sm">
+            Clear filters
+          </ButtonLink>
+        </div>
+      ) : null}
+    </>
+  );
+
   return (
     <div>
       {filed ? (
         <Notice
           tone="ok"
-          className="mb-2"
+          className="jvb-slide-enter mb-3"
           action={
             <Button variant="quiet" size="sm" className="text-body" onClick={() => setFiled(null)}>
               Dismiss
@@ -484,7 +489,7 @@ export function InventoryTable({
         />
       ) : null}
       {flagError ? (
-        <Notice tone="danger" inline className="mb-2">
+        <Notice tone="danger" inline className="mb-3">
           {flagError}
         </Notice>
       ) : null}
@@ -506,58 +511,31 @@ export function InventoryTable({
         />
       ) : null}
 
-      {/* The view settings only mean anything for the table, which is
-          desktop-only — hide them where the cards render. */}
-      <div className="mb-1 hidden items-center justify-end gap-1 md:flex">
-        <p className="mr-auto hidden text-[11px] leading-[1.3] text-meta lg:block">
-          <Kbd>j</Kbd> <Kbd>k</Kbd> move · <Kbd>⏎</Kbd> open · <Kbd>x</Kbd> select · <Kbd>f</Kbd> flag
-        </p>
-        {/* The words say what a press does, as on the density toggle beside
-            it, so there is no aria-pressed to contradict them (R5). */}
-        <Button variant="quiet" size="sm" onClick={toggleWebColumn}>
-          {showWeb ? "Hide website column" : "Show website column"}
-        </Button>
-        <Button variant="quiet" size="sm" onClick={toggleDensity} title="Toggle row density">
-          {density === "compact" ? "Comfortable rows" : "Compact rows"}
-        </Button>
-        {isCustomised ? (
-          <Button variant="quiet" size="sm" onClick={cols.resetAll}>
-            Reset column widths
-          </Button>
-        ) : null}
-      </div>
+      {summary}
 
-      {/* Mobile: a card list. The table is a fixed ~1100px grid with drag
-          handles — on a phone that is three viewports of sideways scrolling and
-          the handles are unusable by touch. Same data, one column, tappable. */}
-      <ul className="border-t border-rule-strong md:hidden">
-        {rows.map((r) => {
-          const isSelected = selected.has(r.id);
-          const isFlagged = flags.has(r.id);
-          return (
-            <li
-              key={r.id}
-              className={cx("relative border-b border-rule", isSelected && "bg-accent-wash")}
-            >
-              {/* The same row rules as the table: 3px warn when flagged,
-                  2px accent when selected. */}
-              {isFlagged || isSelected ? (
-                <span
-                  aria-hidden
-                  className={cx("absolute inset-y-0 left-0", isFlagged ? "w-[3px] bg-warn" : "w-[2px] bg-accent")}
-                />
-              ) : null}
-              <div className="flex items-stretch">
+      {/* While a filter or search change is on the wire the rows dim (after
+          a beat, so a quick answer never flickers). */}
+      <div className="inv-results" data-pending={view.pending || undefined} aria-busy={view.pending || undefined}>
+        {/* Phone: a list. The table is a fixed ~1100px grid with drag
+            handles — on a phone that is three viewports of sideways
+            scrolling and the handles are unusable by touch. Same data, one
+            column, tappable. */}
+        <ul className="inv-cards md:hidden">
+          {rows.map((r) => {
+            const isSelected = selected.has(r.id);
+            const isFlagged = flags.has(r.id);
+            return (
+              <li
+                key={r.id}
+                className="inv-card"
+                data-selected={isSelected || undefined}
+                data-flagged={isFlagged || undefined}
+              >
                 <label className="flex w-11 shrink-0 items-center justify-center">
                   <span className="sr-only">Select {r.stock_number}</span>
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleRow(r.id)}
-                    className="h-4 w-4"
-                  />
+                  <input type="checkbox" checked={isSelected} onChange={() => toggleRow(r.id)} className="h-4 w-4" />
                 </label>
-                <Link href={href(r)} className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-1">
+                <Link href={href(r)} {...rowLink(r)} className="inv-card-link">
                   <Thumb src={thumbs[r.id]} size="h-12 w-12" lazy />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
@@ -569,7 +547,7 @@ export function InventoryTable({
                         </Badge>
                       ) : null}
                     </span>
-                    <span className="mt-0.5 block truncate text-[13.5px] leading-[1.45] text-ink">
+                    <span className="mt-0.5 block truncate text-[14px] leading-[1.4] text-ink">
                       {titleWithYear(r.title, r.year)}
                     </span>
                     <span className="mt-0.5 block truncate text-[12px] leading-[1.4] text-meta">
@@ -583,156 +561,151 @@ export function InventoryTable({
                 <span className="flex w-11 shrink-0 items-center justify-center">
                   <FlagButton flagged={isFlagged} stock={r.stock_number} onClick={() => toggleFlag(r.id)} large />
                 </span>
-              </div>
-            </li>
-          );
-        })}
-        {rows.length === 0 ? (
-          <li className="px-4 py-10 text-center text-[13px] leading-[1.45] text-body">
-            No records match these filters.
-          </li>
-        ) : null}
-      </ul>
+              </li>
+            );
+          })}
+          {rows.length === 0 ? <li className="px-4 py-10 text-center">{empty}</li> : null}
+        </ul>
 
-      {/* The table, from md up. A wide table (the default columns are wider
-          than an iPad in landscape, and widths are the user's to change)
-          scrolls sideways inside its own frame and never moves the page.
-          A head inside a scrolling frame cannot stick to the page, so the
-          head is a table of its own above the frame: from lg it sticks
-          under the app header, and it follows the frame's sideways scroll
-          (both ways, so a swipe or Tab on the head moves the rows too).
-          The two <table>s are one ARIA table (role="table" on the wrapper,
-          rowgroup / row / columnheader / cell inside), so each cell is
-          still read with its column's head. */}
-      <div role="table" aria-label="Inventory" className="hidden md:block">
-        <div
-          ref={headScroll}
-          onScroll={() => mirrorScroll(headScroll.current, bodyScroll.current)}
-          data-inset-focus
-          className="relative overflow-x-auto bg-page [scrollbar-width:none] lg:sticky lg:top-[var(--app-header-h,88px)] lg:z-20 [&::-webkit-scrollbar]:hidden"
-        >
-          <table
-            ref={cols.tableRef}
-            role="presentation"
-            style={{ width: cols.totalWidth(), tableLayout: "fixed" }}
-            className="min-w-full border-collapse bg-page text-left text-[13px] leading-[1.45]"
+        {/* The table, from md up. A wide table (the default columns are wider
+            than an iPad in landscape, and widths are the user's to change)
+            scrolls sideways inside its own frame and never moves the page.
+            A head inside a scrolling frame cannot stick to the page, so the
+            head is a table of its own above the frame: from lg it sticks
+            under the app header, and it follows the frame's sideways scroll
+            (both ways, so a swipe or Tab on the head moves the rows too).
+            The two <table>s are one ARIA table (role="table" on the wrapper,
+            rowgroup / row / columnheader / cell inside), so each cell is
+            still read with its column's head. */}
+        <div role="table" aria-label="Inventory" className="hidden md:block">
+          <div
+            ref={headScroll}
+            onScroll={() => mirrorScroll(headScroll.current, bodyScroll.current)}
+            data-inset-focus
+            className="relative overflow-x-auto bg-page [scrollbar-width:none] lg:sticky lg:top-[var(--app-header-h,88px)] lg:z-20 [&::-webkit-scrollbar]:hidden"
           >
-            <colgroup>
-              {columns.map((c) => (
-                <col key={c.key} ref={cols.colRef(c.key)} style={{ width: cols.widthOf(c.key) }} />
-              ))}
-            </colgroup>
-            <thead role="rowgroup">
-              <tr role="row">
-                {columns.map((c) => {
-                  const state = activeSort === c.key ? activeDir : "none";
-                  return (
-                    // Th's look (thClass), composed here so the resize handle
-                    // sits beside the sort button rather than inside it.
-                    <th
-                      key={c.key}
-                      role="columnheader"
-                      scope="col"
-                      aria-sort={c.sortable ? ARIA_SORT[state] : undefined}
-                      className={thClass({}, "select-none")}
-                    >
-                      {c.key === "select" ? (
-                        <input
-                          type="checkbox"
-                          aria-label="Select all on this page"
-                          checked={allSelected}
-                          onChange={toggleAll}
-                          className="h-4 w-4 align-middle"
-                        />
-                      ) : WORDLESS.has(c.key) ? (
-                        <span className="sr-only">{c.label}</span>
-                      ) : c.sortable ? (
-                        <button
-                          type="button"
-                          onClick={() => onHeaderClick(c.key)}
-                          title="Click to sort · click again to reverse"
-                          className={cx(
-                            "inline-flex items-center gap-1 uppercase tracking-[inherit] hover:text-ink",
-                            state !== "none" && "text-ink",
-                          )}
-                        >
-                          <span className="self-baseline">{c.label}</span>
-                          <SortMark state={state} />
-                        </button>
-                      ) : (
-                        c.label
-                      )}
-                      {c.resizable ? <ColumnResizer {...resizeHandle(c.key, c.label)} /> : null}
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-          </table>
-        </div>
-
-        {/* The rows' frame: scrolls sideways at any width the table is wider
-            than; cells draw the focus ring inside (data-inset-focus). */}
-        <TableFrame ref={bodyScroll} onScroll={() => mirrorScroll(bodyScroll.current, headScroll.current)}>
-          <table
-            ref={bodyTable}
-            role="presentation"
-            style={
-              {
-                width: cols.totalWidth(),
-                tableLayout: "fixed",
-                // Density is this table's own setting (DENSITY_KEY), so it sets
-                // the row padding the Td cells read rather than the page's.
-                "--jvb-row-py": density === "compact" ? "6px" : "10px",
-              } as CSSProperties
-            }
-            className="min-w-full border-collapse bg-page text-left text-[13px] leading-[1.45]"
-          >
-            <colgroup>
-              {columns.map((c) => (
-                <col key={c.key} style={{ width: cols.widthOf(c.key) }} />
-              ))}
-            </colgroup>
-            <tbody role="rowgroup">
-              {rows.map((r, i) => (
-                <tr
-                  key={r.id}
-                  role="row"
-                  ref={(el) => {
-                    rowRefs.current[i] = el;
-                  }}
-                  className={rowClass({
-                    selected: selected.has(r.id),
-                    flagged: flags.has(r.id),
-                    current: i === activeRow,
-                  })}
-                >
-                  {columns.map((c) => (
-                    <Td key={c.key} role="cell" className="overflow-hidden">
-                      {cell(c, r)}
-                    </Td>
-                  ))}
-                </tr>
-              ))}
-              {rows.length === 0 ? (
-                // EmptyRow's look, with the row and cell roles this ARIA
-                // table needs.
+            <table
+              ref={cols.tableRef}
+              role="presentation"
+              style={{ width: cols.totalWidth(), tableLayout: "fixed" }}
+              className="min-w-full border-collapse bg-page text-left text-[13px] leading-[1.45]"
+            >
+              <colgroup>
+                {columns.map((c) => (
+                  <col key={c.key} ref={cols.colRef(c.key)} style={{ width: cols.widthOf(c.key) }} />
+                ))}
+              </colgroup>
+              <thead role="rowgroup">
                 <tr role="row">
-                  <td
-                    role="cell"
-                    colSpan={columns.length}
-                    aria-colspan={columns.length}
-                    className="border-b border-rule px-3 py-10 text-center"
-                  >
-                    <p className="mx-auto max-w-[46ch] text-[13px] leading-[1.45] text-body">
-                      No records match these filters.
-                    </p>
-                  </td>
+                  {columns.map((c) => {
+                    const state = activeSort === c.key ? activeDir : "none";
+                    return (
+                      // Th's look (thClass), composed here so the resize handle
+                      // sits beside the sort button rather than inside it.
+                      <th
+                        key={c.key}
+                        role="columnheader"
+                        scope="col"
+                        aria-sort={c.sortable ? ARIA_SORT[state] : undefined}
+                        className={thClass({}, "inv-th select-none")}
+                      >
+                        {c.key === "select" ? (
+                          <input
+                            type="checkbox"
+                            aria-label="Select all on this page"
+                            checked={allSelected}
+                            onChange={toggleAll}
+                            className="h-4 w-4 align-middle"
+                          />
+                        ) : WORDLESS.has(c.key) ? (
+                          <span className="sr-only">{c.label}</span>
+                        ) : c.sortable ? (
+                          <button
+                            type="button"
+                            onClick={() => onHeaderClick(c.key)}
+                            title="Click to sort · click again to reverse"
+                            data-sorted={state !== "none" || undefined}
+                            className="inv-sort inline-flex items-center gap-1 uppercase tracking-[inherit]"
+                          >
+                            <span className="self-baseline">{c.label}</span>
+                            <SortMark state={state} />
+                          </button>
+                        ) : (
+                          c.label
+                        )}
+                        {c.resizable ? <ColumnResizer {...resizeHandle(c.key, c.label)} /> : null}
+                      </th>
+                    );
+                  })}
                 </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </TableFrame>
+              </thead>
+            </table>
+          </div>
+
+          {/* The rows' frame: scrolls sideways at any width the table is wider
+              than; cells draw the focus ring inside (data-inset-focus). */}
+          <TableFrame ref={bodyScroll} onScroll={() => mirrorScroll(bodyScroll.current, headScroll.current)}>
+            <table
+              ref={bodyTable}
+              role="presentation"
+              style={
+                {
+                  width: cols.totalWidth(),
+                  tableLayout: "fixed",
+                  // Density is this table's own setting (DENSITY_KEY), so it sets
+                  // the row padding the Td cells read rather than the page's.
+                  "--jvb-row-py": compact ? "6px" : "10px",
+                } as CSSProperties
+              }
+              className="min-w-full border-collapse bg-page text-left text-[13px] leading-[1.45]"
+            >
+              <colgroup>
+                {columns.map((c) => (
+                  <col key={c.key} style={{ width: cols.widthOf(c.key) }} />
+                ))}
+              </colgroup>
+              <tbody role="rowgroup">
+                {rows.map((r, i) => (
+                  <tr
+                    key={r.id}
+                    role="row"
+                    ref={(el) => {
+                      rowRefs.current[i] = el;
+                    }}
+                    className={rowClass(
+                      {
+                        selected: selected.has(r.id),
+                        flagged: flags.has(r.id),
+                        current: i === activeRow,
+                      },
+                      "inv-row",
+                    )}
+                  >
+                    {columns.map((c) => (
+                      <Td key={c.key} role="cell" className="overflow-hidden">
+                        {cell(c, r)}
+                      </Td>
+                    ))}
+                  </tr>
+                ))}
+                {rows.length === 0 ? (
+                  // EmptyRow's look, with the row and cell roles this ARIA
+                  // table needs.
+                  <tr role="row">
+                    <td
+                      role="cell"
+                      colSpan={columns.length}
+                      aria-colspan={columns.length}
+                      className="border-b border-rule px-3 py-12 text-center"
+                    >
+                      {empty}
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </TableFrame>
+        </div>
       </div>
     </div>
   );
@@ -742,10 +715,18 @@ export function InventoryTable({
 function Thumb({ src, size, lazy = false }: { src: string | undefined; size: string; lazy?: boolean }) {
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt="" loading={lazy ? "lazy" : undefined} className={cx("shrink-0 object-cover", size)} />;
+    return (
+      <img
+        src={src}
+        alt=""
+        loading={lazy ? "lazy" : undefined}
+        decoding="async"
+        className={cx("inv-thumb shrink-0 object-cover", size)}
+      />
+    );
   }
   return (
-    <span aria-hidden className={cx("jvb-hatch flex shrink-0 items-center justify-center text-meta", size)}>
+    <span aria-hidden className={cx("inv-thumb jvb-hatch flex shrink-0 items-center justify-center text-meta", size)}>
       <ImageIcon size={14} />
     </span>
   );
@@ -917,12 +898,12 @@ function AddToListBar({
   const n = selectedIds.length;
 
   return (
-    // The bulk bar is a Panel (spec section 4) with the selection's accent
-    // rule down its edge, the same mark the selected rows carry.
-    <Panel className="mb-2 border-l-2 border-l-accent">
+    // The selection's bar: the accent rule down its edge is the mark the
+    // selected rows carry.
+    <div className="inv-bulk jvb-slide-enter" role="region" aria-label="Selected works">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-[13px] font-medium leading-[1.45] text-ink" aria-live="polite">
-          {n} selected
+        <p className="inv-bulk-count" aria-live="polite">
+          <span className="tabular">{n}</span> selected
         </p>
         {stale ? (
           <Badge tone="warn" title="This selection was started a while ago. Check it is still what you meant.">
@@ -1006,6 +987,7 @@ function AddToListBar({
           size="sm"
           disabled={busy}
           aria-expanded={confirmingDelete}
+          aria-controls="inventory-bulk-delete"
           onClick={() => {
             setCountTyped("");
             setConfirmingDelete((v) => !v);
@@ -1016,7 +998,7 @@ function AddToListBar({
         </Button>
       </div>
 
-      {confirmingDelete ? (
+      <Collapse id="inventory-bulk-delete" open={confirmingDelete}>
         <div className="mt-3 border-l-[3px] border-danger bg-danger-wash p-3">
           <p className="text-[13px] leading-[1.45] text-body">
             Delete{" "}
@@ -1050,7 +1032,7 @@ function AddToListBar({
                 onChange={(e) => setCountTyped(e.target.value)}
                 inputMode="numeric"
                 autoComplete="off"
-                className="field field-sm w-24 bg-page"
+                className="field field-sm w-24"
               />
             </div>
             <Button
@@ -1068,18 +1050,22 @@ function AddToListBar({
             </Button>
           </div>
         </div>
-      ) : null}
+      </Collapse>
 
       {error ? (
         <Notice tone="danger" inline className="mt-3">
           {error}
         </Notice>
       ) : null}
-    </Panel>
+    </div>
   );
 }
 
-/** The row flag: a filled warn flag when set, an outline until hovered otherwise. */
+/**
+ * The row flag: a filled warn flag when set, an outline until hovered
+ * otherwise. Setting or clearing it (a click, the f key, the bulk bar)
+ * stamps the flag once, so the change is seen where the eye is.
+ */
 function FlagButton({
   flagged,
   stock,
@@ -1091,6 +1077,13 @@ function FlagButton({
   onClick: () => void;
   large?: boolean;
 }) {
+  const [stamp, setStamp] = useState(false);
+  const was = useRef(flagged);
+  useEffect(() => {
+    if (was.current === flagged) return;
+    was.current = flagged;
+    setStamp(true);
+  }, [flagged]);
   return (
     <button
       type="button"
@@ -1100,11 +1093,9 @@ function FlagButton({
       aria-label={`Flag ${stock}`}
       title={flagged ? "Flagged: click to remove" : "Flag this work (f)"}
       onClick={onClick}
-      className={cx(
-        "inline-flex items-center justify-center transition-colors duration-150",
-        large ? "h-11 w-11" : "h-7 w-7",
-        flagged ? "text-warn" : "text-meta hover:text-warn",
-      )}
+      data-stamp={stamp || undefined}
+      onAnimationEnd={() => setStamp(false)}
+      className={cx("inv-flag", large ? "h-11 w-11" : "h-7 w-7")}
     >
       {/* Filled when set, so the state is a change of shape as well as of
           colour. */}
@@ -1114,8 +1105,10 @@ function FlagButton({
 }
 
 /**
- * The flagged set, as a whole: how many, show only those, file them into a
- * list (existing or new) and optionally clear the flags once filed.
+ * The flagged set, as a whole, on one slim line: how many, show only
+ * those, select the ones on this page, and file them into a list (existing
+ * or new, optionally clearing the flags once filed) in a fold that opens on
+ * demand.
  */
 function FlagBar({
   count,
@@ -1141,6 +1134,7 @@ function FlagBar({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ listId: string; added: number; skipped: number; name: string } | null>(null);
+  const [filing, setFiling] = useState(false);
 
   function toggleShowFlagged() {
     const p = new URLSearchParams(params.toString());
@@ -1179,6 +1173,7 @@ function FlagBar({
       });
       setListId("");
       setNewName("");
+      setFiling(false);
       if (clearAfter) onCleared();
       else router.refresh();
     } catch (e) {
@@ -1208,28 +1203,56 @@ function FlagBar({
     }
   }
 
+  const sep = (
+    <span aria-hidden className="inv-sep">
+      ·
+    </span>
+  );
+
   return (
-    // A Panel with the flag's 3px warn rule, the mark flagged rows carry.
-    <Panel className="mb-2 border-l-[3px] border-l-warn">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="flex items-center gap-1.5 text-[13px] font-medium leading-[1.45] text-ink">
-          <FlagIcon size={16} className="fill-current text-warn" />
-          {count} flagged
-          {flaggedOnPage > 0 && flaggedOnPage !== count ? (
-            <span className="font-normal text-meta">, {flaggedOnPage} on this page</span>
-          ) : null}
+    <div className="mb-3" role="region" aria-label="Flagged works">
+      {/* One line in the flag's colour: the warn rule flagged rows carry. */}
+      <div className="inv-flagline">
+        <p className="inv-flagline-count">
+          <FlagIcon size={15} className="fill-current text-warn" />
+          <span>
+            <span className="tabular">{count}</span> flagged
+            {flaggedOnPage > 0 && flaggedOnPage !== count ? (
+              <span className="font-normal text-meta">, {flaggedOnPage} on this page</span>
+            ) : null}
+          </span>
         </p>
-        <Button size="sm" onClick={toggleShowFlagged}>
+        {sep}
+        <Button variant="quiet" size="sm" onClick={toggleShowFlagged}>
           {showingFlagged ? "Show all records" : "Show flagged only"}
         </Button>
         {flaggedOnPage > 0 ? (
-          <Button
-            size="sm"
-            onClick={onSelectFlaggedOnPage}
-            title="Tick every flagged work on this page, for a bulk edit"
-          >
-            Select flagged on this page
-          </Button>
+          <>
+            {sep}
+            <Button
+              variant="quiet"
+              size="sm"
+              onClick={onSelectFlaggedOnPage}
+              title="Tick every flagged work on this page, for a bulk edit"
+            >
+              Select flagged on this page
+            </Button>
+          </>
+        ) : null}
+        {count > 0 ? (
+          <>
+            {sep}
+            <Button
+              variant="quiet"
+              size="sm"
+              aria-expanded={filing}
+              aria-controls="inventory-file-flagged"
+              onClick={() => setFiling((f) => !f)}
+            >
+              File into a list
+              <ChevronDownIcon size={14} />
+            </Button>
+          </>
         ) : null}
         <Button
           variant="quiet"
@@ -1243,36 +1266,40 @@ function FlagBar({
       </div>
 
       {count > 0 ? (
-        <div className="mt-3 flex flex-wrap items-end gap-2">
-          <Field label="File flagged works into" className="w-52">
-            <Select fieldSize="sm" value={listId} onChange={(e) => setListId(e.target.value)}>
-              <option value="">New list…</option>
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          {!listId ? (
-            <Field label="New list name" className="w-52">
-              <Input fieldSize="sm" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            </Field>
-          ) : null}
-          <Button size="sm" disabled={busy} pending={busy} pendingLabel="Adding…" onClick={() => void fileIntoList()}>
-            Add {count} to list
-          </Button>
-          <Checkbox
-            label="Clear the flags afterwards"
-            checked={clearAfter}
-            onChange={(e) => setClearAfter(e.target.checked)}
-            className="mb-1.5"
-          />
-        </div>
+        <Collapse id="inventory-file-flagged" open={filing}>
+          <div className="inv-fold inv-fold-flag mt-2">
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label="File flagged works into" className="w-52">
+                <Select fieldSize="sm" value={listId} onChange={(e) => setListId(e.target.value)}>
+                  <option value="">New list…</option>
+                  {lists.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              {!listId ? (
+                <Field label="New list name" className="w-52">
+                  <Input fieldSize="sm" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                </Field>
+              ) : null}
+              <Button size="sm" disabled={busy} pending={busy} pendingLabel="Adding…" onClick={() => void fileIntoList()}>
+                Add {count} to list
+              </Button>
+              <Checkbox
+                label="Clear the flags afterwards"
+                checked={clearAfter}
+                onChange={(e) => setClearAfter(e.target.checked)}
+                className="mb-1.5"
+              />
+            </div>
+          </div>
+        </Collapse>
       ) : null}
 
       {done ? (
-        <Notice tone="ok" inline className="mt-3">
+        <Notice tone="ok" inline className="jvb-slide-enter mt-2">
           <span>
             Added {done.added} work{done.added === 1 ? "" : "s"} to{" "}
             <Link href={`/inventory/lists/${done.listId}`} className="link">
@@ -1285,10 +1312,10 @@ function FlagBar({
         </Notice>
       ) : null}
       {error ? (
-        <Notice tone="danger" inline className="mt-3">
+        <Notice tone="danger" inline className="mt-2">
           {error}
         </Notice>
       ) : null}
-    </Panel>
+    </div>
   );
 }

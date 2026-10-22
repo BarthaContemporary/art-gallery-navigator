@@ -259,7 +259,7 @@ export function AddressFields({
             <span className="label">Find address</span>
             <div
               ref={acHostRef}
-              className="flex min-h-[var(--jvb-control-h)] items-center border-b border-field-edge bg-form px-2 [color-scheme:light] [&_gmp-place-autocomplete]:w-full [&_gmp-place-autocomplete]:bg-transparent"
+              className="field-box flex min-h-[var(--jvb-control-h)] items-center px-2 [color-scheme:light] [&_gmp-place-autocomplete]:w-full [&_gmp-place-autocomplete]:bg-transparent"
             />
             {mapsMsg ? <p className="text-[12px] leading-[1.4] text-meta">{mapsMsg}</p> : null}
           </div>

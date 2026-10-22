@@ -3,6 +3,7 @@
 import { useFormStatus } from "react-dom";
 import type { ComponentPropsWithRef, ReactNode } from "react";
 import { buttonClass, type ButtonSize, type ButtonVariant } from "./button-class";
+import { MoonGateLoader } from "./moon-gate";
 
 /**
  * Icon-only controls must say what they do: `iconOnly` needs a `label`,
@@ -16,9 +17,10 @@ export type ButtonProps = Omit<ComponentPropsWithRef<"button">, "children"> & {
   /** A leading icon (an icon from ./icons). For an icon-only button, pass it as children. */
   icon?: ReactNode;
   /**
-   * Shows the pending state (disabled, aria-busy, pendingLabel) for work the
-   * caller tracks itself, such as a fetch. A type="submit" button inside a
-   * <form> also turns pending by itself while the form's action runs.
+   * Shows the pending state (disabled, aria-busy, the Moon Gate loader and
+   * pendingLabel) for work the caller tracks itself, such as a fetch. A
+   * type="submit" button inside a <form> also turns pending by itself while
+   * the form's action runs.
    */
   pending?: boolean;
   /** Replaces the children while pending: "Saving…", "Sending…". */
@@ -34,6 +36,11 @@ export type ButtonProps = Omit<ComponentPropsWithRef<"button">, "children"> & {
  * straight through, so form data and handlers are exactly what the caller
  * wrote. type defaults to "button", so a button inside a form never submits
  * it by accident; pass type="submit" for the one that should.
+ *
+ * The content sits in a .btn-label span (the part the primary's label
+ * motion moves). While pending, the Moon Gate loader takes the leading
+ * icon's place (or the icon-only button's icon), and pendingLabel replaces
+ * the words.
  */
 export function Button({
   variant,
@@ -54,6 +61,7 @@ export function Button({
   // Outside a <form>, or for a plain button, this stays { pending: false }.
   const form = useFormStatus();
   const busy = Boolean(pending) || (type === "submit" && form.pending);
+  const loader = busy ? <MoonGateLoader size={size === "sm" ? 12 : 14} /> : null;
   return (
     <button
       {...rest}
@@ -64,8 +72,19 @@ export function Button({
       title={title ?? (iconOnly ? label : undefined)}
       className={buttonClass({ variant, size, iconOnly, wrap }, className)}
     >
-      {icon}
-      {busy && pendingLabel !== undefined && !iconOnly ? pendingLabel : children}
+      {iconOnly ? (
+        (loader ?? (
+          <>
+            {icon}
+            {children}
+          </>
+        ))
+      ) : (
+        <span className="btn-label">
+          {loader ?? icon}
+          {busy && pendingLabel !== undefined ? pendingLabel : children}
+        </span>
+      )}
     </button>
   );
 }

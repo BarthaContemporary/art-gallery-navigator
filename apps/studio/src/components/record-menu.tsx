@@ -70,7 +70,7 @@ export function RecordMenu({
       <div
         id={panelId}
         hidden={!open}
-        className="absolute right-0 top-[calc(100%+4px)] z-40 w-[min(340px,calc(100vw-32px))] border border-rule-strong bg-page p-3"
+        className="jvb-slide-enter absolute right-0 top-[calc(100%+4px)] z-40 w-[min(340px,calc(100vw-32px))] border border-rule-strong bg-page p-3"
         style={{ boxShadow: "var(--jvb-shadow-pop)" }}
       >
         {children}

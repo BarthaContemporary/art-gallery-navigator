@@ -192,7 +192,7 @@ export function ConsignmentPanel({
             />
           </Field>
           {coOwnerContactId ? (
-            <span className="inline-flex min-h-[var(--jvb-control-h-sm)] w-fit items-center gap-1 border border-rule-strong pl-2.5 text-[13px] text-ink">
+            <span className="inline-flex min-h-[var(--jvb-control-h-sm)] w-fit items-center gap-1 border border-[var(--jvb-field-frame)] bg-[var(--jvb-field-bg)] pl-2.5 text-[13px] text-ink">
               Linked contact
               <Button variant="quiet" size="sm" iconOnly label="Unlink contact" onClick={unlinkContact}>
                 <CloseIcon size={14} />
@@ -211,13 +211,13 @@ export function ConsignmentPanel({
               {contactSearching ? (
                 <p className="mt-1 text-[12px] text-meta">Searching…</p>
               ) : contactHits.length > 0 ? (
-                <ul data-inset-focus className="mt-1 divide-y divide-rule overflow-hidden border border-rule-strong">
+                <ul data-inset-focus className="jvb-slide-enter mt-1 divide-y divide-rule overflow-hidden border border-rule-strong">
                   {contactHits.map((c) => (
                     <li key={c.id}>
                       <button
                         type="button"
                         onClick={() => pickContact(c)}
-                        className="flex w-full flex-col items-start px-3 py-1.5 text-left text-[13px] text-ink hover:bg-band"
+                        className="menu-row flex w-full flex-col items-start px-3 py-1.5 text-left text-[13px] text-ink"
                       >
                         <span>{c.name}</span>
                         {c.email ? <span className="text-[12px] text-body">{c.email}</span> : null}

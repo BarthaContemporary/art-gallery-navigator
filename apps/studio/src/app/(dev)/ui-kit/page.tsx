@@ -6,8 +6,22 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { SegmentedLinks, ToggleChip } from "@/components/ui/chips";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Checkbox, Field, Input, Label, Radio, Select, Textarea } from "@/components/ui/field";
-import { ICONS, CloseIcon, DownloadIcon, FileIcon, PlusIcon, MoreIcon, SearchIcon } from "@/components/ui/icons";
+import {
+  ICONS,
+  ArrowRightIcon,
+  ChevronLeftIcon,
+  CloseIcon,
+  DownloadIcon,
+  EditIcon,
+  FileIcon,
+  PlusIcon,
+  MoreIcon,
+  RefreshIcon,
+  SearchIcon,
+  TrashIcon,
+} from "@/components/ui/icons";
 import { Kbd } from "@/components/ui/kbd";
+import { MoonGateLoader, MoonGateMark } from "@/components/ui/moon-gate";
 import { MenuButton } from "@/components/ui/menu";
 import { menuItemClass } from "@/components/ui/menu-class";
 import { FlashNotice, Notice } from "@/components/ui/notice";
@@ -31,6 +45,7 @@ import {
   ToggleChips,
   ToneSwatches,
 } from "./kit-demos";
+import { CollapseStates, ExpandingSearchStates, PendingLive } from "./kit-motion";
 
 /*
  * Dev-only reference page: every shared component (components/ui) in every
@@ -63,12 +78,14 @@ const INKS = [
 ] as const;
 const GROUNDS = [
   ["page", "var(--jvb-page)"],
-  ["band", "var(--jvb-band)"],
-  ["form", "var(--jvb-form)"],
+  ["band / overlay", "var(--jvb-band)"],
+  ["field (form)", "var(--jvb-field-bg)"],
   ["form-hover", "var(--jvb-form-hover)"],
   ["accent-wash", "var(--jvb-accent-wash)"],
   ["rule", "var(--jvb-rule)"],
   ["rule-strong", "var(--jvb-rule-strong)"],
+  ["field-frame", "var(--jvb-field-frame)"],
+  ["field-frame-hover", "var(--jvb-field-frame-hover)"],
 ] as const;
 const TONES = ["neutral", "ok", "warn", "danger", "info"] as const;
 const TYPE = [
@@ -135,7 +152,10 @@ export default function UiKitPage() {
           </div>
         </Section>
 
-        <Section title="Buttons" meta="Rest, hover, pressed, focus, disabled and pending, per variant.">
+        <Section
+          title="Buttons"
+          meta="The Moon Gate language: secondary fills with an ink wash, primary is the notched block whose seal stamps in, quiet draws an underline, danger washes red. Rest, hover, pressed, focus, disabled and pending, per variant."
+        >
           <div className="space-y-4">
             {VARIANTS.map((variant) => (
               <div key={variant} className="flex flex-wrap items-end gap-x-5 gap-y-3">
@@ -199,6 +219,11 @@ export default function UiKitPage() {
                   Open record
                 </ButtonLink>
               </Specimen>
+              <Specimen label="Link, primary">
+                <ButtonLink href="/ui-kit" variant="primary" icon={<PlusIcon size={14} />}>
+                  New record
+                </ButtonLink>
+              </Specimen>
               <Specimen label="Wrapping label (wrap)" className="w-56">
                 <Button size="sm" wrap>
                   Record: all imported contacts consented in the previous system
@@ -218,6 +243,116 @@ export default function UiKitPage() {
                 </span>
               </Specimen>
             </div>
+          </div>
+        </Section>
+
+        <Section
+          title="Icon buttons"
+          meta="Square. On hover each icon makes its own move: a close or a plus turns, an arrow nudges its way, a delete tips, the rest grow a little."
+        >
+          <div className="space-y-4">
+            {VARIANTS.map((variant) => (
+              <div key={variant} className="flex flex-wrap items-end gap-x-5 gap-y-3">
+                <Specimen label={`${variant.charAt(0).toUpperCase()}${variant.slice(1)}, rest`}>
+                  <Button iconOnly variant={variant} label="Close">
+                    <CloseIcon />
+                  </Button>
+                </Specimen>
+                <Specimen label="Hover: close">
+                  <Button iconOnly variant={variant} label="Close" data-preview="hover">
+                    <CloseIcon />
+                  </Button>
+                </Specimen>
+                <Specimen label="Hover: next">
+                  <Button iconOnly variant={variant} label="Next" data-preview="hover">
+                    <ArrowRightIcon />
+                  </Button>
+                </Specimen>
+                <Specimen label="Hover: previous">
+                  <Button iconOnly variant={variant} label="Previous" data-preview="hover">
+                    <ChevronLeftIcon />
+                  </Button>
+                </Specimen>
+                <Specimen label="Hover: delete">
+                  <Button iconOnly variant={variant} label="Delete" data-preview="hover">
+                    <TrashIcon />
+                  </Button>
+                </Specimen>
+                <Specimen label="Hover: edit">
+                  <Button iconOnly variant={variant} label="Edit" data-preview="hover">
+                    <EditIcon />
+                  </Button>
+                </Specimen>
+                <Specimen label="Hover: other (grows)">
+                  <Button iconOnly variant={variant} label="Search" data-preview="hover">
+                    <SearchIcon />
+                  </Button>
+                </Specimen>
+                <Specimen label="Small, hover">
+                  <Button iconOnly size="sm" variant={variant} label="Refresh" data-preview="hover">
+                    <RefreshIcon size={14} />
+                  </Button>
+                </Specimen>
+                <Specimen label="Pressed">
+                  <Button iconOnly variant={variant} label="Add" data-preview="active">
+                    <PlusIcon />
+                  </Button>
+                </Specimen>
+                <Specimen label="Focus">
+                  <Button iconOnly variant={variant} label="Add" data-preview="focus">
+                    <PlusIcon />
+                  </Button>
+                </Specimen>
+                <Specimen label="Pending">
+                  <Button iconOnly variant={variant} label="Add" pending>
+                    <PlusIcon />
+                  </Button>
+                </Specimen>
+              </div>
+            ))}
+            <Specimen label="Pending, live (click: two seconds on the wire)">
+              <PendingLive />
+            </Specimen>
+          </div>
+        </Section>
+
+        <Section
+          title="Moon Gate"
+          meta="The gallery's mark (mark 4a): an ink square with two square notches, the gate cut out, the seal in the accent. The square takes the text colour."
+        >
+          <div className="flex flex-wrap items-end gap-x-8 gap-y-5">
+            <Specimen label="Mark, 16 / 20 / 28 / 48">
+              <span className="flex items-end gap-4 text-ink">
+                <MoonGateMark size={16} />
+                <MoonGateMark size={20} />
+                <MoonGateMark size={28} />
+                <MoonGateMark size={48} />
+              </span>
+            </Specimen>
+            <Specimen label="Header (seal pulses once on hover)">
+              <span className="mg-hover flex items-center gap-2.5 text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-accent">
+                <MoonGateMark size={20} pulse="hover" className="text-ink" />
+                Joost van den Bergh
+              </span>
+            </Specimen>
+            <Specimen label="Quiet (empty states)">
+              <MoonGateMark size={28} className="text-rule-strong" />
+            </Specimen>
+            <Specimen label="Loading (seal breathes)">
+              <MoonGateMark size={20} pulse="loop" className="text-ink" />
+            </Specimen>
+            <Specimen label="Loader, 12 / 14 / 20">
+              <span className="flex items-center gap-4 text-ink">
+                <MoonGateLoader size={12} />
+                <MoonGateLoader size={14} />
+                <MoonGateLoader size={20} />
+              </span>
+            </Specimen>
+            <Specimen label="Loader on the primary">
+              <span className="inline-flex h-8 items-center bg-ink px-3 text-page">
+                <MoonGateLoader size={14} />
+              </span>
+            </Specimen>
           </div>
         </Section>
 
@@ -276,6 +411,62 @@ export default function UiKitPage() {
             <Field label="Stock number" hint="Given when the record is created.">
               <Input defaultValue="2026-0014" disabled />
             </Field>
+            <Field label="Stock number (read-only)" hint="Shown, selectable, not editable.">
+              <Input defaultValue="2026-0014" readOnly />
+            </Field>
+            <Field label="Purchase date (invalid, focus)" error="Enter a date on or before today.">
+              <Input type="date" defaultValue="2027-01-04" data-preview="focus" />
+            </Field>
+            <Field label="Status (hover)">
+              <Select defaultValue="reserved" data-preview="hover">
+                {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Status (focus)">
+              <Select defaultValue="sold" data-preview="focus">
+                {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Register (disabled)">
+              <Select defaultValue="" disabled>
+                <option value="">JvdB stock</option>
+              </Select>
+            </Field>
+            <Field label="Category, is / not (small)" hint="The inventory facets: is, not, hover, unavailable.">
+              <span className="flex flex-wrap gap-1">
+                <ToggleChip pressed={false} className="field-mode w-10 shrink-0 justify-center px-0">
+                  is
+                </ToggleChip>
+                <ToggleChip pressed className="field-mode w-10 shrink-0 justify-center px-0">
+                  not
+                </ToggleChip>
+                <ToggleChip pressed={false} data-preview="hover" className="field-mode w-10 shrink-0 justify-center px-0">
+                  is
+                </ToggleChip>
+                <ToggleChip pressed={false} disabled className="field-mode w-10 shrink-0 justify-center px-0">
+                  is
+                </ToggleChip>
+              </span>
+            </Field>
+            <Field label="Location, with its switch (small)">
+              <span className="flex gap-1">
+                <ToggleChip pressed className="field-mode w-10 shrink-0 justify-center px-0">
+                  not
+                </ToggleChip>
+                <Select fieldSize="sm" defaultValue="sto">
+                  <option value="">All locations</option>
+                  <option value="sto">Store</option>
+                </Select>
+              </span>
+            </Field>
             <Field label="Status">
               <Select defaultValue="in_stock">
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
@@ -313,6 +504,17 @@ export default function UiKitPage() {
               <Radio label="Object" disabled />
             </div>
           </div>
+        </Section>
+
+        <Section
+          title="Expanding search"
+          meta="A field folded to its icon: it opens on a click or /, stays open while it holds a value, Escape folds it when empty and returns focus."
+        >
+          <ExpandingSearchStates />
+        </Section>
+
+        <Section title="Folding" meta="A region that folds on its grid row: Disclosure, or Collapse under a trigger of your own.">
+          <CollapseStates />
         </Section>
 
         <Section
@@ -654,6 +856,12 @@ export default function UiKitPage() {
             <Specimen label="Switch, named">
               <WebsiteSwitch on onLabel="List on website" />
             </Specimen>
+            <Specimen label="Switch, on, hover">
+              <WebsiteSwitch on data-preview="hover" />
+            </Specimen>
+            <Specimen label="Switch, off, focus">
+              <WebsiteSwitch on={false} data-preview="focus" />
+            </Specimen>
             <Specimen label="Switch, pending">
               <WebsiteSwitch on={false} pending />
             </Specimen>
@@ -691,6 +899,11 @@ export default function UiKitPage() {
             </Specimen>
             <Specimen label="Skeleton table">
               <SkeletonTable rows={4} columns={4} />
+            </Specimen>
+            <Specimen label="App loading state (head)">
+              <MoonGateMark size={20} pulse="loop" className="mb-4 block text-ink" />
+              <Skeleton width={220} height={24} />
+              <Skeleton width={140} height={12} className="mt-2.5" />
             </Specimen>
           </div>
         </Section>

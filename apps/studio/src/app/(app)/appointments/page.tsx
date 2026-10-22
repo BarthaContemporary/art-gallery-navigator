@@ -531,7 +531,7 @@ export default async function AppointmentsPage({
               {upcoming.length > 0 ? (
                 <AppointmentsTable rows={upcoming} withActions />
               ) : (
-                <p className="text-[13px] text-body">No upcoming appointments.</p>
+                <EmptyState compact>No upcoming appointments.</EmptyState>
               )}
             </Section>
 

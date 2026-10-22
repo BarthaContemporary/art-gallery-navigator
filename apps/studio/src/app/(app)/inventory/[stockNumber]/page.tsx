@@ -34,6 +34,7 @@ import { Section } from "@/components/ui/section";
 import { WebsiteDot } from "@/components/ui/website-switch";
 import {
   ArrowLeftIcon,
+  ArrowRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   EditIcon,
@@ -823,7 +824,9 @@ export default async function PieceDetail({
               aria-label="Watch"
               title={watching ? "Watching this work. Press to stop watching." : "Watch this work"}
               icon={<EyeIcon size={15} />}
-              className={`px-3 ${watching ? "border-ink bg-band" : ""}`}
+              // On: the accent wash with the seal stamped in its corner
+              // (.btn[aria-pressed] in globals.css).
+              className="px-3"
             >
               <span className="hidden lg:inline">Watch</span>
             </Button>
@@ -834,8 +837,11 @@ export default async function PieceDetail({
               aria-pressed={flagged}
               aria-label="Flag"
               title={flagged ? "Flagged. Press to remove the flag." : "Flag this work to come back to it from the inventory"}
-              icon={<FlagIcon size={15} className={flagged ? "text-warn" : undefined} />}
-              className={`px-3 ${flagged ? "border-warn bg-warn-wash text-warn" : ""}`}
+              // On: the warn frame and wash, and the flag filled, a change
+              // of shape as in the inventory's flag column.
+              data-tone="warn"
+              icon={<FlagIcon size={15} className={flagged ? "fill-current" : undefined} />}
+              className="px-3"
             >
               <span className="hidden lg:inline">Flag</span>
             </Button>
@@ -897,8 +903,9 @@ export default async function PieceDetail({
                   </Link>
                 </p>
               )}
-              <Link href="/inventory/lists" className="link mt-2 inline-block text-[12px]">
-                Manage lists →
+              <Link href="/inventory/lists" className="link mt-2 inline-flex items-center gap-1 text-[12px]">
+                Manage lists
+                <ArrowRightIcon size={12} />
               </Link>
             </div>
           </RecordMenu>
@@ -1150,9 +1157,10 @@ export default async function PieceDetail({
             actions={
               <Link
                 href={`/inventory?q=${encodeURIComponent(piece.maker.display_name)}`}
-                className="link text-[12px]"
+                className="link inline-flex items-center gap-1 text-[12px]"
               >
-                View all →
+                View all
+                <ArrowRightIcon size={12} />
               </Link>
             }
           >

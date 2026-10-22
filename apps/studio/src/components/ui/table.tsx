@@ -40,8 +40,8 @@
  *     current (the j/k keyboard row) band with the accent rule; flagged a
  *     3px warn rule. rowClass({ … }) gives the same classes for a <tr> you
  *     build yourself.
- *   <EmptyRow colSpan action?>{sentence}</EmptyRow>  the one empty row: a
- *     sentence and one next action.
+ *   <EmptyRow colSpan action?>{sentence}</EmptyRow>  the one empty row: the
+ *     quiet Moon Gate mark, a sentence and one next action.
  *   <ColumnResizer {...handleProps} />  the drag handle at a head's right
  *     edge; props from hooks/use-resizable-columns. Pass it as Th's `after`.
  *   <SortMark state />                  the sort glyph on its own.
@@ -55,6 +55,7 @@ import Link from "next/link";
 import type { ComponentPropsWithRef, CSSProperties, ReactNode } from "react";
 import { cx } from "./cx";
 import { ChevronDownIcon, ChevronUpIcon, SortIcon } from "./icons";
+import { MoonGateMark } from "./moon-gate";
 import { ScrollFrame } from "./scroll-frame";
 
 export function TableFrame({
@@ -234,6 +235,7 @@ export function EmptyRow({
   return (
     <tr>
       <td colSpan={colSpan} className="border-b border-rule px-3 py-10 text-center">
+        <MoonGateMark size={24} className="mx-auto mb-3 block text-rule-strong" />
         <p className="mx-auto max-w-[46ch] text-[13px] leading-[1.45] text-body">{children}</p>
         {action ? <div className="mt-3 flex justify-center">{action}</div> : null}
       </td>
