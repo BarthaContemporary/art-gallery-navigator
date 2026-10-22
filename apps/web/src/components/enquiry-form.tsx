@@ -13,6 +13,7 @@ export function EnquiryForm({
   kind,
   subject,
   pieceId,
+  work,
   defaultMessage,
   heading,
   onCollapse,
@@ -22,6 +23,8 @@ export function EnquiryForm({
   kind: "work" | "publication" | "appointment";
   subject: string;
   pieceId?: string | null;
+  /** The work on the website, which the gallery's email shows in full. */
+  work?: { source: "work" | "catalogue"; id: string } | null;
   defaultMessage: string;
   /** Optional heading line; the inline toggles now carry the label themselves. */
   heading?: string;
@@ -52,6 +55,7 @@ export function EnquiryForm({
           kind,
           subject,
           pieceId: pieceId ?? undefined,
+          work: work ?? undefined,
           name: String(data.get("name") ?? ""),
           email: String(data.get("email") ?? ""),
           phone: String(data.get("phone") ?? "") || undefined,

@@ -386,6 +386,7 @@ function WorkPanel({
                     kind="work"
                     subject={workSubject(work)}
                     pieceId={work.pieceId}
+                    work={{ source: work.source, id: work.id }}
                     defaultMessage={`I'm interested in ${workSubject(work)}`}
                   />
                 ) : null}

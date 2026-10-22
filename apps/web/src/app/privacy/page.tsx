@@ -69,6 +69,14 @@ export default async function PrivacyPage() {
           <strong>From your use of this website:</strong> only what you consent to in the cookie
           choice (see our Cookie Policy), plus the technical data needed to keep the site secure.
         </p>
+        <p>
+          <strong>When you send an enquiry through this website:</strong> the email that tells the
+          gallery about it also gives the time it was sent, the IP address it came from, the
+          approximate location our hosting provider estimates from that address (town, region and
+          country), your browser type and the page you were on. This helps us to recognise misuse of
+          the form and to answer you in good time; it is our legitimate interest in running the
+          gallery. These details stay in that email and are not added to your contact record.
+        </p>
       </LegalSection>
 
       <LegalSection heading="Why we use it and our lawful basis">

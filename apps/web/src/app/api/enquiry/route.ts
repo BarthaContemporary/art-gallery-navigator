@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServiceClient } from "@jvb/db/server";
 import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
 import { fromLine, galleryNotificationAddress, maskAddress, sendEmail } from "@/lib/email";
+import { enquiryEmail, enquiryOrigin, enquiryWork } from "@/lib/enquiry-email";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -15,6 +16,10 @@ const schema = z.object({
   subject: z.string().trim().max(300),
   /** Inventory piece id when the work is current stock — links the enquiry to the record. */
   pieceId: z.string().uuid().optional(),
+  /** The work on the website (a work's slug, or a catalogue entry's key), looked up for the email. */
+  work: z
+    .object({ source: z.enum(["work", "catalogue"]), id: z.string().trim().min(1).max(200) })
+    .optional(),
   name: z.string().trim().min(1, "Please enter your name").max(200),
   email: z.string().trim().email("Please enter a valid email address").max(320),
   phone: z.string().trim().max(50).optional(),
@@ -73,7 +78,8 @@ export async function POST(req: NextRequest) {
 
   const email = payload.email.toLowerCase();
   const [firstName, ...rest] = payload.name.split(/\s+/);
-  const now = new Date().toISOString();
+  const sentAt = new Date();
+  const now = sentAt.toISOString();
   const label = KIND_LABEL[payload.kind];
   const addr = payload.address;
   const addressText = addr
@@ -158,24 +164,31 @@ export async function POST(req: NextRequest) {
     } else {
       const galleryName = settings?.galleryName ?? fallbackGalleryName;
       const from = process.env.BOOKING_FROM_EMAIL ?? `website@${req.nextUrl.hostname}`;
+      // The work as published, with its picture, and everything the
+      // enquirer gave, then when and where the enquiry was sent from.
+      const work = payload.kind === "work" ? await enquiryWork(payload.work) : null;
+      const { html, text } = enquiryEmail({
+        heading: `${label}${payload.subject ? ` — ${payload.subject}` : ""}`,
+        message: payload.message,
+        enquirer: [
+          { label: "Name", value: payload.name },
+          { label: "Email", value: email },
+          ...(payload.phone ? [{ label: "Phone", value: payload.phone }] : []),
+          ...(addressText ? [{ label: "Post to", value: addressText }] : []),
+          { label: "Mailing list", value: payload.mailingList ? "Asked to join" : "Not asked" },
+          { label: "Agreed to", value: "Be contacted about this enquiry (Privacy Notice and Terms)" },
+        ],
+        work,
+        origin: enquiryOrigin(req, sentAt),
+        fallbackSubject: payload.kind === "work" ? payload.subject || null : null,
+      });
       const id = await sendEmail(apiKey, {
         from: fromLine(from, `${galleryName} website`),
         to,
         replyTo: email,
         subject: `${label}${payload.subject ? `: ${payload.subject}` : ""}`,
-        text: [
-          `${label}${payload.subject ? ` — ${payload.subject}` : ""}`,
-          "",
-          payload.message,
-          "",
-          `From: ${payload.name}`,
-          `Email: ${email}`,
-          payload.phone ? `Phone: ${payload.phone}` : null,
-          addressText ? `Post to: ${addressText}` : null,
-          payload.mailingList ? "Asked to join the mailing list." : null,
-        ]
-          .filter((l) => l !== null)
-          .join("\n"),
+        html,
+        text,
       }, "[enquiry] gallery notification");
       console.info(`[enquiry] gallery notified at ${maskAddress(to)} (Resend ${id})`);
     }

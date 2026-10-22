@@ -8,6 +8,8 @@ import type { CatalogueEntry, SanityImage, Work } from "@/lib/sanity";
 export type GridWork = {
   /** Stable id used in the `?work=` URL: the work slug or the catalogue _key. */
   id: string;
+  /** Which of the two the id names: a work document, or a past show's catalogue entry. */
+  source: "work" | "catalogue";
   image: SanityImage | null;
   artist: string | null;
   artistNative: string | null;
@@ -35,6 +37,7 @@ export function workToGrid(w: Work): GridWork | null {
   if (!w.slug) return null;
   return {
     id: w.slug,
+    source: "work",
     image: w.images?.[0] ?? null,
     artist: w.artist?.name ?? w.maker,
     artistNative: w.artist?.nameNative ?? w.makerNative ?? null,
@@ -58,6 +61,7 @@ export function workToGrid(w: Work): GridWork | null {
 export function catalogueToGrid(c: CatalogueEntry): GridWork {
   return {
     id: c._key,
+    source: "catalogue",
     image: c.image,
     artist: c.maker,
     artistNative: null,

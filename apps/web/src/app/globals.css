@@ -575,6 +575,21 @@
   .slide[data-active="true"] {
     opacity: 1;
   }
+  /* The slideshow's pause / play, before its markers: white on the
+     picture, quiet until pointed at. */
+  .slide-toggle {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    color: rgb(255 255 255 / 0.75);
+    filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.35));
+    transition: color 150ms ease;
+  }
+  .slide-toggle:hover,
+  .slide-toggle[aria-pressed="true"] {
+    color: #fff;
+  }
 }
 
 /* ---------------------------------------------------------------------------
