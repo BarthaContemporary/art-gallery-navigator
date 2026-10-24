@@ -6,13 +6,19 @@ import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from 
 import { OfferResponse } from "@/components/offer-response";
 import { OfferGate } from "@/components/offer-gate";
 import { grantCookieName, verifyGrant } from "@/lib/offer-access";
+import { PRIVATE_PAGE_REFERRER } from "@/lib/private-paths";
 
-/** Tokenized private offer / fair-preview page. Never indexed, never cached. */
+/**
+ * Tokenized private offer / fair-preview page. Never indexed, never cached,
+ * and its address is never passed on as a referrer: a page opened from here
+ * learns only the site's address (lib/private-paths).
+ */
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Private viewing",
   robots: { index: false, follow: false, nocache: true },
+  referrer: PRIVATE_PAGE_REFERRER,
 };
 
 /* ---------------------------------------------------------------- */

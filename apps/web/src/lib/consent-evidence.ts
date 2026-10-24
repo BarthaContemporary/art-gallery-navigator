@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { NextRequest } from "next/server";
+import { clientIp } from "@/lib/form-fields";
 
 /**
  * Evidence of consent, kept on the contact (UK GDPR Art. 7(1): the controller
@@ -31,9 +32,9 @@ export type ConsentEvidence = {
 };
 
 export function consentEvidence(req: NextRequest, form: keyof typeof CONSENT_TEXTS): ConsentEvidence {
-  const ip = (req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for") ?? "")
-    .split(",")[0]
-    ?.trim();
+  // Vercel's own client-address headers: cf-connecting-ip came from the
+  // browser (the site is not behind Cloudflare) and could say anything.
+  const ip = clientIp(req.headers);
   return {
     version: CONSENT_TEXT_VERSION,
     form,
@@ -45,11 +46,16 @@ export function consentEvidence(req: NextRequest, form: keyof typeof CONSENT_TEX
   };
 }
 
-/** Merge a new piece of evidence into the contact's jsonb, keyed by purpose. */
+/**
+ * Merge a new piece of evidence into the contact's jsonb, keyed by purpose.
+ * "marketing_pending" is a newsletter sign-up asked for on behalf of a
+ * contact who already existed, waiting for its confirmation link
+ * (lib/newsletter-optin.ts); it becomes "marketing" once confirmed.
+ */
 export function mergeEvidence(
   existing: unknown,
-  key: "marketing" | "contact",
-  evidence: ConsentEvidence,
+  key: "marketing" | "marketing_pending" | "contact",
+  evidence: ConsentEvidence | (ConsentEvidence & { token_hash: string }),
 ): Record<string, unknown> {
   const base = existing && typeof existing === "object" ? (existing as Record<string, unknown>) : {};
   return { ...base, [key]: evidence };

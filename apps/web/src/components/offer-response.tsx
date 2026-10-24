@@ -26,11 +26,12 @@ export function OfferResponse({
     }
     setStatus("submitting");
     try {
-      const res = await fetch("/api/offer-response", {
+      // Under the offer's own path, so the access cookie of a
+      // password-protected offer goes with it (o/[token]/respond).
+      const res = await fetch(`/o/${encodeURIComponent(token)}/respond`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          token,
           response: "interested",
           message: message.trim() || undefined,
           turnstileToken: turnstileToken || undefined,

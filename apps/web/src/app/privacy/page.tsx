@@ -48,7 +48,7 @@ export default async function PrivacyPage() {
           ) : (
             <>For any privacy matter, or to exercise your rights, write to the gallery at the address above.</>
           )}{" "}
-          We have not appointed a statutory Data Protection Officer; the gallery\u2019s principal is
+          We have not appointed a statutory Data Protection Officer; the gallery’s principal is
           responsible for data protection.
         </p>
       </LegalSection>
@@ -77,16 +77,29 @@ export default async function PrivacyPage() {
           the form and to answer you in good time; it is our legitimate interest in running the
           gallery. These details stay in that email and are not added to your contact record.
         </p>
+        <p>
+          <strong>If you are already in our records,</strong> a form on this website never changes
+          them: the phone number and address you give stay with your enquiry until we have checked
+          them with you. Asking to join the mailing list, from an enquiry or from the newsletter
+          box, sends an email to the address given, and you join only once you confirm from it.
+        </p>
+        <p>
+          <strong>To stop the forms being misused,</strong> we keep a one-way hash of the IP address
+          each form or offer password comes from, and of the email address given, for one day, and
+          we do not use it to identify you. It limits how often the forms can be used, how many
+          emails they send to one address, and how many passwords can be tried on a private offer
+          page.
+        </p>
       </LegalSection>
 
       <LegalSection heading="Why we use it and our lawful basis">
-        <p><strong>Answering enquiries and arranging appointments</strong> \u2014 steps you ask us to take before a contract, and our legitimate interest in running the gallery.</p>
-        <p><strong>Selling, buying and consigning works, invoicing, shipping and insurance</strong> \u2014 performance of a contract, and our legal obligations to keep tax and accounting records.</p>
-        <p><strong>Our newsletter</strong> \u2014 your consent, given by double opt-in and withdrawable at any time with the link in every email. For existing clients we may rely on the \u201csoft opt-in\u201d in the Privacy and Electronic Communications Regulations, with the same right to opt out.</p>
-        <p><strong>Private offers and previews sent to you personally</strong> \u2014 our legitimate interest in offering works to collectors we know; you can ask us to stop at any time.</p>
-        <p><strong>Anti-money-laundering due diligence and sanctions screening</strong> \u2014 our legal obligations as an HMRC-supervised art market participant under the Money Laundering Regulations 2017 and the Sanctions and Anti-Money Laundering Act 2018.</p>
-        <p><strong>Keeping the website and our systems secure</strong> \u2014 our legitimate interest in preventing abuse and fraud.</p>
-        <p><strong>Website statistics and advertising measurement</strong> \u2014 your consent, as set in the cookie choice.</p>
+        <p><strong>Answering enquiries and arranging appointments</strong> — steps you ask us to take before a contract, and our legitimate interest in running the gallery.</p>
+        <p><strong>Selling, buying and consigning works, invoicing, shipping and insurance</strong> — performance of a contract, and our legal obligations to keep tax and accounting records.</p>
+        <p><strong>Our newsletter</strong> — your consent, given by double opt-in and withdrawable at any time with the link in every email. For existing clients we may rely on the “soft opt-in” in the Privacy and Electronic Communications Regulations, with the same right to opt out.</p>
+        <p><strong>Private offers and previews sent to you personally</strong> — our legitimate interest in offering works to collectors we know; you can ask us to stop at any time.</p>
+        <p><strong>Anti-money-laundering due diligence and sanctions screening</strong> — our legal obligations as an HMRC-supervised art market participant under the Money Laundering Regulations 2017 and the Sanctions and Anti-Money Laundering Act 2018.</p>
+        <p><strong>Keeping the website and our systems secure</strong> — our legitimate interest in preventing abuse and fraud.</p>
+        <p><strong>Website statistics and advertising measurement</strong> — your consent, as set in the cookie choice.</p>
         <p>We do not make decisions about you by automated means. Sanctions screening produces possible name matches that are always reviewed by a person.</p>
       </LegalSection>
 
@@ -110,8 +123,8 @@ export default async function PrivacyPage() {
       <LegalSection heading="International transfers">
         <p>
           Our data is stored in the United Kingdom. Some providers process data in the United States or
-          the European Economic Area. Transfers to the EEA are covered by the UK\u2019s adequacy
-          regulations. Transfers to the United States rely on the UK Extension to the EU\u2013US Data
+          the European Economic Area. Transfers to the EEA are covered by the UK’s adequacy
+          regulations. Transfers to the United States rely on the UK Extension to the EU–US Data
           Privacy Framework where the provider is certified, and otherwise on the International Data
           Transfer Agreement or the UK Addendum to the EU standard contractual clauses.
         </p>
@@ -119,8 +132,9 @@ export default async function PrivacyPage() {
 
       <LegalSection heading="How long we keep it">
         <p><strong>Enquiries:</strong> three years. <strong>Appointment bookings:</strong> two years.</p>
-        <p><strong>Newsletter subscription:</strong> until you unsubscribe; we then keep a record that you opted out so that we do not email you again. A sign-up that is never confirmed is deleted after 30 days.</p>
+        <p><strong>Newsletter subscription:</strong> until you unsubscribe; we then keep a record that you opted out so that we do not email you again. A sign-up that is never confirmed is deleted after 30 days, and its confirmation link stops working then. If you asked from an enquiry, or were already in our records, the unconfirmed request is kept with your record as a note of it; once its link has expired, it is removed the next time your address is used on one of this website’s forms.</p>
         <p><strong>Email delivery records and private-offer page views:</strong> two years.</p>
+        <p><strong>The hashed IP and email addresses used to limit form use:</strong> one day.</p>
         <p><strong>Purchase, sale and consignment records:</strong> six years after the end of the tax year, as tax law requires.</p>
         <p><strong>Anti-money-laundering records:</strong> five years after the end of our business relationship or the transaction, as the Money Laundering Regulations require.</p>
         <p><strong>Contact records with no activity</strong> are reviewed for deletion after five years.</p>
@@ -137,7 +151,7 @@ export default async function PrivacyPage() {
         </p>
         <p>
           If you are unhappy with how we handle your data you can complain to the Information
-          Commissioner\u2019s Office: ico.org.uk, 0303 123 1113, Wycliffe House, Water Lane, Wilmslow,
+          Commissioner’s Office: ico.org.uk, 0303 123 1113, Wycliffe House, Water Lane, Wilmslow,
           Cheshire SK9 5AF. We would welcome the chance to resolve any concern first.
         </p>
       </LegalSection>

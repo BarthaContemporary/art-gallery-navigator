@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import groq from "groq";
 import { imageUrl, sanityFetch, workBySlugQuery, type CatalogueEntry, type SanityImage, type Work } from "@/lib/sanity";
+import { clientIp } from "@/lib/form-fields";
 
 /*
  * What the gallery's enquiry notification says about the work and about
@@ -135,7 +136,7 @@ function countryName(code: string | null): string | null {
  * wrong, a VPN's exit for instance.
  */
 export function enquiryOrigin(req: NextRequest, at: Date): Detail[] {
-  const ip = header(req, "x-real-ip") ?? header(req, "x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const ip = clientIp(req.headers);
   const city = header(req, "x-vercel-ip-city");
   const region = header(req, "x-vercel-ip-country-region");
   const country = countryName(header(req, "x-vercel-ip-country"));

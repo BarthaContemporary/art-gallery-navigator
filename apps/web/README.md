@@ -13,7 +13,7 @@ Supabase (self-hosted, source of truth)      Sanity (editorial)
         |                                      pages, journal, exhibitions,
         |  service-role client                 collections, siteSettings
         v                                            |
-  /o/[token]  /api/booking  /api/offer-response      |  CDN + GROQ
+  /o/[token]  /o/[token]/respond  /api/booking        |  CDN + GROQ
   /api/unsubscribe/[token]                           v
                                     /  /works  /collections  /journal  ...
 ```

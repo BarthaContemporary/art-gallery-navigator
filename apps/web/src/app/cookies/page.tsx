@@ -14,7 +14,7 @@ export const metadata: Metadata = pageMeta({
 
 export default function CookiesPage() {
   return (
-    <LegalDoc title="Cookie Policy" updated="July 2026">
+    <LegalDoc title="Cookie Policy" updated="October 2026">
       <p>
         This page lists every cookie and similar technology this website uses — what each
         one does, how long it lasts, and who receives the data. &ldquo;Cookies&rdquo; here
@@ -53,9 +53,11 @@ export default function CookiesPage() {
           have not been sent an offer, you will never receive it.
         </p>
         <p>
-          <strong>Spam protection</strong> — our booking and enquiry forms use Cloudflare
-          Turnstile to distinguish people from bots. It runs only on pages carrying a form
-          and may store a short-lived token on your device while it makes that check. It is
+          <strong>Spam protection</strong> — our booking, enquiry and newsletter forms, and
+          the reply form on private offer pages, use Cloudflare Turnstile to distinguish
+          people from bots. It runs only on pages carrying such a form (for the newsletter box
+          at the foot of every page, only once you start filling it in) and may store a
+          short-lived token on your device while it makes that check. It is
           a privacy-preserving alternative to reCAPTCHA: it does not profile you or follow
           you across sites. Cloudflare acts as our processor — see{" "}
           <a
@@ -80,7 +82,9 @@ export default function CookiesPage() {
           cookies, stores nothing on your device, does not follow you between websites, and
           does not build a profile of you. Because we run it on our own server, the data
           stays with us — it is not sold, shared, or passed to any advertising network. It
-          stays switched off entirely until you accept analytics.
+          stays switched off entirely until you accept analytics, and never records private
+          offer pages or newsletter confirmation pages, whose web address is itself the key
+          to the page.
         </p>
       </LegalSection>
 
@@ -98,7 +102,10 @@ export default function CookiesPage() {
           joint controller with us for this collection, and may be transferred outside the
           UK and EEA under the safeguards Meta operates. This is the only item on this page
           that sends information about you to a third party, which is why it sits behind its
-          own separate toggle rather than being bundled with analytics.
+          own separate toggle rather than being bundled with analytics. It never loads on,
+          or reports, private offer pages or newsletter confirmation pages, and a page you
+          open from one of them is told only our site&rsquo;s address, not the private one,
+          so their private web addresses are never sent to Meta.
         </p>
         <p>
           Meta explains its use of this data in its{" "}
