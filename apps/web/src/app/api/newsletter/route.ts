@@ -5,11 +5,13 @@ import { hashKey, rateLimit } from "@jvb/db/rate-limit";
 import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
 import { contactIdByEmail } from "@/lib/contacts";
 import { maskAddress } from "@/lib/email";
-import { clientIp, ONE_LINE, ONE_LINE_MESSAGE } from "@/lib/form-fields";
+import { clientIp } from "@/lib/form-fields";
+import { oneLine } from "@/lib/form-schema";
 import {
-  allowOptInEmail,
+  emailedRecently,
   isSubscribed,
   newConfirmToken,
+  noteOptInEmailSent,
   OPTIN_COLUMNS,
   pendingPatch,
   sendAlreadySubscribed,
@@ -21,8 +23,8 @@ import { verifyTurnstile } from "@/lib/turnstile";
 export const dynamic = "force-dynamic";
 
 const schema = z.object({
-  name: z.string().trim().min(1, "Please enter your name").max(200).regex(ONE_LINE, ONE_LINE_MESSAGE),
-  email: z.string().trim().email("Please enter a valid email address").max(320).regex(ONE_LINE, ONE_LINE_MESSAGE),
+  name: oneLine(z.string().trim().min(1, "Please enter your name").max(200)),
+  email: oneLine(z.string().trim().email("Please enter a valid email address").max(320)),
   consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to receive the newsletter" }) }),
   turnstileToken: z.string().max(4096).optional(),
   website: z.string().optional(), // honeypot
@@ -92,19 +94,22 @@ export async function POST(req: NextRequest) {
       console.info(`[newsletter] ${maskAddress(email)} is marked do-not-mail; nothing sent`);
       return accepted;
     }
-    if (!(await allowOptInEmail(supabase, email))) {
+    if (await emailedRecently(supabase, email)) {
       console.info(`[newsletter] ${maskAddress(email)} was emailed in the last few hours; nothing sent`);
       return accepted;
     }
     if (contact && isSubscribed(contact)) {
-      await sendAlreadySubscribed(req, email, payload.name);
+      if (await sendAlreadySubscribed(req, email, payload.name)) await noteOptInEmailSent(supabase, email);
       return accepted;
     }
 
     const token = newConfirmToken();
     const now = new Date().toISOString();
     if (contact) {
-      const { error } = await supabase.from("crm_contacts").update(pendingPatch(contact, token, evidence, now)).eq("id", contact.id);
+      const { error } = await supabase
+        .from("crm_contacts")
+        .update(pendingPatch(contact, token, evidence, now, { fromSignUpBox: true }))
+        .eq("id", contact.id);
       if (error) throw error;
     } else {
       const { error } = await supabase.from("crm_contacts").insert({
@@ -121,7 +126,7 @@ export async function POST(req: NextRequest) {
       if (error) throw error;
     }
 
-    await sendConfirmation(req, email, payload.name, token);
+    if (await sendConfirmation(req, email, payload.name, token)) await noteOptInEmailSent(supabase, email);
     return accepted;
   } catch (err) {
     console.error("[newsletter] failed:", err);

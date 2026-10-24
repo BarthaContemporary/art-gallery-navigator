@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ARTISTS_UNDER_CONSTRUCTION } from "./src/lib/site";
+import { PRIVATE_PAGE_REFERRER } from "./src/lib/private-paths";
 
 /**
  * Every URL the old Squarespace site had, mapped to its new home. Generated
@@ -57,6 +58,12 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/(.*)", headers: securityHeaders },
+      // A private offer or newsletter confirmation, whose address is the key
+      // to it, passes on only the site's address as the referrer, so a page
+      // opened from it cannot report the token (lib/private-paths). Listed
+      // after the rule above, so it wins for these paths.
+      { source: "/o/:path*", headers: [{ key: "Referrer-Policy", value: PRIVATE_PAGE_REFERRER }] },
+      { source: "/newsletter/:path*", headers: [{ key: "Referrer-Policy", value: PRIVATE_PAGE_REFERRER }] },
       // File names are not hashed: give a font a new name whenever it changes.
       { source: "/fonts/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
       // The vercel.app host duplicates www; its /api/ and /o/ addresses stay for links already emailed.

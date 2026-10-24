@@ -37,6 +37,8 @@ export function EnquiryForm({
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState("");
+  /** The mailing-list box was ticked on the enquiry that was sent. */
+  const [askedToJoin, setAskedToJoin] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -77,6 +79,7 @@ export function EnquiryForm({
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? "Could not send your enquiry");
+      setAskedToJoin(data.get("mailingList") === "on");
       setStatus("done");
     } catch (err) {
       setStatus("error");
@@ -181,6 +184,15 @@ export function EnquiryForm({
         <div className="fold-body">
           <p className="font-sans text-ui text-ink" role="status">
             {done ? <>Thank you — your message has been sent. We&rsquo;ll reply by email.</> : null}
+            {/* The mailing list needs the emailed confirmation; the line is
+                the same whatever the address's state, as the newsletter
+                box's is. */}
+            {done && askedToJoin ? (
+              <>
+                <br />
+                If you asked to join the mailing list, please confirm from the email we have sent you.
+              </>
+            ) : null}
           </p>
         </div>
       </div>

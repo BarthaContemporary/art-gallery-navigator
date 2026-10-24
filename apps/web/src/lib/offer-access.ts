@@ -33,7 +33,11 @@ function secret(): string | null {
   return key;
 }
 
-/** Whether grants can be signed at all (a secret is configured). */
+/**
+ * Whether grants can be signed at all (a secret is configured). The password
+ * route checks it first, so a deployment without a key answers "cannot be
+ * opened just now" without counting the visitor's try.
+ */
 export function offerAccessConfigured(): boolean {
   return secret() !== null;
 }

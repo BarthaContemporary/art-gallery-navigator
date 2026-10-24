@@ -6,17 +6,37 @@
  */
 
 /**
- * A single-line field (a name, an email, a phone number, an address line, a
- * subject): no line breaks, tabs or other control characters, and none of the
- * Unicode line and paragraph separators. The site's own <input> fields cannot
- * produce them, so only a hand-made request is refused. A carriage return
- * left inside such a value starts a new row in a CSV export opened in a
- * spreadsheet, where the next cell can then run as a formula (security review
- * 2026-10, F9); a line break in a name also lands in email subjects and
- * calendar invitations.
+ * A single-line field the visitor types (a name, an email, a phone number,
+ * an address line): no line breaks or other control characters once
+ * typedLine() has run. A carriage return left inside such a value starts a
+ * new row in a CSV export opened in a spreadsheet, where the next cell can
+ * then run as a formula (security review 2026-10, F9); a line break in a
+ * name also lands in email subjects and calendar invitations. Browsers drop
+ * CR and LF from an <input>'s value, so only a hand-made request is refused.
  */
 export const ONE_LINE = /^[^\u0000-\u001f\u007f\u2028\u2029]*$/;
 export const ONE_LINE_MESSAGE = "Please keep names, addresses and other short fields on one line.";
+
+/**
+ * What a typed single-line value may carry harmlessly and is tidied rather
+ * than refused: a tab (an address pasted from a spreadsheet keeps it) and
+ * the Unicode line and paragraph separators (text pasted from a word
+ * processor), each become a space before ONE_LINE is checked.
+ */
+export function typedLine(value: string): string {
+  return value.replace(/[\t\u2028\u2029]/g, " ");
+}
+/**
+ * A single-line value the site builds itself from catalogue data (an
+ * enquiry's subject, a work's key), which the visitor never sees and could
+ * not correct: a caption imported from Squarespace can keep a line break
+ * inside a title or a maker's name. Every run of control characters, with
+ * the spaces around it, becomes one space, so the value cannot break a CSV
+ * row or an email header either.
+ */
+export function siteLine(value: string): string {
+  return value.replace(/\s*[\u0000-\u001f\u007f\u2028\u2029][\s\u0000-\u001f\u007f\u2028\u2029]*/g, " ").trim();
+}
 
 /**
  * The visitor's IP address as Vercel reports it: `x-real-ip`, or the first

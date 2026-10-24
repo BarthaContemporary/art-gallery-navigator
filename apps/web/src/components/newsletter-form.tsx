@@ -116,7 +116,12 @@ export function NewsletterForm() {
       <div>
         <div className="fold-body">
           <p className="mt-4 font-sans text-ui" role="status">
-            {done ? <>Thank you — please check your inbox and confirm your subscription.</> : null}
+            {done ? (
+              <>
+                Thank you — please check your inbox and confirm your subscription. If nothing arrives within a few
+                minutes, look in your spam folder: we send one email to an address every few hours at most.
+              </>
+            ) : null}
           </p>
         </div>
       </div>

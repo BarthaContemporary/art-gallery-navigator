@@ -6,15 +6,19 @@ import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
 import { contactIdByEmail } from "@/lib/contacts";
 import { fromLine, galleryNotificationAddress, maskAddress, sendEmail } from "@/lib/email";
 import { enquiryEmail, enquiryOrigin, enquiryWork } from "@/lib/enquiry-email";
-import { clientIp, ONE_LINE, ONE_LINE_MESSAGE } from "@/lib/form-fields";
+import { clientIp } from "@/lib/form-fields";
+import { oneLine, siteText } from "@/lib/form-schema";
 import {
-  allowOptInEmail,
+  confirmTokenHash,
+  emailedRecently,
   isSubscribed,
   newConfirmToken,
+  noteOptInEmailSent,
   OPTIN_COLUMNS,
   OPTIN_OUTCOME_TEXT,
   pendingPatch,
   sendConfirmation,
+  settleSignUpPatch,
   type OptInContact,
   type OptInOutcome,
 } from "@/lib/newsletter-optin";
@@ -27,25 +31,25 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   kind: z.enum(["work", "publication", "appointment"]),
   /** Human label of what the enquiry is about, e.g. "HARA Satoshi, Title | Code". */
-  subject: z.string().trim().max(300).regex(ONE_LINE, ONE_LINE_MESSAGE),
+  subject: siteText(z.string().max(300)),
   /** Inventory piece id when the work is current stock — links the enquiry to the record. */
   pieceId: z.string().uuid().optional(),
   /** The work on the website (a work's slug, or a catalogue entry's key), looked up for the email. */
   work: z
-    .object({ source: z.enum(["work", "catalogue"]), id: z.string().trim().min(1).max(200).regex(ONE_LINE, ONE_LINE_MESSAGE) })
+    .object({ source: z.enum(["work", "catalogue"]), id: siteText(z.string().min(1).max(200)) })
     .optional(),
-  name: z.string().trim().min(1, "Please enter your name").max(200).regex(ONE_LINE, ONE_LINE_MESSAGE),
-  email: z.string().trim().email("Please enter a valid email address").max(320).regex(ONE_LINE, ONE_LINE_MESSAGE),
-  phone: z.string().trim().max(50).regex(ONE_LINE, ONE_LINE_MESSAGE).optional(),
+  name: oneLine(z.string().trim().min(1, "Please enter your name").max(200)),
+  email: oneLine(z.string().trim().email("Please enter a valid email address").max(320)),
+  phone: oneLine(z.string().trim().max(50)).optional(),
   message: z.string().trim().min(1, "Please write a short message").max(3000),
   /** Postal address for orders that will be sent by mail. */
   address: z
     .object({
-      line1: z.string().trim().min(1, "Please enter your address").max(200).regex(ONE_LINE, ONE_LINE_MESSAGE),
-      line2: z.string().trim().max(200).regex(ONE_LINE, ONE_LINE_MESSAGE).optional(),
-      city: z.string().trim().min(1, "Please enter your city").max(120).regex(ONE_LINE, ONE_LINE_MESSAGE),
-      postcode: z.string().trim().min(1, "Please enter your postcode").max(40).regex(ONE_LINE, ONE_LINE_MESSAGE),
-      country: z.string().trim().min(1, "Please enter your country").max(120).regex(ONE_LINE, ONE_LINE_MESSAGE),
+      line1: oneLine(z.string().trim().min(1, "Please enter your address").max(200)),
+      line2: oneLine(z.string().trim().max(200)).optional(),
+      city: oneLine(z.string().trim().min(1, "Please enter your city").max(120)),
+      postcode: oneLine(z.string().trim().min(1, "Please enter your postcode").max(40)),
+      country: oneLine(z.string().trim().min(1, "Please enter your country").max(120)),
     })
     .optional(),
   mailingList: z.boolean().optional(),
@@ -89,7 +93,10 @@ const addressKey = (parts: (string | null | undefined)[]) =>
  * are kept on the enquiry, and staff are told when they differ from the
  * record. The mailing-list tick sends the same confirmation email as the
  * newsletter box, for new and existing contacts alike; consent is only
- * switched on when the owner of the address confirms.
+ * switched on when the owner of the address confirms. The request is kept
+ * as a pending entry in the consent evidence, never as a sign-up's token:
+ * an enquirer's record rests on the enquiry, and the retention job deletes
+ * unconfirmed sign-ups (lib/newsletter-optin).
  */
 export async function POST(req: NextRequest) {
   let payload: z.infer<typeof schema>;
@@ -176,21 +183,24 @@ export async function POST(req: NextRequest) {
       if (marketingEv) {
         if (existing.do_not_mail) mailing = "suppressed";
         else if (isSubscribed(existing)) mailing = "already";
-        else if (!(await allowOptInEmail(supabase, email))) mailing = "recent";
-        else {
-          confirmToken = newConfirmToken();
-          const { error } = await supabase
-            .from("crm_contacts")
-            .update(pendingPatch(existing, confirmToken, marketingEv, now))
-            .eq("id", existing.id);
-          if (error) throw error;
-        }
+        else if (await emailedRecently(supabase, email)) mailing = "recent";
+        else confirmToken = newConfirmToken();
+      }
+      // A new request, or else an earlier newsletter sign-up's token moving
+      // out of the column now that this contact has sent an enquiry.
+      const patch = confirmToken && marketingEv
+        ? pendingPatch(existing, confirmToken, marketingEv, now, { fromSignUpBox: false })
+        : settleSignUpPatch(existing);
+      if (patch) {
+        const { error } = await supabase.from("crm_contacts").update(patch).eq("id", existing.id);
+        if (error) throw error;
       }
     } else {
       if (marketingEv) {
-        if (await allowOptInEmail(supabase, email)) confirmToken = newConfirmToken();
-        else mailing = "recent";
+        if (await emailedRecently(supabase, email)) mailing = "recent";
+        else confirmToken = newConfirmToken();
       }
+      const evidence = mergeEvidence(null, "contact", contactEv);
       const { data: created, error } = await supabase
         .from("crm_contacts")
         .insert({
@@ -200,13 +210,10 @@ export async function POST(req: NextRequest) {
           phone: payload.phone || null,
           ...addressColumns,
           marketing_consent: false,
-          ...(confirmToken && marketingEv
-            ? {
-                consent_confirm_token: confirmToken,
-                consent_confirm_sent_at: now,
-                consent_evidence: mergeEvidence(mergeEvidence(null, "contact", contactEv), "marketing", marketingEv),
-              }
-            : { consent_evidence: mergeEvidence(null, "contact", contactEv) }),
+          consent_evidence:
+            confirmToken && marketingEv
+              ? mergeEvidence(evidence, "marketing_pending", { ...marketingEv, token_hash: confirmTokenHash(confirmToken) })
+              : evidence,
           tags: ["website"],
         })
         .select("id")
@@ -222,6 +229,7 @@ export async function POST(req: NextRequest) {
         console.error("[enquiry] mailing-list confirmation failed:", err);
         mailing = "failed";
       }
+      if (mailing === "sent") await noteOptInEmailSent(supabase, email);
     }
 
     const notes = [

@@ -1,11 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { PRIVATE_PAGE_REFERRER } from "@/lib/private-paths";
 
-export const metadata = { title: "Newsletter", robots: { index: false } };
+export const metadata: Metadata = { title: "Newsletter", robots: { index: false }, referrer: PRIVATE_PAGE_REFERRER };
 
 /** Where "Confirm subscription" (newsletter/confirm/route.ts) lands. */
 export default function ConfirmedPage() {
   return (
-    <main className="page py-[var(--section)]">
+    <div className="page py-[var(--section)]">
       <div className="grid12">
         <div className="col-span-12 md:col-span-8 md:col-start-3">
           <h1 className="font-sans text-h1 font-medium tracking-tight text-sumi">You’re subscribed</h1>
@@ -20,6 +22,6 @@ export default function ConfirmedPage() {
           </p>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

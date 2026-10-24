@@ -6,8 +6,10 @@ import { createServiceClient } from "@jvb/db/server";
 import { hashKey, rateLimit } from "@jvb/db/rate-limit";
 import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
 import { contactIdByEmail } from "@/lib/contacts";
-import { clientIp, ONE_LINE, ONE_LINE_MESSAGE } from "@/lib/form-fields";
+import { clientIp } from "@/lib/form-fields";
+import { oneLine } from "@/lib/form-schema";
 import { buildIcs } from "@/lib/ics";
+import { OPTIN_COLUMNS, settleSignUpPatch, type OptInContact } from "@/lib/newsletter-optin";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -30,9 +32,9 @@ const bookingSchema = z.object({
   appointmentType: z.enum(["private_viewing", "fair_meeting"]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Invalid time"),
-  name: z.string().trim().min(1).max(200).regex(ONE_LINE, ONE_LINE_MESSAGE),
-  email: z.string().trim().email().max(320).regex(ONE_LINE, ONE_LINE_MESSAGE),
-  phone: z.string().trim().max(50).regex(ONE_LINE, ONE_LINE_MESSAGE).optional(),
+  name: oneLine(z.string().trim().min(1).max(200)),
+  email: oneLine(z.string().trim().email().max(320)),
+  phone: oneLine(z.string().trim().max(50)).optional(),
   notes: z.string().trim().max(2000).optional(),
   /** Explicit agreement to be contacted (privacy policy and terms). */
   consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to be contacted" }) }),
@@ -119,9 +121,24 @@ export async function POST(req: NextRequest) {
     // Find-or-create the CRM contact by the exact email. A contact already
     // on record is left as it is: the form proves nothing about who typed
     // the address (security review 2026-10, F11), and the request itself
-    // is kept on the appointment.
+    // is kept on the appointment. The one exception: a newsletter sign-up
+    // still waiting for its confirmation has its token moved out of the
+    // column, so the retention job does not delete a contact who has
+    // booked a visit as an abandoned sign-up (lib/newsletter-optin).
     let contactId = await contactIdByEmail(supabase, payload.email);
-    if (!contactId) {
+    if (contactId) {
+      const { data: known, error: knownError } = await supabase
+        .from("crm_contacts")
+        .select(OPTIN_COLUMNS)
+        .eq("id", contactId)
+        .maybeSingle();
+      if (knownError) throw knownError;
+      const patch = known ? settleSignUpPatch(known as OptInContact) : null;
+      if (patch) {
+        const { error: settleError } = await supabase.from("crm_contacts").update(patch).eq("id", contactId);
+        if (settleError) throw settleError;
+      }
+    } else {
       const contactEv = consentEvidence(req, "booking");
       const [firstName, ...rest] = payload.name.split(/\s+/);
       const { data: created, error: contactError } = await supabase

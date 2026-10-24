@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { createServiceClient } from "@jvb/db/server";
 import { hashKey, rateLimit } from "@jvb/db/rate-limit";
 import { clientIp, OFFER_TOKEN } from "@/lib/form-fields";
-import { grantCookieName, passwordMatches, signGrant, GRANT_TTL_SECONDS } from "@/lib/offer-access";
+import { grantCookieName, offerAccessConfigured, passwordMatches, signGrant, GRANT_TTL_SECONDS } from "@/lib/offer-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,12 +13,15 @@ interface OfferGateRow {
 }
 
 /**
- * Tries per private link, and per visitor address, in an hour. Offer
- * passwords are short words chosen by staff, so without a limit a leaked
- * link could be unlocked by guessing (security review 2026-10, F21). The
+ * Tries per private link, and per visitor address, in an hour, and per link
+ * in a day. Offer passwords are short words chosen by staff, so without a
+ * limit a leaked link could be unlocked by guessing (security review
+ * 2026-10, F21); the daily cap keeps a patient guesser to a few dozen words
+ * a day rather than ten every hour for as long as the offer runs. The
  * recipient can always use the emailed sign-in link instead.
  */
 const TRIES_PER_TOKEN = 10;
+const TRIES_PER_TOKEN_PER_DAY = 30;
 const TRIES_PER_IP = 30;
 
 /** Verify an offer's simple password and, on success, set the access cookie. */
@@ -36,14 +39,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
 
+  // With no signing key a grant could not be issued: say so before any try
+  // is counted or the password looked at.
+  if (!offerAccessConfigured()) {
+    return NextResponse.json({ error: "Private viewings cannot be opened just now." }, { status: 503 });
+  }
+
   const db = createServiceClient();
   // Every try counts, right or wrong, and is counted before the password is
   // looked at, so a guess past the limit learns nothing.
   const ip = clientIp(req.headers);
-  const [tokenOk, ipOk] = await Promise.all([
+  const [tokenOk, tokenDayOk, ipOk] = await Promise.all([
     rateLimit(db, `offer-unlock:token:${hashKey(token)}`, 3600, TRIES_PER_TOKEN),
+    rateLimit(db, `offer-unlock:day:${hashKey(token)}`, 86_400, TRIES_PER_TOKEN_PER_DAY),
     ip ? rateLimit(db, `offer-unlock:ip:${hashKey(ip)}`, 3600, TRIES_PER_IP) : Promise.resolve(true),
   ]);
+  if (!tokenDayOk) {
+    return NextResponse.json(
+      { error: "Too many tries on this link today. Please use the emailed sign-in link below, or try again tomorrow." },
+      { status: 429 },
+    );
+  }
   if (!tokenOk || !ipOk) {
     return NextResponse.json(
       { error: "Too many tries. Please wait an hour, or use the emailed sign-in link below." },

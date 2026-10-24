@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@jvb/db/server";
-import { confirmSubscription, CONFIRM_TOKEN } from "@/lib/newsletter-optin";
+import { alreadyConfirmed, confirmSubscription, CONFIRM_TOKEN } from "@/lib/newsletter-optin";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +22,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.redirect(new URL("/newsletter/confirm/expired", req.url), 303);
   }
   try {
-    const confirmed = await confirmSubscription(createServiceClient(), token);
-    // An unknown, used or expired link goes back to its page, which says so.
+    const supabase = createServiceClient();
+    // A second press (a double click, or the page submitted twice) finds
+    // the link already used for a subscription that stands: that is a
+    // success too. An unknown or expired link goes back to its page, which
+    // says so.
+    const confirmed = (await confirmSubscription(supabase, token)) || (await alreadyConfirmed(supabase, token));
     return NextResponse.redirect(new URL(confirmed ? "/newsletter/confirmed" : `/newsletter/confirm/${token}`, req.url), 303);
   } catch (err) {
     console.error("[newsletter] confirmation failed:", err);

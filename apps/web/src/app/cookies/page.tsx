@@ -82,7 +82,7 @@ export default function CookiesPage() {
           cookies, stores nothing on your device, does not follow you between websites, and
           does not build a profile of you. Because we run it on our own server, the data
           stays with us — it is not sold, shared, or passed to any advertising network. It
-          stays switched off entirely until you accept analytics, and never runs on private
+          stays switched off entirely until you accept analytics, and never records private
           offer pages or newsletter confirmation pages, whose web address is itself the key
           to the page.
         </p>
@@ -102,9 +102,10 @@ export default function CookiesPage() {
           joint controller with us for this collection, and may be transferred outside the
           UK and EEA under the safeguards Meta operates. This is the only item on this page
           that sends information about you to a third party, which is why it sits behind its
-          own separate toggle rather than being bundled with analytics. It never loads on
-          private offer pages or newsletter confirmation pages, so their private web
-          addresses are never sent to Meta.
+          own separate toggle rather than being bundled with analytics. It never loads on,
+          or reports, private offer pages or newsletter confirmation pages, and a page you
+          open from one of them is told only our site&rsquo;s address, not the private one,
+          so their private web addresses are never sent to Meta.
         </p>
         <p>
           Meta explains its use of this data in its{" "}
