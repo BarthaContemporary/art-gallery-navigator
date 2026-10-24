@@ -4,6 +4,10 @@
  * Fail-open by design when `TURNSTILE_SECRET_KEY` is not configured, so the
  * public forms keep working until the keys are added to the environment.
  * Once the secret is set, a missing/invalid token is rejected.
+ *
+ * `remoteIp` is the visitor's address from Vercel's headers
+ * (lib/form-fields clientIp), never cf-connecting-ip, which the visitor
+ * sets themselves on a site not behind Cloudflare.
  */
 export async function verifyTurnstile(
   token: string | undefined | null,

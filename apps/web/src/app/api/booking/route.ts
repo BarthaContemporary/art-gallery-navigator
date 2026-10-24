@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { galleryNotificationAddress, maskAddress, sendEmail } from "@/lib/email";
 import { createServiceClient } from "@jvb/db/server";
+import { hashKey, rateLimit } from "@jvb/db/rate-limit";
 import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
+import { contactIdByEmail } from "@/lib/contacts";
+import { clientIp, ONE_LINE, ONE_LINE_MESSAGE } from "@/lib/form-fields";
 import { buildIcs } from "@/lib/ics";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
@@ -18,17 +21,22 @@ const APPOINTMENT_LABELS: Record<string, string> = {
 
 const DEFAULT_DURATION_MINUTES = 60;
 
+/** Booking requests from one address in an hour. */
+const PER_IP_PER_HOUR = 10;
+/** Confirmations to one visitor's address in six hours; the gallery hears of every request. */
+const CONFIRMATIONS_PER_ADDRESS = 3;
+
 const bookingSchema = z.object({
   appointmentType: z.enum(["private_viewing", "fair_meeting"]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Invalid time"),
-  name: z.string().trim().min(1).max(200),
-  email: z.string().trim().email().max(320),
-  phone: z.string().trim().max(50).optional(),
+  name: z.string().trim().min(1).max(200).regex(ONE_LINE, ONE_LINE_MESSAGE),
+  email: z.string().trim().email().max(320).regex(ONE_LINE, ONE_LINE_MESSAGE),
+  phone: z.string().trim().max(50).regex(ONE_LINE, ONE_LINE_MESSAGE).optional(),
   notes: z.string().trim().max(2000).optional(),
   /** Explicit agreement to be contacted (privacy policy and terms). */
   consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to be contacted" }) }),
-  turnstileToken: z.string().optional(),
+  turnstileToken: z.string().max(4096).optional(),
 });
 
 const LONDON = "Europe/London";
@@ -74,10 +82,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const turnstile = await verifyTurnstile(
-    payload.turnstileToken,
-    req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for"),
-  );
+  const ip = clientIp(req.headers);
+  const turnstile = await verifyTurnstile(payload.turnstileToken, ip);
   if (!turnstile.ok) {
     return NextResponse.json({ error: turnstile.error ?? "Verification failed" }, { status: 400 });
   }
@@ -99,26 +105,24 @@ export async function POST(req: NextRequest) {
   const endsAt = new Date(endMs).toISOString();
 
   const icsUid = `${randomUUID()}@jvb-booking`;
+  let confirmVisitor = true;
 
   try {
     const supabase = createServiceClient();
-
-    // Find-or-create the CRM contact by email.
-    const { data: existing } = await supabase
-      .from("crm_contacts")
-      .select("id, consent_evidence")
-      .ilike("email", payload.email)
-      .maybeSingle();
-
-    const contactEv = consentEvidence(req, "booking");
-    let contactId: string | null = (existing as { id: string } | null)?.id ?? null;
-    if (contactId) {
-      await supabase
-        .from("crm_contacts")
-        .update({ consent_evidence: mergeEvidence((existing as { consent_evidence: unknown }).consent_evidence, "contact", contactEv) })
-        .eq("id", contactId);
+    if (ip && !(await rateLimit(supabase, `booking:ip:${hashKey(ip)}`, 3600, PER_IP_PER_HOUR))) {
+      return NextResponse.json(
+        { error: "Too many requests from here just now. Please try again later, or email us directly." },
+        { status: 429 },
+      );
     }
+
+    // Find-or-create the CRM contact by the exact email. A contact already
+    // on record is left as it is: the form proves nothing about who typed
+    // the address (security review 2026-10, F11), and the request itself
+    // is kept on the appointment.
+    let contactId = await contactIdByEmail(supabase, payload.email);
     if (!contactId) {
+      const contactEv = consentEvidence(req, "booking");
       const [firstName, ...rest] = payload.name.split(/\s+/);
       const { data: created, error: contactError } = await supabase
         .from("crm_contacts")
@@ -161,6 +165,10 @@ export async function POST(req: NextRequest) {
       ics_uid: icsUid,
     });
     if (appointmentError) throw appointmentError;
+
+    // The visitor's confirmation goes to whatever address was typed, so a
+    // stranger's inbox cannot be filled with them from the gallery's address.
+    confirmVisitor = await rateLimit(supabase, `booking:email:${hashKey(payload.email)}`, 6 * 3600, CONFIRMATIONS_PER_ADDRESS);
   } catch (error) {
     console.error("[booking] failed to store appointment:", error);
     return NextResponse.json(
@@ -207,6 +215,9 @@ export async function POST(req: NextRequest) {
       // The visitor's confirmation and the staff notification are sent
       // separately: one being refused must not stop the other.
       try {
+        if (!confirmVisitor) {
+          throw new Error(`${maskAddress(payload.email)} already had ${CONFIRMATIONS_PER_ADDRESS} confirmations in six hours`);
+        }
         await sendEmail(apiKey, {
           from,
           to: payload.email,

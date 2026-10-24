@@ -1,7 +1,9 @@
 "use client";
 
 import Script from "next/script";
+import { usePathname } from "next/navigation";
 import { useConsent } from "@/components/consent-provider";
+import { isPrivatePath } from "@/lib/private-paths";
 
 /**
  * Third-party marketing tags. Currently the Meta (Facebook) pixel; other
@@ -13,11 +15,15 @@ import { useConsent } from "@/components/consent-provider";
  * have required a redeploy. Sourced from Sanity, pasting the id into site
  * settings and publishing is enough — the pixel is live on the next page load.
  *
- * Two conditions must both hold before anything loads:
- *   1. a pixel id is configured, and
- *   2. the visitor has granted `marketing`.
+ * Three conditions must all hold before anything loads:
+ *   1. a pixel id is configured,
+ *   2. the page is not a private offer or a newsletter confirmation, whose
+ *      address is the key to the page (lib/private-paths): the pixel's
+ *      PageView reports the full address, which would hand Meta a working
+ *      link to a named collector's selection and prices, and
+ *   3. the visitor has granted `marketing`.
  *
- * The gate is structural — with either unmet the <Script> is never rendered, so
+ * The gate is structural — with any of them unmet the <Script> is never rendered, so
  * no request reaches Meta and no `_fbp` cookie is written. Unlike analytics,
  * this is genuinely third-party tracking; running it unconsented would be a
  * straightforward PECR breach.
@@ -28,11 +34,13 @@ import { useConsent } from "@/components/consent-provider";
  */
 export function MarketingScripts({ pixelId }: { pixelId?: string | null }) {
   const { granted } = useConsent();
+  const pathname = usePathname();
 
   const id = (pixelId ?? "").trim();
   // Guard the interpolation target as well as the gate: only digits ever reach
   // the inline script.
   if (!/^\d{10,20}$/.test(id)) return null;
+  if (isPrivatePath(pathname)) return null;
   if (!granted("marketing")) return null;
 
   return (

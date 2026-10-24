@@ -1,7 +1,9 @@
 "use client";
 
 import Script from "next/script";
+import { usePathname } from "next/navigation";
 import { useConsent } from "@/components/consent-provider";
+import { isPrivatePath } from "@/lib/private-paths";
 
 /*
  * Plausible Analytics tag for the public website (self-hosted, cookieless).
@@ -18,12 +20,17 @@ import { useConsent } from "@/components/consent-provider";
  * a banner, running it before a decision would contradict what that banner
  * says — so it now waits for `analytics`. The gate is the early return below:
  * without consent the <Script> is never rendered, so nothing can load.
+ *
+ * Never on a private offer or a newsletter confirmation (lib/private-paths):
+ * the page address there is the key to the page, and Plausible records it.
  */
 export function Plausible() {
   const { granted } = useConsent();
+  const pathname = usePathname();
   const domain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN?.trim();
 
   if (!domain) return null;
+  if (isPrivatePath(pathname)) return null;
   if (!granted("analytics")) return null;
 
   const src =

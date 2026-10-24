@@ -1,9 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@jvb/db/server";
+import { hashKey, rateLimit } from "@jvb/db/rate-limit";
 import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
+import { contactIdByEmail } from "@/lib/contacts";
 import { fromLine, galleryNotificationAddress, maskAddress, sendEmail } from "@/lib/email";
 import { enquiryEmail, enquiryOrigin, enquiryWork } from "@/lib/enquiry-email";
+import { clientIp, ONE_LINE, ONE_LINE_MESSAGE } from "@/lib/form-fields";
+import {
+  allowOptInEmail,
+  isSubscribed,
+  newConfirmToken,
+  OPTIN_COLUMNS,
+  OPTIN_OUTCOME_TEXT,
+  pendingPatch,
+  sendConfirmation,
+  type OptInContact,
+  type OptInOutcome,
+} from "@/lib/newsletter-optin";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -13,31 +27,31 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   kind: z.enum(["work", "publication", "appointment"]),
   /** Human label of what the enquiry is about, e.g. "HARA Satoshi, Title | Code". */
-  subject: z.string().trim().max(300),
+  subject: z.string().trim().max(300).regex(ONE_LINE, ONE_LINE_MESSAGE),
   /** Inventory piece id when the work is current stock — links the enquiry to the record. */
   pieceId: z.string().uuid().optional(),
   /** The work on the website (a work's slug, or a catalogue entry's key), looked up for the email. */
   work: z
-    .object({ source: z.enum(["work", "catalogue"]), id: z.string().trim().min(1).max(200) })
+    .object({ source: z.enum(["work", "catalogue"]), id: z.string().trim().min(1).max(200).regex(ONE_LINE, ONE_LINE_MESSAGE) })
     .optional(),
-  name: z.string().trim().min(1, "Please enter your name").max(200),
-  email: z.string().trim().email("Please enter a valid email address").max(320),
-  phone: z.string().trim().max(50).optional(),
+  name: z.string().trim().min(1, "Please enter your name").max(200).regex(ONE_LINE, ONE_LINE_MESSAGE),
+  email: z.string().trim().email("Please enter a valid email address").max(320).regex(ONE_LINE, ONE_LINE_MESSAGE),
+  phone: z.string().trim().max(50).regex(ONE_LINE, ONE_LINE_MESSAGE).optional(),
   message: z.string().trim().min(1, "Please write a short message").max(3000),
   /** Postal address for orders that will be sent by mail. */
   address: z
     .object({
-      line1: z.string().trim().min(1, "Please enter your address").max(200),
-      line2: z.string().trim().max(200).optional(),
-      city: z.string().trim().min(1, "Please enter your city").max(120),
-      postcode: z.string().trim().min(1, "Please enter your postcode").max(40),
-      country: z.string().trim().min(1, "Please enter your country").max(120),
+      line1: z.string().trim().min(1, "Please enter your address").max(200).regex(ONE_LINE, ONE_LINE_MESSAGE),
+      line2: z.string().trim().max(200).regex(ONE_LINE, ONE_LINE_MESSAGE).optional(),
+      city: z.string().trim().min(1, "Please enter your city").max(120).regex(ONE_LINE, ONE_LINE_MESSAGE),
+      postcode: z.string().trim().min(1, "Please enter your postcode").max(40).regex(ONE_LINE, ONE_LINE_MESSAGE),
+      country: z.string().trim().min(1, "Please enter your country").max(120).regex(ONE_LINE, ONE_LINE_MESSAGE),
     })
     .optional(),
   mailingList: z.boolean().optional(),
   /** Explicit agreement to be contacted about the enquiry (privacy policy and terms). */
   consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to be contacted" }) }),
-  turnstileToken: z.string().optional(),
+  turnstileToken: z.string().max(4096).optional(),
   website: z.string().optional(), // honeypot
 });
 
@@ -47,10 +61,35 @@ const KIND_LABEL = {
   appointment: "Appointment request",
 } as const;
 
+/** Enquiries from one address in an hour: more than a keen collector sends. */
+const PER_IP_PER_HOUR = 20;
+
+const ADDRESS_COLUMNS = "phone, address_line1, address_line2, city, postcode, country";
+type KnownContact = OptInContact & {
+  phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  postcode: string | null;
+  country: string | null;
+};
+
+const phoneDigits = (s: string | null | undefined) => (s ?? "").replace(/[^\d+]/g, "");
+const addressKey = (parts: (string | null | undefined)[]) =>
+  parts.map((p) => (p ?? "").toLowerCase().replace(/[\s,.]+/g, " ").trim()).join("|");
+
 /**
  * Inline enquiries (works, catalogues, appointments). Records the enquiry
- * against the CRM contact (created if new), optionally opts them into the
- * mailing list, and emails the gallery. Nothing here touches the inventory.
+ * against the CRM contact (created if new) and emails the gallery. Nothing
+ * here touches the inventory.
+ *
+ * The form proves nothing about who typed the email address, so a contact
+ * already on record is never changed from here (security review 2026-10,
+ * F11): their phone, address and consent stay as they are, the details given
+ * are kept on the enquiry, and staff are told when they differ from the
+ * record. The mailing-list tick sends the same confirmation email as the
+ * newsletter box, for new and existing contacts alike; consent is only
+ * switched on when the owner of the address confirms.
  */
 export async function POST(req: NextRequest) {
   let payload: z.infer<typeof schema>;
@@ -68,10 +107,8 @@ export async function POST(req: NextRequest) {
   }
   if (payload.website) return NextResponse.json({ ok: true });
 
-  const turnstile = await verifyTurnstile(
-    payload.turnstileToken,
-    req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for"),
-  );
+  const ip = clientIp(req.headers);
+  const turnstile = await verifyTurnstile(payload.turnstileToken, ip);
   if (!turnstile.ok) {
     return NextResponse.json({ error: turnstile.error ?? "Verification failed" }, { status: 400 });
   }
@@ -88,37 +125,72 @@ export async function POST(req: NextRequest) {
   const addressColumns = addr
     ? { address_line1: addr.line1, address_line2: addr.line2 ?? null, city: addr.city, postcode: addr.postcode, country: addr.country }
     : {};
+  /** What became of the mailing-list tick; null when not ticked. */
+  let mailing: OptInOutcome | null = null;
+  /** For staff: an existing contact whose record differs from what was typed. */
+  let recordNote: string | null = null;
 
   try {
     const supabase = createServiceClient();
+    if (ip && !(await rateLimit(supabase, `enquiry:ip:${hashKey(ip)}`, 3600, PER_IP_PER_HOUR))) {
+      return NextResponse.json(
+        { error: "Too many enquiries from here just now. Please try again later, or email the gallery." },
+        { status: 429 },
+      );
+    }
 
-    // Contact: match on email, create if new; consent only when ticked.
-    const { data: existing } = await supabase
-      .from("crm_contacts")
-      .select("id, marketing_consent, consent_evidence")
-      .ilike("email", email)
-      .limit(1)
-      .maybeSingle();
+    // Contact: the exact address, created if new.
+    const existingId = await contactIdByEmail(supabase, email);
+    let existing: KnownContact | null = null;
+    if (existingId) {
+      const { data, error } = await supabase
+        .from("crm_contacts")
+        .select(`${OPTIN_COLUMNS}, ${ADDRESS_COLUMNS}`)
+        .eq("id", existingId)
+        .maybeSingle();
+      if (error) throw error;
+      existing = data as KnownContact | null;
+    }
     let contactId = existing?.id ?? null;
     // Evidence of what was agreed to: the contact tick always, the mailing
     // list tick when given (UK GDPR Art. 7(1), PECR reg. 22).
     const contactEv = consentEvidence(req, "enquiry");
     const marketingEv = payload.mailingList ? consentEvidence(req, "enquiry_mailing_list") : null;
+    let confirmToken: string | null = null;
+
     if (existing) {
-      let evidence = mergeEvidence(existing.consent_evidence, "contact", contactEv);
-      if (payload.mailingList && !existing.marketing_consent) {
-        evidence = mergeEvidence(evidence, "marketing", marketingEv!);
-        await supabase
-          .from("crm_contacts")
-          .update({ marketing_consent: true, consent_date: now, consent_source: "website_enquiry", unsubscribed_at: null, consent_evidence: evidence })
-          .eq("id", existing.id);
-      } else {
-        await supabase.from("crm_contacts").update({ consent_evidence: evidence }).eq("id", existing.id);
+      const differs = [
+        payload.phone && phoneDigits(payload.phone) !== phoneDigits(existing.phone) ? "phone number" : null,
+        addr &&
+        addressKey([addr.line1, addr.line2, addr.city, addr.postcode, addr.country]) !==
+          addressKey([existing.address_line1, existing.address_line2, existing.city, existing.postcode, existing.country])
+          ? "postal address"
+          : null,
+      ].filter((d): d is string => Boolean(d));
+      if (differs.length > 0) {
+        recordNote =
+          `This email address belongs to an existing contact. The ${differs.join(" and ")} given here ` +
+          `${differs.length > 1 ? "differ" : "differs"} from the contact record (or the record has none). ` +
+          "The record has not been changed: check with the enquirer before updating it.";
       }
-      if (payload.phone) await supabase.from("crm_contacts").update({ phone: payload.phone }).eq("id", existing.id).is("phone", null);
-      // A posted order is the freshest address we have for the contact.
-      if (addr) await supabase.from("crm_contacts").update(addressColumns).eq("id", existing.id);
+      if (marketingEv) {
+        if (existing.do_not_mail) mailing = "suppressed";
+        else if (isSubscribed(existing)) mailing = "already";
+        else if (!(await allowOptInEmail(supabase, email))) mailing = "recent";
+        else {
+          confirmToken = newConfirmToken();
+          const { error } = await supabase
+            .from("crm_contacts")
+            .update(pendingPatch(existing, confirmToken, marketingEv, now))
+            .eq("id", existing.id);
+          if (error) throw error;
+        }
+      }
     } else {
+      if (marketingEv) {
+        if (await allowOptInEmail(supabase, email)) confirmToken = newConfirmToken();
+        else mailing = "recent";
+      }
       const { data: created, error } = await supabase
         .from("crm_contacts")
         .insert({
@@ -127,12 +199,14 @@ export async function POST(req: NextRequest) {
           email,
           phone: payload.phone || null,
           ...addressColumns,
-          marketing_consent: Boolean(payload.mailingList),
-          consent_date: payload.mailingList ? now : null,
-          consent_source: payload.mailingList ? "website_enquiry" : null,
-          consent_evidence: marketingEv
-            ? mergeEvidence(mergeEvidence(null, "contact", contactEv), "marketing", marketingEv)
-            : mergeEvidence(null, "contact", contactEv),
+          marketing_consent: false,
+          ...(confirmToken && marketingEv
+            ? {
+                consent_confirm_token: confirmToken,
+                consent_confirm_sent_at: now,
+                consent_evidence: mergeEvidence(mergeEvidence(null, "contact", contactEv), "marketing", marketingEv),
+              }
+            : { consent_evidence: mergeEvidence(null, "contact", contactEv) }),
           tags: ["website"],
         })
         .select("id")
@@ -141,11 +215,25 @@ export async function POST(req: NextRequest) {
       contactId = created.id;
     }
 
+    if (confirmToken) {
+      try {
+        mailing = (await sendConfirmation(req, email, payload.name, confirmToken)) ? "sent" : "failed";
+      } catch (err) {
+        console.error("[enquiry] mailing-list confirmation failed:", err);
+        mailing = "failed";
+      }
+    }
+
+    const notes = [
+      `Agreed to be contacted (privacy policy and terms) on ${now.slice(0, 10)} via the website form.`,
+      mailing ? `Mailing list — ${OPTIN_OUTCOME_TEXT[mailing]}.` : null,
+      recordNote,
+    ].filter(Boolean);
     const { error: enquiryError } = await supabase.from("enquiries").insert({
       contact_id: contactId,
       piece_id: payload.pieceId ?? null,
       channel: "website",
-      message: `${label}${payload.subject ? ` — ${payload.subject}` : ""}\n\n${payload.message}\n\nFrom: ${payload.name} <${email}>${payload.phone ? ` · ${payload.phone}` : ""}${addressText ? `\nPost to: ${addressText}` : ""}\nAgreed to be contacted (privacy policy and terms) on ${now.slice(0, 10)} via the website form.`,
+      message: `${label}${payload.subject ? ` — ${payload.subject}` : ""}\n\n${payload.message}\n\nFrom: ${payload.name} <${email}>${payload.phone ? ` · ${payload.phone}` : ""}${addressText ? `\nPost to: ${addressText}` : ""}\n${notes.join("\n")}`,
     });
     if (enquiryError) throw enquiryError;
   } catch (err) {
@@ -175,8 +263,9 @@ export async function POST(req: NextRequest) {
           { label: "Email", value: email },
           ...(payload.phone ? [{ label: "Phone", value: payload.phone }] : []),
           ...(addressText ? [{ label: "Post to", value: addressText }] : []),
-          { label: "Mailing list", value: payload.mailingList ? "Asked to join" : "Not asked" },
+          { label: "Mailing list", value: mailing ? OPTIN_OUTCOME_TEXT[mailing] : "Not asked" },
           { label: "Agreed to", value: "Be contacted about this enquiry (Privacy Notice and Terms)" },
+          ...(recordNote ? [{ label: "Contact record", value: recordNote }] : []),
         ],
         work,
         origin: enquiryOrigin(req, sentAt),

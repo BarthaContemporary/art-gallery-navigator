@@ -77,6 +77,18 @@ export default async function PrivacyPage() {
           the form and to answer you in good time; it is our legitimate interest in running the
           gallery. These details stay in that email and are not added to your contact record.
         </p>
+        <p>
+          <strong>If you are already in our records,</strong> a form on this website never changes
+          them: the phone number and address you give stay with your enquiry until we have checked
+          them with you. Asking to join the mailing list, from an enquiry or from the newsletter
+          box, sends an email to the address given, and you join only once you confirm from it.
+        </p>
+        <p>
+          <strong>To stop the forms being misused,</strong> we keep a one-way hash (a scrambled
+          stand-in that cannot be turned back into the original) of the IP address each form or
+          offer password comes from, and of the email address given, for one day. It limits how
+          often the forms can be used and how many passwords can be tried on a private offer page.
+        </p>
       </LegalSection>
 
       <LegalSection heading="Why we use it and our lawful basis">
@@ -119,8 +131,9 @@ export default async function PrivacyPage() {
 
       <LegalSection heading="How long we keep it">
         <p><strong>Enquiries:</strong> three years. <strong>Appointment bookings:</strong> two years.</p>
-        <p><strong>Newsletter subscription:</strong> until you unsubscribe; we then keep a record that you opted out so that we do not email you again. A sign-up that is never confirmed is deleted after 30 days.</p>
+        <p><strong>Newsletter subscription:</strong> until you unsubscribe; we then keep a record that you opted out so that we do not email you again. A sign-up that is never confirmed is deleted after 30 days, and its confirmation link stops working then.</p>
         <p><strong>Email delivery records and private-offer page views:</strong> two years.</p>
+        <p><strong>The scrambled IP and email addresses used to limit form use:</strong> one day.</p>
         <p><strong>Purchase, sale and consignment records:</strong> six years after the end of the tax year, as tax law requires.</p>
         <p><strong>Anti-money-laundering records:</strong> five years after the end of our business relationship or the transaction, as the Money Laundering Regulations require.</p>
         <p><strong>Contact records with no activity</strong> are reviewed for deletion after five years.</p>

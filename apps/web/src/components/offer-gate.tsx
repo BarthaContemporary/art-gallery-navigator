@@ -12,18 +12,28 @@ type Status = "idle" | "checking" | "error";
 export function OfferGate({ token }: { token: string }) {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<Status>("idle");
+  /** The server's own reason when it refused for something other than a wrong password. */
+  const [refusal, setRefusal] = useState<string | null>(null);
   const [magic, setMagic] = useState<"idle" | "sending" | "sent">("idle");
 
   async function unlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("checking");
+    setRefusal(null);
     try {
       const res = await fetch("/api/offer/unlock", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
-      if (!res.ok) throw new Error("bad password");
+      if (!res.ok) {
+        // Too many tries (429), or the gate cannot open at all (503).
+        if (res.status !== 401) {
+          const json = (await res.json().catch(() => ({}))) as { error?: string };
+          setRefusal(json.error ?? null);
+        }
+        throw new Error("not unlocked");
+      }
       window.location.reload();
     } catch {
       setStatus("error");
@@ -68,7 +78,7 @@ export function OfferGate({ token }: { token: string }) {
         />
         {status === "error" ? (
           <p role="alert" className="font-sans text-ui text-sumi">
-            That password wasn’t recognised. Please check your invitation and try again.
+            {refusal ?? "That password wasn’t recognised. Please check your invitation and try again."}
           </p>
         ) : null}
         <button

@@ -66,7 +66,9 @@ export default async function RootLayout({
       <body className="flex min-h-screen flex-col bg-page text-body">
         <JsonLd data={siteJsonLd(settings)} />
         {/* Everything that can track sits inside the consent provider, so no
-            tag can render without first consulting the visitor's decision. */}
+            tag can render without first consulting the visitor's decision.
+            Neither tag runs on a private offer or a newsletter confirmation
+            (lib/private-paths), whose address is the key to the page. */}
         <ConsentProvider>
           <SiteHeader galleryName={galleryName} />
           <main className="flex-1">{children}</main>

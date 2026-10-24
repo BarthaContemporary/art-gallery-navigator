@@ -1,21 +1,34 @@
 "use client";
 
 import { useState } from "react";
+import { TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
 
 /**
  * Footer newsletter: Name + Email, both required. Translucent white fields
  * on the orange; white button with orange text. Success replaces the form
- * with one line.
+ * with one line, the same line whatever the address's state (the email
+ * itself says if it was already subscribed), so the box cannot be used to
+ * find out who is on the list.
+ *
+ * Turnstile guards it as it does the other forms, but this box is on every
+ * page, so the check only loads once the visitor starts filling it in:
+ * pages where nobody touches the form make no call to Cloudflare.
  */
 export function NewsletterForm() {
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
-  const [already, setAlready] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [engaged, setEngaged] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const data = new FormData(form);
+    if (turnstileEnabled && !turnstileToken) {
+      setEngaged(true);
+      setError("Please wait a moment for the verification to complete, then try again.");
+      return;
+    }
     setStatus("sending");
     setError(null);
     try {
@@ -26,12 +39,12 @@ export function NewsletterForm() {
           name: String(data.get("name") ?? ""),
           email: String(data.get("email") ?? ""),
           consent: data.get("consent") === "on",
+          turnstileToken: turnstileToken || undefined,
           website: String(data.get("website") ?? ""),
         }),
       });
-      const json = (await res.json().catch(() => ({}))) as { error?: string; status?: string };
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? "Could not sign you up");
-      setAlready(json.status === "already");
       setStatus("done");
     } catch (err) {
       setStatus("error");
@@ -46,7 +59,7 @@ export function NewsletterForm() {
     <div className="fold" data-open={!done} aria-hidden={done} inert={done}>
       <div>
         <div className="fold-body">
-    <form onSubmit={onSubmit} className="mt-3 flex flex-col gap-2" noValidate={false}>
+    <form onSubmit={onSubmit} onFocus={() => setEngaged(true)} className="mt-3 flex flex-col gap-2" noValidate={false}>
       <label className="sr-only" htmlFor="nl-name">
         Name
       </label>
@@ -82,6 +95,7 @@ export function NewsletterForm() {
           . Unsubscribe at any time.
         </span>
       </label>
+      {engaged ? <TurnstileWidget onToken={setTurnstileToken} /> : null}
       <button
         type="submit"
         disabled={status === "sending"}
@@ -102,11 +116,7 @@ export function NewsletterForm() {
       <div>
         <div className="fold-body">
           <p className="mt-4 font-sans text-ui" role="status">
-            {done
-              ? already
-                ? <>You&rsquo;re already on the list — thank you.</>
-                : <>Thank you — please check your inbox and confirm your subscription.</>
-              : null}
+            {done ? <>Thank you — please check your inbox and confirm your subscription.</> : null}
           </p>
         </div>
       </div>
