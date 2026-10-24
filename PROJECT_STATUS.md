@@ -17,9 +17,11 @@ vars are referenced by name only.
   308s to www (DNS at GoDaddy; runbook, rollback values and after-launch tasks
   in `docs/ops/go-live-www.md`). `studio.` is on Vercel; `api.` has no record
   (sslip.io is used instead).
-- Applying DB migrations remotely: POST SQL to `/pg/query` (postgres-meta,
-  exposed through Kong) with the `service_role` key as `apikey` + Bearer. This
-  is how migrations 16/17 and the data backfill were applied.
+- Applying DB migrations remotely: through an SSH tunnel with
+  `scripts/apply-migrations.sh` (`docs/ops/security-runbook.md` step 5.4).
+  Until October 2026 they went in by POSTing SQL to `/pg/query`
+  (postgres-meta through Kong, with the `service_role` key); that route gives
+  full SQL to anyone holding the key and is being closed (runbook step 5).
 
 ## Server disk (2026-09-16)
 
@@ -131,7 +133,8 @@ vars are referenced by name only.
 - **Resend event webhook** (optional tracking): set `RESEND_WEBHOOK_SECRET` on
   web; point a Resend webhook at `/api/resend-webhook?secret=…`.
 - **Rotate the Supabase `service_role` key** — it was shared in chat during
-  migration/backfill work.
+  migration/backfill work. Re-minting the key does not revoke the old one;
+  only rotating `JWT_SECRET` does (`docs/ops/security-runbook.md` step 6).
 
 ## Outstanding — data / content
 - ~697 pieces uncategorised, ~942 without a maker, ~816 without a location —

@@ -50,23 +50,26 @@ Notes:
 ## Applying migrations to the VPS (self-hosted Supabase)
 
 Postgres on the VPS is **never** exposed publicly — connect through an SSH
-tunnel.
+tunnel, and apply migrations with `scripts/apply-migrations.sh`
+(`docs/ops/security-runbook.md` step 5.4 has the full procedure):
 
 ```sh
-# open a tunnel: local 6543 -> VPS-internal Postgres 5432
-ssh -N -L 6543:localhost:5432 deploy@<vps-host> &
+# window 1: open a tunnel: local 54322 -> VPS-internal Postgres 5432
+ssh -N -L 54322:127.0.0.1:5432 root@<vps-host>
 
-# option A: Supabase CLI (tracks applied migrations in supabase_migrations schema)
-supabase db push --db-url "postgresql://postgres:<password>@localhost:6543/postgres"
-
-# option B: plain psql for a single migration / hotfix
-psql "postgresql://postgres:<password>@localhost:6543/postgres" \
-  -f supabase/migrations/20260713000001_extensions.sql
+# window 2: list, then apply, in number order; each file is one transaction
+CHECK=1 scripts/apply-migrations.sh 0097
+scripts/apply-migrations.sh 0097
 ```
 
-Prefer option A: it records applied versions and refuses to re-run them. Take
-a backup (or check the nightly `pg_dump` succeeded) before pushing to
-production; `infra/scripts/` holds the backup/restore tooling.
+It connects as `supabase_admin`, the user every earlier migration ran as, so
+new objects have the same owner. Run `pnpm test:db` first, and take a backup
+(or check the nightly `pg_dump` succeeded) before applying to production;
+`infra/scripts/` holds the backup/restore tooling.
+
+Never run `supabase db push` against the VPS: the live database was built
+without the CLI's `supabase_migrations` history, so a push would try to apply
+every migration again from the first one.
 
 ## Regenerating TypeScript types
 
@@ -79,7 +82,7 @@ supabase gen types typescript --local > packages/db/src/types/database.ts
 
 # or from the VPS through the tunnel
 supabase gen types typescript \
-  --db-url "postgresql://postgres:<password>@localhost:6543/postgres" \
+  --db-url "postgresql://supabase_admin:<password>@localhost:54322/postgres" \
   > packages/db/src/types/database.ts
 ```
 

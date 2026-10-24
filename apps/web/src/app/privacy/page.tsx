@@ -132,7 +132,7 @@ export default async function PrivacyPage() {
 
       <LegalSection heading="How long we keep it">
         <p><strong>Enquiries:</strong> three years. <strong>Appointment bookings:</strong> two years.</p>
-        <p><strong>Newsletter subscription:</strong> until you unsubscribe; we then keep a record that you opted out so that we do not email you again. A sign-up that is never confirmed is deleted after 30 days, and its confirmation link stops working then. If you asked from an enquiry, or were already in our records, the unconfirmed request is kept with your record as a note of it; once its link has expired, it is removed the next time your address is used on one of this website’s forms.</p>
+        <p><strong>Newsletter subscription:</strong> until you unsubscribe; we then keep a record that you opted out so that we do not email you again. A sign-up that is never confirmed is deleted after 30 days, and its confirmation link stops working then. If you asked from an enquiry, or were already in our records, the unconfirmed request is kept with your record as a note of it until its link stops working, and then removed.</p>
         <p><strong>Email delivery records and private-offer page views:</strong> two years.</p>
         <p><strong>The hashed IP and email addresses used to limit form use:</strong> one day.</p>
         <p><strong>Purchase, sale and consignment records:</strong> six years after the end of the tax year, as tax law requires.</p>
