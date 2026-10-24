@@ -115,6 +115,10 @@ export function AppointmentForm() {
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState("");
+  // A Turnstile token is spent by the first submit that reaches the server,
+  // even one that then fails; after a failure the widget is remounted for a
+  // fresh token, so "please try again" works straight away.
+  const [turnstileRound, setTurnstileRound] = useState(0);
 
   const show = () => {
     setMounted(true);
@@ -155,6 +159,8 @@ export function AppointmentForm() {
       setStatus("done");
     } catch (err) {
       setStatus("error");
+      setTurnstileToken("");
+      setTurnstileRound((n) => n + 1);
       setError(err instanceof Error ? err.message : "Could not send your request");
     }
   }
@@ -233,7 +239,7 @@ export function AppointmentForm() {
                       {status === "sending" ? "Sending…" : "Book"}
                     </button>
                   </div>
-                  <TurnstileWidget onToken={setTurnstileToken} />
+                  <TurnstileWidget key={turnstileRound} onToken={setTurnstileToken} />
                   {error ? (
                     <p className="font-sans text-small text-accent-deep" role="alert">
                       {error}

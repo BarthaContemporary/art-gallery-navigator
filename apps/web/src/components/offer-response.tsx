@@ -17,6 +17,10 @@ export function OfferResponse({
   );
   const [message, setMessage] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
+  // A Turnstile token is spent by the first submit that reaches the server,
+  // even one that then fails; after a failure the widget is remounted for a
+  // fresh token, so "please try again" works straight away.
+  const [turnstileRound, setTurnstileRound] = useState(0);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,6 +45,8 @@ export function OfferResponse({
       setStatus("success");
     } catch {
       setStatus("error");
+      setTurnstileToken("");
+      setTurnstileRound((n) => n + 1);
     }
   }
 
@@ -71,7 +77,7 @@ export function OfferResponse({
         placeholder="Which works caught your eye, or any questions."
         className="w-full border border-hairline bg-washi px-3 py-2.5 font-serif text-ui text-ink-70 placeholder:text-ink-50 focus:border-sumi"
       />
-      <TurnstileWidget onToken={setTurnstileToken} />
+      <TurnstileWidget key={turnstileRound} onToken={setTurnstileToken} />
       {status === "error" ? (
         <p role="alert" className="font-sans text-ui text-sumi">
           Something went wrong — please try again, or simply reply to our email.

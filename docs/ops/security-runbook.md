@@ -33,6 +33,9 @@ guess passwords, as fast as they liked. After this runbook:
   skips the forms (step 7);
 - the Google Maps key that ships in the web pages only works from the
   gallery's own sites (step 8).
+- the security changes' database updates are applied through the tunnel
+  (step 5.4), and the stock book's old copies on the shared drive are
+  removed (step 9).
 
 | Step | What | Interruption | Time |
 |---|---|---|---|
@@ -41,9 +44,11 @@ guess passwords, as fast as they liked. After this runbook:
 | 3 | Edge server: name the caller, close code emails | none | 10 min |
 | 4 | Prove the limits work | none | 5 min |
 | 5 | Close `/pg/` on the gateway | API a few seconds, only if it was open | 10 min |
+| 5.4 | Apply the database changes 0089 to 0096 (after the new code is live) | none | 10 min |
 | 6 | Replace the keys | studio, capture and website forms about 5 min; everyone signs in again | 30 min |
 | 7 | Cloudflare check for capture and at the sign-in server | none | 20 min |
 | 8 | Google Maps keys | none if done in order | 20 min |
+| 9 | Remove old stock-book files from the shared drive | none | 10 min |
 
 Do steps 1 to 5 in one sitting, and step 7 in the same sitting or within a
 few days. Until step 7 is done, someone calling the sign-in server directly
@@ -351,7 +356,7 @@ database. The repository's gateway file does not route it, but earlier notes
 say the live server did, and that migrations were applied through it.
 
 **From this step on, every database change (migration) goes through the SSH
-tunnel in 5.4**, the security changes' own migrations (0090 onwards)
+tunnel in 5.4**, the security changes' own migrations (0089 to 0096)
 included. Never reopen `/pg/` for one. `CLAUDE.md` and `PROJECT_STATUS.md`
 still describe `/pg/query`; see "Afterwards".
 
@@ -427,10 +432,28 @@ that is right, leave it open):
 ssh -N -L 54322:127.0.0.1:5432 root@104.238.184.145
 ```
 
-In a second window, in the repository folder, for each migration file:
+In a second window, in the repository folder, apply migrations with the
+script, which runs them in number order, each one all-or-nothing with a
+10-second wait limit on locks, and stops at the first error:
 
 ```sh
-psql "host=127.0.0.1 port=54322 user=supabase_admin dbname=postgres" -v ON_ERROR_STOP=1 -f supabase/migrations/<file>.sql
+CHECK=1 scripts/apply-migrations.sh 0089 0096   # first, see the list: nothing changes
+scripts/apply-migrations.sh 0089 0096           # then apply them
+```
+
+**The security changes (0089 to 0096) go in after the new studio, website and
+capture code is live**, in one run, in this order. Two of them must not go
+first: 0091 would stop maker profiles saving on the old studio code, and 0095
+would break newsletter links the old website code sends. The new code works
+before them (passkey sign-in says "unavailable" and the new limits are off
+until 0092 and 0089 are in; password sign-in and everything else work).
+Running the script again later is harmless: every one of them can be
+re-applied. A later single migration: `scripts/apply-migrations.sh 0097`.
+
+Without the script, one file at a time:
+
+```sh
+psql "host=127.0.0.1 port=54322 user=supabase_admin dbname=postgres" -v ON_ERROR_STOP=1 --single-transaction -f supabase/migrations/<file>.sql
 ```
 
 It asks for the password: `POSTGRES_PASSWORD` from the server's `.env` (also
@@ -743,6 +766,45 @@ Expect `"status" : "REQUEST_DENIED"`.
 **Undo:** set the browser key's restrictions back to None, and delete
 `GOOGLE_MAPS_SERVER_KEY` from Vercel capture and redeploy (the capture app
 then uses the browser key on its server again, as before).
+
+## Step 9. Remove stock-book files from the shared drive
+
+Until this change the stock book's export buttons saved the file onto the
+shared drive (`Downloads/Docs/stock-book-*.csv` and `.xlsx`), where every
+staff drive account can read and change it and Syncthing copies it to every
+paired Mac: purchase costs, sale prices, margins, VAT and seller names. The
+studio no longer writes there (security review F14); this removes what is
+already there. Do it after the new studio code is live, so nothing writes a
+new copy meanwhile.
+
+1. On the server, list them (the drive lives in `WEBDAV_DATA_DIR` from
+   `/opt/jvb/infra/compose/.env`, normally `/opt/jvb/webdav-plain`; old
+   versions are in its `.stversions` folder):
+
+   ```sh
+   D=$(grep -E '^WEBDAV_DATA_DIR=' /opt/jvb/infra/compose/.env | cut -d= -f2-); echo "drive: ${D:=/opt/jvb/webdav-plain}"
+   find "$D" -path '*Downloads/Docs/stock-book-*' -print
+   ```
+
+2. If the list holds only stock-book files, delete them:
+
+   ```sh
+   find "$D" -path '*Downloads/Docs/stock-book-*' -type f -delete
+   find "$D" -path '*Downloads/Docs/stock-book-*' -print
+   ```
+
+   **Check:** the second command prints nothing. Syncthing passes the
+   deletion on to every Mac within a minute or two.
+
+3. On each Mac that syncs the drive, check in Finder that `Downloads/Docs`
+   in the drive folder holds no `stock-book-` file (and if that Mac keeps its
+   own `.stversions` folder, delete any `stock-book-` copies in it too).
+4. Tell the accountant the stock book now downloads straight from the
+   studio's Stock book page. If a filed copy is wanted, keep it in a folder
+   only the admin and accountant can open, left out of Syncthing.
+
+**Undo:** none needed; the files can be exported again from the studio at
+any time.
 
 ## Afterwards
 

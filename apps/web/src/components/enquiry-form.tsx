@@ -37,6 +37,10 @@ export function EnquiryForm({
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState("");
+  // A Turnstile token is spent by the first submit that reaches the server,
+  // even one that then fails; after a failure the widget is remounted for a
+  // fresh token, so "please try again" works straight away.
+  const [turnstileRound, setTurnstileRound] = useState(0);
   /** The mailing-list box was ticked on the enquiry that was sent. */
   const [askedToJoin, setAskedToJoin] = useState(false);
 
@@ -83,6 +87,8 @@ export function EnquiryForm({
       setStatus("done");
     } catch (err) {
       setStatus("error");
+      setTurnstileToken("");
+      setTurnstileRound((n) => n + 1);
       setError(err instanceof Error ? err.message : "Could not send your enquiry");
     }
   }
@@ -169,7 +175,7 @@ export function EnquiryForm({
           {status === "sending" ? "Sending…" : "Send"}
         </button>
       </div>
-      <TurnstileWidget onToken={setTurnstileToken} />
+      <TurnstileWidget key={turnstileRound} onToken={setTurnstileToken} />
       {error ? (
         <p className="font-sans text-small text-accent-deep" role="alert">
           {error}

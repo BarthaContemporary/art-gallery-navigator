@@ -37,6 +37,9 @@ begin
   if _key is null or length(_key) = 0 or length(_key) > 300 then
     raise exception 'rate_limit_hit: bad key';
   end if;
+  -- One caller at a time per key: without this, requests arriving together
+  -- each count before seeing the others' hits and all pass the limit.
+  perform pg_advisory_xact_lock(hashtextextended('rate_limit:' || _key, 0));
   insert into public.rate_limit_hits (key) values (_key);
   select count(*) into _count
     from public.rate_limit_hits

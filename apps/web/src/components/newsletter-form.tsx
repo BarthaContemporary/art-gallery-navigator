@@ -19,6 +19,10 @@ export function NewsletterForm() {
   const [error, setError] = useState<string | null>(null);
   const [engaged, setEngaged] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
+  // A Turnstile token is spent by the first submit that reaches the server,
+  // even one that then fails; after a failure the widget is remounted for a
+  // fresh token, so "please try again" works straight away.
+  const [turnstileRound, setTurnstileRound] = useState(0);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,6 +52,8 @@ export function NewsletterForm() {
       setStatus("done");
     } catch (err) {
       setStatus("error");
+      setTurnstileToken("");
+      setTurnstileRound((n) => n + 1);
       setError(err instanceof Error ? err.message : "Could not sign you up");
     }
   }
@@ -95,7 +101,7 @@ export function NewsletterForm() {
           . Unsubscribe at any time.
         </span>
       </label>
-      {engaged ? <TurnstileWidget onToken={setTurnstileToken} /> : null}
+      {engaged ? <TurnstileWidget key={turnstileRound} onToken={setTurnstileToken} /> : null}
       <button
         type="submit"
         disabled={status === "sending"}
