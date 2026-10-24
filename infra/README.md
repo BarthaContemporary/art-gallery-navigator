@@ -5,6 +5,16 @@ Everything the VPS runs lives here; the apps themselves run on Vercel
 (BUILD_PLAN §2). Keep this document current — it is the disaster-recovery
 manual.
 
+Security operations on the live server (sign-in throttling and captcha,
+closing the gateway's `/pg/` route, rotating `JWT_SECRET` and the API keys,
+the Maps keys) are step by step in
+[`docs/ops/security-runbook.md`](../docs/ops/security-runbook.md).
+Any new address for the API (for example `api.joostvandenbergh.com` at
+go-live) gets its own Caddyfile block holding only `import security_headers`
+and `import supabase_api`, never a `reverse_proxy` line of its own, and must
+pass the runbook's step 4 before anything uses it: without the snippet the
+sign-in server counts nothing and the code emails reopen.
+
 ```
 infra/
   compose/          docker-compose.yml, .env.example, Caddyfile, kong/db init
@@ -93,6 +103,10 @@ supabase db push --db-url "postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:5
 # or ad-hoc admin:
 psql "postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres"
 ```
+
+Never through postgres-meta's `/pg/query` on the public gateway; the
+security runbook (step 5) checks that route is closed and gives the
+copy-paste tunnel commands.
 
 Migrations live in `supabase/migrations/` and are the only supported way to
 change schema. They also create the storage buckets (`piece-originals`,

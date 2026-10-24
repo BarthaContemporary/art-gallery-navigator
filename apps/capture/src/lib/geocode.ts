@@ -3,7 +3,7 @@
  * is an art dealer buying stock, we PRIORITISE nearby art galleries and antique
  * dealers over whatever generic business happens to be closest, then fall back
  * to the nearest establishment, then to a plain street address. Uses the Google
- * Places "Nearby Search" + reverse geocoding APIs (same key as the studio).
+ * Places "Nearby Search" + reverse geocoding APIs (key: see KEY below).
  */
 export type CaptureSourceType =
   | "gallery"
@@ -19,7 +19,12 @@ export type ResolvedSource = {
   source_type: CaptureSourceType | null;
 };
 
-const KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+// These calls run on the server, where a key restricted to the studio's and
+// capture's web addresses (the browser key) is refused: Google sees no
+// referrer. GOOGLE_MAPS_SERVER_KEY is a separate key limited to these APIs
+// with a daily cap (docs/ops/security-runbook.md step 8); until it is set the
+// browser key is used, as before.
+const KEY = process.env.GOOGLE_MAPS_SERVER_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 // J.v.d.B.'s own premises. Several St James's neighbours (Ben Hunter,
 // Littleton & Hennessy, Christie's) sit close enough that a GPS fix taken at his

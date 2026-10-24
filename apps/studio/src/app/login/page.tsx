@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { getSupabase } from "@/lib/supabase";
+import { hashKey, rateLimit } from "@jvb/db/rate-limit";
+import { createServiceClient } from "@/lib/supabase";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { Turnstile } from "@/components/turnstile";
 import { PasskeyLogin } from "@/components/passkey-login";
@@ -8,13 +9,36 @@ import { safeNextPath } from "@/lib/auth-rules";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
+import { passwordSignIn } from "./password-sign-in";
+import { clientIp, loginErrorMessage, runPasswordSignIn, signInLimits, withinSignInLimits } from "./sign-in";
+
+/**
+ * Whether this password sign-in may go on to the auth server (limits and
+ * reasons in ./sign-in.ts). Like the shared limiter, it lets the attempt
+ * through when the limiter cannot be reached, so sign-in never depends on it.
+ */
+async function signInAllowed(ip: string | null): Promise<boolean> {
+  let service: ReturnType<typeof createServiceClient>;
+  try {
+    service = createServiceClient();
+  } catch (err) {
+    console.error("[login] attempt limit skipped:", err);
+    return true;
+  }
+  return withinSignInLimits(signInLimits("studio", ip, hashKey), (key, windowSeconds, max) =>
+    rateLimit(service, key, windowSeconds, max),
+  );
+}
 
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error, next: rawNext } = await searchParams;
+  const { error: errorCode, next: rawNext } = await searchParams;
+  // ?error= carries a short code shown as fixed text (./sign-in.ts); any
+  // other value shows nothing.
+  const error = loginErrorMessage(typeof errorCode === "string" ? errorCode : null);
   // The page that sent the user here (middleware ?next=), if it is a plain
   // path on this site; anything else signs in to the dashboard as before.
   const next = safeNextPath(rawNext);
@@ -25,22 +49,25 @@ export default async function LoginPage({
     "use server";
     const email = String(formData.get("email") ?? "");
     const password = String(formData.get("password") ?? "");
+    const token = String(formData.get("cf-turnstile-response") ?? "");
     const back = safeNextPath(next);
     const keepNext = back ? `&next=${encodeURIComponent(back)}` : "";
+    const ip = clientIp(await headers());
 
-    // Bot mitigation: verify the Turnstile token before touching auth.
-    const h = await headers();
-    const turnstile = await verifyTurnstile(
-      String(formData.get("cf-turnstile-response") ?? ""),
-      h.get("cf-connecting-ip") ?? h.get("x-forwarded-for"),
-    );
-    if (!turnstile.ok) {
-      redirect(`/login?error=${encodeURIComponent(turnstile.error ?? "Security check failed")}${keepNext}`);
-    }
+    // The form requires both; an empty one is junk posted to the action, and
+    // the auth server would count it before refusing it.
+    if (!email.trim() || !password) redirect(`/login?error=credentials${keepNext}`);
 
-    const supabase = await getSupabase();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) redirect(`/login?error=${encodeURIComponent(error.message)}${keepNext}`);
+    // Bot mitigation first: the Cloudflare token is verified before anything
+    // is counted or the auth server is asked (order and reasons in
+    // ./sign-in.ts). The token is used up by this check, so the sign-in goes
+    // to the auth server with the service-role key (./password-sign-in.ts).
+    const failure = await runPasswordSignIn({
+      check: () => verifyTurnstile(token, ip),
+      count: () => signInAllowed(ip),
+      signIn: () => passwordSignIn(email, password),
+    });
+    if (failure) redirect(`/login?error=${failure}${keepNext}`);
     redirect(back ?? "/");
   }
 

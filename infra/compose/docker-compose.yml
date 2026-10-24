@@ -152,6 +152,61 @@ services:
       GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
       GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: "86400"
 
+      # --- Guessing limits (security review F1; docs/ops/security-runbook.md)
+      # GoTrue counts attempts per client only when it is told which request
+      # header carries the client's address; without it nothing is counted.
+      # Caddy, the only way in from the internet, overwrites X-JVB-Client-IP
+      # with the connecting address on every request (the supabase_api
+      # snippet in ./Caddyfile), so a client cannot pick its own count. Not
+      # X-Real-IP: Kong replaces that with its own Docker-side peer, which
+      # would put the whole internet in one count. Requests from inside
+      # Docker carry no header and are not counted, nor are session
+      # renewals, which Caddy sends without it (see token below).
+      GOTRUE_RATE_LIMIT_HEADER: X-JVB-Client-IP
+      # Per client address, per 5 minutes, after a first burst of up to 30
+      # that GoTrue lets through. verify (default 30) = emailed codes and
+      # links. otp (default 30) = requests for code emails, and password
+      # changes.
+      # token (default 150) = password sign-ins. GoTrue would count session
+      # renewals here too, but the studio and capture servers renew
+      # everyone's session from a few shared Vercel addresses and anyone can
+      # make them try one, so Caddy sends renewals without the address and
+      # they are not counted (./Caddyfile, supabase_api). That leaves the
+      # password sign-ins the apps pass on, at most 12 per app in 5 minutes
+      # (apps/*/src/app/login/sign-in.ts), so 30 fits both apps and holds
+      # password guessing sent straight to this server to 30 per 5 minutes
+      # per address. The Cloudflare check (runbook step 7) and the
+      # 12-character minimum slow it further.
+      GOTRUE_RATE_LIMIT_VERIFY: "10"
+      GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "30"
+      GOTRUE_RATE_LIMIT_OTP: "5"
+      # Auth emails per hour for the whole server (default 30). Nothing the
+      # gallery uses has GoTrue send one (Admin's re-invite mints its link
+      # with the service role and sends it through Resend), so this only caps
+      # abuse.
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: "10"
+      # Emailed codes: 10 digits, the most GoTrue allows (default 6). They
+      # stay valid 24 hours (GoTrue's default, written out so it is not
+      # shortened by accident): the expiry also covers Admin's re-invite
+      # ("set your password") link, and the invitation email promises 24
+      # hours. That is safe now: outsiders can no longer have a code emailed
+      # (Caddy closes those endpoints), and at 10 tries per 5 minutes one
+      # address would need thousands of years to guess a 10-digit code.
+      GOTRUE_MAILER_OTP_LENGTH: "10"
+      GOTRUE_MAILER_OTP_EXP: "86400"
+      # Cloudflare Turnstile checked by GoTrue itself on password sign-in, so
+      # the check guards the endpoint an attacker can call directly, not only
+      # the apps' forms. The studio and capture check the token themselves
+      # and then sign in with the service-role key, which GoTrue lets past
+      # this check (apps/*/src/app/login/password-sign-in.ts). Off until the
+      # owner turns it on in .env (AUTH_CAPTCHA_ENABLED + AUTH_CAPTCHA_SECRET):
+      # runbook step 7. true with an empty AUTH_CAPTCHA_SECRET stops the
+      # sign-in server from starting: nobody can sign in or stay signed in
+      # until it is fixed.
+      GOTRUE_SECURITY_CAPTCHA_ENABLED: ${AUTH_CAPTCHA_ENABLED:-false}
+      GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
+      GOTRUE_SECURITY_CAPTCHA_SECRET: ${AUTH_CAPTCHA_SECRET:-}
+
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
       GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
       GOTRUE_MAILER_AUTOCONFIRM: "false"
