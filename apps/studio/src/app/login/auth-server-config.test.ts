@@ -95,17 +95,50 @@ test("the snippet closes the code emails, leaves renewals uncounted and counts e
   // A change here needs the same change in the runbook's Appendix B and a
   // fresh look at that reasoning (infra/compose/Caddyfile).
   assert.deepEqual(snippet.children!.map(shape), [
+    '@auth_noncanonical expression `{http.request.orig_uri}.matches("(?i)^/auth/v1[^?]*([%]|//|/[.][.]?(/|[?]|$))")`',
+    { "handle @auth_noncanonical": ['respond "Bad request" 400'] },
     "@auth_code_email path /auth/v1/recover* /auth/v1/otp* /auth/v1/magiclink* /auth/v1/resend* /auth/v1/signup*",
     { "handle @auth_code_email": ['respond "Not available" 403'] },
     {
       "@refresh_grant": [
-        "path /auth/v1/token",
-        'expression `{query.grant_type} == "refresh_token" && {header.Content-Type}.matches("^application/json(;[^,]*)?$")`',
+        'expression `{http.request.orig_uri.path} == "/auth/v1/token" && {query.grant_type} == "refresh_token" && {header.Content-Type}.matches("^application/json(;[^,]*)?$")`',
       ],
     },
     { "handle @refresh_grant": [{ "reverse_proxy 127.0.0.1:8000": ["header_up -X-JVB-Client-IP"] }] },
     { handle: [{ "reverse_proxy 127.0.0.1:8000": ["header_up X-JVB-Client-IP {remote_host}"] }] },
   ]);
+});
+
+test("non-plain sign-in paths are refused before Caddy and the gateway can read them differently", () => {
+  // The Caddyfile's own pattern (RE2 there; the same in JavaScript once the
+  // (?i) flag is moved out), run on the request target as sent.
+  const source = /\{http\.request\.orig_uri\}\.matches\("\(\?i\)([^"]+)"\)/.exec(read("infra/compose/Caddyfile"))?.[1];
+  assert.ok(source, "the plain-form matcher reads the request as sent");
+  const bad = new RegExp(source, "i");
+  for (const no of [
+    "/auth/v1/%72ecover",
+    "/auth/v1/./recover",
+    "/auth/v1/../auth/v1/recover",
+    "/auth/v1//recover",
+    "/auth/v1/token/.",
+    "/auth/v1/token/..?grant_type=refresh_token",
+    "/AUTH/V1/%2e%2e/rest/v1/x",
+    "/auth/v1/verify/./?token=1",
+  ]) {
+    assert.ok(bad.test(no), `refused: ${no}`);
+  }
+  for (const ok of [
+    "/auth/v1/token?grant_type=password",
+    "/auth/v1/token?grant_type=refresh_token",
+    "/auth/v1/health",
+    "/auth/v1/user",
+    "/auth/v1/verify?token=abc&type=recovery&redirect_to=https%3A%2F%2Fstudio.example%2Fset-password",
+    "/auth/v1/logout?scope=local",
+    "/rest/v1/pieces?select=id",
+    "/storage/v1/object/sign/piece-derivatives/a%20b.jpg",
+  ]) {
+    assert.ok(!bad.test(ok), `allowed: ${ok}`);
+  }
 });
 
 test("the renewal matcher's pattern accepts what the Supabase client sends and nothing looser", () => {

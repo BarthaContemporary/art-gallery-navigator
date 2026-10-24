@@ -264,12 +264,15 @@ grep -c '^[[:space:]]*import supabase_api' /etc/caddy/Caddyfile
 curl -s -o /dev/null -w 'health: %{http_code}\n' "$API/auth/v1/health" -H "apikey: $ANON"
 curl -s -o /dev/null -w 'reset email: %{http_code}\n' -X POST "$API/auth/v1/recover" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"email":"nobody@example.invalid"}'
 curl -s -o /dev/null -w 'renewal: %{http_code}\n' -X POST "$API/auth/v1/token?grant_type=refresh_token" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"refresh_token":"not-a-real-token"}'
+curl -s -o /dev/null -w 'odd path: %{http_code}\n' --path-as-is -X POST "$API/auth/v1/./recover" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"email":"nobody@example.invalid"}'
+curl -s -o /dev/null -w 'encoded path: %{http_code}\n' -X POST "$API/auth/v1/%72ecover" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"email":"nobody@example.invalid"}'
 ```
 
 Expect `2` (the two lines to the gateway, both inside `supabase_api`), `1`
-(or one per API address), `health: 200`, `reset email: 403` and
+(or one per API address), `health: 200`, `reset email: 403`,
 `renewal: 400` (renewals reach the sign-in server, which refuses the made-up
-token).
+token), and `odd path: 400` and `encoded path: 400` (sign-in paths written in
+any but their plain form are refused before anything else).
 Sign in to the studio once more, and open a few pages.
 
 **Undo:**
@@ -893,6 +896,17 @@ snippet, word for word (a test keeps the two the same):
 
 ```
 (supabase_api) {
+	# Sign-in paths only in their plain form. Caddy's matchers below read a
+	# cleaned, decoded copy of the path, while the gateway routes on the path
+	# exactly as sent; a path with percent-encoding, doubled slashes or "."
+	# and ".." segments could look like one endpoint to Caddy and another to
+	# the gateway, and slip past the closed or the uncounted routes. The apps
+	# never send such paths, so they are refused before anything else.
+	@auth_noncanonical expression `{http.request.orig_uri}.matches("(?i)^/auth/v1[^?]*([%]|//|/[.][.]?(/|[?]|$))")`
+	handle @auth_noncanonical {
+		respond "Bad request" 400
+	}
+
 	# GoTrue's endpoints that email a sign-in or recovery code to any address
 	# the caller names. Nothing the gallery runs uses them from outside:
 	# staff are created and re-invited from the studio's Admin page with the
@@ -922,9 +936,10 @@ snippet, word for word (a test keeps the two the same):
 	# with a JSON body sent under a single Content-Type header, as the
 	# Supabase client sends it. Anything else, a password sign-in dressed up
 	# as a renewal included, takes the counted route below.
+	# The path is compared exactly as sent (after the plain-form check above),
+	# not through Caddy's cleaned copy.
 	@refresh_grant {
-		path /auth/v1/token
-		expression `{query.grant_type} == "refresh_token" && {header.Content-Type}.matches("^application/json(;[^,]*)?$")`
+		expression `{http.request.orig_uri.path} == "/auth/v1/token" && {query.grant_type} == "refresh_token" && {header.Content-Type}.matches("^application/json(;[^,]*)?$")`
 	}
 	handle @refresh_grant {
 		reverse_proxy 127.0.0.1:8000 {
@@ -963,8 +978,10 @@ api.104-238-184-145.sslip.io {
 }
 ```
 
-What the four parts do, in order: requests asking for a code email get
-"Not available"; session renewals go to the gateway without the caller's
+What the parts do, in order: sign-in paths written in any but their plain
+form (percent-encoding, doubled slashes, "." or ".." segments) get "Bad
+request", so Caddy and the gateway always read the same path; requests asking
+for a code email get "Not available"; session renewals go to the gateway without the caller's
 address, so they are not counted; everything else goes to the gateway with
 the caller's address, which the sign-in server counts. The renewal part is
 written narrowly on purpose (only a renewal exactly as the apps send it), so

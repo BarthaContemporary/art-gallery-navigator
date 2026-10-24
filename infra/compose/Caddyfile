@@ -48,6 +48,17 @@
 # changes shape; docs/ops/security-runbook.md shows it as Appendix B and
 # step 4 checks the live server.
 (supabase_api) {
+	# Sign-in paths only in their plain form. Caddy's matchers below read a
+	# cleaned, decoded copy of the path, while the gateway routes on the path
+	# exactly as sent; a path with percent-encoding, doubled slashes or "."
+	# and ".." segments could look like one endpoint to Caddy and another to
+	# the gateway, and slip past the closed or the uncounted routes. The apps
+	# never send such paths, so they are refused before anything else.
+	@auth_noncanonical expression `{http.request.orig_uri}.matches("(?i)^/auth/v1[^?]*([%]|//|/[.][.]?(/|[?]|$))")`
+	handle @auth_noncanonical {
+		respond "Bad request" 400
+	}
+
 	# GoTrue's endpoints that email a sign-in or recovery code to any address
 	# the caller names. Nothing the gallery runs uses them from outside:
 	# staff are created and re-invited from the studio's Admin page with the
@@ -77,9 +88,10 @@
 	# with a JSON body sent under a single Content-Type header, as the
 	# Supabase client sends it. Anything else, a password sign-in dressed up
 	# as a renewal included, takes the counted route below.
+	# The path is compared exactly as sent (after the plain-form check above),
+	# not through Caddy's cleaned copy.
 	@refresh_grant {
-		path /auth/v1/token
-		expression `{query.grant_type} == "refresh_token" && {header.Content-Type}.matches("^application/json(;[^,]*)?$")`
+		expression `{http.request.orig_uri.path} == "/auth/v1/token" && {query.grant_type} == "refresh_token" && {header.Content-Type}.matches("^application/json(;[^,]*)?$")`
 	}
 	handle @refresh_grant {
 		reverse_proxy 127.0.0.1:8000 {
