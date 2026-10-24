@@ -504,9 +504,15 @@ export default async function CampaignDetail({
           {campaign.body_html ? (
             <Section title="What was sent">
               {/* White on purpose, in both themes: this is the email as a
-                  reader's mail program draws it. */}
+                  reader's mail program draws it. Fully sandboxed (no
+                  scripts, an origin of its own): body_html is stored HTML
+                  that anyone with write access to the campaign could have
+                  set, and an unsandboxed srcdoc frame runs as the studio
+                  itself. A mail program runs no scripts either, so the
+                  email looks the same; its links do not open from here. */}
               <iframe
                 title="Sent newsletter"
+                sandbox=""
                 srcDoc={personalise(campaign.body_html, {
                   salutation: "Dear friend",
                   unsubscribeUrl: "#",

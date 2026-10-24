@@ -491,8 +491,17 @@ export function CampaignDesigner(props: Props) {
         <div style={{ top: "var(--app-header-h, 88px)" }} className="min-w-0 lg:sticky lg:self-start">
           <p className="label mb-2">Live preview</p>
           {/* White on purpose, in both themes: this is the email as a
-              reader's mail program draws it. */}
-          <iframe title="Newsletter preview" srcDoc={html} className="h-[640px] w-full border border-rule bg-white" />
+              reader's mail program draws it. Fully sandboxed (no scripts,
+              an origin of its own), as on the sent view: the design it is
+              compiled from is stored data, and a link such as
+              javascript:… must not run as the studio. Mail programs run no
+              scripts, so the preview is still true to the email. */}
+          <iframe
+            title="Newsletter preview"
+            sandbox=""
+            srcDoc={html}
+            className="h-[640px] w-full border border-rule bg-white"
+          />
         </div>
       </div>
     </>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { getSupabase, getSession } from "@/lib/supabase";
+import { rateLimit } from "@jvb/db/rate-limit";
+import { getSupabase, getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 
 export const runtime = "nodejs";
@@ -16,9 +17,22 @@ export const maxDuration = 300;
  *
  * The writing instructions deliberately "humanize" the output: natural,
  * varied prose without the usual AI tells, concrete facts only, uncertainty
- * flagged instead of papered over. The draft is never saved directly — it
- * lands in the editor and goes through the normal sanitise-on-save path.
+ * flagged instead of papered over.
+ *
+ * Nothing here saves the draft, and the editor does not save it on its own
+ * either: the model has read arbitrary web pages, so a person reads the
+ * draft first. The editor shows it as an unsaved draft beside the sources it
+ * drew on, and only "Keep this draft" puts it into the profile, through the
+ * normal sanitise-on-save path; until then makers.profile_html and the
+ * website keep the text they had.
+ *
+ * Only admin and staff (the roles that can save a profile) may ask for one,
+ * and each person may ask for DRAFTS_PER_HOUR an hour: a draft is an
+ * expensive call (the large model, a long thinking budget, up to eight web
+ * searches).
  */
+
+const DRAFTS_PER_HOUR = 10;
 
 const WRITING_SYSTEM = `You are writing maker biographies for Joost van den Bergh, a London dealer in Japanese and Indian works of art. Your drafts appear on the gallery's website and in printed profiles, so they must read as if written by a knowledgeable human specialist, not by an AI.
 
@@ -48,6 +62,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasRole(session.roles, "admin", "staff"))
+    return NextResponse.json({ error: "Only admin and staff can draft a profile" }, { status: 403 });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey)
@@ -65,6 +81,15 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .eq("id", id)
     .maybeSingle();
   if (!maker) return NextResponse.json({ error: "Maker not found" }, { status: 404 });
+
+  // Counted per person once the request is known to be good, so a mistyped
+  // maker does not use up a draft. The limiter lets the request through if
+  // its own check fails (see @jvb/db/rate-limit).
+  if (!(await rateLimit(createServiceClient(), `ai-draft:user:${session.user.id}`, 3600, DRAFTS_PER_HOUR)))
+    return NextResponse.json(
+      { error: `That is ${DRAFTS_PER_HOUR} AI drafts in the last hour, the most allowed. Try again later.` },
+      { status: 429 },
+    );
 
   // Works in stock give strong hints about the maker's materials and subjects.
   const { data: works } = await supabase
@@ -119,7 +144,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       if (block.type === "text") {
         html += block.text;
         for (const c of block.citations ?? []) {
-          if (c.type === "web_search_result_location" && !sources.some((s) => s.url === c.url))
+          // Shown as links beside the draft: web addresses only.
+          if (
+            c.type === "web_search_result_location" &&
+            /^https?:\/\//i.test(c.url) &&
+            !sources.some((s) => s.url === c.url)
+          )
             sources.push({ url: c.url, title: c.title ?? c.url });
         }
       }
@@ -141,9 +171,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       .map((p) => `<p>${esc(p.trim())}</p>`)
       .join("");
 
-  // Defence in depth: the model read arbitrary web pages, and the client
-  // inserts this straight into the editor via innerHTML — never return it
-  // unsanitised (the save path sanitises again).
+  // Defence in depth: the model read arbitrary web pages, and the editor
+  // shows this as HTML (the draft preview, then the profile once kept) —
+  // never return it unsanitised (the save path sanitises again).
   html = sanitizeHtml(html);
 
   return NextResponse.json({ html, sources, model });
