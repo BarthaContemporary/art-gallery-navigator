@@ -27,58 +27,49 @@ export function loginErrorMessage(code: string | null | undefined): string | nul
   return LOGIN_ERRORS[code as LoginErrorCode];
 }
 
-/**
- * True when the auth server (GoTrue) checks the Turnstile token itself
- * (AUTH_SERVER_CAPTCHA=1, set together with GOTRUE_SECURITY_CAPTCHA_ENABLED on
- * the server; docs/ops/security-runbook.md). The app must then pass the token
- * on untouched: Cloudflare accepts each token once, so verifying it here first
- * would make GoTrue's check fail.
- */
-export function authServerChecksCaptcha(
-  env: Record<string, string | undefined> = process.env,
-): boolean {
-  const v = (env.AUTH_SERVER_CAPTCHA ?? "").trim().toLowerCase();
-  return v === "1" || v === "true";
-}
-
 /** The parts of a Supabase AuthError the mapping reads. */
-type AuthErrorLike = { code?: string | null; status?: number | null; message?: string | null };
+export type AuthErrorLike = { code?: string | null; status?: number | null; message?: string | null };
 
 /**
- * The code for an error GoTrue returned from a password sign-in.
- * `sentToken` says whether a Turnstile token went with the request, which
- * tells "no token" apart from "Cloudflare could not be reached": GoTrue
- * answers both with the same "captcha verification process failed".
+ * The code for an error GoTrue returned from a password sign-in. The app
+ * checks the Cloudflare token itself and signs in with the service-role key,
+ * which GoTrue's own check lets through, so a captcha refusal from GoTrue
+ * means the app is set up wrongly (no service-role key while GoTrue's check
+ * is on): it shows the plain failure, and the page logs the reason.
  */
-export function loginErrorFromAuth(error: AuthErrorLike, sentToken: boolean): LoginErrorCode {
+export function loginErrorFromAuth(error: AuthErrorLike): LoginErrorCode {
   const code = error.code ?? "";
   const message = error.message ?? "";
   if (code === "invalid_credentials" || /invalid login credentials/i.test(message)) return "credentials";
   if (error.status === 429 || code.startsWith("over_") || /rate limit/i.test(message)) return "rate-limited";
-  if (code === "captcha_failed") return "check-failed";
-  if (/captcha/i.test(message)) return sentToken ? "check-unavailable" : "check-missing";
   return "failed";
 }
 
 /**
  * How many password sign-ins the app passes on to the auth server, counted in
- * the shared limiter (@jvb/db/rate-limit) before GoTrue is called.
+ * the shared limiter (@jvb/db/rate-limit) once the app's Cloudflare check has
+ * passed and before GoTrue is called.
  *
- * GoTrue counts its own sign-in attempts per calling address, and the studio
- * and capture servers call it from a few shared Vercel addresses. That count
- * also carries every session refresh those servers make, and a refused
- * refresh signs the person out. So the apps hold attempts back first: per
- * sender's address and per email, so one person guessing is slowed, and per
- * app, so that what both apps pass on together (2 × 12) always fits inside
- * the first burst of 30 GoTrue allows an address, with room left for
- * refreshes. Someone can still use up an app's count on purpose and hold up
- * password sign-in there for a few minutes; passkeys and existing sessions
- * carry on (docs/ops/security-runbook.md, "If staff see Too many sign-in
- * attempts").
+ * GoTrue counts password sign-ins per calling address, and the studio and
+ * capture servers call it from a few shared Vercel addresses; if that count
+ * filled, password sign-in would be refused for everyone. (Session renewals
+ * are not counted there, so people already signed in stay signed in:
+ * infra/compose/Caddyfile.) So the apps hold attempts back first: per
+ * sender's address, so one person guessing is slowed and cannot use up an
+ * app's count alone, and per app, so that what both apps pass on together
+ * (2 × 12 in 5 minutes) always fits inside GoTrue's count for one address
+ * (30 per 5 minutes, after a first burst of 30). The app count also holds all
+ * guessing through the forms to 24 tries in 5 minutes, whichever accounts it
+ * aims at, so there is no count per email, which would only let one sender
+ * lock a named account (the dealer's address is public).
+ *
+ * Someone who keeps solving the Cloudflare check from several addresses can
+ * still use up an app's count and hold up password sign-in in that app for as
+ * long as they keep at it; passkeys and existing sessions carry on
+ * (docs/ops/security-runbook.md, "If staff see Too many sign-in attempts").
  */
 export const SIGN_IN_LIMITS = {
   address: { windowSeconds: 5 * 60, max: 10 },
-  email: { windowSeconds: 15 * 60, max: 10 },
   app: { windowSeconds: 5 * 60, max: 12 },
 } as const;
 
@@ -133,21 +124,18 @@ export function limitAddress(ip: string): string {
 /**
  * The counts one password sign-in goes against, in the order they are
  * checked. Keys follow @jvb/db/rate-limit's "<feature>:<kind>:<value>"; the
- * address and the email go through `hash` (that module's hashKey), so the
- * table never holds either. Both apps share the address and email counts, so
- * switching app gives no fresh tries; each app has its own app count. Without
- * an address (local development) or an email, that count is left out.
+ * address goes through `hash` (that module's hashKey), so the table never
+ * holds it. Both apps share the address count, so switching app gives no
+ * fresh tries; each app has its own app count. Without an address (local
+ * development) that count is left out.
  */
 export function signInLimits(
   app: SignInApp,
   ip: string | null,
-  email: string,
   hash: (value: string) => string,
 ): SignInLimit[] {
   const limits: SignInLimit[] = [];
   if (ip) limits.push({ key: `login:ip:${hash(limitAddress(ip))}`, ...SIGN_IN_LIMITS.address });
-  const address = email.trim().toLowerCase();
-  if (address) limits.push({ key: `login:email:${hash(address)}`, ...SIGN_IN_LIMITS.email });
   limits.push({ key: `login:app:${app}`, ...SIGN_IN_LIMITS.app });
   return limits;
 }
@@ -155,8 +143,8 @@ export function signInLimits(
 /**
  * Counts one attempt against each limit in turn; true when every one allowed
  * it. Stops at the first refusal, so an attempt already refused for its
- * address does not also use up the email's or the app's count: one sender
- * can spend at most 10 of an app's 12 in any 5 minutes.
+ * address does not also use up the app's count: one sender can spend at most
+ * 10 of an app's 12 in any 5 minutes.
  */
 export async function withinSignInLimits(
   limits: SignInLimit[],
@@ -166,4 +154,28 @@ export async function withinSignInLimits(
     if (!(await hit(limit.key, limit.windowSeconds, limit.max))) return false;
   }
   return true;
+}
+
+/** The three steps of a password sign-in, as the login page wires them up. */
+export type PasswordSignInSteps = {
+  /** The app's own Cloudflare check (lib/turnstile.ts); ok while no secret is set. */
+  check: () => Promise<{ ok: boolean; code?: "check-missing" | "check-failed" | "check-unavailable" }>;
+  /** Counts the attempt (withinSignInLimits); false once a count is used up. */
+  count: () => Promise<boolean>;
+  /** Asks the auth server and keeps the session; the auth server's error, or null. */
+  signIn: () => Promise<AuthErrorLike | null>;
+};
+
+/**
+ * One password sign-in, in this order: the Cloudflare check, so nothing a
+ * request without a solved check sends uses up anyone's count; then the
+ * counts, so a refused attempt never reaches the auth server; then the auth
+ * server. Null when signed in, otherwise the code the page shows.
+ */
+export async function runPasswordSignIn(steps: PasswordSignInSteps): Promise<LoginErrorCode | null> {
+  const check = await steps.check();
+  if (!check.ok) return check.code ?? "check-failed";
+  if (!(await steps.count())) return "rate-limited";
+  const error = await steps.signIn();
+  return error ? loginErrorFromAuth(error) : null;
 }

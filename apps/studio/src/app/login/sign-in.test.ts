@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 // node --test needs the extension; the app's tsconfig does not allow it.
 // @ts-ignore
-import { authServerChecksCaptcha, clientIp, limitAddress, LOGIN_ERRORS, loginErrorFromAuth, loginErrorMessage, SIGN_IN_LIMITS, signInLimits, withinSignInLimits } from "./sign-in.ts";
+import { clientIp, limitAddress, LOGIN_ERRORS, loginErrorFromAuth, loginErrorMessage, runPasswordSignIn, SIGN_IN_LIMITS, signInLimits, withinSignInLimits } from "./sign-in.ts";
 
 test("every code has fixed text; anything else shows nothing", () => {
   for (const [code, text] of Object.entries(LOGIN_ERRORS)) assert.equal(loginErrorMessage(code), text);
@@ -23,30 +23,26 @@ test("every code has fixed text; anything else shows nothing", () => {
 });
 
 test("GoTrue errors map to codes", () => {
-  const cases: [Parameters<typeof loginErrorFromAuth>[0], boolean, string][] = [
-    [{ code: "invalid_credentials", status: 400, message: "Invalid login credentials" }, false, "credentials"],
-    [{ status: 400, message: "Invalid login credentials" }, true, "credentials"],
-    [{ code: "over_request_rate_limit", status: 429, message: "Request rate limit reached" }, false, "rate-limited"],
-    [{ status: 429, message: "Too many requests" }, true, "rate-limited"],
-    [{ code: "captcha_failed", status: 400, message: "captcha protection: request disallowed (invalid-input-response)" }, true, "check-failed"],
-    // GoTrue says the same for "no token sent" and "Cloudflare unreachable".
-    [{ code: "unexpected_failure", status: 500, message: "captcha verification process failed" }, false, "check-missing"],
-    [{ code: "unexpected_failure", status: 500, message: "captcha verification process failed" }, true, "check-unavailable"],
-    [{ code: "email_not_confirmed", status: 400, message: "Email not confirmed" }, false, "failed"],
-    [{ status: 500, message: "Database error querying schema" }, false, "failed"],
-    [{}, false, "failed"],
+  const cases: [Parameters<typeof loginErrorFromAuth>[0], string][] = [
+    [{ code: "invalid_credentials", status: 400, message: "Invalid login credentials" }, "credentials"],
+    [{ status: 400, message: "Invalid login credentials" }, "credentials"],
+    [{ code: "over_request_rate_limit", status: 429, message: "Request rate limit reached" }, "rate-limited"],
+    [{ status: 429, message: "Too many requests" }, "rate-limited"],
+    // The app checks the Cloudflare token itself and signs in with the
+    // service-role key, which GoTrue's own check lets through: a captcha
+    // refusal means the set-up is wrong, not the visitor.
+    [{ code: "captcha_failed", status: 400, message: "captcha protection: request disallowed (invalid-input-response)" }, "failed"],
+    [{ code: "unexpected_failure", status: 500, message: "captcha verification process failed" }, "failed"],
+    [{ code: "email_not_confirmed", status: 400, message: "Email not confirmed" }, "failed"],
+    [{ status: 500, message: "Database error querying schema" }, "failed"],
+    [{ message: "no session returned" }, "failed"],
+    [{}, "failed"],
   ];
-  for (const [error, sentToken, want] of cases) {
-    const got = loginErrorFromAuth(error, sentToken);
+  for (const [error, want] of cases) {
+    const got = loginErrorFromAuth(error);
     assert.equal(got, want, JSON.stringify(error));
     assert.ok(loginErrorMessage(got), `${got} has text`);
   }
-});
-
-test("the auth-server captcha flag is off unless set to 1 or true", () => {
-  assert.equal(authServerChecksCaptcha({}), false);
-  for (const off of ["", "0", "false", "no", "off", "2"]) assert.equal(authServerChecksCaptcha({ AUTH_SERVER_CAPTCHA: off }), false, off);
-  for (const on of ["1", "true", "TRUE", " 1 "]) assert.equal(authServerChecksCaptcha({ AUTH_SERVER_CAPTCHA: on }), true, on);
 });
 
 const headers = (h: Record<string, string>) => ({ get: (name: string) => h[name] ?? null });
@@ -76,54 +72,124 @@ test("IPv6 senders are counted per /64, IPv4 per address", () => {
   }
 });
 
-test("each attempt counts per address, per email and per app; the address and email only as hashes", () => {
+test("each attempt counts per address and per app; the address only as a hash", () => {
   const hash = (v: string) => `h(${v})`;
-  assert.deepEqual(signInLimits("studio", "2001:db8:aa:1::7", "  Joost@Example.com ", hash), [
+  assert.deepEqual(signInLimits("studio", "2001:db8:aa:1::7", hash), [
     { key: "login:ip:h(2001:db8:aa:1::/64)", ...SIGN_IN_LIMITS.address },
-    { key: "login:email:h(joost@example.com)", ...SIGN_IN_LIMITS.email },
     { key: "login:app:studio", ...SIGN_IN_LIMITS.app },
   ]);
-  // Both apps share the address and email counts, not the app count.
-  const capture = signInLimits("capture", "2001:db8:aa:1::8", "joost@example.com", hash);
-  assert.deepEqual(capture.map((l) => l.key), ["login:ip:h(2001:db8:aa:1::/64)", "login:email:h(joost@example.com)", "login:app:capture"]);
-  // No address (local development), no email: those counts are left out.
-  assert.deepEqual(signInLimits("capture", null, " ", hash).map((l) => l.key), ["login:app:capture"]);
-  for (const l of signInLimits("studio", "203.0.113.4", "a@b.c", (v) => v)) assert.ok(l.key.length <= 300, l.key);
+  // Both apps share the address count, not the app count.
+  const capture = signInLimits("capture", "2001:db8:aa:1::8", hash);
+  assert.deepEqual(capture.map((l) => l.key), ["login:ip:h(2001:db8:aa:1::/64)", "login:app:capture"]);
+  // No address (local development): that count is left out.
+  assert.deepEqual(signInLimits("capture", null, hash).map((l) => l.key), ["login:app:capture"]);
+  // No count per email: one sender could otherwise lock a named account.
+  assert.deepEqual(Object.keys(SIGN_IN_LIMITS).sort(), ["address", "app"]);
+  for (const l of signInLimits("studio", "203.0.113.4", (v) => v)) assert.ok(l.key.length <= 300, l.key);
 });
 
-test("what both apps pass on stays inside GoTrue's first burst for one address", () => {
-  // GoTrue v2.170 lets 30 sign-in or refresh requests through per address
-  // before its per-5-minute rate applies (internal/api/options.go, Token
-  // limiter SetBurst(30)). Refreshes need some of it.
-  assert.ok(2 * SIGN_IN_LIMITS.app.max < 30);
+test("what both apps pass on stays inside GoTrue's count for one address", () => {
+  // GoTrue v2.170 lets 30 password sign-ins through per address before its
+  // per-5-minute rate applies (internal/api/options.go, Token limiter
+  // SetBurst(30)), then GOTRUE_RATE_LIMIT_TOKEN_REFRESH per 5 minutes
+  // (checked against this in auth-server-config.test.ts).
+  assert.ok(2 * SIGN_IN_LIMITS.app.max <= 30);
   // One sender alone cannot use up an app's count.
   assert.ok(SIGN_IN_LIMITS.address.max < SIGN_IN_LIMITS.app.max);
   assert.equal(SIGN_IN_LIMITS.address.windowSeconds, SIGN_IN_LIMITS.app.windowSeconds);
+  assert.equal(SIGN_IN_LIMITS.app.windowSeconds, 5 * 60);
 });
 
 test("counts are checked in order and stop at the first refusal", async () => {
-  const limits = signInLimits("studio", "203.0.113.4", "a@b.c", (v) => v);
+  const limits = signInLimits("studio", "203.0.113.4", (v) => v);
   const seen: string[] = [];
   const allow = (refuse: string | null) => async (key: string) => {
     seen.push(key);
     return key !== refuse;
   };
   assert.equal(await withinSignInLimits(limits, allow(null)), true);
-  assert.deepEqual(seen, ["login:ip:203.0.113.4", "login:email:a@b.c", "login:app:studio"]);
+  assert.deepEqual(seen, ["login:ip:203.0.113.4", "login:app:studio"]);
   seen.length = 0;
   assert.equal(await withinSignInLimits(limits, allow("login:ip:203.0.113.4")), false);
-  assert.deepEqual(seen, ["login:ip:203.0.113.4"], "a refused address does not use up the email's or app's count");
+  assert.deepEqual(seen, ["login:ip:203.0.113.4"], "a refused address does not use up the app's count");
   seen.length = 0;
-  assert.equal(await withinSignInLimits(limits, allow("login:email:a@b.c")), false);
-  assert.deepEqual(seen, ["login:ip:203.0.113.4", "login:email:a@b.c"]);
+  assert.equal(await withinSignInLimits(limits, allow("login:app:studio")), false);
+  assert.deepEqual(seen, ["login:ip:203.0.113.4", "login:app:studio"]);
   // The window and maximum reach the limiter as given.
   const args: [string, number, number][] = [];
   await withinSignInLimits(limits, async (k, w, m) => (args.push([k, w, m]), true));
-  assert.deepEqual(args[2], ["login:app:studio", 300, SIGN_IN_LIMITS.app.max]);
+  assert.deepEqual(args[1], ["login:app:studio", 300, SIGN_IN_LIMITS.app.max]);
 });
 
-test("the capture app's copy is identical", () => {
-  const here = readFileSync(new URL("./sign-in.ts", import.meta.url), "utf8");
-  const capture = readFileSync(new URL("../../../../capture/src/app/login/sign-in.ts", import.meta.url), "utf8");
-  assert.equal(capture, here, "apps/capture/src/app/login/sign-in.ts must match apps/studio/src/app/login/sign-in.ts");
+type CheckCode = "check-missing" | "check-failed" | "check-unavailable";
+
+/** A sign-in whose steps answer as given and record the order they ran in. */
+function steps(answers: { check?: { ok: boolean; code?: CheckCode }; count?: boolean; signIn?: Parameters<typeof loginErrorFromAuth>[0] }) {
+  const ran: string[] = [];
+  return {
+    ran,
+    steps: {
+      check: async () => (ran.push("check"), answers.check ?? { ok: true }),
+      count: async () => (ran.push("count"), answers.count ?? true),
+      signIn: async () => (ran.push("signIn"), answers.signIn ?? null),
+    },
+  };
+}
+
+test("the Cloudflare check runs before anything is counted or the auth server is asked", async () => {
+  for (const code of ["check-missing", "check-failed", "check-unavailable"] as const) {
+    const s = steps({ check: { ok: false, code } });
+    assert.equal(await runPasswordSignIn(s.steps), code);
+    assert.deepEqual(s.ran, ["check"], "a request without a solved check uses up no count");
+  }
+  const noCode = steps({ check: { ok: false } });
+  assert.equal(await runPasswordSignIn(noCode.steps), "check-failed");
+  assert.deepEqual(noCode.ran, ["check"]);
+});
+
+test("a used-up count stops the attempt before the auth server", async () => {
+  const s = steps({ count: false });
+  assert.equal(await runPasswordSignIn(s.steps), "rate-limited");
+  assert.deepEqual(s.ran, ["check", "count"]);
+});
+
+test("the auth server's answer decides the rest", async () => {
+  const ok = steps({});
+  assert.equal(await runPasswordSignIn(ok.steps), null);
+  assert.deepEqual(ok.ran, ["check", "count", "signIn"]);
+  assert.equal(await runPasswordSignIn(steps({ signIn: { code: "invalid_credentials", status: 400 } }).steps), "credentials");
+  assert.equal(await runPasswordSignIn(steps({ signIn: { code: "over_request_rate_limit", status: 429 } }).steps), "rate-limited");
+  assert.equal(await runPasswordSignIn(steps({ signIn: { status: 500, message: "Database error" } }).steps), "failed");
+});
+
+test("the capture app's copies are identical", () => {
+  for (const file of ["sign-in.ts", "password-sign-in.ts"]) {
+    const here = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
+    const capture = readFileSync(new URL(`../../../../capture/src/app/login/${file}`, import.meta.url), "utf8");
+    assert.equal(capture, here, `apps/capture/src/app/login/${file} must match apps/studio/src/app/login/${file}`);
+  }
+});
+
+test("both apps verify the Cloudflare token the same way", () => {
+  // The capture app's copy of lib/turnstile.ts differs only in its header comment.
+  const body = (app: string) => {
+    const text = readFileSync(new URL(`../../../../${app}/src/lib/turnstile.ts`, import.meta.url), "utf8");
+    return text.slice(text.indexOf("export type TurnstileFailure"));
+  };
+  assert.ok(body("studio").includes("export async function verifyTurnstile("));
+  assert.equal(body("capture"), body("studio"), "apps/capture/src/lib/turnstile.ts must match apps/studio/src/lib/turnstile.ts below its header");
+});
+
+test("both sign-in actions run the check, the counts and the sign-in through runPasswordSignIn", () => {
+  // The order itself is tested above; this keeps the pages from calling the
+  // auth server, or counting, outside it.
+  for (const app of ["studio", "capture"]) {
+    const page = readFileSync(new URL(`../../../../${app}/src/app/login/page.tsx`, import.meta.url), "utf8");
+    assert.ok(/runPasswordSignIn\(\{\s*check: \(\) => verifyTurnstile\(token, ip\),\s*count: \(\) => signInAllowed\(ip\),\s*signIn: \(\) => passwordSignIn\(email, password\),\s*\}\)/.test(page), `${app} login page wires runPasswordSignIn`);
+    const uses = (call: string) => page.split(call).length - 1;
+    assert.equal(uses("verifyTurnstile("), 1, `${app}: the Cloudflare check runs only inside runPasswordSignIn`);
+    assert.equal(uses("passwordSignIn("), 1, `${app}: the auth server is asked only inside runPasswordSignIn`);
+    assert.equal(uses("signInWithPassword("), 0, `${app}: the page asks the auth server only through ./password-sign-in.ts`);
+    assert.equal(uses("signInAllowed("), 2, `${app}: signInAllowed is defined once and called only inside runPasswordSignIn`);
+  }
 });

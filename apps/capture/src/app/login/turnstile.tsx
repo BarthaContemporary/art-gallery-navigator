@@ -35,10 +35,9 @@ function loadTurnstile(): Promise<void> {
 /**
  * Cloudflare Turnstile widget for the sign-in form, as in the studio
  * (apps/studio/src/components/turnstile.tsx). Turnstile injects a hidden
- * `cf-turnstile-response` field into the surrounding <form>; the server
- * action hands it to the auth server, which verifies it. The login page only
- * renders this when the auth server checks Turnstile (AUTH_SERVER_CAPTCHA),
- * and it renders nothing until a site key is set.
+ * `cf-turnstile-response` field into the surrounding <form>, which the server
+ * action reads and verifies (src/lib/turnstile.ts). Renders nothing until a
+ * site key is set.
  */
 export function Turnstile({ className }: { className?: string }) {
   const hostRef = useRef<HTMLDivElement>(null);

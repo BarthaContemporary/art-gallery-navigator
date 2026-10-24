@@ -15,11 +15,12 @@ for a password-reset code (6 digits, valid for 24 hours) and guess it, or
 guess passwords, as fast as they liked. After this runbook:
 
 - the sign-in server limits how often any one internet address may try a
-  code, a password or a reset (steps 2 to 4);
-- the studio and capture apps hold back repeated password sign-ins
-  themselves, per sender's address, per email and per app, before the
-  sign-in server is asked (this comes with the apps' deploy; nothing to do
-  on the server);
+  code, a password or a reset (steps 2 to 4). Renewing a session that is
+  already signed in is not counted, so these limits never sign anyone out;
+- the studio and capture apps check the Cloudflare box on their sign-in
+  forms first, then hold back repeated password sign-ins, per sender's
+  address and per app, before the sign-in server is asked (this comes with
+  the apps' deploy; the capture app's box is switched on in step 7);
 - emailed codes are 10 digits instead of 6 (step 2). They stay valid 24
   hours, as Admin's invitation email says;
 - nobody on the internet can make the server email a code at all; the
@@ -27,8 +28,9 @@ guess passwords, as fast as they liked. After this runbook:
 - the gateway's "run any SQL" route, `/pg/`, is confirmed closed (step 5);
 - every API key is replaced, so the service-role key once pasted into a chat
   stops working (step 6);
-- the sign-in server itself runs the Cloudflare check that guards the
-  sign-in form, so the check also stops anyone who skips the form (step 7);
+- the capture app's sign-in form gets the Cloudflare box, and the sign-in
+  server itself runs the Cloudflare check too, so it also stops anyone who
+  skips the forms (step 7);
 - the Google Maps key that ships in the web pages only works from the
   gallery's own sites (step 8).
 
@@ -40,11 +42,16 @@ guess passwords, as fast as they liked. After this runbook:
 | 4 | Prove the limits work | none | 5 min |
 | 5 | Close `/pg/` on the gateway | API a few seconds, only if it was open | 10 min |
 | 6 | Replace the keys | studio, capture and website forms about 5 min; everyone signs in again | 30 min |
-| 7 | Cloudflare check at the sign-in server | none if done in order | 20 min |
+| 7 | Cloudflare check for capture and at the sign-in server | none | 20 min |
 | 8 | Google Maps keys | none if done in order | 20 min |
 
-Do steps 1 to 5 in one sitting. Steps 6, 7 and 8 can each be done on another
-day; repeat step 1 first each time, so the backup is fresh.
+Do steps 1 to 5 in one sitting, and step 7 in the same sitting or within a
+few days. Until step 7 is done, someone calling the sign-in server directly
+(not through the gallery's forms) can try about 30 passwords at once and then
+30 every 5 minutes from each internet address they use: about 8,700 a day per
+address, against any staff email, for example from a list of passwords
+leaked from other websites. Steps 6 and 8 can each be done on another day.
+Repeat step 1 first each time, so the backup is fresh.
 
 ## Before you start
 
@@ -59,8 +66,13 @@ You need:
 - The password manager. New keys go there first.
 - A computer with this repository, up to date with `main` after the security
   changes were merged (`git pull`). Steps 2, 3 and 5 copy from it.
-- For steps 7 and 8: the studio and capture app deployed on Vercel from that
-  same `main` (the sign-in pages and the capture geocoding changed with it).
+- Before step 3: the studio and capture apps deployed on Vercel from that
+  same `main`. Their sign-in pages changed with it: they check the
+  Cloudflare box, hold back repeated attempts and sign in in a way the
+  sign-in server's own Cloudflare check (step 7) lets through. With older
+  apps, junk sent through the capture app's form could use up the sign-in
+  server's count for Vercel's addresses once step 3 switches counting on.
+  Step 8 also needs them (the capture geocoding changed too).
 
 How to read the commands: grey boxes are typed into the server after `ssh`,
 unless they say "on your computer". Copy each box whole. Text in `<angle
@@ -158,7 +170,7 @@ Appendix A shows the exact lines and what each does.
    GOTRUE_RATE_LIMIT_EMAIL_SENT: "10"
    GOTRUE_RATE_LIMIT_HEADER: X-JVB-Client-IP
    GOTRUE_RATE_LIMIT_OTP: "5"
-   GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "150"
+   GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "30"
    GOTRUE_RATE_LIMIT_VERIFY: "10"
    GOTRUE_SECURITY_CAPTCHA_ENABLED: "false"
    GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
@@ -201,9 +213,13 @@ every request from the internet) tells the sign-in server which address is
 calling. This step adds that, and turns away requests asking the sign-in
 server to email a sign-in or reset code. The gallery never sends those: staff
 are created and re-invited from the studio's Admin page, which makes the link
-itself. Both live in one named piece of settings, `supabase_api`, that the
-API site takes in with one line, so a second API address added later gets
-them the same way (`infra/README.md`). Appendix B shows the lines.
+itself. Session renewals (an app keeping someone signed in) go through
+without the address, so they are never counted: the studio and capture
+servers renew everyone's session from a few shared Vercel addresses, and
+counting renewals would let an outsider sign staff out. All of this lives in
+one named piece of settings, `supabase_api`, that the API site takes in with
+one line, so a second API address added later gets it the same way
+(`infra/README.md`). Appendix B shows the lines.
 
 1. Find the API site's line to the gateway:
 
@@ -225,7 +241,7 @@ them the same way (`infra/README.md`). Appendix B shows the lines.
    - Paste the whole first box of Appendix B (from `(supabase_api) {` to its
      last `}`) on its own lines just above the line that opens the API site
      (the one starting `api.` and ending in `{`), outside every other block.
-     If you noted lines in the point above, add them inside its
+     If you noted lines in the point above, add them inside both of its
      `reverse_proxy` braces, under the `header_up` line.
 
    Tabs or spaces both work. Save with Ctrl+O, Enter, Ctrl+X.
@@ -247,11 +263,14 @@ grep -cE '^[[:space:]]*reverse_proxy[[:space:]]+(https?://)?(127\.0\.0\.1|localh
 grep -c '^[[:space:]]*import supabase_api' /etc/caddy/Caddyfile
 curl -s -o /dev/null -w 'health: %{http_code}\n' "$API/auth/v1/health" -H "apikey: $ANON"
 curl -s -o /dev/null -w 'reset email: %{http_code}\n' -X POST "$API/auth/v1/recover" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"email":"nobody@example.invalid"}'
+curl -s -o /dev/null -w 'renewal: %{http_code}\n' -X POST "$API/auth/v1/token?grant_type=refresh_token" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"refresh_token":"not-a-real-token"}'
 ```
 
-Expect `1` (the one line to the gateway, now inside `supabase_api`), `1` (or
-one per API address), `health: 200` and `reset email: 403`. Sign in to the
-studio once more.
+Expect `2` (the two lines to the gateway, both inside `supabase_api`), `1`
+(or one per API address), `health: 200`, `reset email: 403` and
+`renewal: 400` (renewals reach the sign-in server, which refuses the made-up
+token).
+Sign in to the studio once more, and open a few pages.
 
 **Undo:**
 
@@ -261,8 +280,8 @@ cp -a "$B/Caddyfile" /etc/caddy/Caddyfile && systemctl reload caddy
 
 ## Step 4. Prove the limits work
 
-Run these on the server. That way only the server's own address is held back
-for a few minutes, never the gallery's office.
+Run these on the server, in this order. That way only the server's own
+address is held back for a few minutes, never the gallery's office.
 
 Bad codes:
 
@@ -289,21 +308,34 @@ step 2's list showed `GOTRUE_RATE_LIMIT_HEADER: X-JVB-Client-IP`; the
 Caddyfile has `header_up X-JVB-Client-IP {remote_host}` spelt the same way;
 `systemctl reload caddy` ran after the edit.
 
+Session renewals, straight after the bad passwords (while their count is
+still used up):
+
+```sh
+for i in $(seq 1 45); do curl -s -o /dev/null -w '%{http_code} ' -X POST "$API/auth/v1/token?grant_type=refresh_token" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"refresh_token":"not-a-real-token"}'; done; echo
+```
+
+**Check:** every number is `400` (made-up token), never `429`: renewals are
+not counted, so a full count cannot sign anyone out. If `429`s appear, the
+API site does not use Appendix B's box as it stands: compare the two and
+tell whoever looks after the code.
+
 Two more checks:
 
 ```sh
-docker compose logs --since 10m auth | grep -c 'rate limiting is not applied'
+docker compose logs --since 10m auth | grep 'rate limiting is not applied' | grep -cvE '"path": ?"/token"|path=/token( |$)'
 ip -6 addr show scope global
 ```
 
-The first prints `0`. The sign-in server writes that line for every
-request that reached it without the caller's address, which it then does not
-count; anything above 0 (unless you used the database dashboard in the last
-ten minutes) means some way in skips `supabase_api`: tell whoever looks
-after the code. The second prints nothing. The limits count per internet
-address, and one IPv6 user holds millions of addresses; this server was
-created with IPv6 off. If it prints an address, tell whoever looks after the
-code.
+The first prints `0`. The sign-in server writes "rate limiting is not
+applied" for every request that reached it without the caller's address,
+which it then does not count. Session renewals (path `/token`) come that way
+on purpose, so the command leaves them out; anything above 0 (unless you
+used the database dashboard in the last ten minutes) means some way in skips
+`supabase_api`: tell whoever looks after the code. The second prints
+nothing. The limits count per internet address, and one IPv6 user holds
+millions of addresses; this server was created with IPv6 off. If it prints
+an address, tell whoever looks after the code.
 
 **Undo:** nothing to undo.
 
@@ -582,39 +614,41 @@ then put the old two values back in Vercel (all three projects, every
 environment; they are in the password manager's old `.env` copy) and redeploy
 the three projects.
 
-## Step 7. Cloudflare check at the sign-in server
+## Step 7. Cloudflare check for capture and at the sign-in server
 
-Today the studio's server checks the Cloudflare (Turnstile) box on its
-sign-in form, but someone calling the sign-in server directly never meets it.
-From this step the sign-in server checks the box itself, for the studio and
-for the capture app, which gets the box for the first time. A Cloudflare
-token can be checked only once, so the apps stop checking it themselves when
-`AUTH_SERVER_CAPTCHA` is set and pass it to the sign-in server instead. Do
-the parts in this order: between 7.4 and 7.5 neither side checks, so do 7.5
-straight after 7.4; done the other way round, password sign-in would fail
-until the apps are redeployed.
+Today the studio's sign-in form has the Cloudflare (Turnstile) box, the
+capture app's has none, and someone calling the sign-in server directly
+never meets it. This step gives the capture app's form the box (its server
+checks it, as the studio's does), then has the sign-in server check the box
+itself, so it also stops anyone who skips the forms. The two apps keep
+checking their own box and then sign in with the service-role key, which
+the sign-in server's check lets through, so the parts can be done in any
+order and nobody is interrupted. Do it in the same sitting as steps 1 to 5
+or within a few days (see the start of this runbook for why).
 
 **7.1 Cloudflare:** Turnstile → the widget whose site key starts
 `0x4AAAAAAD` → Hostname management. Add the capture app's address (for
 example `capture.joostvandenbergh.com`: the address staff open it at). Keep
 the others.
 
-**7.2 Vercel capture:** Settings → Environment Variables → add
-`NEXT_PUBLIC_TURNSTILE_SITE_KEY` with the same site key the jvb-studio project
-has, for Production and Preview.
+**7.2 Vercel capture:** Settings → Environment Variables → add both of
+these, for Production and Preview, copying each value from the jvb-studio
+project's variable of the same name:
 
-**7.3 Vercel jvb-studio and capture:** add `AUTH_SERVER_CAPTCHA` = `1`, for
-Production and Preview.
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (the widget's site key);
+- `TURNSTILE_SECRET_KEY` (the widget's secret key).
 
-**7.4 Redeploy** jvb-studio and capture (Deployments → latest Production → ⋯
-→ Redeploy, "Use existing Build Cache" unticked: the site key is built into
-the page). Wait for "Ready". Check: the capture app's sign-in page now
-shows the Cloudflare box under the password field; the studio's looks as
-before.
+Add both or neither: with only the secret, the form has no box and every
+password sign-in is refused. Then redeploy capture (Deployments → latest
+Production → ⋯ → Redeploy, "Use existing Build Cache" unticked: the site key
+is built into the page) and wait for "Ready".
 
-**7.5 The sign-in server** (right away). Put the widget's **secret** key
-(Cloudflare → the same widget → Settings; it is also the value of
-`TURNSTILE_SECRET_KEY` in jvb-studio) into `.env`:
+**Check:** the capture app's sign-in page shows the Cloudflare box under the
+password field; sign in there with a password, ticking the box when it asks.
+
+**7.3 The sign-in server.** Put the widget's **secret** key (Cloudflare →
+the same widget → Settings; it is also the value of `TURNSTILE_SECRET_KEY`
+in jvb-studio) into `.env`:
 
 ```sh
 nano .env
@@ -641,9 +675,12 @@ curl -s -X POST "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" -H '
 `captcha verification process failed`) instead of `Invalid login
 credentials`. (If it says `Request rate limit reached`, step 4's count has
 not emptied yet; wait five minutes and try again.) Then sign in with a
-password to the studio and to the capture app, ticking the box when it asks;
-passkey sign-in works as before. If `auth` keeps restarting, the secret is
-missing or mistyped: `docker compose logs --tail=30 auth` says so (for
+password to the studio and to the capture app, ticking the box when it
+asks; passkey sign-in works as before. If a password sign-in is now
+refused (for example "Sign-in failed"), that app is not yet deployed from
+the security changes, or lacks `SUPABASE_SERVICE_ROLE_KEY`: undo 7.3 and
+tell whoever looks after the code. If `auth` keeps restarting, the secret
+is missing or mistyped: `docker compose logs --tail=30 auth` says so (for
 example `captcha provider secret is empty`); undo at once, as nobody can
 sign in or stay signed in meanwhile.
 
@@ -651,10 +688,10 @@ Password sign-in on a Vercel preview address works only if that address is
 in the widget's hostname list; passkeys and the production addresses are
 unaffected.
 
-**Undo:** first set `AUTH_CAPTCHA_ENABLED=false` in `.env` and run
-`docker compose up -d auth && docker compose restart kong` (sign-in works
-again at once). Then remove `AUTH_SERVER_CAPTCHA` from both Vercel projects
-and redeploy them, soon: until then neither side checks the box.
+**Undo:** 7.3: set `AUTH_CAPTCHA_ENABLED=false` in `.env` and run
+`docker compose up -d auth && docker compose restart kong` (sign-in works as
+before at once). 7.2: delete the two variables from Vercel capture and
+redeploy it; its form then has no box again.
 
 ## Step 8. Google Maps keys
 
@@ -721,19 +758,25 @@ Two things can refuse a password sign-in with that message:
 
 - **the apps' own count**, kept for a day in the database's rate-limit table:
   10 tries per 5 minutes from one address (shared by the studio and
-  capture), 10 per 15 minutes for one email address, and 12 per 5 minutes
-  for each app altogether. The last one keeps what the apps pass on small
-  enough that the sign-in server's own count for Vercel never fills;
-- **the sign-in server's count** (step 2), per calling address. The studio
-  and capture servers sign in, and renew everyone's sessions, from a few
-  shared Vercel addresses, so if that count ever fills, people are also
-  signed out in the middle of their work.
+  capture), and 12 per 5 minutes for each app altogether. A try is counted
+  only after the Cloudflare box on the form has been passed (on capture,
+  once step 7 has given it the box). The per-app count keeps what the apps
+  pass on small enough that the sign-in server's own count for Vercel never
+  fills;
+- **the sign-in server's count** (step 2): password sign-ins per calling
+  address. The studio and capture servers sign in from a few shared Vercel
+  addresses, so if that count ever filled, password sign-in would be refused
+  in both apps.
+
+Neither count touches people who are already signed in: renewing a session
+is not counted anywhere (step 3), so nobody is signed out by them.
+Meanwhile **sign in with a passkey**: passkeys do not use either count.
 
 Signs that someone is causing it on purpose: the message appears when
 nobody has been trying to sign in, for everyone at once, or keeps coming
-back. Meanwhile **sign in with a passkey**: passkeys do not use either
-count, and people already signed in stay signed in unless the sign-in
-server's own count fills.
+back. One sender cannot do it alone (10 is less than 12); someone sending
+from several addresses can keep an app's count full for as long as they
+keep at it, solving a Cloudflare check for every try.
 
 See which count it is (on the server; nothing secret is printed):
 
@@ -742,19 +785,20 @@ docker compose exec -T db psql -U supabase_admin -d postgres -c "select split_pa
 docker compose logs --since 15m auth | grep -c 'Request rate limit reached'
 ```
 
-The first lists the apps' counts in the last 15 minutes (`ip`, `email`,
-`app`): a large number of `app` tries that no one at the gallery made means
-someone is posting junk to a sign-in form. The second counts refusals by the
+The first lists the apps' counts in the last 15 minutes (`ip`, `app`): a
+large number of `app` tries that no one at the gallery made means someone is
+sending tries through a sign-in form. The second counts refusals by the
 sign-in server itself, for any caller: many of them while staff see the
 message means its count for a Vercel address may be filling; many while
 staff notice nothing only means someone calling it directly is being held
 back, as intended.
 
-What to do: wait 15 minutes and try again; it clears on its own when the
-junk stops. If it keeps happening, do step 7 if not done yet (the Cloudflare
-check then guards the studio's and capture's forms and the sign-in server),
-and tell whoever looks after the code, with the output of the two commands.
-Do not lower or switch off the sign-in server's limits to make it go away.
+What to do: use passkeys, and try a password again in 5 minutes; it clears
+on its own within 5 minutes of the tries stopping. If it keeps happening, do
+step 7 if not done yet (the capture app's form then needs the Cloudflare box
+too), and tell whoever looks after the code, with the output of the two
+commands. Do not lower or switch off the sign-in server's limits to make it
+go away.
 
 ## Why there is no fail2ban jail for failed sign-ins
 
@@ -778,27 +822,29 @@ starts with six spaces.
       # GoTrue counts attempts per client only when it is told which request
       # header carries the client's address; without it nothing is counted.
       # Caddy, the only way in from the internet, overwrites X-JVB-Client-IP
-      # with the connecting address on every request (api block in
-      # ./Caddyfile), so a client cannot pick its own count. Not X-Real-IP:
-      # Kong replaces that with its own Docker-side peer, which would put the
-      # whole internet in one count. Requests from inside Docker carry no
-      # header and are not counted.
+      # with the connecting address on every request (the supabase_api
+      # snippet in ./Caddyfile), so a client cannot pick its own count. Not
+      # X-Real-IP: Kong replaces that with its own Docker-side peer, which
+      # would put the whole internet in one count. Requests from inside
+      # Docker carry no header and are not counted, nor are session
+      # renewals, which Caddy sends without it (see token below).
       GOTRUE_RATE_LIMIT_HEADER: X-JVB-Client-IP
       # Per client address, per 5 minutes, after a first burst of up to 30
       # that GoTrue lets through. verify (default 30) = emailed codes and
       # links. otp (default 30) = requests for code emails, and password
       # changes.
-      # token = password sign-ins AND session refreshes, kept at GoTrue's
-      # default of 150: the studio and capture servers sign in and refresh
-      # for everyone from a few shared Vercel addresses, and a refused
-      # refresh signs that person out. A lower number would let anyone who
-      # posts junk to a sign-in form use up that shared count. The apps
-      # instead hold back the sign-ins they pass on (per sender, per email,
-      # and at most 12 per app in 5 minutes: apps/*/src/app/login/sign-in.ts),
-      # and the Cloudflare check (step 7) and the 12-character minimum stop
-      # password guessing sent straight to this server.
+      # token (default 150) = password sign-ins. GoTrue would count session
+      # renewals here too, but the studio and capture servers renew
+      # everyone's session from a few shared Vercel addresses and anyone can
+      # make them try one, so Caddy sends renewals without the address and
+      # they are not counted (./Caddyfile, supabase_api). That leaves the
+      # password sign-ins the apps pass on, at most 12 per app in 5 minutes
+      # (apps/*/src/app/login/sign-in.ts), so 30 fits both apps and holds
+      # password guessing sent straight to this server to 30 per 5 minutes
+      # per address. The Cloudflare check (runbook step 7) and the
+      # 12-character minimum slow it further.
       GOTRUE_RATE_LIMIT_VERIFY: "10"
-      GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "150"
+      GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "30"
       GOTRUE_RATE_LIMIT_OTP: "5"
       # Auth emails per hour for the whole server (default 30). Nothing the
       # gallery uses has GoTrue send one (Admin's re-invite mints its link
@@ -816,9 +862,10 @@ starts with six spaces.
       GOTRUE_MAILER_OTP_EXP: "86400"
       # Cloudflare Turnstile checked by GoTrue itself on password sign-in, so
       # the check guards the endpoint an attacker can call directly, not only
-      # the studio's form. Off until the owner turns it on in .env
-      # (AUTH_CAPTCHA_ENABLED + AUTH_CAPTCHA_SECRET) together with
-      # AUTH_SERVER_CAPTCHA=1 for the studio and capture apps on Vercel:
+      # the apps' forms. The studio and capture check the token themselves
+      # and then sign in with the service-role key, which GoTrue lets past
+      # this check (apps/*/src/app/login/password-sign-in.ts). Off until the
+      # owner turns it on in .env (AUTH_CAPTCHA_ENABLED + AUTH_CAPTCHA_SECRET):
       # runbook step 7. true with an empty AUTH_CAPTCHA_SECRET stops the
       # sign-in server from starting: nobody can sign in or stay signed in
       # until it is fixed.
@@ -831,7 +878,8 @@ starts with six spaces.
 |---|---|---|---|
 | Rate-limit header | none (nothing counted) | `X-JVB-Client-IP` | attempts are counted per internet address |
 | Code and link checks | unlimited | 10 per 5 min per address, after a burst of about 30 | with 10-digit codes, one address would need thousands of years to guess one |
-| Password sign-ins and session refreshes | unlimited | 150 per 5 min per address, after a burst of about 30 | password guessing slowed; the apps also count the sign-ins they pass on, so junk sent through them cannot fill this for Vercel's addresses |
+| Password sign-ins | unlimited | 30 per 5 min per address, after a burst of about 30 | password guessing slowed to about 8,700 a day per address, far fewer once step 7 adds the Cloudflare check; the apps pass on at most 24 in 5 minutes between them, so this never fills for Vercel's addresses |
+| Session renewals | unlimited | not counted (step 3) | the apps renew everyone's session from Vercel's shared addresses, so counting them would let an outsider sign staff out; a renewal needs a random token that cannot be guessed |
 | Code-email requests, password changes | unlimited | 5 per 5 min per address | |
 | Auth emails, whole server | 30 an hour | 10 an hour | caps abuse; the gallery sends none this way |
 | Emailed code | 6 digits, 24 hours | 10 digits, 24 hours | Admin's re-invite link still lasts 24 hours, as its email says |
@@ -840,22 +888,67 @@ starts with six spaces.
 ## Appendix B: the edge server's API block
 
 This goes in `/etc/caddy/Caddyfile` on its own, outside every site block,
-just above the API site:
+just above the API site. It is the repository's `infra/compose/Caddyfile`
+snippet, word for word (a test keeps the two the same):
 
 ```
-# The way in to the Supabase API gateway: every site that proxies to
-# 127.0.0.1:8000 imports this (security review F1;
-# docs/ops/security-runbook.md step 3).
 (supabase_api) {
-	# GoTrue's endpoints that email a sign-in or recovery code: closed from
-	# the internet.
+	# GoTrue's endpoints that email a sign-in or recovery code to any address
+	# the caller names. Nothing the gallery runs uses them from outside:
+	# staff are created and re-invited from the studio's Admin page with the
+	# service role, which mints the link without these endpoints. From the
+	# internet they would only hand an attacker a fresh code to guess at
+	# /auth/v1/verify (security review F1). Closed here, not in Kong, so the
+	# break-glass dashboard, which talks to Kong inside Docker, keeps them.
+	# Path matching is case-insensitive and merges doubled slashes, so
+	# variants of these paths are closed too.
 	@auth_code_email path /auth/v1/recover* /auth/v1/otp* /auth/v1/magiclink* /auth/v1/resend* /auth/v1/signup*
-	respond @auth_code_email "Not available" 403
+	handle @auth_code_email {
+		respond "Not available" 403
+	}
 
-	reverse_proxy 127.0.0.1:8000 {
-		# The address GoTrue counts sign-in attempts against; set here on
-		# every request, replacing anything the client sent.
-		header_up X-JVB-Client-IP {remote_host}
+	# Session renewals: GoTrue counts them in the same per-address count as
+	# password sign-ins, before it looks at the token. The studio and capture
+	# servers renew everyone's session from a few shared Vercel addresses,
+	# and anyone can make them try a renewal (any page request with a made-up
+	# expired session cookie), so counting renewals would let an outsider use
+	# up Vercel's count, sign staff out and refuse their password sign-ins.
+	# Renewals therefore reach GoTrue without the address and are not
+	# counted. Counting them protected nothing: a renewal needs a refresh
+	# token GoTrue made at random, and there are far too many to guess.
+	# The matcher must read the grant as GoTrue's Token handler does (Go's
+	# r.FormValue, where a form-encoded or multipart body would be read
+	# before the URL), so it matches only grant_type=refresh_token in the URL
+	# with a JSON body sent under a single Content-Type header, as the
+	# Supabase client sends it. Anything else, a password sign-in dressed up
+	# as a renewal included, takes the counted route below.
+	@refresh_grant {
+		path /auth/v1/token
+		expression `{query.grant_type} == "refresh_token" && {header.Content-Type}.matches("^application/json(;[^,]*)?$")`
+	}
+	handle @refresh_grant {
+		reverse_proxy 127.0.0.1:8000 {
+			# Dropped, so that the client cannot set it either.
+			header_up -X-JVB-Client-IP
+		}
+	}
+
+	# Everything else. Large TIFF originals arrive as resumable TUS uploads;
+	# Caddy streams request bodies by default, so no body-size tuning is
+	# needed here (storage-api enforces STORAGE_FILE_SIZE_LIMIT).
+	handle {
+		reverse_proxy 127.0.0.1:8000 {
+			# The address GoTrue counts sign-in and code attempts against
+			# (GOTRUE_RATE_LIMIT_HEADER in docker-compose.yml). Set here on
+			# every request, replacing anything the client sent, so a client
+			# cannot choose its own count. It is the address that connected to
+			# Caddy: the studio and capture servers sign in from Vercel, so
+			# their requests count against Vercel's addresses. Counting per
+			# address relies on this server having no IPv6, as one IPv6 client
+			# holds millions of addresses (bootstrap creates the server with
+			# IPv6 off; docs/ops/security-runbook.md step 4 checks).
+			header_up X-JVB-Client-IP {remote_host}
+		}
 	}
 }
 ```
@@ -870,7 +963,14 @@ api.104-238-184-145.sslip.io {
 }
 ```
 
-Caddy matches these paths regardless of capital letters and doubled
+What the four parts do, in order: requests asking for a code email get
+"Not available"; session renewals go to the gateway without the caller's
+address, so they are not counted; everything else goes to the gateway with
+the caller's address, which the sign-in server counts. The renewal part is
+written narrowly on purpose (only a renewal exactly as the apps send it), so
+a password guess cannot pass itself off as one.
+
+Caddy matches the code-email paths regardless of capital letters and doubled
 slashes, so variants of them are closed too. The database dashboard reaches
 the sign-in server inside the server, not through Caddy, so its own "send
 reset email" buttons keep working. A second API address (for example
@@ -885,25 +985,27 @@ two `import` lines and nothing else, then step 4 again.
   by the API site). `infra/README.md` says every new API address imports it.
 - `infra/compose/volumes/api/kong.yml`: comments only (the `/pg/` history,
   and why GoTrue is not pointed at `X-Real-IP`).
-- Studio and capture sign-in pages (`apps/*/src/app/login/`): with
-  `AUTH_SERVER_CAPTCHA` set they pass the Cloudflare token to the sign-in
-  server instead of checking it themselves; unset, they behave as before.
-  The page's error line now shows one of a few fixed messages chosen by a
-  short code in the address (`?error=credentials`), never text taken from
-  the address. The capture app shows the Cloudflare box when the setting is
-  on. Before asking the sign-in server, both count the attempt in the
-  database's rate-limit table (per sender's address, per email, per app; see
-  "If staff see Too many sign-in attempts") and refuse empty forms and, with
-  the setting on, a missing Cloudflare token, without asking it at all.
+- Studio and capture sign-in pages (`apps/*/src/app/login/`): both check the
+  Cloudflare box first (the capture app once it has its keys, step 7), then
+  count the attempt in the database's rate-limit table (per sender's address
+  and per app; see "If staff see Too many sign-in attempts"), then sign in
+  with the service-role key, which the sign-in server's own Cloudflare check
+  lets through, and hand the session to the browser. Empty forms are refused
+  without asking the sign-in server. The page's error line now shows one of
+  a few fixed messages chosen by a short code in the address
+  (`?error=credentials`), never text taken from the address. The capture app
+  shows the Cloudflare box once its site key is set.
 - `apps/studio/src/app/login/auth-server-config.test.ts`: fails the tests if
   the Caddyfile proxies to the gateway other than through `supabase_api`, if
-  the sign-in server's counting header and Caddy's differ, if the
-  sign-in/refresh limit drops below 150, or if the emailed-link expiry stops
-  matching Admin's invitation email.
+  that snippet changes shape (the renewal part especially), if the sign-in
+  server's counting header and Caddy's differ, if the password sign-in limit
+  rises above 30 or falls below what the apps pass on, if the emailed-link
+  expiry stops matching Admin's invitation email, if an app asks for a
+  closed code email, or if Appendix A or B here stops matching the
+  repository's files.
 - `apps/capture/src/lib/geocode.ts`: uses `GOOGLE_MAPS_SERVER_KEY` when set.
 
 New settings: `AUTH_CAPTCHA_ENABLED` and `AUTH_CAPTCHA_SECRET` (server
-`.env`), `AUTH_SERVER_CAPTCHA` (Vercel jvb-studio and capture),
-`NEXT_PUBLIC_TURNSTILE_SITE_KEY` (Vercel capture, new there),
-`GOOGLE_MAPS_SERVER_KEY` (Vercel capture). Left unset, everything works as
-before.
+`.env`); `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (Vercel
+capture, new there; jvb-studio has both already); `GOOGLE_MAPS_SERVER_KEY`
+(Vercel capture). Left unset, everything works as before.

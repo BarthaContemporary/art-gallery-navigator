@@ -1,16 +1,11 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { hashKey, rateLimit } from "@jvb/db/rate-limit";
-import { createServiceClient, getSupabase } from "@/lib/supabase";
+import { createServiceClient } from "@/lib/supabase";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { PasskeySignIn } from "@/components/passkey-signin";
-import {
-  authServerChecksCaptcha,
-  clientIp,
-  loginErrorFromAuth,
-  loginErrorMessage,
-  signInLimits,
-  withinSignInLimits,
-} from "./sign-in";
+import { passwordSignIn } from "./password-sign-in";
+import { clientIp, loginErrorMessage, runPasswordSignIn, signInLimits, withinSignInLimits } from "./sign-in";
 import { Turnstile } from "./turnstile";
 
 /**
@@ -18,7 +13,7 @@ import { Turnstile } from "./turnstile";
  * reasons in ./sign-in.ts). Like the shared limiter, it lets the attempt
  * through when the limiter cannot be reached, so sign-in never depends on it.
  */
-async function signInAllowed(ip: string | null, email: string): Promise<boolean> {
+async function signInAllowed(ip: string | null): Promise<boolean> {
   let service: ReturnType<typeof createServiceClient>;
   try {
     service = createServiceClient();
@@ -26,7 +21,7 @@ async function signInAllowed(ip: string | null, email: string): Promise<boolean>
     console.error("[login] attempt limit skipped:", err);
     return true;
   }
-  return withinSignInLimits(signInLimits("capture", ip, email, hashKey), (key, windowSeconds, max) =>
+  return withinSignInLimits(signInLimits("capture", ip, hashKey), (key, windowSeconds, max) =>
     rateLimit(service, key, windowSeconds, max),
   );
 }
@@ -35,26 +30,23 @@ async function signIn(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+  const token = String(formData.get("cf-turnstile-response") ?? "");
   // The form requires both; an empty one is junk posted to the action, and
   // the auth server would count it before refusing it.
   if (!email.trim() || !password) redirect("/login?error=credentials");
-  // When the auth server checks Turnstile (AUTH_SERVER_CAPTCHA), it needs the
-  // widget's token with the sign-in request; without one GoTrue would only
-  // refuse the attempt after counting it, so it stops here. Unset, capture
-  // signs in without a check, as before.
-  const serverChecks = authServerChecksCaptcha();
-  const token = serverChecks ? String(formData.get("cf-turnstile-response") ?? "") : "";
-  if (serverChecks && !token) redirect("/login?error=check-missing");
-  // Capture has no security check of its own, so this count is what holds
-  // back attempts posted straight to this action.
-  if (!(await signInAllowed(clientIp(await headers()), email))) redirect("/login?error=rate-limited");
-  const supabase = await getSupabase();
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-    options: token ? { captchaToken: token } : undefined,
+  const ip = clientIp(await headers());
+  // As in the studio: the Cloudflare token is verified before anything is
+  // counted or the auth server is asked (order and reasons in ./sign-in.ts).
+  // Until this app has its Turnstile keys (docs/ops/security-runbook.md
+  // step 7) the check lets everything through and only the counts hold
+  // attempts back. The token is used up by the check, so the sign-in goes to
+  // the auth server with the service-role key (./password-sign-in.ts).
+  const failure = await runPasswordSignIn({
+    check: () => verifyTurnstile(token, ip),
+    count: () => signInAllowed(ip),
+    signIn: () => passwordSignIn(email, password),
   });
-  if (error) redirect(`/login?error=${loginErrorFromAuth(error, Boolean(token))}`);
+  if (failure) redirect(`/login?error=${failure}`);
   redirect("/");
 }
 
@@ -101,7 +93,7 @@ export default async function LoginPage({
             className="mt-1.5 w-full rounded-xl border border-line-control bg-control px-3 py-3 text-ink"
           />
         </label>
-        {authServerChecksCaptcha() ? <Turnstile className="mt-5" /> : null}
+        <Turnstile className="mt-5" />
         <button
           type="submit"
           className="tap mt-6 w-full rounded-xl bg-primary px-4 font-semibold text-primary-fg"

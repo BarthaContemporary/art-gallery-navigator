@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { hashKey, rateLimit } from "@jvb/db/rate-limit";
-import { createServiceClient, getSupabase } from "@/lib/supabase";
+import { createServiceClient } from "@/lib/supabase";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { Turnstile } from "@/components/turnstile";
 import { PasskeyLogin } from "@/components/passkey-login";
@@ -9,21 +9,15 @@ import { safeNextPath } from "@/lib/auth-rules";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
-import {
-  authServerChecksCaptcha,
-  clientIp,
-  loginErrorFromAuth,
-  loginErrorMessage,
-  signInLimits,
-  withinSignInLimits,
-} from "./sign-in";
+import { passwordSignIn } from "./password-sign-in";
+import { clientIp, loginErrorMessage, runPasswordSignIn, signInLimits, withinSignInLimits } from "./sign-in";
 
 /**
  * Whether this password sign-in may go on to the auth server (limits and
  * reasons in ./sign-in.ts). Like the shared limiter, it lets the attempt
  * through when the limiter cannot be reached, so sign-in never depends on it.
  */
-async function signInAllowed(ip: string | null, email: string): Promise<boolean> {
+async function signInAllowed(ip: string | null): Promise<boolean> {
   let service: ReturnType<typeof createServiceClient>;
   try {
     service = createServiceClient();
@@ -31,7 +25,7 @@ async function signInAllowed(ip: string | null, email: string): Promise<boolean>
     console.error("[login] attempt limit skipped:", err);
     return true;
   }
-  return withinSignInLimits(signInLimits("studio", ip, email, hashKey), (key, windowSeconds, max) =>
+  return withinSignInLimits(signInLimits("studio", ip, hashKey), (key, windowSeconds, max) =>
     rateLimit(service, key, windowSeconds, max),
   );
 }
@@ -64,31 +58,16 @@ export default async function LoginPage({
     // the auth server would count it before refusing it.
     if (!email.trim() || !password) redirect(`/login?error=credentials${keepNext}`);
 
-    // Bot mitigation. When the auth server checks Turnstile itself
-    // (AUTH_SERVER_CAPTCHA), the token goes with the sign-in request, so the
-    // check also guards GoTrue's own endpoint, which can be called without
-    // this page; without a token GoTrue would only refuse the attempt after
-    // counting it, so it stops here. Otherwise the app verifies the token
-    // before touching auth, as before.
-    const serverChecks = authServerChecksCaptcha();
-    if (serverChecks) {
-      if (!token) redirect(`/login?error=check-missing${keepNext}`);
-    } else {
-      const turnstile = await verifyTurnstile(token, ip);
-      if (!turnstile.ok) redirect(`/login?error=${turnstile.code ?? "check-failed"}${keepNext}`);
-    }
-
-    // Counted only once the checks above passed, so a missing token, or one
-    // the app itself found bad, never uses up anyone's count.
-    if (!(await signInAllowed(ip, email))) redirect(`/login?error=rate-limited${keepNext}`);
-
-    const supabase = await getSupabase();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-      options: serverChecks && token ? { captchaToken: token } : undefined,
+    // Bot mitigation first: the Cloudflare token is verified before anything
+    // is counted or the auth server is asked (order and reasons in
+    // ./sign-in.ts). The token is used up by this check, so the sign-in goes
+    // to the auth server with the service-role key (./password-sign-in.ts).
+    const failure = await runPasswordSignIn({
+      check: () => verifyTurnstile(token, ip),
+      count: () => signInAllowed(ip),
+      signIn: () => passwordSignIn(email, password),
     });
-    if (error) redirect(`/login?error=${loginErrorFromAuth(error, Boolean(token))}${keepNext}`);
+    if (failure) redirect(`/login?error=${failure}${keepNext}`);
     redirect(back ?? "/");
   }
 

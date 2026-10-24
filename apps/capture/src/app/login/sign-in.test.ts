@@ -1,11 +1,11 @@
 // node --test apps/capture/src/app/login/sign-in.test.ts
 // The full cases live with the studio's copy (apps/studio/src/app/login/
-// sign-in.test.ts), which also checks that this app's file is identical.
+// sign-in.test.ts), which also checks that this app's files are identical.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 // node --test needs the extension; the app's tsconfig does not allow it.
 // @ts-ignore
-import { authServerChecksCaptcha, clientIp, LOGIN_ERRORS, loginErrorFromAuth, loginErrorMessage, signInLimits, withinSignInLimits } from "./sign-in.ts";
+import { clientIp, LOGIN_ERRORS, loginErrorFromAuth, loginErrorMessage, runPasswordSignIn, signInLimits, withinSignInLimits } from "./sign-in.ts";
 
 test("only known codes show text", () => {
   for (const [code, text] of Object.entries(LOGIN_ERRORS)) assert.equal(loginErrorMessage(code), text);
@@ -14,22 +14,26 @@ test("only known codes show text", () => {
 });
 
 test("sign-in errors map to codes", () => {
-  assert.equal(loginErrorFromAuth({ code: "invalid_credentials", status: 400 }, false), "credentials");
-  assert.equal(loginErrorFromAuth({ status: 429 }, true), "rate-limited");
-  assert.equal(loginErrorFromAuth({ code: "captcha_failed", status: 400 }, true), "check-failed");
-  assert.equal(loginErrorFromAuth({ status: 500, message: "captcha verification process failed" }, false), "check-missing");
-  assert.equal(loginErrorFromAuth({ status: 500, message: "boom" }, false), "failed");
+  assert.equal(loginErrorFromAuth({ code: "invalid_credentials", status: 400 }), "credentials");
+  assert.equal(loginErrorFromAuth({ status: 429 }), "rate-limited");
+  assert.equal(loginErrorFromAuth({ status: 500, message: "captcha verification process failed" }), "failed");
+  assert.equal(loginErrorFromAuth({ status: 500, message: "boom" }), "failed");
 });
 
-test("the auth-server captcha flag is off unless set", () => {
-  assert.equal(authServerChecksCaptcha({}), false);
-  assert.equal(authServerChecksCaptcha({ AUTH_SERVER_CAPTCHA: "0" }), false);
-  assert.equal(authServerChecksCaptcha({ AUTH_SERVER_CAPTCHA: "1" }), true);
-});
-
-test("capture's sign-ins count per address, per email and in capture's own app count", async () => {
+test("capture's sign-ins count per address and in capture's own app count", async () => {
   const ip = clientIp({ get: (n: string) => (n === "x-real-ip" ? "203.0.113.4" : null) });
-  const limits = signInLimits("capture", ip, "Staff@Example.com", (v) => `h(${v})`);
-  assert.deepEqual(limits.map((l) => l.key), ["login:ip:h(203.0.113.4)", "login:email:h(staff@example.com)", "login:app:capture"]);
-  assert.equal(await withinSignInLimits(limits, async (key) => !key.startsWith("login:email:")), false);
+  const limits = signInLimits("capture", ip, (v: string) => `h(${v})`);
+  assert.deepEqual(limits.map((l: { key: string }) => l.key), ["login:ip:h(203.0.113.4)", "login:app:capture"]);
+  assert.equal(await withinSignInLimits(limits, async (key: string) => !key.startsWith("login:app:")), false);
+});
+
+test("a failed Cloudflare check uses up no count and never reaches the auth server", async () => {
+  const ran: string[] = [];
+  const failure = await runPasswordSignIn({
+    check: async () => (ran.push("check"), { ok: false, code: "check-missing" as const }),
+    count: async () => (ran.push("count"), true),
+    signIn: async () => (ran.push("signIn"), null),
+  });
+  assert.equal(failure, "check-missing");
+  assert.deepEqual(ran, ["check"]);
 });
