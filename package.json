@@ -2,7 +2,9 @@
   "name": "jvb-project",
   "private": true,
   "packageManager": "pnpm@10.33.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
@@ -10,7 +12,9 @@
     "typecheck": "turbo typecheck",
     "ui:guard": "node scripts/ui-guard/form-keys.mjs --check",
     "ui:guard:update": "node scripts/ui-guard/form-keys.mjs --update",
-    "db:types": "supabase gen types typescript --local > packages/db/src/database.types.ts"
+    "db:types": "supabase gen types typescript --local > packages/db/src/database.types.ts",
+    "test:unit": "node --test \"packages/*/src/**/*.test.ts\" \"apps/*/src/**/*.test.ts\"",
+    "test:db": "scripts/db-harness/run.sh"
   },
   "devDependencies": {
     "turbo": "^2.5.0",
