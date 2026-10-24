@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 import { getSupabase, createServiceClient } from "@/lib/supabase";
+import { pieceDisplayPath } from "@/lib/storage-paths";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +49,16 @@ export async function POST(
       { status: 409 },
     );
   }
+  // The service client below reads and overwrites this path, and no storage
+  // policy limits it: the path must be the work's own display master, never
+  // one that climbs into another bucket (lib/storage-paths.ts).
+  const displayPath = pieceDisplayPath(img.storage_path_display, img.piece_id);
+  if (!displayPath) {
+    return NextResponse.json(
+      { error: "This image's file is not where the studio keeps display images, so it cannot be rotated." },
+      { status: 409 },
+    );
+  }
 
   // …but read/write the derivatives bucket with the service client: it carries
   // no public policies, exactly as the page's own signed-URL reads do.
@@ -55,7 +66,7 @@ export async function POST(
 
   const { data: file, error: dlErr } = await admin.storage
     .from(DERIVATIVES_BUCKET)
-    .download(img.storage_path_display);
+    .download(displayPath);
   if (dlErr || !file) {
     return NextResponse.json(
       { error: dlErr?.message ?? "Could not read the image" },
@@ -84,7 +95,7 @@ export async function POST(
 
   const { error: upErr } = await admin.storage
     .from(DERIVATIVES_BUCKET)
-    .upload(img.storage_path_display, rotated, {
+    .upload(displayPath, rotated, {
       contentType: "image/jpeg",
       upsert: true,
     });
@@ -93,7 +104,7 @@ export async function POST(
   // The master changed under its own path: forget the website's copy of it
   // and the square tile made from it, so the sync this row's update raises
   // uploads the rotated pixels and renders the tile afresh.
-  await admin.from("sanity_assets").delete().eq("storage_path", `${DERIVATIVES_BUCKET}/${img.storage_path_display}`);
+  await admin.from("sanity_assets").delete().eq("storage_path", `${DERIVATIVES_BUCKET}/${displayPath}`);
   await admin.from("piece_image_squares").delete().eq("image_id", id);
 
   // 90° counter-clockwise === 270° clockwise, kept in the 0/90/180/270 domain

@@ -5,6 +5,7 @@ import { GALLERY_NAME, GALLERY_ADDRESS } from "@/lib/site";
 import { loadPieceRows } from "@/lib/piece-store";
 import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 import { gbpDisplay } from "@/lib/format";
+import { pieceDisplayPath } from "@/lib/storage-paths";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -100,9 +101,13 @@ export async function GET(request: Request) {
     width: number | null;
     height: number | null;
   }[]) {
-    if (!imgByPiece.has(im.piece_id))
+    // Only the work's own display master: the bytes go into the download,
+    // so a path pointing into another bucket must never be fetched
+    // (lib/storage-paths.ts). Such a row is passed over, as if it had none.
+    const path = pieceDisplayPath(im.storage_path_display, im.piece_id);
+    if (path && !imgByPiece.has(im.piece_id))
       imgByPiece.set(im.piece_id, {
-        path: im.storage_path_display,
+        path,
         width: im.width ?? 1600,
         height: im.height ?? 1600,
       });
@@ -114,7 +119,8 @@ export async function GET(request: Request) {
     let image: PresentationWork["image"] = null;
     const im = imgByPiece.get(p.id);
     if (im) {
-      const { data: signed } = await svc.storage
+      // Signed as the caller, so their own storage access applies as well.
+      const { data: signed } = await supabase.storage
         .from("piece-derivatives")
         .createSignedUrl(im.path, 300);
       if (signed?.signedUrl) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { safeStoragePath, UUID_PATTERN } from "@jvb/db/storage-path";
 import { getSupabase, createServiceClient, requireCapture } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -155,10 +156,12 @@ async function pushWork(
   let firstPhoto = true;
   let sort = 0;
   for (const ph of photos ?? []) {
-    const bytes = await download(db, ph.storage_path);
+    // Only this work's own photos, where the capture upload route put them.
+    const src = capturePath(ph.storage_path, `works/${UUID_PATTERN}/${work.id}`);
+    if (!src) continue;
+    const bytes = await download(db, src);
     if (!bytes) continue;
-    const ext = ph.storage_path.split(".").pop()?.toLowerCase() || "jpg";
-    const dest = `${piece.id}/${randomUUID()}.${ext}`;
+    const dest = `${piece.id}/${randomUUID()}.${extOf(src)}`;
     const { error: upErr } = await db.storage
       .from("piece-originals")
       .upload(dest, bytes, { contentType: "image/jpeg" });
@@ -226,15 +229,16 @@ async function attachInvoice(
     .eq("invoice_id", invoiceId)
     .order("page_no");
 
-  // Attach the first page (prefer the squared version) as the document.
+  // Attach the first page (prefer the squared version) as the document. Only
+  // a page of this invoice, where the capture upload route put it.
   let documentId: string | null = null;
   const first = pages?.[0];
-  const srcPath = first?.squared_path || first?.storage_path;
+  const pageDir = `invoices/${invoice.id}`;
+  const srcPath = capturePath(first?.squared_path, pageDir) ?? capturePath(first?.storage_path, pageDir);
   if (srcPath) {
     const bytes = await download(db, srcPath);
     if (bytes) {
-      const ext = srcPath.split(".").pop()?.toLowerCase() || "jpg";
-      const dest = `${pieceId}/${randomUUID()}.${ext}`;
+      const dest = `${pieceId}/${randomUUID()}.${extOf(srcPath)}`;
       const { error } = await db.storage
         .from("piece-documents")
         .upload(dest, bytes, { contentType: "image/jpeg" });
@@ -266,6 +270,26 @@ async function attachInvoice(
     if (invoice.currency) fin.purchase_currency = invoice.currency;
   }
   await db.from("piece_financials").update(fin).eq("piece_id", pieceId);
+}
+
+/**
+ * A captures-bucket path read from a capture row, when it is one file
+ * directly under `dir` (a pattern: the work's or invoice's own folder), else
+ * null. The service role copies these files into piece-originals and
+ * piece-documents, and no storage policy limits it, so a row pointing out of
+ * the captures bucket ("works/…/../../piece-documents/<invoice>") must never
+ * be followed (security review 2026-10, F6). Migration 0090 holds new rows
+ * to these shapes as well.
+ */
+function capturePath(path: unknown, dir: string): string | null {
+  return safeStoragePath(path, { pattern: new RegExp(`^${dir}/[^/]+$`) });
+}
+
+/** The file extension to keep on a copy: letters and digits only, else jpg. */
+function extOf(path: string): string {
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  const dot = name.lastIndexOf(".");
+  return (dot > 0 ? name.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, "") : "") || "jpg";
 }
 
 /** Download a captures-bucket object to a Buffer. */

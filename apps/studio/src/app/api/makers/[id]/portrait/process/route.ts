@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 import convert from "heic-convert";
-import { getSession, createServiceClient } from "@/lib/supabase";
+import { getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { detectPortraitFocus } from "@/lib/face/focus";
+import { makerPortraitPath, makerPortraitUploadPath } from "@/lib/storage-paths";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,16 +16,15 @@ const DISPLAY_MAX_PX = 2560;
  * (uploaded directly by the browser via a signed URL). Generate the
  * auto-rotated sRGB JPEG display master, point the maker at the new pair,
  * and clean up the previous files. iPhone HEIC decodes via heic-convert
- * when libvips can't read it.
+ * when libvips can't read it. Admin and staff only, checked before the
+ * service client is touched (see ../route.ts).
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { path } = ((await req.json().catch(() => ({}))) ?? {}) as { path?: string };
-  if (!path || !path.startsWith(`${id}/original-`))
-    return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+  if (!hasRole(session.roles, "admin", "staff"))
+    return NextResponse.json({ error: "Your role cannot change makers" }, { status: 403 });
 
   const svc = createServiceClient();
   const { data: maker } = await svc
@@ -33,6 +33,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .eq("id", id)
     .maybeSingle();
   if (!maker) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Exactly the key ./upload-url signs. The service role downloads it and may
+  // remove it, so a path that merely starts right ("<id>/original-1/../../…")
+  // must not get through.
+  const { path: rawPath } = ((await req.json().catch(() => ({}))) ?? {}) as { path?: string };
+  const path = makerPortraitUploadPath(rawPath, maker.id);
+  if (!path) return NextResponse.json({ error: "Invalid path" }, { status: 400 });
 
   const bucket = svc.storage.from("maker-portraits");
   const { data: blob, error: dlErr } = await bucket.download(path);
@@ -81,10 +88,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   await svc
     .from("makers")
     .update({ portrait_path: displayPath, portrait_original_path: path, portrait_focus })
-    .eq("id", id);
-  const stale = [maker.portrait_path, maker.portrait_original_path].filter(
-    (p): p is string => !!p && p !== displayPath && p !== path,
-  );
+    .eq("id", maker.id);
+  // The previous pair comes from the row, so only this maker's own files go.
+  const stale = [maker.portrait_path, maker.portrait_original_path]
+    .map((p) => makerPortraitPath(p, maker.id))
+    .filter((p): p is string => !!p && p !== displayPath && p !== path);
   if (stale.length) await bucket.remove(stale);
 
   const { data: signed } = await bucket.createSignedUrl(displayPath, 3600);
