@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { startRegistration } from "@simplewebauthn/browser";
 import { IconKey, IconChevron } from "@/components/icons";
+import { createClient } from "@jvb/db/browser";
 
 type Passkey = { id: string; device_label: string | null; created_at: string; last_used_at: string | null };
 
@@ -25,6 +26,8 @@ export function PasskeyManager() {
   const [busy, setBusy] = useState(false);
   const [supported, setSupported] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+  /** Set when the server wants a recent sign-in before a passkey is added. */
+  const [reauth, setReauth] = useState(false);
 
   useEffect(() => {
     setSupported(typeof window !== "undefined" && Boolean(window.PublicKeyCredential));
@@ -47,10 +50,16 @@ export function PasskeyManager() {
   async function enrol() {
     setBusy(true);
     setMsg(null);
+    setReauth(false);
     try {
       const optRes = await fetch("/api/passkey/register/options", { method: "POST" });
+      const optionsJSON = await optRes.json().catch(() => ({}));
+      if (!optRes.ok && optionsJSON.reauth) {
+        setMsg(optionsJSON.error ?? "Sign in again, then add the passkey.");
+        setReauth(true);
+        return;
+      }
       if (!optRes.ok) throw new Error("Could not start enrolment");
-      const optionsJSON = await optRes.json();
 
       const attestation = await startRegistration({ optionsJSON });
 
@@ -71,6 +80,15 @@ export function PasskeyManager() {
     } finally {
       setBusy(false);
     }
+  }
+
+  // Ends only this browser's session (other devices stay signed in); the
+  // sign-in page brings the user back to this screen.
+  async function signInAgain() {
+    await createClient()
+      .auth.signOut({ scope: "local" })
+      .catch(() => undefined);
+    window.location.href = "/login";
   }
 
   async function remove(id: string) {
@@ -119,13 +137,22 @@ export function PasskeyManager() {
 
           {msg ? <p className="mt-3 text-[12px] text-ink-body">{msg}</p> : null}
 
-          <button
-            onClick={enrol}
-            disabled={busy}
-            className="tap mt-4 w-full rounded-xl bg-primary font-semibold text-primary-fg disabled:opacity-60"
-          >
-            {busy ? "Waiting for device…" : "Add a passkey for this device"}
-          </button>
+          {reauth ? (
+            <button
+              onClick={signInAgain}
+              className="tap mt-4 w-full rounded-xl bg-primary font-semibold text-primary-fg"
+            >
+              Sign in again
+            </button>
+          ) : (
+            <button
+              onClick={enrol}
+              disabled={busy}
+              className="tap mt-4 w-full rounded-xl bg-primary font-semibold text-primary-fg disabled:opacity-60"
+            >
+              {busy ? "Waiting for device…" : "Add a passkey for this device"}
+            </button>
+          )}
         </div>
       ) : null}
     </div>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { startRegistration } from "@simplewebauthn/browser";
+import { createClient } from "@jvb/db/browser";
 import { Button } from "@/components/ui/button";
 import { Notice, type NoticeTone } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
@@ -31,6 +32,8 @@ export function PasskeyManager() {
   const [keys, setKeys] = useState<Passkey[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: NoticeTone; text: string } | null>(null);
+  /** Set when the server wants a recent sign-in before a passkey is added. */
+  const [reauth, setReauth] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -47,9 +50,14 @@ export function PasskeyManager() {
     if (busy) return;
     setBusy(true);
     setMsg(null);
+    setReauth(null);
     try {
       const optRes = await fetch("/api/passkeys/register-options", { method: "POST" });
       const optionsJSON = await optRes.json();
+      if (!optRes.ok && optionsJSON.reauth) {
+        setReauth(optionsJSON.error ?? "Sign in again, then add the passkey.");
+        return;
+      }
       if (!optRes.ok) throw new Error(optionsJSON.error ?? "Could not start");
       const attestation = await startRegistration({ optionsJSON });
       const res = await fetch("/api/passkeys/register-verify", {
@@ -70,6 +78,15 @@ export function PasskeyManager() {
     }
   }
 
+  // Ends only this browser's session (the user's other devices stay signed
+  // in) and comes back here after the sign-in page.
+  async function signInAgain() {
+    await createClient()
+      .auth.signOut({ scope: "local" })
+      .catch(() => undefined);
+    window.location.href = "/login?next=%2Fadmin";
+  }
+
   async function remove(k: Passkey) {
     if (!window.confirm(`Remove the passkey “${k.device_label ?? "unnamed"}”? Devices using it will need the password (or another passkey) to sign in.`))
       return;
@@ -85,6 +102,19 @@ export function PasskeyManager() {
       {msg ? (
         <Notice tone={msg.tone} className="mb-3">
           {msg.text}
+        </Notice>
+      ) : null}
+      {reauth ? (
+        <Notice
+          tone="warn"
+          className="mb-3"
+          action={
+            <Button size="sm" onClick={() => void signInAgain()}>
+              Sign in again
+            </Button>
+          }
+        >
+          {reauth}
         </Notice>
       ) : null}
       <ul>

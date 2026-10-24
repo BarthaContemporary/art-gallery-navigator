@@ -5,7 +5,7 @@ import type {
   AuthenticatorTransportFuture,
 } from "@simplewebauthn/server";
 import { createServiceClient } from "@/lib/supabase";
-import { relyingParty, takeChallenge } from "@/lib/webauthn";
+import { fromOwnOrigin, relyingParty, takeChallenge } from "@/lib/webauthn";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,12 +17,17 @@ export const dynamic = "force-dynamic";
  * auth.verifyOtp — from there on it is a completely normal session.
  */
 export async function POST(req: Request) {
+  // Only the studio's own sign-in page may hand in an assertion.
+  if (!(await fromOwnOrigin(req))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const body = (await req.json().catch(() => null)) as {
     response: AuthenticationResponseJSON;
   } | null;
   if (!body?.response?.id) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
-  const expectedChallenge = await takeChallenge("pk_auth");
+  // Taken from the server's record, once: an old assertion replayed later
+  // finds no challenge to match.
+  const expectedChallenge = await takeChallenge("login");
   if (!expectedChallenge)
     return NextResponse.json({ error: "Challenge expired — try again" }, { status: 400 });
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
-import { rpInfo, stashChallenge } from "@/lib/webauthn";
+import { issueChallenge, rpInfo } from "@/lib/webauthn";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +16,7 @@ export async function POST() {
     userVerification: "required",
     allowCredentials: [],
   });
-  await stashChallenge("auth", options.challenge, secure);
+  if (!(await issueChallenge("login", options.challenge, secure)))
+    return NextResponse.json({ error: "Passkey sign-in is unavailable right now" }, { status: 503 });
   return NextResponse.json(options);
 }
