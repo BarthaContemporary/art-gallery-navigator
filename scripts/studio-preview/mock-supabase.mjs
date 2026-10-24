@@ -303,8 +303,11 @@ async function handleRpc(req, res, url, ctx, fn) {
     const out = runRead(db, result.table, result.rows, { select, query, range: parseRange(req) }, ctx);
     return respondRows(req, res, out.rows, { count: out.count, offset: out.offset });
   }
-  if (wantsObject(req)) return send(res, 200, result.value);
-  return send(res, 200, result.value === undefined ? null : result.value);
+  // A scalar result goes out as JSON, as PostgREST sends it (a bare string
+  // would be read as a parse error by supabase-js).
+  const json = (v) => (typeof v === "string" ? Buffer.from(JSON.stringify(v)) : v);
+  if (wantsObject(req)) return send(res, 200, json(result.value), { "Content-Type": "application/json; charset=utf-8" });
+  return send(res, 200, result.value === undefined ? null : json(result.value), { "Content-Type": "application/json; charset=utf-8" });
 }
 
 // ----------------------------------------------------------------- storage

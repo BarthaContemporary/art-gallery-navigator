@@ -12,6 +12,30 @@ function contains(hay, q) {
 }
 
 export const RPC = {
+  /** Migration 0089: the shared rate limiter. The preview never limits. */
+  rate_limit_hit() {
+    return { value: true };
+  },
+  /** Migration 0090: upload slips for /api/files/sign and /api/files/commit. */
+  pending_upload_issue() {
+    return { value: null };
+  },
+  pending_upload_claim() {
+    return { value: true };
+  },
+  /** Migration 0092: passkey challenges kept server-side, used once. */
+  webauthn_challenge_issue(db, args) {
+    const id = globalThis.crypto.randomUUID();
+    (db.challenges ??= new Map()).set(id, { ...args });
+    return { value: id };
+  },
+  webauthn_challenge_take(db, args) {
+    const row = db.challenges?.get(String(args._id ?? ""));
+    db.challenges?.delete(String(args._id ?? ""));
+    if (!row || row._app !== args._app || row._purpose !== args._purpose) return { value: null };
+    if (row._purpose === "register" && row._user_id !== args._user_id) return { value: null };
+    return { value: row._challenge };
+  },
   /** Migration 0077: ranked text search across both registers. */
   pieces_search(db, args) {
     const q = String(args.q ?? "").trim();

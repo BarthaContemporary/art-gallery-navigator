@@ -34,7 +34,12 @@ export async function rateLimit(
       console.error(`[rate-limit] check failed for ${key.split(":")[0]}: ${error.message}`);
       return true;
     }
-    return data === true;
+    // Anything but a plain yes or no is a broken check, treated as one.
+    if (typeof data !== "boolean") {
+      console.error(`[rate-limit] check failed for ${key.split(":")[0]}: unexpected answer`);
+      return true;
+    }
+    return data;
   } catch (err) {
     console.error(`[rate-limit] check failed for ${key.split(":")[0]}:`, err);
     return true;
