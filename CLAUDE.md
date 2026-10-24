@@ -8,11 +8,13 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
 - **Label PDFs**: whenever asked to produce mailing/label PDFs, first ask which
   **Avery number** to target (e.g. L7160/L7162/L7163), then generate the PDF to
   that exact label layout and optimise the sheet (margins, pitch, per-label size).
-- **Applying DB migrations to the live server**: after running any migration via
-  the postgres-meta `/pg/query` endpoint, the change is invisible to the REST API
-  until the schema cache reloads. Every migration must end with
-  `notify pgrst, 'reload schema';` (or run it separately), or new
-  tables/columns/functions return 404/500.
+- **Applying DB migrations to the live server**: through the SSH tunnel
+  (`docs/ops/security-runbook.md` step 5.4, `supabase/README.md`). The
+  postgres-meta `/pg/query` route on the gateway is being closed (runbook
+  step 5): it gives full SQL to anyone holding the service key. The change is
+  invisible to the REST API until the schema cache reloads, so every migration
+  must end with `notify pgrst, 'reload schema';` (or run it separately), or new
+  tables/columns/functions return 404/500. Run `pnpm test:db` before applying.
 - **Website sync**: DB triggers write `sync_outbox`; a pg_net trigger POSTs to the
   studio `/api/sync/sanity` at once (secret in `sync_config`), cron drains every
   10 min as fallback. Works publish only when `web_visible`; makers publish
