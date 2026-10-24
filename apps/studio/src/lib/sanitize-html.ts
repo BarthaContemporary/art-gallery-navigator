@@ -7,12 +7,19 @@ import sanitizeHtmlLib from "sanitize-html";
  * bypassed (e.g. `<img/onerror=…>`, which has no whitespace before the
  * handler). This HTML is stored and later re-inserted via innerHTML, rendered
  * on the public website, and embedded in PDFs, so it must be airtight.
+ *
+ * It runs on the way in (the profile route, the AI draft route) and again on
+ * the way out (the maker page, before the editor's innerHTML), so the column
+ * is never trusted on its own. Running it twice changes nothing.
  */
 export function sanitizeHtml(html: string): string {
   return sanitizeHtmlLib(html, {
     allowedTags: ["p", "br", "b", "strong", "i", "em", "u", "h2", "h3", "ul", "ol", "li", "a"],
     allowedAttributes: {
-      a: ["href", "title"],
+      // rel is listed only so the forced value below survives: sanitize-html
+      // filters attributes after transformTags, and any rel the input
+      // carried is replaced by that value.
+      a: ["href", "title", "rel"],
     },
     // Links only http(s)/mailto — blocks javascript:, data:, and obfuscated
     // schemes; sanitize-html decodes entities/whitespace before matching.

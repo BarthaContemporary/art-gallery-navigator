@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabase, getSession } from "@/lib/supabase";
+import { getSupabase, getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 
 export const runtime = "nodejs";
@@ -8,11 +8,22 @@ export const dynamic = "force-dynamic";
 /**
  * Partial update for the maker editing panel: rich profile HTML and/or the
  * maker detail fields — whatever the body carries is saved.
+ *
+ * The profile HTML is put back into the studio with innerHTML, so it must
+ * only ever hold what sanitizeHtml() lets through. The database refuses it
+ * from a signed-in user's own connection (0091_html_write_guards), so that
+ * nobody can skip this route and write markup straight through the API; a
+ * body carrying it is written here with the service client, after
+ * sanitising. The role check below stands in for the row policies the
+ * service client skips: admin and staff are the roles makers' policies let
+ * edit, and the accountant (read-only) is turned away as before.
  */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasRole(session.roles, "admin", "staff"))
+    return NextResponse.json({ error: "Maker not found, or not yours to edit" }, { status: 403 });
 
   const body = (await req.json().catch(() => ({}))) as {
     html?: string;
@@ -39,7 +50,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (Object.keys(update).length === 0)
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
-  const supabase = await getSupabase();
+  // The detail fields and the website switch still go through the user's own
+  // connection and its row policies; only the sanitised profile HTML needs
+  // the service client.
+  const supabase = "profile_html" in update ? createServiceClient() : await getSupabase();
   // Select the updated row back. An update the caller isn't permitted to make
   // is filtered out by RLS rather than rejected — no error, no rows changed —
   // and the editor would show "Saved ✓" over an edit that never landed.

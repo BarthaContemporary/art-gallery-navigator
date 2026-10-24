@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabase, getSession, createServiceClient } from "@/lib/supabase";
 import { MakerProfileEditor } from "@/components/maker-profile-editor";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { scriptLang } from "@/lib/script-lang";
 import { formatCount } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
@@ -66,9 +67,13 @@ export default async function MakerProfilePage({
       />
 
       <div className="space-y-6">
+        {/* The editor puts the profile in with innerHTML, so it gets the
+            stored HTML through the same allow-list the save path uses:
+            whatever the column holds (a row written before the database
+            guard, a restored backup), no markup beyond it reaches the page. */}
         <MakerProfileEditor
           makerId={maker.id}
-          initialHtml={(maker.profile_html as string | null) ?? ""}
+          initialHtml={sanitizeHtml((maker.profile_html as string | null) ?? "")}
           portraitUrl={portraitUrl}
           initialWebVisible={Boolean(maker.web_visible)}
           initialFields={{

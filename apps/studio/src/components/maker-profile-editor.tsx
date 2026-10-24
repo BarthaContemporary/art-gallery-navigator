@@ -99,6 +99,11 @@ export function MakerProfileEditor({
   initialWebVisible = false,
 }: {
   makerId: string;
+  /**
+   * The stored profile, already run through sanitizeHtml() by the page: the
+   * editor puts it in with innerHTML, and the database column may hold
+   * whatever an older version of the studio let through.
+   */
   initialHtml: string;
   portraitUrl: string | null;
   initialFields: MakerFields;
@@ -133,6 +138,11 @@ export function MakerProfileEditor({
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSources, setAiSources] = useState<{ url: string; title: string }[]>([]);
+  // An AI draft waiting for a person to read it. It is not in the editor and
+  // not saved: only "Keep this draft" puts it into the profile.
+  const [aiDraft, setAiDraft] = useState<{ html: string; sources: { url: string; title: string }[] } | null>(
+    null,
+  );
   const fileRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -156,19 +166,28 @@ export function MakerProfileEditor({
     return () => document.removeEventListener("selectionchange", onSelection);
   }, []);
 
-  async function save() {
-    if (!editorRef.current) return;
-    setStatus("saving");
-    try {
-      const res = await fetch(`/api/makers/${makerId}/profile`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: editorRef.current.innerHTML }),
-      });
-      setStatus(res.ok ? "saved" : "error");
-    } catch {
-      setStatus("error");
-    }
+  // Profile saves go out one after another, so they land in the order they
+  // were made: pressing "Keep this draft" blurs the editor, and that blur's
+  // save of the old text must not overtake the draft's.
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+
+  function save() {
+    const run = async () => {
+      if (!editorRef.current) return;
+      setStatus("saving");
+      try {
+        const res = await fetch(`/api/makers/${makerId}/profile`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ html: editorRef.current.innerHTML }),
+        });
+        setStatus(res.ok ? "saved" : "error");
+      } catch {
+        setStatus("error");
+      }
+    };
+    saveQueue.current = saveQueue.current.then(run);
+    return saveQueue.current;
   }
   function scheduleSave() {
     setStatus("saving");
@@ -215,19 +234,26 @@ export function MakerProfileEditor({
     scheduleSave();
   }
 
+  /**
+   * Ask for an AI research draft and show it for review. The model reads
+   * web pages anyone can write, so the draft is never saved on arrival: it
+   * waits below the profile, with its sources, until someone keeps or
+   * discards it.
+   */
   async function draftWithAi() {
     if (aiBusy) return;
     const existing = editorRef.current?.textContent?.trim() ?? "";
     if (
       existing &&
       !window.confirm(
-        "Replace the current profile text with a fresh AI research draft? The draft is fully editable afterwards.",
+        "Write a fresh AI research draft of this profile? It is shown below for you to read first. Nothing is saved or published to the website unless you choose “Keep this draft”, which then replaces the current text.",
       )
     )
       return;
     setAiBusy(true);
     setAiError(null);
     setAiSources([]);
+    setAiDraft(null);
     try {
       const res = await fetch(`/api/makers/${makerId}/ai-draft`, { method: "POST" });
       const json = (await res.json()) as {
@@ -236,16 +262,23 @@ export function MakerProfileEditor({
         error?: string;
       };
       if (!res.ok || !json.html) throw new Error(json.error ?? "Draft failed");
-      if (editorRef.current) {
-        editorRef.current.innerHTML = json.html;
-        void save();
-      }
-      setAiSources(json.sources ?? []);
+      setAiDraft({ html: json.html, sources: json.sources ?? [] });
     } catch (e) {
       setAiError(e instanceof Error ? e.message : "Draft failed");
     } finally {
       setAiBusy(false);
     }
+  }
+
+  /** The reviewed draft becomes the profile, and is saved (and so published). */
+  function keepDraft() {
+    if (!aiDraft || !editorRef.current) return;
+    if (timer.current) clearTimeout(timer.current);
+    editorRef.current.innerHTML = aiDraft.html;
+    // The sources stay in view under the profile, for checking while editing.
+    setAiSources(aiDraft.sources);
+    setAiDraft(null);
+    void save();
   }
 
   /**
@@ -514,6 +547,47 @@ export function MakerProfileEditor({
             <p className="mt-1.5 text-[12px] leading-[1.4] text-meta">
               Autosaves as you type. This text feeds the maker profile PDF and website page.
             </p>
+            {aiDraft ? (
+              <div role="region" aria-label="AI draft, not saved" className="panel mt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="label">AI draft, not saved</p>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="primary" onClick={keepDraft}>
+                      Keep this draft
+                    </Button>
+                    <Button size="sm" variant="quiet" onClick={() => setAiDraft(null)}>
+                      Discard
+                    </Button>
+                  </div>
+                </div>
+                <p className="mt-1 text-[12px] leading-[1.4] text-meta">
+                  Read it and check its sources first. Nothing reaches the profile, the PDF or the website until you
+                  keep it; keeping replaces the profile text above, where you can go on editing it.
+                </p>
+                {/* Sanitised by the draft route with the profile's own
+                    allow-list, and set in the same type as the editor. */}
+                <div
+                  className="mt-3 text-[14.5px] leading-[1.6] text-ink [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+                  dangerouslySetInnerHTML={{ __html: aiDraft.html }}
+                />
+                {aiDraft.sources.length > 0 ? (
+                  <>
+                    <p className="label mt-3">Sources the draft drew on</p>
+                    <ul className="mt-1 space-y-0.5">
+                      {aiDraft.sources.map((s) => (
+                        <li key={s.url} className="truncate text-[12px]">
+                          <a href={s.url} target="_blank" rel="noreferrer" className="link-plain text-body">
+                            {s.title || s.url}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <p className="mt-3 text-[12px] leading-[1.4] text-meta">The draft cites no sources: verify it with care.</p>
+                )}
+              </div>
+            ) : null}
             {aiError ? (
               <Notice tone="danger" inline className="mt-1.5">
                 AI draft: {aiError}
@@ -521,7 +595,7 @@ export function MakerProfileEditor({
             ) : null}
             {aiSources.length > 0 ? (
               <div className="panel mt-2">
-                <p className="label">Sources the draft drew on. Verify before publishing</p>
+                <p className="label">Sources the kept draft drew on. Check the text against them</p>
                 <ul className="mt-1 space-y-0.5">
                   {aiSources.map((s) => (
                     <li key={s.url} className="truncate text-[12px]">

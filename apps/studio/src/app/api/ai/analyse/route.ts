@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { getSupabase } from "@/lib/supabase";
+import { rateLimit } from "@jvb/db/rate-limit";
+import { getSupabase, getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
@@ -49,12 +50,25 @@ function parseJson(text: string): Suggestions | null {
   }
 }
 
+/**
+ * Per-person limit on analyses. One runs each time someone presses Analyse
+ * on a work's edit page (nothing calls it automatically), and reviewing the
+ * suggestions takes a minute or more, so two a minute for a whole hour is
+ * never reached by hand; it only stops a loop running up the AI bill.
+ */
+const ANALYSES_PER_HOUR = 120;
+
+/**
+ * AI cataloguing suggestions for one work, from its first photograph. Only
+ * admin and staff may ask (the roles that can edit a work, and so use them);
+ * the suggestions are stored for review and never applied to fields here.
+ */
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasRole(session.roles, "admin", "staff"))
+    return NextResponse.json({ error: "Only admin and staff can analyse a work" }, { status: 403 });
   const supabase = await getSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return NextResponse.json({ configured: false });
@@ -105,6 +119,17 @@ export async function POST(req: Request) {
       message: "No processed image to analyse yet.",
     });
   }
+
+  // Counted per person just before the paid call, once there is an image to
+  // send. The limiter lets the request through if its own check fails.
+  if (!(await rateLimit(createServiceClient(), `ai-analyse:user:${session.user.id}`, 3600, ANALYSES_PER_HOUR)))
+    return NextResponse.json(
+      {
+        configured: true,
+        error: `That is ${ANALYSES_PER_HOUR} analyses in the last hour, the most allowed. Try again later.`,
+      },
+      { status: 429 },
+    );
 
   const { data: signed } = await supabase.storage
     .from("piece-derivatives")
