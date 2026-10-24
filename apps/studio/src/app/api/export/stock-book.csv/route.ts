@@ -1,17 +1,12 @@
-import { exportResponse } from "@/lib/shared-drive";
+import { downloadResponse } from "@/lib/shared-drive";
 import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
+import { csvLine } from "@/lib/csv";
 
-function csvCell(v: unknown): string {
-  if (v == null) return "";
-  let s = String(v);
-  // Block spreadsheet formula injection in text (a description starting "=").
-  // Only text: numbers come from numeric columns and cannot carry a formula,
-  // and the apostrophe turned a loss of -150 into text that SUM skips.
-  if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-/** Margin-scheme stock book export for the accountant (HMRC VAT Notice 718). */
+/**
+ * Margin-scheme stock book export for the accountant (HMRC VAT Notice 718).
+ * Always a plain download: the file holds costs, margins and sellers, and the
+ * shared drive would hand it to every staff member (see shared-drive.ts).
+ */
 export async function GET(request: Request) {
   const session = await getSession();
   if (!session || !canSeeFinancials(session.roles)) {
@@ -44,17 +39,11 @@ export async function GET(request: Request) {
   // Columns and headers are the views' own, as the accountant's file has
   // always had them.
   const cols = first ? Object.keys(first) : ["stock_number"];
+  // Text is guarded against formulas (descriptions and seller names are
+  // typed in); figures stay numbers that a SUM includes.
   const lines = [
-    cols.join(","),
-    ...(rows ?? []).map((r) =>
-      cols.map((c) => csvCell((r as Record<string, unknown>)[c])).join(","),
-    ),
+    csvLine(cols),
+    ...(rows ?? []).map((r) => csvLine(cols.map((c) => (r as Record<string, unknown>)[c]))),
   ];
-  return exportResponse(
-    request,
-    lines.join("\n"),
-    "text/csv; charset=utf-8",
-    `stock-book-${scheme}.csv`,
-    "Docs",
-  );
+  return downloadResponse(lines.join("\n"), "text/csv; charset=utf-8", `stock-book-${scheme}.csv`);
 }

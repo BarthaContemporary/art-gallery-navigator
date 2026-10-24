@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getSupabase } from "@/lib/supabase";
+import { getSession, getSupabase } from "@/lib/supabase";
+import { canUseCalendar } from "@/lib/calendar-access";
 import {
   fetchCalendarFeed,
   isoDayParts,
@@ -52,8 +53,16 @@ function dayHeading(day: string, today: string): string {
   return formatDate(day, "short", { weekday: true, year: false });
 }
 
-/** Dashboard card: shared-calendar events + appointments over the next 10 days. */
+/**
+ * Dashboard card: shared-calendar events + appointments over the next 10 days.
+ * Nothing at all for a role that may not use the calendar: the feed is read
+ * with the gallery's CalDAV account, so the check here is what keeps it from
+ * the accountant (the dashboard leaves the card out for them as well).
+ */
 export async function UpcomingEventsPanel() {
+  const session = await getSession();
+  if (!session || !canUseCalendar(session.roles)) return null;
+
   const today = londonDay(new Date());
   const [ty, tm, td] = isoDayParts(today);
   const from = zonedToUtc(ty, tm, td, 0, 0, 0, "Europe/London");

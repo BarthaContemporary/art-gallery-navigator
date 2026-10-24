@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { SaveToDriveLink } from "@/components/save-to-drive";
 import { redirect } from "next/navigation";
 import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
 import { StockBookTable, type StockBookRow } from "@/components/stock-book-table";
@@ -184,12 +183,25 @@ export default async function StockBookPage({
         meta={SCHEME_NOTE[scheme]}
         actions={
           <>
-            <SaveToDriveLink href={`/api/export/stock-book.csv${exportQs ? `?${exportQs}` : ""}`} className={exportCls}>
+            {/* Plain downloads, never the shared drive: every staff member can
+                open the drive, and the stock book's costs and margins are for
+                admin and accountant only. */}
+            <a
+              href={`/api/export/stock-book.csv${exportQs ? `?${exportQs}` : ""}`}
+              download
+              className={exportCls}
+              title="Downloads to this computer"
+            >
               Export CSV
-            </SaveToDriveLink>
-            <SaveToDriveLink href={`/api/export/stock-book.xlsx${exportQs ? `?${exportQs}` : ""}`} className={exportCls}>
+            </a>
+            <a
+              href={`/api/export/stock-book.xlsx${exportQs ? `?${exportQs}` : ""}`}
+              download
+              className={exportCls}
+              title="Downloads to this computer"
+            >
               Export XLSX
-            </SaveToDriveLink>
+            </a>
           </>
         }
       />

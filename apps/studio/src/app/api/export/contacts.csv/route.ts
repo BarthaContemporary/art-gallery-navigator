@@ -1,14 +1,6 @@
 import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
-
-function csvCell(v: unknown): string {
-  if (v == null) return "";
-  let s = String(v);
-  // Guard against CSV/formula injection when opened in a spreadsheet: a leading
-  // = + - @ (or tab/CR) can execute as a formula. Prefix such cells with '.
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
+import { csvLine } from "@/lib/csv";
 
 /**
  * Contacts export. format=csv (default, Proton Sheets) or format=vcf
@@ -56,9 +48,11 @@ export async function GET(request: Request) {
   }
 
   const cols = ["first_name", "last_name", "email", "phone", "address_line1", "address_line2", "city", "postcode", "country", "contact_type"];
+  // Every cell through the shared guard: names and addresses come from the
+  // website's enquiry and booking forms, so they are outsiders' text.
   const lines = [
-    cols.join(","),
-    ...(rows ?? []).map((r) => cols.map((c) => csvCell((r as Record<string, unknown>)[c])).join(",")),
+    csvLine(cols),
+    ...(rows ?? []).map((r) => csvLine(cols.map((c) => (r as Record<string, unknown>)[c]))),
   ];
   return exportResponse(
     request,

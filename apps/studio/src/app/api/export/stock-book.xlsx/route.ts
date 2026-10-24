@@ -1,4 +1,4 @@
-import { exportResponse } from "@/lib/shared-drive";
+import { downloadResponse } from "@/lib/shared-drive";
 import ExcelJS from "exceljs";
 import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
 import { prettyHeader, cellValue, columnWidth, styleSheet } from "@/lib/xlsx-clean";
@@ -6,7 +6,11 @@ import { prettyHeader, cellValue, columnWidth, styleSheet } from "@/lib/xlsx-cle
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Margin-scheme stock book export for the accountant (HMRC VAT Notice 718). */
+/**
+ * Margin-scheme stock book export for the accountant (HMRC VAT Notice 718).
+ * Always a plain download: the file holds costs, margins and sellers, and the
+ * shared drive would hand it to every staff member (see shared-drive.ts).
+ */
 export async function GET(request: Request) {
   const session = await getSession();
   if (!session || !canSeeFinancials(session.roles)) {
@@ -54,11 +58,9 @@ export async function GET(request: Request) {
   styleSheet(ws, cols);
   const buf = await wb.xlsx.writeBuffer();
 
-  return exportResponse(
-    request,
+  return downloadResponse(
     new Uint8Array(buf as ArrayBuffer),
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     `stock-book-${scheme}.xlsx`,
-    "Docs",
   );
 }

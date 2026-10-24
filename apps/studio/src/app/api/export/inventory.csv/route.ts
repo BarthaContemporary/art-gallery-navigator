@@ -1,13 +1,7 @@
 import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
+import { csvLine } from "@/lib/csv";
 import { EXPORT_COLUMNS, loadInventoryExportRows, toExportRow } from "@/lib/inventory-query";
-
-function csvCell(v: unknown): string {
-  if (v == null) return "";
-  let s = String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // block spreadsheet formula injection
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
 /** Inventory export — CSV opens directly in Proton Sheets / Excel. */
 export async function GET(request: Request) {
@@ -29,10 +23,10 @@ export async function GET(request: Request) {
 
   const cols = EXPORT_COLUMNS;
   const lines = [
-    cols.join(","),
+    csvLine(cols),
     ...(rows ?? [])
       .map((r) => toExportRow(r as Record<string, unknown>))
-      .map((r) => cols.map((c) => csvCell(r[c])).join(",")),
+      .map((r) => csvLine(cols.map((c) => r[c]))),
   ];
   return exportResponse(
     request,

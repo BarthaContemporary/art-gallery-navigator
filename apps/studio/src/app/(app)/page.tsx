@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { getSupabase, getSession, hasRole } from "@/lib/supabase";
+import { canUseCalendar } from "@/lib/calendar-access";
 import { StatPanel } from "@/components/stat-panel";
 import { WebsitePanel } from "@/components/website-panel";
 import { NationalityPie } from "@/components/nationality-pie";
@@ -15,6 +16,7 @@ export default async function Dashboard() {
   const supabase = await getSupabase();
   const session = await getSession();
   const isAdmin = session ? hasRole(session.roles, "admin") : false;
+  const calendar = session ? canUseCalendar(session.roles) : false;
 
   // Headline figures are JvdB stock only — reading `pieces` gives that for
   // free, since non-JvdB works live in their own table. The external register
@@ -209,26 +211,30 @@ export default async function Dashboard() {
         </div>
       </div>
 
-      <div
-        style={{ "--jvb-stagger": `${base + 320}ms` } as React.CSSProperties}
-        className="jvb-rise mt-6"
-      >
-        {/* Streams in so a slow calendar server never holds up the dashboard. */}
-        <Suspense
-          fallback={
-            <Section title="Next 10 days">
-              <div role="status" className="space-y-2 py-1">
-                <span className="sr-only">Loading</span>
-                <Skeleton width="40%" />
-                <Skeleton width="55%" />
-                <Skeleton width="30%" />
-              </div>
-            </Section>
-          }
+      {/* Only for the roles that may use the shared calendar; for the rest
+          the card is left out rather than shown empty. */}
+      {calendar ? (
+        <div
+          style={{ "--jvb-stagger": `${base + 320}ms` } as React.CSSProperties}
+          className="jvb-rise mt-6"
         >
-          <UpcomingEventsPanel />
-        </Suspense>
-      </div>
+          {/* Streams in so a slow calendar server never holds up the dashboard. */}
+          <Suspense
+            fallback={
+              <Section title="Next 10 days">
+                <div role="status" className="space-y-2 py-1">
+                  <span className="sr-only">Loading</span>
+                  <Skeleton width="40%" />
+                  <Skeleton width="55%" />
+                  <Skeleton width="30%" />
+                </div>
+              </Section>
+            }
+          >
+            <UpcomingEventsPanel />
+          </Suspense>
+        </div>
+      ) : null}
 
       {isAdmin ? (
         <div
