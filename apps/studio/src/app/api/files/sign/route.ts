@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { getSupabase, getSession, hasRole } from "@/lib/supabase";
 import { createServiceClient } from "@jvb/db/server";
+import { isMissingFunction } from "@/lib/db-errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,8 +76,12 @@ export async function POST(req: Request) {
     _scope: scope,
     _record: recordId,
   });
-  if (issueErr)
+  // Until migration 0090 is applied the slip cannot be recorded; the upload
+  // still goes ahead, and commit then relies on its other guards (no file a
+  // document row uses is ever touched). Once 0090 is in, slips are required.
+  if (issueErr && !isMissingFunction(issueErr))
     return NextResponse.json({ error: `Could not start the upload: ${issueErr.message}` }, { status: 500 });
+  if (issueErr) console.warn("[files/sign] pending_upload_issue missing (migration 0090 not applied): upload slip not recorded");
 
   const { data, error } = await service.storage.from("piece-documents").createSignedUploadUrl(path);
   if (error || !data)

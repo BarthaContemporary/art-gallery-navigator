@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabase, getSession, hasRole } from "@/lib/supabase";
 import { createServiceClient } from "@jvb/db/server";
+import { isMissingFunction } from "@/lib/db-errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,9 +95,14 @@ export async function POST(req: Request) {
     _scope: scope,
     _record: scope === "document" ? null : recordId,
   });
-  if (claimErr)
+  // Until migration 0090 is applied there are no slips to claim: the commit
+  // goes on under the checks below (a path a document row already uses is
+  // refused, and only an unused file is ever removed), as before the slips.
+  const noSlips = isMissingFunction(claimErr);
+  if (claimErr && !noSlips)
     return NextResponse.json({ error: `Could not check the upload: ${claimErr.message}` }, { status: 500 });
-  if (claimed !== true)
+  if (noSlips) console.warn("[files/commit] pending_upload_claim missing (migration 0090 not applied): slip not checked");
+  else if (claimed !== true)
     return NextResponse.json(
       { error: "This upload was not started here or has expired — please attach the file again" },
       { status: 403 },
