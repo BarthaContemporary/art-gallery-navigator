@@ -9,6 +9,11 @@ Security operations on the live server (sign-in throttling and captcha,
 closing the gateway's `/pg/` route, rotating `JWT_SECRET` and the API keys,
 the Maps keys) are step by step in
 [`docs/ops/security-runbook.md`](../docs/ops/security-runbook.md).
+Any new address for the API (for example `api.joostvandenbergh.com` at
+go-live) gets its own Caddyfile block holding only `import security_headers`
+and `import supabase_api`, never a `reverse_proxy` line of its own, and must
+pass the runbook's step 4 before anything uses it: without the snippet the
+sign-in server counts nothing and the code emails reopen.
 
 ```
 infra/

@@ -164,31 +164,42 @@ services:
       GOTRUE_RATE_LIMIT_HEADER: X-JVB-Client-IP
       # Per client address, per 5 minutes, after a first burst of up to 30
       # that GoTrue lets through. verify (default 30) = emailed codes and
-      # links. token (default 150) = password sign-ins AND session refreshes;
-      # the studio and capture servers sign in and refresh for everyone from a
-      # few shared Vercel addresses, and a refused refresh signs that user
-      # out, so this stays well above their need. otp (default 30) = requests
-      # for code emails, and password changes.
+      # links. otp (default 30) = requests for code emails, and password
+      # changes.
+      # token = password sign-ins AND session refreshes, kept at GoTrue's
+      # default of 150: the studio and capture servers sign in and refresh
+      # for everyone from a few shared Vercel addresses, and a refused
+      # refresh signs that person out. A lower number would let anyone who
+      # posts junk to a sign-in form use up that shared count. The apps
+      # instead hold back the sign-ins they pass on (per sender, per email,
+      # and at most 12 per app in 5 minutes: apps/*/src/app/login/sign-in.ts),
+      # and the Cloudflare check (step 7) and the 12-character minimum stop
+      # password guessing sent straight to this server.
       GOTRUE_RATE_LIMIT_VERIFY: "10"
-      GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "60"
+      GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "150"
       GOTRUE_RATE_LIMIT_OTP: "5"
       # Auth emails per hour for the whole server (default 30). Nothing the
       # gallery uses has GoTrue send one (Admin's re-invite mints its link
       # with the service role and sends it through Resend), so this only caps
       # abuse.
       GOTRUE_RATE_LIMIT_EMAIL_SENT: "10"
-      # Emailed codes: 10 digits, the most GoTrue allows (default 6), valid
-      # 30 minutes (default 24 hours). The expiry covers every emailed link
-      # too, Admin's re-invite ("set your password") link included.
+      # Emailed codes: 10 digits, the most GoTrue allows (default 6). They
+      # stay valid 24 hours (GoTrue's default, written out so it is not
+      # shortened by accident): the expiry also covers Admin's re-invite
+      # ("set your password") link, and the invitation email promises 24
+      # hours. That is safe now: outsiders can no longer have a code emailed
+      # (Caddy closes those endpoints), and at 10 tries per 5 minutes one
+      # address would need thousands of years to guess a 10-digit code.
       GOTRUE_MAILER_OTP_LENGTH: "10"
-      GOTRUE_MAILER_OTP_EXP: "1800"
+      GOTRUE_MAILER_OTP_EXP: "86400"
       # Cloudflare Turnstile checked by GoTrue itself on password sign-in, so
       # the check guards the endpoint an attacker can call directly, not only
       # the studio's form. Off until the owner turns it on in .env
       # (AUTH_CAPTCHA_ENABLED + AUTH_CAPTCHA_SECRET) together with
       # AUTH_SERVER_CAPTCHA=1 for the studio and capture apps on Vercel:
-      # runbook step 7. Turned on without a secret, password sign-in stops
-      # working.
+      # runbook step 7. true with an empty AUTH_CAPTCHA_SECRET stops the
+      # sign-in server from starting: nobody can sign in or stay signed in
+      # until it is fixed.
       GOTRUE_SECURITY_CAPTCHA_ENABLED: ${AUTH_CAPTCHA_ENABLED:-false}
       GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
       GOTRUE_SECURITY_CAPTCHA_SECRET: ${AUTH_CAPTCHA_SECRET:-}

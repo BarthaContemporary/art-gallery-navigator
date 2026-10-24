@@ -1,17 +1,53 @@
 import { redirect } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
+import { headers } from "next/headers";
+import { hashKey, rateLimit } from "@jvb/db/rate-limit";
+import { createServiceClient, getSupabase } from "@/lib/supabase";
 import { PasskeySignIn } from "@/components/passkey-signin";
-import { authServerChecksCaptcha, loginErrorFromAuth, loginErrorMessage } from "./sign-in";
+import {
+  authServerChecksCaptcha,
+  clientIp,
+  loginErrorFromAuth,
+  loginErrorMessage,
+  signInLimits,
+  withinSignInLimits,
+} from "./sign-in";
 import { Turnstile } from "./turnstile";
+
+/**
+ * Whether this password sign-in may go on to the auth server (limits and
+ * reasons in ./sign-in.ts). Like the shared limiter, it lets the attempt
+ * through when the limiter cannot be reached, so sign-in never depends on it.
+ */
+async function signInAllowed(ip: string | null, email: string): Promise<boolean> {
+  let service: ReturnType<typeof createServiceClient>;
+  try {
+    service = createServiceClient();
+  } catch (err) {
+    console.error("[login] attempt limit skipped:", err);
+    return true;
+  }
+  return withinSignInLimits(signInLimits("capture", ip, email, hashKey), (key, windowSeconds, max) =>
+    rateLimit(service, key, windowSeconds, max),
+  );
+}
 
 async function signIn(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+  // The form requires both; an empty one is junk posted to the action, and
+  // the auth server would count it before refusing it.
+  if (!email.trim() || !password) redirect("/login?error=credentials");
   // When the auth server checks Turnstile (AUTH_SERVER_CAPTCHA), it needs the
-  // widget's token with the sign-in request; unset, capture signs in without
-  // a check, as before.
-  const token = authServerChecksCaptcha() ? String(formData.get("cf-turnstile-response") ?? "") : "";
+  // widget's token with the sign-in request; without one GoTrue would only
+  // refuse the attempt after counting it, so it stops here. Unset, capture
+  // signs in without a check, as before.
+  const serverChecks = authServerChecksCaptcha();
+  const token = serverChecks ? String(formData.get("cf-turnstile-response") ?? "") : "";
+  if (serverChecks && !token) redirect("/login?error=check-missing");
+  // Capture has no security check of its own, so this count is what holds
+  // back attempts posted straight to this action.
+  if (!(await signInAllowed(clientIp(await headers()), email))) redirect("/login?error=rate-limited");
   const supabase = await getSupabase();
   const { error } = await supabase.auth.signInWithPassword({
     email,

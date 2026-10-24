@@ -38,13 +38,15 @@
 	}
 }
 
-# ---------------------------------------------------------------------------
-# Supabase API gateway — auth, rest, storage (incl. TUS uploads + imgproxy
-# renders) all flow through Kong. CORS is handled by Kong, not here.
-# ---------------------------------------------------------------------------
-api.example.com {
-	import security_headers
-
+# The way in to the Supabase API gateway (Kong). EVERY site that proxies to
+# 127.0.0.1:8000 imports this and proxies nowhere else: GoTrue counts nothing
+# for a request that arrives without X-JVB-Client-IP, so a second API address
+# (for example api.joostvandenbergh.com at go-live) written with its own
+# reverse_proxy line would quietly switch the sign-in limits off and reopen
+# the code emails. apps/studio/src/app/login/auth-server-config.test.ts
+# fails if this file proxies to the gateway any other way;
+# docs/ops/security-runbook.md step 4 checks the live server.
+(supabase_api) {
 	# GoTrue's endpoints that email a sign-in or recovery code to any address
 	# the caller names. Nothing the gallery runs uses them from outside:
 	# staff are created and re-invited from the studio's Admin page with the
@@ -72,6 +74,16 @@ api.example.com {
 		# docs/ops/security-runbook.md step 4 checks).
 		header_up X-JVB-Client-IP {remote_host}
 	}
+}
+
+# ---------------------------------------------------------------------------
+# Supabase API gateway — auth, rest, storage (incl. TUS uploads + imgproxy
+# renders) all flow through Kong. CORS is handled by Kong, not here.
+# A further API address gets its own block with these same two imports.
+# ---------------------------------------------------------------------------
+api.example.com {
+	import security_headers
+	import supabase_api
 }
 
 # ---------------------------------------------------------------------------

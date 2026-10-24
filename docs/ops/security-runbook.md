@@ -11,13 +11,17 @@ it worked, and how to undo it.
 The sign-in server (GoTrue, part of the self-hosted Supabase on the Vultr
 server) answers anyone on the internet, not only the studio's sign-in page.
 Until now it counted nothing: someone who knew a staff email address could ask
-for a password-reset code and guess it, or guess passwords, as fast as they
-liked, and a reset code stayed valid for 24 hours. After this runbook:
+for a password-reset code (6 digits, valid for 24 hours) and guess it, or
+guess passwords, as fast as they liked. After this runbook:
 
 - the sign-in server limits how often any one internet address may try a
   code, a password or a reset (steps 2 to 4);
-- emailed codes are 10 digits instead of 6 and expire after 30 minutes
-  instead of 24 hours (step 2);
+- the studio and capture apps hold back repeated password sign-ins
+  themselves, per sender's address, per email and per app, before the
+  sign-in server is asked (this comes with the apps' deploy; nothing to do
+  on the server);
+- emailed codes are 10 digits instead of 6 (step 2). They stay valid 24
+  hours, as Admin's invitation email says;
 - nobody on the internet can make the server email a code at all; the
   gallery never used that (step 3);
 - the gateway's "run any SQL" route, `/pg/`, is confirmed closed (step 5);
@@ -54,7 +58,7 @@ You need:
 - Google Cloud console, the project that holds the Maps key.
 - The password manager. New keys go there first.
 - A computer with this repository, up to date with `main` after the security
-  changes were merged (`git pull`). Steps 2 and 5 copy files from it.
+  changes were merged (`git pull`). Steps 2, 3 and 5 copy from it.
 - For steps 7 and 8: the studio and capture app deployed on Vercel from that
   same `main` (the sign-in pages and the capture geocoding changed with it).
 
@@ -100,7 +104,7 @@ it; delete it a week after the last step (`rm -r "$B"`).
 ## Step 2. New sign-in server settings
 
 What changes: the sign-in server's block in `docker-compose.yml` gains the
-limits, the 10-digit 30-minute codes and the Cloudflare check (still off).
+limits, the 10-digit codes and the Cloudflare check (still off).
 Appendix A shows the exact lines and what each does.
 
 1. On your computer, in the repository folder:
@@ -149,12 +153,12 @@ Appendix A shows the exact lines and what each does.
    Expect `compose file OK` and these nine lines (in any order):
 
    ```
-   GOTRUE_MAILER_OTP_EXP: "1800"
+   GOTRUE_MAILER_OTP_EXP: "86400"
    GOTRUE_MAILER_OTP_LENGTH: "10"
    GOTRUE_RATE_LIMIT_EMAIL_SENT: "10"
    GOTRUE_RATE_LIMIT_HEADER: X-JVB-Client-IP
    GOTRUE_RATE_LIMIT_OTP: "5"
-   GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "60"
+   GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "150"
    GOTRUE_RATE_LIMIT_VERIFY: "10"
    GOTRUE_SECURITY_CAPTCHA_ENABLED: "false"
    GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
@@ -197,23 +201,34 @@ every request from the internet) tells the sign-in server which address is
 calling. This step adds that, and turns away requests asking the sign-in
 server to email a sign-in or reset code. The gallery never sends those: staff
 are created and re-invited from the studio's Admin page, which makes the link
-itself. Appendix B shows the lines.
+itself. Both live in one named piece of settings, `supabase_api`, that the
+API site takes in with one line, so a second API address added later gets
+them the same way (`infra/README.md`). Appendix B shows the lines.
 
-1. Find the API site's proxy line:
+1. Find the API site's line to the gateway:
 
    ```sh
-   grep -n "127.0.0.1:8000" /etc/caddy/Caddyfile
+   grep -nE '^[[:space:]]*reverse_proxy[[:space:]]+(https?://)?(127\.0\.0\.1|localhost):8000' /etc/caddy/Caddyfile
    ```
 
    Expect exactly one line, such as `52:	reverse_proxy 127.0.0.1:8000`. If
-   there is none, or more than one, stop and ask for help.
+   there is none, or more than one (more than one API address), stop and
+   ask for help.
 
-2. `nano /etc/caddy/Caddyfile`, press Ctrl+W, search for `127.0.0.1:8000`,
-   and replace that one line with the lines in Appendix B. Tabs or spaces
-   both work. If the line ends in `{` (the live file already has settings
-   inside it), keep it: put the `header_up` line as the first line inside its
-   braces, and the `@auth_code_email` and `respond` lines just above it. Save
-   with Ctrl+O, Enter, Ctrl+X.
+2. `nano /etc/caddy/Caddyfile`, then:
+
+   - Press Ctrl+W, search for `reverse_proxy 127.0.0.1:8000` (the line 3.1
+     found), and replace that line with `import supabase_api`. If the line
+     ends in `{` (the live file has settings inside it), note down the lines
+     between its braces, then delete the line, those lines and its closing
+     `}`.
+   - Paste the whole first box of Appendix B (from `(supabase_api) {` to its
+     last `}`) on its own lines just above the line that opens the API site
+     (the one starting `api.` and ending in `{`), outside every other block.
+     If you noted lines in the point above, add them inside its
+     `reverse_proxy` braces, under the `header_up` line.
+
+   Tabs or spaces both work. Save with Ctrl+O, Enter, Ctrl+X.
 
 3. Check the file, then load it:
 
@@ -228,11 +243,15 @@ itself. Appendix B shows the lines.
 **Check:**
 
 ```sh
+grep -cE '^[[:space:]]*reverse_proxy[[:space:]]+(https?://)?(127\.0\.0\.1|localhost):8000' /etc/caddy/Caddyfile
+grep -c '^[[:space:]]*import supabase_api' /etc/caddy/Caddyfile
 curl -s -o /dev/null -w 'health: %{http_code}\n' "$API/auth/v1/health" -H "apikey: $ANON"
 curl -s -o /dev/null -w 'reset email: %{http_code}\n' -X POST "$API/auth/v1/recover" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"email":"nobody@example.invalid"}'
 ```
 
-Expect `health: 200` and `reset email: 403`. Sign in to the studio once more.
+Expect `1` (the one line to the gateway, now inside `supabase_api`), `1` (or
+one per API address), `health: 200` and `reset email: 403`. Sign in to the
+studio once more.
 
 **Undo:**
 
@@ -254,24 +273,37 @@ for i in $(seq 1 45); do curl -s -o /dev/null -w '%{http_code} ' -X POST "$API/a
 Bad passwords:
 
 ```sh
-for i in $(seq 1 45); do curl -s -o /dev/null -w '%{http_code} ' -X POST "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"email":"limit-test@example.invalid","password":"not-the-password"}'; done; echo
+for i in $(seq 1 60); do curl -s -o /dev/null -w '%{http_code} ' -X POST "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"email":"limit-test@example.invalid","password":"not-the-password"}'; done; echo
 ```
 
 **Check:** each prints a row of numbers: first `403` (wrong code) or `400`
 (wrong password), then `429` (too many attempts). Any other number in the
 400s before the `429`s is fine too: it only means "wrong". The sign-in server
 lets a first burst of about 30 through, so expect roughly 30 of the first
-kind and 15 of `429`. The count empties again within about five minutes.
+kind, then `429`s (passwords refill faster, so a few `400`s may still appear
+among them). A few tries are allowed again within a minute or two, and the
+full allowance comes back within about 15 minutes.
 
 If a row never shows `429`, the limits are not counting. Check, in order:
 step 2's list showed `GOTRUE_RATE_LIMIT_HEADER: X-JVB-Client-IP`; the
 Caddyfile has `header_up X-JVB-Client-IP {remote_host}` spelt the same way;
 `systemctl reload caddy` ran after the edit.
 
-One more check: `ip -6 addr show scope global` should print nothing. The
-limits count per internet address, and one IPv6 user holds millions of
-addresses; this server was created with IPv6 off. If it prints an address,
-tell whoever looks after the code.
+Two more checks:
+
+```sh
+docker compose logs --since 10m auth | grep -c 'rate limiting is not applied'
+ip -6 addr show scope global
+```
+
+The first prints `0`. The sign-in server writes that line for every
+request that reached it without the caller's address, which it then does not
+count; anything above 0 (unless you used the database dashboard in the last
+ten minutes) means some way in skips `supabase_api`: tell whoever looks
+after the code. The second prints nothing. The limits count per internet
+address, and one IPv6 user holds millions of addresses; this server was
+created with IPv6 off. If it prints an address, tell whoever looks after the
+code.
 
 **Undo:** nothing to undo.
 
@@ -283,18 +315,25 @@ even behind the service-role key, or one leaked key hands over the whole
 database. The repository's gateway file does not route it, but earlier notes
 say the live server did, and that migrations were applied through it.
 
+**From this step on, every database change (migration) goes through the SSH
+tunnel in 5.4**, the security changes' own migrations (0090 onwards)
+included. Never reopen `/pg/` for one. `CLAUDE.md` and `PROJECT_STATUS.md`
+still describe `/pg/query`; see "Afterwards".
+
 1. Is it open?
 
    ```sh
-   curl -s -o /dev/null -w '/pg/: %{http_code}\n' "$API/pg/query"
+   curl -s "$API/pg/query" | grep -q 'no Route matched' && echo "/pg/: closed" || echo "/pg/: OPEN or unclear"
    grep -n "meta" volumes/api/kong.yml
    ```
 
-   - `/pg/: 404`, and every line the second command prints is a comment
-     (after its number and some spaces it starts with `##`): it is closed.
-     Go to 5.4.
-   - Anything else (`401`, `200`, …), or lines such as
-     `url: http://meta:8080/` or `- /pg/`: it is open. Continue.
+   - `/pg/: closed` (the gateway itself said it has no such route), and every
+     line the second command prints is a comment (after its number and some
+     spaces it starts with `##`): it is closed. Go to 5.4.
+   - `/pg/: OPEN or unclear`, or lines such as `url: http://meta:8080/` or
+     `- /pg/`: treat it as open. Continue. (A plain "not found" from the
+     database helper itself also means open: only the gateway's own
+     `no Route matched` answer counts.)
 
 2. Replace the live gateway file with the repository's. On your computer:
 
@@ -335,11 +374,11 @@ say the live server did, and that migrations were applied through it.
 
 ```sh
 sleep 10
-curl -s -o /dev/null -w '/pg/: %{http_code}\n' "$API/pg/query"
+curl -s "$API/pg/query" | grep -q 'no Route matched' && echo "/pg/: closed" || echo "/pg/: OPEN or unclear"
 curl -s -o /dev/null -w 'data API: %{http_code}\n' "$API/rest/v1/" -H "apikey: $ANON"
 ```
 
-Expect `/pg/: 404` and `data API: 200`. Open the studio; the inventory loads.
+Expect `/pg/: closed` and `data API: 200`. Open the studio; the inventory loads.
 
 **Undo** (this reopens `/pg/`): `cp -a "$B/kong.yml" volumes/api/kong.yml && docker compose restart kong`
 
@@ -465,6 +504,50 @@ Expect `DELETE` with a number, then a count of `0`. If the count is not 0:
 `app.settings.jwt_secret` when it was first started. Nothing in this system
 reads it, and the old secret is worthless once replaced: leave it.)
 
+**6.7 Look for anything the old key may have added.** The new secret stops
+the leaked key from working from now on; it does not undo anything already
+done with it. Someone holding it could have added a sign-in account, given
+an account the admin role, or added a passkey to an account (a passkey keeps
+working after the rotation). These commands only read; run them and go
+through each list:
+
+```sh
+docker compose exec -T db psql -U supabase_admin -d postgres <<'SQL'
+\echo '--- sign-in accounts'
+select email, created_at::date as created, last_sign_in_at::date as last_sign_in
+  from auth.users order by created_at;
+\echo '--- roles'
+select u.email, r.role, r.created_at::date as given
+  from public.user_roles r left join auth.users u on u.id = r.user_id
+ order by u.email, r.role;
+\echo '--- studio passkeys'
+select u.email, c.device_label, c.created_at::date as added, c.last_used_at::date as last_used
+  from public.webauthn_credentials c left join auth.users u on u.id = c.user_id
+ order by c.created_at;
+\echo '--- capture passkeys'
+select u.email, p.device_label, p.created_at::date as added, p.last_used_at::date as last_used
+  from public.passkeys p left join auth.users u on u.id = p.user_id
+ order by p.created_at;
+\echo '--- account changes, last 6 months'
+select created_at::date as day, payload->>'action' as action,
+       coalesce(payload->'traits'->>'user_email', payload->>'actor_username') as account
+  from auth.audit_log_entries
+ where created_at > now() - interval '6 months'
+   and payload->>'action' in ('user_signedup', 'user_invited', 'user_deleted', 'user_modified',
+                              'user_recovery_requested', 'user_updated_password', 'invite_accepted')
+ order by created_at;
+SQL
+```
+
+Check each account, role and passkey against the staff you know and the
+devices they use; the last list should only show what people at the gallery
+did: invitations and re-invitations from Admin, people setting their
+passwords. If anything is unfamiliar: delete
+the account in the studio's Admin page (or remove the role there), and
+remove an unknown passkey from that person's passkey list (or ask whoever
+looks after the code to). Then sign everyone out again with 6.6. Write down
+what you found, even "nothing unfamiliar", and the date, for the review file.
+
 **Check:**
 
 ```sh
@@ -539,10 +622,12 @@ nano .env
 
 Change `AUTH_CAPTCHA_ENABLED=false` to `AUTH_CAPTCHA_ENABLED=true`, and put
 the secret after `AUTH_CAPTCHA_SECRET=` (no spaces, no quotes). Save with
-Ctrl+O, Enter, Ctrl+X. Then:
+Ctrl+O, Enter, Ctrl+X. Then (this restarts nothing if the secret is empty:
+with the check on and no secret, the sign-in server refuses to start, and
+nobody can sign in or stay signed in until it is fixed):
 
 ```sh
-docker compose up -d auth && docker compose restart kong
+if grep -qE '^AUTH_CAPTCHA_SECRET=[^[:space:]]+$' .env; then docker compose up -d auth && docker compose restart kong; else echo "STOP: AUTH_CAPTCHA_SECRET is empty in .env"; fi
 ```
 
 **Check:**
@@ -558,7 +643,9 @@ credentials`. (If it says `Request rate limit reached`, step 4's count has
 not emptied yet; wait five minutes and try again.) Then sign in with a
 password to the studio and to the capture app, ticking the box when it asks;
 passkey sign-in works as before. If `auth` keeps restarting, the secret is
-missing or mistyped: `docker compose logs --tail=30 auth` says so; undo.
+missing or mistyped: `docker compose logs --tail=30 auth` says so (for
+example `captcha provider secret is empty`); undo at once, as nobody can
+sign in or stay signed in meanwhile.
 
 Password sign-in on a Vercel preview address works only if that address is
 in the widget's hostname list; passkeys and the production addresses are
@@ -620,9 +707,54 @@ then uses the browser key on its server again, as before).
 ## Afterwards
 
 - Ask whoever keeps the project notes to record the date, and to replace the
-  `/pg/query` instructions in `PROJECT_STATUS.md` and `CLAUDE.md` with the
-  SSH tunnel of step 5.4, and close the "rotate the service_role key" item.
+  `/pg/query` instructions in `PROJECT_STATUS.md` and `CLAUDE.md` (its
+  "Applying DB migrations to the live server" rule) with the SSH tunnel of
+  step 5.4, and close the "rotate the service_role key" item. Until then,
+  anyone following those notes will find `/pg/query` closed: that is
+  intended, use 5.4.
+- Record what step 6.7 found in the review file.
 - Delete the backup folder from step 1 a week after the last step.
+
+## If staff see "Too many sign-in attempts"
+
+Two things can refuse a password sign-in with that message:
+
+- **the apps' own count**, kept for a day in the database's rate-limit table:
+  10 tries per 5 minutes from one address (shared by the studio and
+  capture), 10 per 15 minutes for one email address, and 12 per 5 minutes
+  for each app altogether. The last one keeps what the apps pass on small
+  enough that the sign-in server's own count for Vercel never fills;
+- **the sign-in server's count** (step 2), per calling address. The studio
+  and capture servers sign in, and renew everyone's sessions, from a few
+  shared Vercel addresses, so if that count ever fills, people are also
+  signed out in the middle of their work.
+
+Signs that someone is causing it on purpose: the message appears when
+nobody has been trying to sign in, for everyone at once, or keeps coming
+back. Meanwhile **sign in with a passkey**: passkeys do not use either
+count, and people already signed in stay signed in unless the sign-in
+server's own count fills.
+
+See which count it is (on the server; nothing secret is printed):
+
+```sh
+docker compose exec -T db psql -U supabase_admin -d postgres -c "select split_part(key, ':', 2) as counted_by, count(*) as tries, max(at)::time(0) as last from public.rate_limit_hits where key like 'login:%' and at > now() - interval '15 minutes' group by 1 order by 1;"
+docker compose logs --since 15m auth | grep -c 'Request rate limit reached'
+```
+
+The first lists the apps' counts in the last 15 minutes (`ip`, `email`,
+`app`): a large number of `app` tries that no one at the gallery made means
+someone is posting junk to a sign-in form. The second counts refusals by the
+sign-in server itself, for any caller: many of them while staff see the
+message means its count for a Vercel address may be filling; many while
+staff notice nothing only means someone calling it directly is being held
+back, as intended.
+
+What to do: wait 15 minutes and try again; it clears on its own when the
+junk stops. If it keeps happening, do step 7 if not done yet (the Cloudflare
+check then guards the studio's and capture's forms and the sign-in server),
+and tell whoever looks after the code, with the output of the two commands.
+Do not lower or switch off the sign-in server's limits to make it go away.
 
 ## Why there is no fail2ban jail for failed sign-ins
 
@@ -654,31 +786,42 @@ starts with six spaces.
       GOTRUE_RATE_LIMIT_HEADER: X-JVB-Client-IP
       # Per client address, per 5 minutes, after a first burst of up to 30
       # that GoTrue lets through. verify (default 30) = emailed codes and
-      # links. token (default 150) = password sign-ins AND session refreshes;
-      # the studio and capture servers sign in and refresh for everyone from a
-      # few shared Vercel addresses, and a refused refresh signs that user
-      # out, so this stays well above their need. otp (default 30) = requests
-      # for code emails, and password changes.
+      # links. otp (default 30) = requests for code emails, and password
+      # changes.
+      # token = password sign-ins AND session refreshes, kept at GoTrue's
+      # default of 150: the studio and capture servers sign in and refresh
+      # for everyone from a few shared Vercel addresses, and a refused
+      # refresh signs that person out. A lower number would let anyone who
+      # posts junk to a sign-in form use up that shared count. The apps
+      # instead hold back the sign-ins they pass on (per sender, per email,
+      # and at most 12 per app in 5 minutes: apps/*/src/app/login/sign-in.ts),
+      # and the Cloudflare check (step 7) and the 12-character minimum stop
+      # password guessing sent straight to this server.
       GOTRUE_RATE_LIMIT_VERIFY: "10"
-      GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "60"
+      GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "150"
       GOTRUE_RATE_LIMIT_OTP: "5"
       # Auth emails per hour for the whole server (default 30). Nothing the
       # gallery uses has GoTrue send one (Admin's re-invite mints its link
       # with the service role and sends it through Resend), so this only caps
       # abuse.
       GOTRUE_RATE_LIMIT_EMAIL_SENT: "10"
-      # Emailed codes: 10 digits, the most GoTrue allows (default 6), valid
-      # 30 minutes (default 24 hours). The expiry covers every emailed link
-      # too, Admin's re-invite ("set your password") link included.
+      # Emailed codes: 10 digits, the most GoTrue allows (default 6). They
+      # stay valid 24 hours (GoTrue's default, written out so it is not
+      # shortened by accident): the expiry also covers Admin's re-invite
+      # ("set your password") link, and the invitation email promises 24
+      # hours. That is safe now: outsiders can no longer have a code emailed
+      # (Caddy closes those endpoints), and at 10 tries per 5 minutes one
+      # address would need thousands of years to guess a 10-digit code.
       GOTRUE_MAILER_OTP_LENGTH: "10"
-      GOTRUE_MAILER_OTP_EXP: "1800"
+      GOTRUE_MAILER_OTP_EXP: "86400"
       # Cloudflare Turnstile checked by GoTrue itself on password sign-in, so
       # the check guards the endpoint an attacker can call directly, not only
       # the studio's form. Off until the owner turns it on in .env
       # (AUTH_CAPTCHA_ENABLED + AUTH_CAPTCHA_SECRET) together with
       # AUTH_SERVER_CAPTCHA=1 for the studio and capture apps on Vercel:
-      # runbook step 7. Turned on without a secret, password sign-in stops
-      # working.
+      # runbook step 7. true with an empty AUTH_CAPTCHA_SECRET stops the
+      # sign-in server from starting: nobody can sign in or stay signed in
+      # until it is fixed.
       GOTRUE_SECURITY_CAPTCHA_ENABLED: ${AUTH_CAPTCHA_ENABLED:-false}
       GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
       GOTRUE_SECURITY_CAPTCHA_SECRET: ${AUTH_CAPTCHA_SECRET:-}
@@ -688,20 +831,24 @@ starts with six spaces.
 |---|---|---|---|
 | Rate-limit header | none (nothing counted) | `X-JVB-Client-IP` | attempts are counted per internet address |
 | Code and link checks | unlimited | 10 per 5 min per address, after a burst of about 30 | with 10-digit codes, one address would need thousands of years to guess one |
-| Password sign-ins and session refreshes | unlimited | 60 per 5 min per address, after a burst of about 30 | password guessing slowed; staff unaffected |
+| Password sign-ins and session refreshes | unlimited | 150 per 5 min per address, after a burst of about 30 | password guessing slowed; the apps also count the sign-ins they pass on, so junk sent through them cannot fill this for Vercel's addresses |
 | Code-email requests, password changes | unlimited | 5 per 5 min per address | |
 | Auth emails, whole server | 30 an hour | 10 an hour | caps abuse; the gallery sends none this way |
-| Emailed code | 6 digits, 24 hours | 10 digits, 30 minutes | Admin's re-invite link also expires after 30 minutes |
+| Emailed code | 6 digits, 24 hours | 10 digits, 24 hours | Admin's re-invite link still lasts 24 hours, as its email says |
 | Cloudflare check at the sign-in server | not available | available, off until step 7 | |
 
 ## Appendix B: the edge server's API block
 
-The line `reverse_proxy 127.0.0.1:8000` in the API site of
-`/etc/caddy/Caddyfile` is replaced with:
+This goes in `/etc/caddy/Caddyfile` on its own, outside every site block,
+just above the API site:
 
 ```
+# The way in to the Supabase API gateway: every site that proxies to
+# 127.0.0.1:8000 imports this (security review F1;
+# docs/ops/security-runbook.md step 3).
+(supabase_api) {
 	# GoTrue's endpoints that email a sign-in or recovery code: closed from
-	# the internet (security review F1; docs/ops/security-runbook.md step 3).
+	# the internet.
 	@auth_code_email path /auth/v1/recover* /auth/v1/otp* /auth/v1/magiclink* /auth/v1/resend* /auth/v1/signup*
 	respond @auth_code_email "Not available" 403
 
@@ -710,18 +857,32 @@ The line `reverse_proxy 127.0.0.1:8000` in the API site of
 		# every request, replacing anything the client sent.
 		header_up X-JVB-Client-IP {remote_host}
 	}
+}
+```
+
+and the API site's `reverse_proxy 127.0.0.1:8000` line becomes
+`import supabase_api`, so the site reads, for example:
+
+```
+api.104-238-184-145.sslip.io {
+	import security_headers
+	import supabase_api
+}
 ```
 
 Caddy matches these paths regardless of capital letters and doubled
 slashes, so variants of them are closed too. The database dashboard reaches
 the sign-in server inside the server, not through Caddy, so its own "send
-reset email" buttons keep working.
+reset email" buttons keep working. A second API address (for example
+`api.joostvandenbergh.com` at go-live) gets a block of its own with the same
+two `import` lines and nothing else, then step 4 again.
 
 ## Appendix C: what changed in the repository
 
 - `infra/compose/docker-compose.yml`: the block in Appendix A.
 - `infra/compose/.env.example`: `AUTH_CAPTCHA_ENABLED`, `AUTH_CAPTCHA_SECRET`.
-- `infra/compose/Caddyfile`: the block in Appendix B.
+- `infra/compose/Caddyfile`: the block in Appendix B (`supabase_api`, imported
+  by the API site). `infra/README.md` says every new API address imports it.
 - `infra/compose/volumes/api/kong.yml`: comments only (the `/pg/` history,
   and why GoTrue is not pointed at `X-Real-IP`).
 - Studio and capture sign-in pages (`apps/*/src/app/login/`): with
@@ -730,7 +891,15 @@ reset email" buttons keep working.
   The page's error line now shows one of a few fixed messages chosen by a
   short code in the address (`?error=credentials`), never text taken from
   the address. The capture app shows the Cloudflare box when the setting is
-  on.
+  on. Before asking the sign-in server, both count the attempt in the
+  database's rate-limit table (per sender's address, per email, per app; see
+  "If staff see Too many sign-in attempts") and refuse empty forms and, with
+  the setting on, a missing Cloudflare token, without asking it at all.
+- `apps/studio/src/app/login/auth-server-config.test.ts`: fails the tests if
+  the Caddyfile proxies to the gateway other than through `supabase_api`, if
+  the sign-in server's counting header and Caddy's differ, if the
+  sign-in/refresh limit drops below 150, or if the emailed-link expiry stops
+  matching Admin's invitation email.
 - `apps/capture/src/lib/geocode.ts`: uses `GOOGLE_MAPS_SERVER_KEY` when set.
 
 New settings: `AUTH_CAPTCHA_ENABLED` and `AUTH_CAPTCHA_SECRET` (server
