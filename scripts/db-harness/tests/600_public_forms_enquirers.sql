@@ -13,14 +13,15 @@ insert into public.crm_contacts
   (id, first_name, email, consent_source, marketing_consent,
    consent_confirm_token, consent_confirm_sent_at, consent_evidence, tags, created_at)
 values
-  -- Created by an enquiry with the mailing-list box ticked, never
-  -- confirmed: the request is a pending entry, the column is empty.
+  -- Created by an enquiry with the mailing-list box ticked, not yet
+  -- confirmed (a request within its 30-day link; 0096 drops expired ones):
+  -- the request is a pending entry, the column is empty.
   ('00000000-0000-4000-8000-0000000000b1', 'Enquirer', 'enquirer@example.com', null, false,
    null, null,
    jsonb_build_object(
      'contact', jsonb_build_object('form', 'enquiry', 'at', '2023-01-01T00:00:00Z'),
      'marketing_pending', jsonb_build_object(
-       'form', 'enquiry_mailing_list', 'at', '2023-01-01T00:00:00Z',
+       'form', 'enquiry_mailing_list', 'at', now() - interval '2 days',
        'token_hash', encode(sha256(convert_to(repeat('d', 48), 'UTF8')), 'hex'))),
    '{website}', now() - interval '4 years'),
   -- The shape the website no longer writes: the same enquirer with the
@@ -34,7 +35,7 @@ values
   ('00000000-0000-4000-8000-0000000000b3', 'Settled', 'settled@example.com', 'website_newsletter', false,
    null, null,
    jsonb_build_object('marketing_pending', jsonb_build_object(
-     'form', 'newsletter', 'at', '2023-01-01T00:00:00Z',
+     'form', 'newsletter', 'at', now() - interval '2 days',
      'token_hash', encode(sha256(convert_to(repeat('f', 48), 'UTF8')), 'hex'))),
    '{newsletter}', now() - interval '4 years'),
   -- Signed up from the newsletter box and nothing else: still an

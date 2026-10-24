@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabase, requireCapture } from "@/lib/supabase";
 import { fetchImage, visionJson, isConfigured, type ImageInput } from "@/lib/anthropic";
+import { aiLimitResponse } from "@/lib/ai-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const gate = await requireCapture();
   if ("error" in gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
   if (!isConfigured()) return NextResponse.json({ configured: false });
+  const limited = await aiLimitResponse(gate.session.user.id, "invoice");
+  if (limited) return limited;
   const { id: invoiceId } = await params;
 
   const supabase = await getSupabase();

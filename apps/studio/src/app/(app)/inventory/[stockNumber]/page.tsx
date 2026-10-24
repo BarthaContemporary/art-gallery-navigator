@@ -42,6 +42,7 @@ import {
   FileIcon,
   FlagIcon,
 } from "@/components/ui/icons";
+import { isWebsiteRole } from "@/lib/website-images";
 
 export const metadata = { title: "Piece detail" };
 
@@ -319,8 +320,11 @@ export default async function PieceDetail({
   const historyContactIds = historyIds(["buyer_contact_id", "seller_contact_id", "consignee_contact_id"]);
   const fin = financialsRes.data;
   const buyerContactId = (fin?.buyer_contact_id as string | null | undefined) ?? null;
-  // The photograph the website tile is drawn from: the first processed one.
-  const firstDone = imageRows.find((im) => im.storage_path_display && im.processing_status === "done");
+  // The photograph the website tile is drawn from: the first processed one of
+  // the roles the website shows (lib/website-images), as the sync picks it.
+  const firstDone = imageRows.find(
+    (im) => im.storage_path_display && im.processing_status === "done" && isWebsiteRole(im.role),
+  );
 
   // The follow-up reads each depend on the batch above but not on each
   // other, so they run together.

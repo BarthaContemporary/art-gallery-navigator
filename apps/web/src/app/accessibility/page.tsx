@@ -30,7 +30,7 @@ export default async function AccessibilityPage() {
         <p>
           Every page works with a keyboard alone; images of works carry descriptions; headings and
           landmarks are consistent; text can be resized to 200% without loss; colour contrast meets
-          the AA ratio; animation respects your system\u2019s reduced-motion setting; and forms explain
+          the AA ratio; animation respects your system’s reduced-motion setting; and forms explain
           any error in words.
         </p>
       </LegalSection>

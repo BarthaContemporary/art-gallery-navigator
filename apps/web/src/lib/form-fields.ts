@@ -14,7 +14,7 @@
  * name also lands in email subjects and calendar invitations. Browsers drop
  * CR and LF from an <input>'s value, so only a hand-made request is refused.
  */
-export const ONE_LINE = /^[^\u0000-\u001f\u007f\u2028\u2029]*$/;
+export const ONE_LINE = /^[^\u0000-\u001f\u007f-\u009f\u2028\u2029]*$/;
 export const ONE_LINE_MESSAGE = "Please keep names, addresses and other short fields on one line.";
 
 /**

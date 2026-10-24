@@ -66,7 +66,7 @@ export default function TermsPage() {
 
       <LegalSection heading="Complaints">
         <p>If something has gone wrong, write to us and we will reply within fourteen days. Consumers
-        may also use the UK\u2019s alternative dispute resolution bodies; we will tell you which one we
+        may also use the UK’s alternative dispute resolution bodies; we will tell you which one we
         would use if we cannot resolve a complaint directly.</p>
       </LegalSection>
       <LegalSection heading="Governing law">

@@ -344,8 +344,16 @@ export function MakerProfileEditor({
   }
 
   async function removePortrait() {
-    await fetch(`/api/makers/${makerId}/portrait`, { method: "DELETE" });
-    setUrl(null);
+    setUploadError(null);
+    try {
+      const res = await fetch(`/api/makers/${makerId}/portrait`, { method: "DELETE" });
+      // A refused removal (a role that may not change portraits, or a
+      // failure) leaves the portrait on screen, as it is still stored.
+      if (!res.ok) throw new Error(res.status === 403 ? "You can't remove portraits" : "Couldn't remove the portrait");
+      setUrl(null);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Couldn't remove the portrait");
+    }
   }
 
   const busy = phase !== "idle";

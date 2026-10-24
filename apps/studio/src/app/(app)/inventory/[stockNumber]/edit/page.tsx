@@ -18,6 +18,7 @@ import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
+import { WEBSITE_IMAGE_ROLES } from "@/lib/website-images";
 
 export const metadata = { title: "Edit record" };
 
@@ -76,7 +77,8 @@ export default async function EditPiecePage({
         .eq("piece_id", piece.id),
     ]);
 
-  // What the website sync decided for the first photograph (the one the tile uses).
+  // What the website sync decided for the first photograph of the roles the
+  // website shows (the one the tile uses).
   let squareGuess: "flat" | "object" | "photo" | null = null;
   {
     const { data: first } = await supabase
@@ -85,6 +87,7 @@ export default async function EditPiecePage({
       .eq("piece_id", piece.id)
       .not("storage_path_display", "is", null)
       .eq("processing_status", "done")
+      .in("role", [...WEBSITE_IMAGE_ROLES])
       .order("sort_order")
       .limit(1)
       .maybeSingle();

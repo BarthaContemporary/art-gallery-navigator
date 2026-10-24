@@ -17,7 +17,11 @@ numerous requests — tell the person within the first month.
 4. **Erasure**: Contact page → "Erase personal data". The screen says what the
    law makes us keep (AML records five years, sale records six years). Where a
    hold applies, the person's identity is removed from everything else and they
-   are told which records remain and why.
+   are told which records remain and why. The shared calendar (Radicale, synced
+   to the gallery's Apple devices) is outside the database: search it for the
+   person's name and address and edit or delete the events that name them.
+   The website's gallery notification emails sit in the gallery mailbox:
+   search Proton Mail too.
 5. **Rectification / restriction / objection**: edit the record; for an
    objection to marketing, untick marketing consent (the suppression record is
    kept so they are not emailed again).

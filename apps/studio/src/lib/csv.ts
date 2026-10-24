@@ -13,8 +13,12 @@
  */
 const FORMULA_START = /^[=+\-@\t\r\n]/;
 
-/** Characters that need the cell quoted: the quote itself, the separator, line breaks. */
-const NEEDS_QUOTES = /[",\r\n]/;
+/**
+ * Characters that need the cell quoted: the quote itself, the separator,
+ * line breaks, and the semicolon and tab that spreadsheets set up for other
+ * locales or tab-separated imports read as separators.
+ */
+const NEEDS_QUOTES = /[",;\t\r\n]/;
 
 /**
  * One cell. Text a spreadsheet would run as a formula gets an apostrophe in

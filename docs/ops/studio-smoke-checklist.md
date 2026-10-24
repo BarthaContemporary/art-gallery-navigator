@@ -126,8 +126,9 @@ Pass when nothing typed is lost across a reload or Done.
       **Export XLSX** each download (or save to Drive) and open without
       error; the row count equals the inventory count.
 - [ ] With a status filter, the exports hold only that status.
-- [ ] *(financial)* `/stock-book`: the CSV export opens in a spreadsheet and
-      the totals add up.
+- [ ] *(financial)* `/stock-book`: the CSV export downloads (it is never
+      copied to the shared drive), opens in a spreadsheet and the totals add
+      up.
 
 - [ ] With a search, a list or the flagged filter on, and a sort chosen,
       each export holds exactly the works on screen, in the same order.

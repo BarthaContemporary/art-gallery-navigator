@@ -43,6 +43,20 @@ export type CompileContext = {
 const SALUTATION_TOKEN = "{{salutation}}";
 const UNSUB_TOKEN = "{{unsubscribe_url}}";
 
+/**
+ * A link or image address from the design, only when it is a web or email
+ * address (or a merge token such as {{unsubscribe_url}}); anything else, a
+ * javascript: or data: URL for instance, is dropped rather than sent to every
+ * recipient. Escaping alone keeps the HTML intact but not the scheme.
+ */
+function safeUrl(url: string | undefined, allowMail = true): string | null {
+  const u = (url ?? "").trim();
+  if (/^https?:\/\//i.test(u)) return u;
+  if (allowMail && /^mailto:/i.test(u)) return u;
+  if (/^\{\{[a-z_]+\}\}$/.test(u)) return u;
+  return null;
+}
+
 // Palette — mirrors the washi/sumi/oranje web design system, using email-safe
 // font stacks (webfonts are unreliable in mail clients).
 const C = {
@@ -90,16 +104,19 @@ function renderBlock(b: Block): string {
     case "text":
       return renderText(b.text);
     case "image": {
-      const img = `<img src="${escapeHtml(b.url)}" alt="${escapeHtml(
+      const src = safeUrl(b.url, false);
+      if (!src) return "";
+      const img = `<img src="${escapeHtml(src)}" alt="${escapeHtml(
         b.alt ?? "",
       )}" width="536" style="display:block;width:100%;max-width:536px;height:auto;border:0;margin:6px 0 18px;" />`;
-      return b.href
-        ? `<a href="${escapeHtml(b.href)}" target="_blank" style="text-decoration:none;">${img}</a>`
+      const href = safeUrl(b.href);
+      return href
+        ? `<a href="${escapeHtml(href)}" target="_blank" style="text-decoration:none;">${img}</a>`
         : img;
     }
     case "button":
       return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 20px;"><tr><td bgcolor="${C.oranje}" style="border-radius:2px;"><a href="${escapeHtml(
-        b.href,
+        safeUrl(b.href) ?? "#",
       )}" target="_blank" style="display:inline-block;padding:11px 22px;font-family:${SANS};font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.01em;">${escapeHtml(
         b.label,
       )}</a></td></tr></table>`;
@@ -120,8 +137,8 @@ function renderWorks(items: WorkItem[]): string {
     .map((w) => {
       const inner = `
         ${
-          w.imageUrl
-            ? `<img src="${escapeHtml(w.imageUrl)}" alt="${escapeHtml(
+          safeUrl(w.imageUrl, false)
+            ? `<img src="${escapeHtml(w.imageUrl!.trim())}" alt="${escapeHtml(
                 w.title,
               )}" width="256" style="display:block;width:100%;height:auto;border:0;margin-bottom:8px;" />`
             : ""
@@ -143,8 +160,9 @@ function renderWorks(items: WorkItem[]): string {
               )}</div>`
             : ""
         }`;
-      const body = w.url
-        ? `<a href="${escapeHtml(w.url)}" target="_blank" style="text-decoration:none;color:inherit;">${inner}</a>`
+      const workUrl = safeUrl(w.url, false);
+      const body = workUrl
+        ? `<a href="${escapeHtml(workUrl)}" target="_blank" style="text-decoration:none;color:inherit;">${inner}</a>`
         : inner;
       return `<td width="50%" valign="top" style="padding:0 8px 20px;">${body}</td>`;
     })

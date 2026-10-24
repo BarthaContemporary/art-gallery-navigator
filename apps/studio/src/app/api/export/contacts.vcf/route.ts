@@ -10,7 +10,7 @@ function esc(v: unknown): string {
   if (v == null) return "";
   return String(v)
     .replace(/\\/g, "\\\\")
-    .replace(/\n/g, "\\n")
+    .replace(/\r\n|\r|\n/g, "\\n")
     .replace(/,/g, "\\,")
     .replace(/;/g, "\\;");
 }

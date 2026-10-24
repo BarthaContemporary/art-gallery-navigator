@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { getSupabase, requireCapture } from "@/lib/supabase";
 import { fetchImage, visionExtract, isConfigured } from "@/lib/anthropic";
+import { aiLimitResponse } from "@/lib/ai-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +51,8 @@ export async function POST(req: Request) {
   const gate = await requireCapture();
   if ("error" in gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
   if (!isConfigured()) return NextResponse.json({ configured: false });
+  const limited = await aiLimitResponse(gate.session.user.id, "scan");
+  if (limited) return limited;
 
   const { path } = (await req.json().catch(() => ({}))) as { path?: string };
   if (!path) return NextResponse.json({ error: "Missing path" }, { status: 400 });

@@ -11,7 +11,7 @@ test("typed single-line fields refuse line breaks and control characters", () =>
     assert.ok(ONE_LINE.test(typedLine(ok)), ok);
     assert.equal(typedLine(ok), ok);
   }
-  for (const bad of ["Jane\rSmith", "line1\nline2", "a\r\n=HYPERLINK(\"x\")", "nul\u0000", "del\u007f", "vt\u000b"]) {
+  for (const bad of ["Jane\rSmith", "line1\nline2", "a\r\n=HYPERLINK(\"x\")", "nul\u0000", "del\u007f", "vt\u000b", "nel\u0085x", "c1\u009b"]) {
     assert.ok(!ONE_LINE.test(typedLine(bad)), JSON.stringify(bad));
   }
 });

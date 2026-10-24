@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 
 /**
  * The shared rate limiter (supabase/migrations/0089_rate_limits.sql), for
@@ -41,7 +41,18 @@ export async function rateLimit(
   }
 }
 
-/** A short, one-way stand-in for an email (or any identifier) in a key. */
+/**
+ * A short, one-way stand-in for an email, IP address or token in a key.
+ * Keyed with a server secret (HMAC): a plain hash of an IPv4 address can be
+ * reversed by hashing all four billion of them, a keyed one cannot without
+ * the secret. RATE_LIMIT_HASH_SECRET if set, otherwise derived from the
+ * service-role key every server already holds; the same value on every app,
+ * so keys match across them. Rotating either only resets the counts.
+ */
 export function hashKey(value: string): string {
-  return createHash("sha256").update(value.trim().toLowerCase()).digest("hex").slice(0, 32);
+  const v = value.trim().toLowerCase();
+  const secret = process.env.RATE_LIMIT_HASH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) return createHash("sha256").update(v).digest("hex").slice(0, 32);
+  const key = createHmac("sha256", secret).update("jvb:rate-limit-keys").digest();
+  return createHmac("sha256", key).update(v).digest("hex").slice(0, 32);
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServiceClient } from "@jvb/db/server";
+import { safeStoragePath, UUID_PATTERN } from "@jvb/db/storage-path";
 import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 import { OfferResponse } from "@/components/offer-response";
 import { OfferGate } from "@/components/offer-gate";
@@ -231,8 +232,15 @@ export default async function OfferPage({
     const hero = item.piece ? primaryImage(item.piece) : null;
     if (item.piece && hero) heroByPiece.set(item.piece.id, hero);
   }
-  const paths = [...heroByPiece.values()]
-    .map((img) => img.storage_path_display)
+  // Signed with the service client, so each stored path is checked first:
+  // one display master directly under its own piece's folder, nothing that
+  // could reach another bucket (security review F6).
+  const paths = [...heroByPiece.entries()]
+    .map(([pieceId, img]) =>
+      new RegExp(`^${UUID_PATTERN}$`).test(pieceId)
+        ? safeStoragePath(img.storage_path_display, { pattern: new RegExp(`^${pieceId}/[^/]+\\.jpg$`) })
+        : null,
+    )
     .filter((p): p is string => Boolean(p));
 
   const signedByPath = new Map<string, string>();

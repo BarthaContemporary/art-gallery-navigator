@@ -221,9 +221,21 @@ export default async function ContactProfile({
     const s = await getSession();
     if (!s || !hasRole(s.roles, "admin")) throw new Error("Forbidden");
     const db = createServiceClient();
-    await db.from("dp_requests").update({ completed_at: new Date().toISOString(), outcome: "Erased" }).eq("contact_id", id).eq("kind", "erasure").is("completed_at", null);
+    // The open erasure requests are found first (a hard delete sets their
+    // contact_id to null) and marked done only once the erasure has worked,
+    // so a failed erasure never shows as completed.
+    const { data: open } = await db
+      .from("dp_requests")
+      .select("id")
+      .eq("contact_id", id)
+      .eq("kind", "erasure")
+      .is("completed_at", null);
     const { data, error } = await db.rpc("erase_contact", { _contact: id });
     if (error) throw new Error(error.message);
+    const requestIds = (open ?? []).map((r) => r.id as string);
+    if (requestIds.length > 0) {
+      await db.from("dp_requests").update({ completed_at: new Date().toISOString(), outcome: "Erased" }).in("id", requestIds);
+    }
     const mode = (data as { mode?: string } | null)?.mode;
     if (mode === "deleted") redirect("/crm/contacts");
     redirect(`/crm/contacts/${id}`);
