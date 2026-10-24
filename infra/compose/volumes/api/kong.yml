@@ -115,3 +115,10 @@ services:
   ## To run ad-hoc SQL/migrations, tunnel to Postgres over SSH (it is bound to
   ## the host's 127.0.0.1:5432, never public) and use psql / the Supabase CLI:
   ##   ssh -L 5432:127.0.0.1:5432 <vps>   # then psql postgresql://…@127.0.0.1:5432/postgres
+  ## The live server once carried such a route (/pg/, used for migrations in
+  ## 2026): docs/ops/security-runbook.md step 5 checks for it and removes it.
+  ##
+  ## Request headers pass through to the services unchanged, including the
+  ## X-JVB-Client-IP that Caddy sets and GoTrue counts sign-in attempts by.
+  ## (Kong does replace X-Real-IP and extend X-Forwarded-For, which is why
+  ## GoTrue is not pointed at those.)

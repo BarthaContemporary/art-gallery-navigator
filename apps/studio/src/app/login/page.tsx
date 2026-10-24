@@ -8,13 +8,17 @@ import { safeNextPath } from "@/lib/auth-rules";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
+import { authServerChecksCaptcha, loginErrorFromAuth, loginErrorMessage } from "./sign-in";
 
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error, next: rawNext } = await searchParams;
+  const { error: errorCode, next: rawNext } = await searchParams;
+  // ?error= carries a short code shown as fixed text (./sign-in.ts); any
+  // other value shows nothing.
+  const error = loginErrorMessage(typeof errorCode === "string" ? errorCode : null);
   // The page that sent the user here (middleware ?next=), if it is a plain
   // path on this site; anything else signs in to the dashboard as before.
   const next = safeNextPath(rawNext);
@@ -25,22 +29,34 @@ export default async function LoginPage({
     "use server";
     const email = String(formData.get("email") ?? "");
     const password = String(formData.get("password") ?? "");
+    const token = String(formData.get("cf-turnstile-response") ?? "");
     const back = safeNextPath(next);
     const keepNext = back ? `&next=${encodeURIComponent(back)}` : "";
 
-    // Bot mitigation: verify the Turnstile token before touching auth.
-    const h = await headers();
-    const turnstile = await verifyTurnstile(
-      String(formData.get("cf-turnstile-response") ?? ""),
-      h.get("cf-connecting-ip") ?? h.get("x-forwarded-for"),
-    );
-    if (!turnstile.ok) {
-      redirect(`/login?error=${encodeURIComponent(turnstile.error ?? "Security check failed")}${keepNext}`);
+    // Bot mitigation. When the auth server checks Turnstile itself
+    // (AUTH_SERVER_CAPTCHA), the token goes with the sign-in request, so the
+    // check also guards GoTrue's own endpoint, which can be called without
+    // this page. Otherwise the app verifies the token before touching auth,
+    // as before.
+    const serverChecks = authServerChecksCaptcha();
+    if (!serverChecks) {
+      // Vercel sets x-real-ip and x-forwarded-for itself; cf-connecting-ip
+      // is whatever the client sent, as no Cloudflare proxy sits in front.
+      const h = await headers();
+      const turnstile = await verifyTurnstile(
+        token,
+        h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",")[0]?.trim(),
+      );
+      if (!turnstile.ok) redirect(`/login?error=${turnstile.code ?? "check-failed"}${keepNext}`);
     }
 
     const supabase = await getSupabase();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) redirect(`/login?error=${encodeURIComponent(error.message)}${keepNext}`);
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: serverChecks && token ? { captchaToken: token } : undefined,
+    });
+    if (error) redirect(`/login?error=${loginErrorFromAuth(error, Boolean(token))}${keepNext}`);
     redirect(back ?? "/");
   }
 

@@ -3,15 +3,20 @@
  *
  * Fail-open when `TURNSTILE_SECRET_KEY` is unset so login keeps working until
  * the keys are configured; fail-closed once the secret is present.
+ *
+ * `code` names the failure for the sign-in page, which shows fixed text per
+ * code rather than whatever arrives in its URL.
  */
+export type TurnstileFailure = "check-missing" | "check-failed" | "check-unavailable";
+
 export async function verifyTurnstile(
   token: string | undefined | null,
   remoteIp?: string | null,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; code?: TurnstileFailure }> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) return { ok: true };
 
-  if (!token) return { ok: false, error: "Please complete the security check." };
+  if (!token) return { ok: false, code: "check-missing", error: "Please complete the security check." };
 
   try {
     const body = new URLSearchParams();
@@ -26,11 +31,11 @@ export async function verifyTurnstile(
     const data = (await res.json()) as { success?: boolean };
     return data.success
       ? { ok: true }
-      : { ok: false, error: "Security check failed. Please try again." };
+      : { ok: false, code: "check-failed", error: "Security check failed. Please try again." };
   } catch {
     // Fail closed: a verification error must not silently remove bot
     // protection. A transient Cloudflare outage will surface as a retryable
     // error rather than an open door.
-    return { ok: false, error: "Security check unavailable. Please try again." };
+    return { ok: false, code: "check-unavailable", error: "Security check unavailable. Please try again." };
   }
 }

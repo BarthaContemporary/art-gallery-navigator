@@ -1,14 +1,24 @@
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { PasskeySignIn } from "@/components/passkey-signin";
+import { authServerChecksCaptcha, loginErrorFromAuth, loginErrorMessage } from "./sign-in";
+import { Turnstile } from "./turnstile";
 
 async function signIn(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+  // When the auth server checks Turnstile (AUTH_SERVER_CAPTCHA), it needs the
+  // widget's token with the sign-in request; unset, capture signs in without
+  // a check, as before.
+  const token = authServerChecksCaptcha() ? String(formData.get("cf-turnstile-response") ?? "") : "";
   const supabase = await getSupabase();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`);
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+    options: token ? { captchaToken: token } : undefined,
+  });
+  if (error) redirect(`/login?error=${loginErrorFromAuth(error, Boolean(token))}`);
   redirect("/");
 }
 
@@ -17,7 +27,10 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error: errorCode } = await searchParams;
+  // ?error= carries a short code shown as fixed text (./sign-in.ts); any
+  // other value shows nothing.
+  const error = loginErrorMessage(typeof errorCode === "string" ? errorCode : null);
   return (
     <main className="safe-top safe-bottom flex min-h-dvh items-center justify-center p-6">
       <form action={signIn} className="w-full max-w-sm rounded-[16px] border border-line bg-cell p-7">
@@ -52,6 +65,7 @@ export default async function LoginPage({
             className="mt-1.5 w-full rounded-xl border border-line-control bg-control px-3 py-3 text-ink"
           />
         </label>
+        {authServerChecksCaptcha() ? <Turnstile className="mt-5" /> : null}
         <button
           type="submit"
           className="tap mt-6 w-full rounded-xl bg-primary px-4 font-semibold text-primary-fg"

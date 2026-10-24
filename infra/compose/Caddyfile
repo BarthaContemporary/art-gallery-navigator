@@ -45,10 +45,33 @@
 api.example.com {
 	import security_headers
 
+	# GoTrue's endpoints that email a sign-in or recovery code to any address
+	# the caller names. Nothing the gallery runs uses them from outside:
+	# staff are created and re-invited from the studio's Admin page with the
+	# service role, which mints the link without these endpoints. From the
+	# internet they would only hand an attacker a fresh code to guess at
+	# /auth/v1/verify (security review F1). Closed here, not in Kong, so the
+	# break-glass dashboard, which talks to Kong inside Docker, keeps them.
+	# Path matching is case-insensitive and merges doubled slashes, so
+	# variants of these paths are closed too.
+	@auth_code_email path /auth/v1/recover* /auth/v1/otp* /auth/v1/magiclink* /auth/v1/resend* /auth/v1/signup*
+	respond @auth_code_email "Not available" 403
+
 	# Large TIFF originals arrive as resumable TUS uploads; Caddy streams
 	# request bodies by default, so no body-size tuning is needed here
 	# (storage-api enforces STORAGE_FILE_SIZE_LIMIT).
-	reverse_proxy 127.0.0.1:8000
+	reverse_proxy 127.0.0.1:8000 {
+		# The address GoTrue counts sign-in and code attempts against
+		# (GOTRUE_RATE_LIMIT_HEADER in docker-compose.yml). Set here on every
+		# request, replacing anything the client sent, so a client cannot
+		# choose its own count. It is the address that connected to Caddy:
+		# the studio and capture servers sign in from Vercel, so their
+		# requests count against Vercel's addresses. Counting per address
+		# relies on this server having no IPv6, as one IPv6 client holds
+		# millions of addresses (bootstrap creates the server with IPv6 off;
+		# docs/ops/security-runbook.md step 4 checks).
+		header_up X-JVB-Client-IP {remote_host}
+	}
 }
 
 # ---------------------------------------------------------------------------
