@@ -14,17 +14,33 @@ export interface IcsEventInput {
   description?: string;
   location?: string;
   organizer?: { name: string; email: string };
-  attendee?: { name: string; email: string };
+  /** The name is left out when there is none safe to show (a booking's typed name). */
+  attendee?: { name?: string | null; email: string };
   url?: string;
 }
 
-/** Escape text per RFC 5545 §3.3.11. */
+/**
+ * Escape text per RFC 5545 §3.3.11. Every line break, a lone CR included,
+ * becomes "\n", so text from a form can never end the property and start
+ * one of its own; other control characters, which a calendar's TEXT may not
+ * hold, are dropped.
+ */
 function escapeText(value: string): string {
   return value
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(/\\/g, "\\\\")
     .replace(/;/g, "\\;")
     .replace(/,/g, "\\,")
-    .replace(/\r?\n/g, "\\n");
+    .replace(/\r\n|\r|\n/g, "\\n");
+}
+
+/**
+ * A parameter value such as a CN, as a quoted string (RFC 5545 §3.2), where
+ * ";", ":" and "," are plain characters; the double quotes and control
+ * characters a quoted value may not hold are dropped.
+ */
+function paramValue(value: string): string {
+  return `"${value.replace(/["\u0000-\u001f\u007f]/g, "")}"`;
 }
 
 /** "20260720T140000" — floating local time. */
@@ -80,13 +96,12 @@ export function buildIcs(event: IcsEventInput): string {
   if (event.url) lines.push(`URL:${escapeText(event.url)}`);
   if (event.organizer) {
     lines.push(
-      `ORGANIZER;CN=${escapeText(event.organizer.name)}:mailto:${event.organizer.email}`,
+      `ORGANIZER;CN=${paramValue(event.organizer.name)}:mailto:${event.organizer.email}`,
     );
   }
   if (event.attendee) {
-    lines.push(
-      `ATTENDEE;CN=${escapeText(event.attendee.name)};ROLE=REQ-PARTICIPANT:mailto:${event.attendee.email}`,
-    );
+    const cn = event.attendee.name ? `;CN=${paramValue(event.attendee.name)}` : "";
+    lines.push(`ATTENDEE${cn};ROLE=REQ-PARTICIPANT:mailto:${event.attendee.email}`);
   }
 
   lines.push("STATUS:CONFIRMED", "END:VEVENT", "END:VCALENDAR");

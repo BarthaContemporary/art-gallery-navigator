@@ -186,11 +186,13 @@ export function EnquiryForm({
             {done ? <>Thank you — your message has been sent. We&rsquo;ll reply by email.</> : null}
             {/* The mailing list needs the emailed confirmation; the line is
                 the same whatever the address's state, as the newsletter
-                box's is. */}
+                box's is (an address already on the list is told so by
+                email, and one was perhaps emailed in the last few hours). */}
             {done && askedToJoin ? (
               <>
                 <br />
-                If you asked to join the mailing list, please confirm from the email we have sent you.
+                To join the mailing list, please confirm from the email we send you; if you are already on it, the
+                email will say so. We send one such email to an address every few hours at most.
               </>
             ) : null}
           </p>

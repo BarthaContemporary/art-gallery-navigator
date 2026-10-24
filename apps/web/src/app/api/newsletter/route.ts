@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@jvb/db/server";
 import { hashKey, rateLimit } from "@jvb/db/rate-limit";
@@ -9,6 +9,7 @@ import { clientIp } from "@/lib/form-fields";
 import { oneLine } from "@/lib/form-schema";
 import {
   emailedRecently,
+  expiredPendingPatch,
   isSubscribed,
   newConfirmToken,
   noteOptInEmailSent,
@@ -43,9 +44,12 @@ const PER_IP_PER_HOUR = 10;
  *
  * Every accepted request gets the same answer, whatever the address's state,
  * so the box cannot be used to learn who is on the mailing list: someone
- * already subscribed is told so by email instead. Turnstile, a per-address
- * limit of one email every few hours and a per-IP limit stop it being used
- * to send the gallery's mail to strangers (security review 2026-10, F12).
+ * already subscribed is told so by email instead. The email goes out after
+ * the answer (after()), so the answer comes back at the same point whether
+ * an email is sent or not, and its timing tells nothing either. Turnstile, a
+ * per-address limit of one email every few hours and a per-IP limit stop it
+ * being used to send the gallery's mail to strangers (security review
+ * 2026-10, F12).
  */
 export async function POST(req: NextRequest) {
   let payload: z.infer<typeof schema>;
@@ -88,45 +92,57 @@ export async function POST(req: NextRequest) {
       contact = data as OptInContact | null;
     }
 
-    // "Do not mail" is the gallery's decision (or a bounce or complaint):
-    // nothing is sent and nothing changes, and the visitor sees the usual answer.
+    /** The email this request sends, if any; it goes out after the answer. */
+    let send: (() => Promise<boolean>) | null = null;
+    /** For a contact already on record: a new request, or else only a lapsed one dropped. */
+    let patch = contact ? expiredPendingPatch(contact) : null;
+
     if (contact?.do_not_mail) {
+      // "Do not mail" is the gallery's decision (or a bounce or complaint):
+      // nothing is sent, the consent stays as it is, and the visitor sees
+      // the usual answer.
       console.info(`[newsletter] ${maskAddress(email)} is marked do-not-mail; nothing sent`);
-      return accepted;
-    }
-    if (await emailedRecently(supabase, email)) {
+    } else if (await emailedRecently(supabase, email)) {
       console.info(`[newsletter] ${maskAddress(email)} was emailed in the last few hours; nothing sent`);
-      return accepted;
-    }
-    if (contact && isSubscribed(contact)) {
-      if (await sendAlreadySubscribed(req, email, payload.name)) await noteOptInEmailSent(supabase, email);
-      return accepted;
-    }
-
-    const token = newConfirmToken();
-    const now = new Date().toISOString();
-    if (contact) {
-      const { error } = await supabase
-        .from("crm_contacts")
-        .update(pendingPatch(contact, token, evidence, now, { fromSignUpBox: true }))
-        .eq("id", contact.id);
-      if (error) throw error;
+    } else if (contact && isSubscribed(contact)) {
+      send = () => sendAlreadySubscribed(req, email, payload.name);
     } else {
-      const { error } = await supabase.from("crm_contacts").insert({
-        first_name: firstName,
-        last_name: rest.join(" ") || null,
-        email,
-        marketing_consent: false,
-        consent_source: "website_newsletter",
-        consent_confirm_token: token,
-        consent_confirm_sent_at: now,
-        consent_evidence: mergeEvidence(null, "marketing", evidence),
-        tags: ["newsletter"],
-      });
+      const token = newConfirmToken();
+      const now = new Date().toISOString();
+      if (contact) {
+        patch = pendingPatch(contact, token, evidence, now, { fromSignUpBox: true });
+      } else {
+        const { error } = await supabase.from("crm_contacts").insert({
+          first_name: firstName,
+          last_name: rest.join(" ") || null,
+          email,
+          marketing_consent: false,
+          consent_source: "website_newsletter",
+          consent_confirm_token: token,
+          consent_confirm_sent_at: now,
+          consent_evidence: mergeEvidence(null, "marketing", evidence),
+          tags: ["newsletter"],
+        });
+        if (error) throw error;
+      }
+      send = () => sendConfirmation(req, email, payload.name, token);
+    }
+
+    if (contact && patch) {
+      const { error } = await supabase.from("crm_contacts").update(patch).eq("id", contact.id);
       if (error) throw error;
     }
 
-    if (await sendConfirmation(req, email, payload.name, token)) await noteOptInEmailSent(supabase, email);
+    if (send) {
+      const deliver = send;
+      after(async () => {
+        try {
+          if (await deliver()) await noteOptInEmailSent(supabase, email);
+        } catch (err) {
+          console.error("[newsletter] email not sent:", err);
+        }
+      });
+    }
     return accepted;
   } catch (err) {
     console.error("[newsletter] failed:", err);

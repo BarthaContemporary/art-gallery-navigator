@@ -12,9 +12,10 @@ export const metadata: Metadata = { title: "Newsletter", robots: { index: false 
 
 /**
  * Second step of the double opt-in: the page the confirmation email links
- * to. Opening it changes nothing; it shows a "Confirm subscription" button,
- * and only that button's POST (newsletter/confirm/route.ts) switches consent
- * on. Mail-security scanners open every link in an incoming email, so a
+ * to. Opening it changes no consent; it shows a "Confirm subscription"
+ * button, and only that button's POST (newsletter/confirm/route.ts) switches
+ * consent on. (An expired request it finds is dropped from the contact,
+ * lib/optin-evidence.) Mail-security scanners open every link in an incoming email, so a
  * link that confirmed on opening confirmed people who never acted (security
  * review 2026-10, F22). Analytics and marketing tags stay off this page,
  * and pages opened from it are told only the site's address, never this

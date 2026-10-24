@@ -17,8 +17,11 @@ interface OfferGateRow {
  * in a day. Offer passwords are short words chosen by staff, so without a
  * limit a leaked link could be unlocked by guessing (security review
  * 2026-10, F21); the daily cap keeps a patient guesser to a few dozen words
- * a day rather than ten every hour for as long as the offer runs. The
- * recipient can always use the emailed sign-in link instead.
+ * a day rather than ten every hour for as long as the offer runs. Someone
+ * holding a leaked link can keep these limits reached, and with them the
+ * password form, for the recipient too; the recipient can still ask for the
+ * emailed sign-in link, whose limit counts only emails that reached their
+ * own inbox (api/offer/magic).
  */
 const TRIES_PER_TOKEN = 10;
 const TRIES_PER_TOKEN_PER_DAY = 30;

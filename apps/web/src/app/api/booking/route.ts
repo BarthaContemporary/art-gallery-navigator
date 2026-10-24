@@ -6,11 +6,12 @@ import { createServiceClient } from "@jvb/db/server";
 import { hashKey, rateLimit } from "@jvb/db/rate-limit";
 import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
 import { contactIdByEmail } from "@/lib/contacts";
-import { clientIp } from "@/lib/form-fields";
+import { clientIp, greetingName } from "@/lib/form-fields";
 import { oneLine } from "@/lib/form-schema";
 import { buildIcs } from "@/lib/ics";
 import { OPTIN_COLUMNS, settleSignUpPatch, type OptInContact } from "@/lib/newsletter-optin";
 import { getSiteSettings } from "@/lib/sanity";
+import { noteSent, withinSendLimit } from "@/lib/send-limit";
 import { fallbackGalleryName } from "@/lib/site";
 import { verifyTurnstile } from "@/lib/turnstile";
 
@@ -25,7 +26,12 @@ const DEFAULT_DURATION_MINUTES = 60;
 
 /** Booking requests from one address in an hour. */
 const PER_IP_PER_HOUR = 10;
-/** Confirmations to one visitor's address in six hours; the gallery hears of every request. */
+/**
+ * Confirmations sent to one visitor's address in six hours; the gallery
+ * hears of every request. Only confirmations actually sent count
+ * (lib/send-limit), so someone re-submitting another person's address
+ * cannot stop that person's own confirmations.
+ */
 const CONFIRMATIONS_PER_ADDRESS = 3;
 
 const bookingSchema = z.object({
@@ -107,10 +113,12 @@ export async function POST(req: NextRequest) {
   const endsAt = new Date(endMs).toISOString();
 
   const icsUid = `${randomUUID()}@jvb-booking`;
+  const confirmationKey = `booking:sent:${hashKey(payload.email)}`;
   let confirmVisitor = true;
+  let supabase: ReturnType<typeof createServiceClient>;
 
   try {
-    const supabase = createServiceClient();
+    supabase = createServiceClient();
     if (ip && !(await rateLimit(supabase, `booking:ip:${hashKey(ip)}`, 3600, PER_IP_PER_HOUR))) {
       return NextResponse.json(
         { error: "Too many requests from here just now. Please try again later, or email us directly." },
@@ -185,7 +193,7 @@ export async function POST(req: NextRequest) {
 
     // The visitor's confirmation goes to whatever address was typed, so a
     // stranger's inbox cannot be filled with them from the gallery's address.
-    confirmVisitor = await rateLimit(supabase, `booking:email:${hashKey(payload.email)}`, 6 * 3600, CONFIRMATIONS_PER_ADDRESS);
+    confirmVisitor = await withinSendLimit(supabase, confirmationKey, 6 * 3600, CONFIRMATIONS_PER_ADDRESS);
   } catch (error) {
     console.error("[booking] failed to store appointment:", error);
     return NextResponse.json(
@@ -204,22 +212,30 @@ export async function POST(req: NextRequest) {
         process.env.BOOKING_FROM_EMAIL ?? `bookings@${new URL(req.nextUrl.origin).hostname}`;
       const typeLabel = APPOINTMENT_LABELS[payload.appointmentType] ?? "Appointment";
 
-      const ics = buildIcs({
-        uid: icsUid,
-        start: startLocal,
-        end: endLocal,
-        summary: `${typeLabel} — ${galleryName}`,
-        description: payload.notes
-          ? `Notes: ${payload.notes}`
-          : "We look forward to welcoming you.",
-        location: settings?.address?.replace(/\n/g, ", ") ?? undefined,
-        organizer: settings?.email ? { name: galleryName, email: settings.email } : undefined,
-        attendee: { name: payload.name, email: payload.email },
-      });
-      const icsAttachment = {
-        filename: "appointment.ics",
-        content: Buffer.from(ics).toString("base64"),
-        contentType: "text/calendar; method=PUBLISH",
+      // The visitor's confirmation, and its calendar invitation, go to
+      // whatever address was typed, so they carry none of the visitor's own
+      // text: the greeting and the invitation's guest name are at most one
+      // plain word of the typed name (lib/form-fields greetingName), and
+      // the notes stay in the gallery's copy. Otherwise anyone could send a
+      // chosen person a gallery email and invitation in their own words,
+      // links included (security review 2026-10, F12).
+      const visitorName = greetingName(payload.name);
+      const invitation = (description: string, attendeeName: string | null) => {
+        const ics = buildIcs({
+          uid: icsUid,
+          start: startLocal,
+          end: endLocal,
+          summary: `${typeLabel} — ${galleryName}`,
+          description,
+          location: settings?.address?.replace(/\r?\n/g, ", ") ?? undefined,
+          organizer: settings?.email ? { name: galleryName, email: settings.email } : undefined,
+          attendee: { name: attendeeName, email: payload.email },
+        });
+        return {
+          filename: "appointment.ics",
+          content: Buffer.from(ics).toString("base64"),
+          contentType: "text/calendar; method=PUBLISH",
+        };
       };
 
       const prettyDate = new Intl.DateTimeFormat("en-GB", {
@@ -240,7 +256,7 @@ export async function POST(req: NextRequest) {
           to: payload.email,
           subject: `Your appointment request — ${galleryName}`,
           text: [
-            `Dear ${payload.name},`,
+            visitorName ? `Dear ${visitorName},` : "Hello,",
             "",
             `Thank you — we have received your request for a ${typeLabel.toLowerCase()} on ${prettyDate} at ${payload.time}.`,
             "We will confirm the appointment shortly. A calendar invitation is attached.",
@@ -248,8 +264,9 @@ export async function POST(req: NextRequest) {
             `With best wishes,`,
             galleryName,
           ].join("\n"),
-          attachments: [icsAttachment],
+          attachments: [invitation("We look forward to welcoming you.", visitorName)],
         }, "[booking] visitor confirmation");
+        await noteSent(supabase, confirmationKey);
       } catch (error) {
         console.error("[booking] visitor confirmation failed:", error);
       }
@@ -274,7 +291,9 @@ export async function POST(req: NextRequest) {
           ]
             .filter(Boolean)
             .join("\n"),
-          attachments: [icsAttachment],
+          attachments: [
+            invitation(payload.notes ? `Notes: ${payload.notes}` : "We look forward to welcoming you.", payload.name),
+          ],
         }, "[booking] gallery notification");
         console.info(`[booking] gallery notified at ${maskAddress(staffEmail)} (Resend ${id})`);
       }

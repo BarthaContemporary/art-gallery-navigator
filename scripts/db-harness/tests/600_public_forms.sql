@@ -1,6 +1,7 @@
 -- 0095: the website's exact email match is service-role only and exact;
--- a sign-up for an existing contact no longer exposes it to the
--- unconfirmed-sign-up purge.
+-- a sign-up for an existing contact, or one that went on to enquire or
+-- book, no longer exposes it to the unconfirmed-sign-up purge, and a
+-- request whose link has expired is not kept.
 \ir ../lib/helpers.sql
 begin;
 select t.make_user('staff@example.com', 'staff') as staff_id \gset
@@ -57,21 +58,56 @@ insert into public.crm_contacts
    consent_confirm_token, consent_confirm_sent_at, consent_evidence, tags, created_at)
 values
   -- A former subscriber who opted out; a stranger then typed the address
-  -- into the sign-up box. Must survive, opt-out intact.
+  -- into the sign-up box five days ago. Must survive, opt-out intact, and
+  -- the emailed link keeps working.
   ('00000000-0000-4000-8000-0000000000a1', 'Former', 'former@example.com', 'website_newsletter', false,
    now() - interval '3 years', now() - interval '1 year',
-   repeat('a', 48), now() - interval '40 days',
-   '{"marketing": {"form": "newsletter", "at": "2026-01-01T00:00:00Z", "ip_hash": "x"}}', '{newsletter}',
+   repeat('a', 48), now() - interval '5 days',
+   jsonb_build_object('marketing', jsonb_build_object(
+     'form', 'newsletter', 'at', now() - interval '5 days', 'ip_hash', 'x')), '{newsletter}',
    now() - interval '3 years'),
-  -- An imported client who never consented.
+  -- An imported client who never consented, signed up by somebody five
+  -- days ago.
   ('00000000-0000-4000-8000-0000000000a2', 'Imported', 'imported@example.com', 'address_xlsx_import', false,
-   null, null, repeat('b', 48), now() - interval '40 days',
+   null, null, repeat('b', 48), now() - interval '5 days',
    '{"marketing": {"version": "legacy-import", "attested_by": "owner"}}', '{}', now() - interval '3 years'),
   -- A contact the website created for a sign-up nobody confirmed: stays
   -- as it is, and the purge still clears it.
   ('00000000-0000-4000-8000-0000000000a3', 'Nobody', 'nobody@example.com', 'website_newsletter', false,
    null, null, repeat('c', 48), now() - interval '40 days',
-   '{"marketing": {"form": "newsletter", "at": "2026-01-01T00:00:00Z"}}', '{newsletter}', now() - interval '40 days');
+   '{"marketing": {"form": "newsletter", "at": "2026-01-01T00:00:00Z"}}', '{newsletter}', now() - interval '40 days'),
+  -- Another opted-out former subscriber, signed up by somebody 40 days ago:
+  -- the link has expired, so the request is not kept at all.
+  ('00000000-0000-4000-8000-0000000000a4', 'Lapsed', 'lapsed@example.com', 'website_newsletter', false,
+   now() - interval '3 years', now() - interval '1 year',
+   repeat('4', 48), now() - interval '40 days',
+   '{"marketing": {"form": "newsletter", "at": "2026-01-01T00:00:00Z", "ip_hash": "y"}}', '{newsletter}',
+   now() - interval '3 years'),
+  -- Website sign-ups, never confirmed, that went on to send an enquiry or
+  -- book a visit under the old code, which left the token in the column.
+  -- Four years ago, with an enquiry from then (enquiries are kept three
+  -- years):
+  ('00000000-0000-4000-8000-0000000000a5', 'Enquired', 'enquired@example.com', 'website_newsletter', false,
+   null, null, repeat('5', 48), now() - interval '4 years',
+   jsonb_build_object('marketing', jsonb_build_object('form', 'newsletter', 'at', now() - interval '4 years', 'ip_hash', 'z')),
+   '{newsletter}', now() - interval '4 years'),
+  -- three years ago, with a visit from then (appointments are kept two years):
+  ('00000000-0000-4000-8000-0000000000a6', 'Booked', 'booked@example.com', 'website_newsletter', false,
+   null, null, repeat('6', 48), now() - interval '3 years',
+   jsonb_build_object('marketing', jsonb_build_object('form', 'newsletter', 'at', now() - interval '3 years')),
+   '{newsletter}', now() - interval '3 years'),
+  -- and ten days ago, with an enquiry since: the link still works.
+  ('00000000-0000-4000-8000-0000000000a7', 'Recent', 'recent@example.com', 'website_newsletter', false,
+   null, null, repeat('7', 48), now() - interval '10 days',
+   jsonb_build_object('marketing', jsonb_build_object('form', 'newsletter', 'at', now() - interval '10 days', 'ip_hash', 'w')),
+   '{newsletter}', now() - interval '10 days');
+
+insert into public.enquiries (contact_id, channel, message, created_at) values
+  ('00000000-0000-4000-8000-0000000000a5', 'website', 'Work enquiry', now() - interval '4 years'),
+  ('00000000-0000-4000-8000-0000000000a7', 'website', 'Work enquiry', now() - interval '5 days');
+insert into public.appointments (contact_id, starts_at, ends_at, status, created_at) values
+  ('00000000-0000-4000-8000-0000000000a6', now() - interval '3 years', now() - interval '3 years' + interval '1 hour',
+   'completed', now() - interval '3 years');
 
 -- Re-running the migration (it is idempotent) applies its one-off move to
 -- these rows exactly as it did to the live ones.
@@ -101,15 +137,44 @@ begin
   select * into r from public.crm_contacts where id = '00000000-0000-4000-8000-0000000000a3';
   if r.consent_confirm_token is distinct from repeat('c', 48)
     then raise exception 'the website-created sign-up lost its token'; end if;
+
+  select * into r from public.crm_contacts where id = '00000000-0000-4000-8000-0000000000a4';
+  if r.consent_confirm_token is not null then raise exception 'the lapsed request kept its token'; end if;
+  if r.consent_evidence ? 'marketing_pending' or r.consent_evidence ? 'marketing'
+    then raise exception 'a request whose link had expired was kept'; end if;
+  if r.unsubscribed_at is null then raise exception 'the lapsed contact''s opt-out changed'; end if;
+
+  select * into r from public.crm_contacts where id = '00000000-0000-4000-8000-0000000000a5';
+  if r.consent_confirm_token is not null then raise exception 'the sign-up that enquired kept its token'; end if;
+  if r.consent_evidence ? 'marketing_pending' or r.consent_evidence ? 'marketing'
+    then raise exception 'the enquirer''s expired request was kept'; end if;
+
+  select * into r from public.crm_contacts where id = '00000000-0000-4000-8000-0000000000a6';
+  if r.consent_confirm_token is not null then raise exception 'the sign-up that booked kept its token'; end if;
+
+  select * into r from public.crm_contacts where id = '00000000-0000-4000-8000-0000000000a7';
+  if r.consent_confirm_token is not null then raise exception 'the recent sign-up that enquired kept its token'; end if;
+  if r.consent_evidence -> 'marketing_pending' ->> 'token_hash' is distinct from encode(sha256(convert_to(repeat('7', 48), 'UTF8')), 'hex')
+    or r.consent_evidence -> 'marketing_pending' ->> 'ip_hash' is distinct from 'w'
+    then raise exception 'the recent sign-up''s request did not move with its link'; end if;
+  if r.consent_evidence ? 'marketing'
+    then raise exception 'the recent sign-up''s unconfirmed evidence still stands as the consent record'; end if;
 end $$;
 
--- The retention job clears the abandoned sign-up and nothing else.
+-- The retention job clears the abandoned sign-up and nothing else: the
+-- old enquiry and visit go, the people who made them stay.
 select public.apply_retention();
 do $$ begin
   if exists (select 1 from public.crm_contacts where id = '00000000-0000-4000-8000-0000000000a3')
     then raise exception 'the abandoned sign-up was not purged'; end if;
-  if (select count(*) from public.crm_contacts where id in ('00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000a2')) <> 2
-    then raise exception 'the retention job deleted an existing contact'; end if;
+  if exists (select 1 from public.enquiries where contact_id = '00000000-0000-4000-8000-0000000000a5')
+    or exists (select 1 from public.appointments where contact_id = '00000000-0000-4000-8000-0000000000a6')
+    then raise exception 'the old enquiry or visit was not purged'; end if;
+  if (select count(*) from public.crm_contacts where id in (
+        '00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000a2',
+        '00000000-0000-4000-8000-0000000000a4', '00000000-0000-4000-8000-0000000000a5',
+        '00000000-0000-4000-8000-0000000000a6', '00000000-0000-4000-8000-0000000000a7')) <> 6
+    then raise exception 'the retention job deleted an existing contact, an enquirer or a booker'; end if;
 end $$;
 
 -- What the website does from now on, as the service role: a pending entry

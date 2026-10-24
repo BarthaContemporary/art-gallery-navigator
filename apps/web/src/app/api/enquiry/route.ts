@@ -17,6 +17,7 @@ import {
   OPTIN_COLUMNS,
   OPTIN_OUTCOME_TEXT,
   pendingPatch,
+  sendAlreadySubscribed,
   sendConfirmation,
   settleSignUpPatch,
   type OptInContact,
@@ -92,8 +93,9 @@ const addressKey = (parts: (string | null | undefined)[]) =>
  * F11): their phone, address and consent stay as they are, the details given
  * are kept on the enquiry, and staff are told when they differ from the
  * record. The mailing-list tick sends the same confirmation email as the
- * newsletter box, for new and existing contacts alike; consent is only
- * switched on when the owner of the address confirms. The request is kept
+ * newsletter box, for new and existing contacts alike (an address already on
+ * the list gets the box's "already subscribed" note instead); consent is
+ * only switched on when the owner of the address confirms. The request is kept
  * as a pending entry in the consent evidence, never as a sign-up's token:
  * an enquirer's record rests on the enquiry, and the retention job deletes
  * unconfirmed sign-ups (lib/newsletter-optin).
@@ -164,6 +166,8 @@ export async function POST(req: NextRequest) {
     const contactEv = consentEvidence(req, "enquiry");
     const marketingEv = payload.mailingList ? consentEvidence(req, "enquiry_mailing_list") : null;
     let confirmToken: string | null = null;
+    /** An existing subscriber asked again: told so by email, as the newsletter box does. */
+    let tellAlready = false;
 
     if (existing) {
       const differs = [
@@ -182,12 +186,15 @@ export async function POST(req: NextRequest) {
       }
       if (marketingEv) {
         if (existing.do_not_mail) mailing = "suppressed";
-        else if (isSubscribed(existing)) mailing = "already";
-        else if (await emailedRecently(supabase, email)) mailing = "recent";
+        else if (isSubscribed(existing)) {
+          mailing = "already";
+          tellAlready = !(await emailedRecently(supabase, email));
+        } else if (await emailedRecently(supabase, email)) mailing = "recent";
         else confirmToken = newConfirmToken();
       }
       // A new request, or else an earlier newsletter sign-up's token moving
-      // out of the column now that this contact has sent an enquiry.
+      // out of the column now that this contact has sent an enquiry (and a
+      // lapsed request dropped).
       const patch = confirmToken && marketingEv
         ? pendingPatch(existing, confirmToken, marketingEv, now, { fromSignUpBox: false })
         : settleSignUpPatch(existing);
@@ -230,6 +237,15 @@ export async function POST(req: NextRequest) {
         mailing = "failed";
       }
       if (mailing === "sent") await noteOptInEmailSent(supabase, email);
+    } else if (tellAlready) {
+      // As from the newsletter box: an address already on the list is told
+      // so by email, so the tick brings an email whether or not the address
+      // was subscribed, and the thank-you line holds for both.
+      try {
+        if (await sendAlreadySubscribed(req, email, payload.name)) await noteOptInEmailSent(supabase, email);
+      } catch (err) {
+        console.error("[enquiry] already-subscribed note failed:", err);
+      }
     }
 
     const notes = [

@@ -1,11 +1,13 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import type { NextRequest } from "next/server";
 import type { createServiceClient } from "@jvb/db/server";
 import { hashKey } from "@jvb/db/rate-limit";
-import { CONSENT_TEXT_VERSION, CONSENT_TEXTS, mergeEvidence, type ConsentEvidence } from "@/lib/consent-evidence";
+import { CONSENT_TEXT_VERSION, CONSENT_TEXTS } from "@/lib/consent-evidence";
 import { fromLine, maskAddress, sendEmail } from "@/lib/email";
 import { greetingName } from "@/lib/form-fields";
+import { asObject, CONFIRM_LINK_DAYS, confirmTokenHash, linkExpired, type OptInContact } from "@/lib/optin-evidence";
 import { getSiteSettings } from "@/lib/sanity";
+import { noteSent, withinSendLimit } from "@/lib/send-limit";
 import { fallbackGalleryName, siteUrl } from "@/lib/site";
 
 /*
@@ -14,46 +16,28 @@ import { fallbackGalleryName, siteUrl } from "@/lib/site";
  * (newsletter/confirm). Marketing consent is only ever switched on by the
  * owner of the address pressing "Confirm subscription" on the page the
  * emailed link opens; nothing a visitor types changes a contact's consent.
- *
- * Where the request's state lives:
- *   - a contact the newsletter box itself creates carries the token in
- *     consent_confirm_token, so apply_retention() deletes it after 30 days
- *     if it is never confirmed (and it has nothing else attached);
- *   - every other contact gets only a pending entry in its consent evidence
- *     ("marketing_pending", holding a hash of the token): one who already
- *     existed, and one an enquiry creates, whose basis is the enquiry and
- *     not a sign-up. Putting the token on such a contact would make it look
- *     like an unconfirmed sign-up to the retention job, which would delete
- *     it, opt-out, offers and all, once nothing else held it (migration
- *     0095). For the same reason a sign-up that goes on to send an enquiry
- *     or book a visit has its token moved to a pending entry
- *     (settleSignUpPatch).
+ * Where a request is kept on the contact, and when it is dropped, is in
+ * lib/optin-evidence.ts.
  */
+
+export {
+  CONFIRM_LINK_DAYS,
+  confirmTokenHash,
+  expiredPendingPatch,
+  OPTIN_COLUMNS,
+  pendingPatch,
+  settleSignUpPatch,
+  type OptInContact,
+} from "@/lib/optin-evidence";
 
 type Service = ReturnType<typeof createServiceClient>;
 
-/** How long a confirmation link works: as long as an unconfirmed sign-up is kept. */
-export const CONFIRM_LINK_DAYS = 30;
 /** At most one confirmation (or "already subscribed") email per address in this time. */
 const RESEND_HOURS = 6;
 
 /** 24 random bytes as hex: the confirmation link's secret. */
 export const CONFIRM_TOKEN = /^[a-f0-9]{48}$/;
 export const newConfirmToken = () => randomBytes(24).toString("hex");
-export const confirmTokenHash = (token: string) => createHash("sha256").update(token, "utf8").digest("hex");
-
-/** The contact columns the opt-in decides on. */
-export const OPTIN_COLUMNS =
-  "id, marketing_consent, unsubscribed_at, do_not_mail, consent_evidence, consent_confirm_token, consent_confirm_sent_at";
-export type OptInContact = {
-  id: string;
-  marketing_consent: boolean;
-  unsubscribed_at: string | null;
-  do_not_mail: boolean;
-  consent_evidence: unknown;
-  consent_confirm_token: string | null;
-  consent_confirm_sent_at: string | null;
-};
 
 /** What happened to a request to join, for the staff notification. */
 export type OptInOutcome = "sent" | "already" | "recent" | "suppressed" | "failed";
@@ -76,116 +60,16 @@ const sentKey = (email: string) => `optin:sent:${hashKey(email)}`;
  * Whether an email about the newsletter (a confirmation, or the "already
  * subscribed" note) went to this address in the last RESEND_HOURS, whichever
  * form asked: at most one per address in that time, so the forms cannot be
- * used to fill a stranger's inbox from the gallery's address.
- *
- * Only emails actually sent count (noteOptInEmailSent), never a refused
- * request: someone re-submitting another person's address every few hours
- * cannot keep that address shut out, and its owner always has the one email
- * that was sent. Kept in rate_limit_hits under a hashed key, like the other
- * form limits, and cleared after a day. If the check itself fails the email
- * is allowed, as with every limit.
+ * used to fill a stranger's inbox from the gallery's address. Only emails
+ * actually sent count (lib/send-limit), never a refused request.
  */
 export async function emailedRecently(supabase: Service, email: string): Promise<boolean> {
-  const since = new Date(Date.now() - RESEND_HOURS * 3_600_000).toISOString();
-  try {
-    const { count, error } = await supabase
-      .from("rate_limit_hits")
-      .select("id", { count: "exact", head: true })
-      .eq("key", sentKey(email))
-      .gte("at", since);
-    if (error) {
-      console.error(`[newsletter] resend check failed: ${error.message}`);
-      return false;
-    }
-    return (count ?? 0) > 0;
-  } catch (err) {
-    console.error("[newsletter] resend check failed:", err);
-    return false;
-  }
+  return !(await withinSendLimit(supabase, sentKey(email), RESEND_HOURS * 3600, 1));
 }
 
 /** Records that an email about the newsletter went to this address (see emailedRecently). */
-export async function noteOptInEmailSent(supabase: Service, email: string): Promise<void> {
-  try {
-    const { error } = await supabase.from("rate_limit_hits").insert({ key: sentKey(email) });
-    if (error) console.error(`[newsletter] could not note the email sent: ${error.message}`);
-  } catch (err) {
-    console.error("[newsletter] could not note the email sent:", err);
-  }
-}
-
-const asObject = (v: unknown): Record<string, unknown> =>
-  v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
-
-/**
- * A sign-up's own request: the newsletter box keeps it as "marketing" on the
- * contact it creates, beside the token in the column, until it is confirmed.
- * Split off so it can move to a pending entry; any other "marketing" entry
- * (a confirmed one, the legacy-import note) stays where it is.
- */
-function splitSignUpRequest(contact: OptInContact): { rest: Record<string, unknown>; request: Record<string, unknown> } {
-  const evidence = asObject(contact.consent_evidence);
-  const marketing = asObject(evidence.marketing);
-  if (contact.consent_confirm_token && marketing.form && !marketing.confirmed_at) {
-    const { marketing: _request, ...rest } = evidence;
-    return { rest, request: marketing };
-  }
-  return { rest: evidence, request: {} };
-}
-
-/**
- * The update that starts a confirmation for a contact who is already on
- * record. Only the newsletter box asking again for a contact it created
- * itself, still unconfirmed, keeps the token in the column (it stays a
- * sign-up, subject to the retention job). Otherwise the request becomes the
- * pending entry, an earlier sign-up's token leaves the column with it, and
- * nothing else on the contact changes.
- */
-export function pendingPatch(
-  contact: OptInContact,
-  token: string,
-  evidence: ConsentEvidence,
-  now: string,
-  { fromSignUpBox }: { fromSignUpBox: boolean },
-): Record<string, unknown> {
-  if (fromSignUpBox && contact.consent_confirm_token) {
-    return {
-      consent_confirm_token: token,
-      consent_confirm_sent_at: now,
-      consent_evidence: mergeEvidence(contact.consent_evidence, "marketing", evidence),
-    };
-  }
-  const { rest } = splitSignUpRequest(contact);
-  return {
-    ...(contact.consent_confirm_token ? { consent_confirm_token: null, consent_confirm_sent_at: null } : {}),
-    consent_evidence: mergeEvidence(rest, "marketing_pending", { ...evidence, token_hash: confirmTokenHash(token) }),
-  };
-}
-
-/**
- * For a sign-up the newsletter box created that now sends an enquiry or
- * books a visit: the contact has become a client relationship, so its open
- * request moves from the column to a pending entry (its emailed link keeps
- * working) and the retention job no longer treats it as an abandoned
- * sign-up, which it would delete, offers and all, once the enquiry or
- * appointment had itself been deleted. Null when there is nothing to move.
- */
-export function settleSignUpPatch(contact: OptInContact): Record<string, unknown> | null {
-  if (!contact.consent_confirm_token) return null;
-  const { rest, request } = splitSignUpRequest(contact);
-  return {
-    consent_confirm_token: null,
-    consent_confirm_sent_at: null,
-    consent_evidence: {
-      ...rest,
-      marketing_pending: {
-        form: "newsletter",
-        at: contact.consent_confirm_sent_at,
-        ...request,
-        token_hash: confirmTokenHash(contact.consent_confirm_token),
-      },
-    },
-  };
+export function noteOptInEmailSent(supabase: Service, email: string): Promise<void> {
+  return noteSent(supabase, sentKey(email));
 }
 
 type Pending = {
@@ -197,10 +81,17 @@ type Pending = {
   evidence: Record<string, unknown>;
 };
 
-/** The open request a confirmation link belongs to; null when unknown, used or expired. */
+/**
+ * The open request a confirmation link belongs to; null when unknown, used
+ * or expired. A pending entry found with its link expired is dropped from
+ * the contact there and then (lib/optin-evidence): it can never be
+ * confirmed, and opening the link changes no consent. An expired token in
+ * the column belongs to a contact the newsletter box created, which the
+ * retention job deletes.
+ */
 export async function findPendingConfirmation(supabase: Service, token: string): Promise<Pending | null> {
   if (!CONFIRM_TOKEN.test(token)) return null;
-  const cutoff = Date.now() - CONFIRM_LINK_DAYS * 86_400_000;
+  const now = Date.now();
 
   const { data: byColumn, error } = await supabase
     .from("crm_contacts")
@@ -210,22 +101,32 @@ export async function findPendingConfirmation(supabase: Service, token: string):
   if (error) throw error;
   if (byColumn) {
     const row = byColumn as { id: string; consent_evidence: unknown; consent_confirm_sent_at: string | null };
-    if (!(Date.parse(row.consent_confirm_sent_at ?? "") > cutoff)) return null;
+    if (linkExpired(row.consent_confirm_sent_at, now)) return null;
     const evidence = asObject(row.consent_evidence);
     return { id: row.id, inColumn: true, shown: asObject(evidence.marketing_pending ?? evidence.marketing), evidence };
   }
 
+  const tokenHash = confirmTokenHash(token);
   const { data: rows, error: pendingError } = await supabase
     .from("crm_contacts")
     .select("id, consent_evidence")
-    .eq("consent_evidence->marketing_pending->>token_hash", confirmTokenHash(token))
+    .eq("consent_evidence->marketing_pending->>token_hash", tokenHash)
     .limit(1);
   if (pendingError) throw pendingError;
   const row = (rows ?? [])[0] as { id: string; consent_evidence: unknown } | undefined;
   if (!row) return null;
   const evidence = asObject(row.consent_evidence);
   const shown = asObject(evidence.marketing_pending);
-  if (!(Date.parse(String(shown.at ?? "")) > cutoff)) return null;
+  if (linkExpired(shown.at, now)) {
+    const { marketing_pending: _lapsed, ...rest } = evidence;
+    const { error: dropError } = await supabase
+      .from("crm_contacts")
+      .update({ consent_evidence: rest })
+      .eq("id", row.id)
+      .eq("consent_evidence->marketing_pending->>token_hash", tokenHash);
+    if (dropError) console.error(`[newsletter] could not drop an expired request: ${dropError.message}`);
+    return null;
+  }
   return { id: row.id, inColumn: false, shown, evidence };
 }
 

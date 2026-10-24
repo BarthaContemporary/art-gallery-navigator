@@ -4,13 +4,20 @@ import { createServiceClient } from "@jvb/db/server";
 import { hashKey, rateLimit } from "@jvb/db/rate-limit";
 import { clientIp, OFFER_TOKEN } from "@/lib/form-fields";
 import { signGrant, MAGIC_TTL_SECONDS } from "@/lib/offer-access";
+import { noteSent, withinSendLimit } from "@/lib/send-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const GALLERY_NAME = "Joost van den Bergh";
 
-/** Sign-in emails per private link, and requests per visitor address, in an hour. */
+/**
+ * Sign-in emails sent for one private link, and requests from one visitor
+ * address, in an hour. The first counts only emails that went out
+ * (lib/send-limit): each one is a working link in the recipient's own
+ * inbox, so someone holding a leaked link cannot keep the recipient from
+ * getting theirs by asking over and over. The second counts every request.
+ */
 const LINKS_PER_TOKEN = 5;
 const REQUESTS_PER_IP = 20;
 
@@ -42,8 +49,9 @@ export async function POST(req: Request) {
   try {
     const db = createServiceClient();
     const ip = clientIp(req.headers);
+    const sentKey = `offer-magic:sent:${hashKey(token)}`;
     const [tokenOk, ipOk] = await Promise.all([
-      rateLimit(db, `offer-magic:token:${hashKey(token)}`, 3600, LINKS_PER_TOKEN),
+      withinSendLimit(db, sentKey, 3600, LINKS_PER_TOKEN),
       ip ? rateLimit(db, `offer-magic:ip:${hashKey(ip)}`, 3600, REQUESTS_PER_IP) : Promise.resolve(true),
     ]);
     if (!tokenOk || !ipOk) {
@@ -95,6 +103,7 @@ export async function POST(req: Request) {
 <p>If you didn't request this, you can ignore this email.</p>
 <p>${GALLERY_NAME}</p>`,
         }, "[offer] sign-in link");
+        await noteSent(db, sentKey);
       } else {
         console.error("[offer] sign-in link not sent: RESEND_API_KEY not set");
       }
