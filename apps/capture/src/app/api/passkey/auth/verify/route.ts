@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyAuthenticationResponse } from "@simplewebauthn/server";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { getSupabase, createServiceClient } from "@/lib/supabase";
-import { rpInfo, takeChallenge } from "@/lib/webauthn";
+import { fromOwnOrigin, rpInfo, takeChallenge } from "@/lib/webauthn";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,11 +14,15 @@ export const dynamic = "force-dynamic";
  * ever sent), which sets the auth cookies on the response.
  */
 export async function POST(req: Request) {
-  const { rpID, origin } = await rpInfo();
+  // Only the app's own sign-in page may hand in an assertion.
+  if (!(await fromOwnOrigin(req))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { rpID, origin, secure } = await rpInfo();
   const body = (await req.json().catch(() => ({}))) as { response?: AuthenticationResponseJSON };
   if (!body.response?.id) return NextResponse.json({ error: "Missing response" }, { status: 400 });
 
-  const expectedChallenge = await takeChallenge("auth");
+  // Taken from the server's record, once: an old assertion replayed later
+  // finds no challenge to match.
+  const expectedChallenge = await takeChallenge("login", secure);
   if (!expectedChallenge) return NextResponse.json({ error: "Challenge expired" }, { status: 400 });
 
   const db = createServiceClient();

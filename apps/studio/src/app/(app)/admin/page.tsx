@@ -58,6 +58,36 @@ async function flashNotice(message: string) {
   });
 }
 
+/**
+ * Remove every passkey a user has, in both apps: the studio's
+ * (webauthn_credentials) and the capture app's (passkeys). A passkey keeps
+ * signing in whoever enrolled it whatever the password is, so a reset that
+ * left them would leave a door open (security review 2026-10, finding F20).
+ */
+async function removeAllPasskeys(
+  admin: ReturnType<typeof createServiceClient>,
+  userId: string,
+): Promise<{ count: number; error: string | null }> {
+  const [studio, capture] = await Promise.all([
+    admin.from("webauthn_credentials").delete({ count: "exact" }).eq("user_id", userId),
+    admin.from("passkeys").delete({ count: "exact" }).eq("user_id", userId),
+  ]);
+  return {
+    count: (studio.count ?? 0) + (capture.count ?? 0),
+    error: studio.error?.message ?? capture.error?.message ?? null,
+  };
+}
+
+type AdminPasskey = {
+  app: "studio" | "capture";
+  id: string;
+  user_id: string;
+  email: string;
+  device_label: string | null;
+  created_at: string;
+  last_used_at: string | null;
+};
+
 // Everyone can change their own password.
 async function changePassword(formData: FormData) {
   "use server";
@@ -136,7 +166,37 @@ export default async function AdminPage({
       await flashNotice(error.message);
       redirect("/admin");
     }
-    await flashNotice(`Password for ${email} reset to: ${pw}`);
+    // A reset is what follows a lost device or a suspected break-in, so the
+    // user's passkeys go too; they add new ones after signing in again.
+    const passkeys = await removeAllPasskeys(admin, userId);
+    revalidatePath("/admin");
+    await flashNotice(
+      passkeys.error
+        ? `Password for ${email} reset to: ${pw}. Their passkeys could not be removed (${passkeys.error}); remove them under "Passkeys on all accounts" below.`
+        : passkeys.count
+          ? `Password for ${email} reset to: ${pw}. ${passkeys.count} passkey${passkeys.count === 1 ? "" : "s"} removed.`
+          : `Password for ${email} reset to: ${pw}`,
+    );
+    redirect("/admin");
+  }
+
+  // Remove one passkey from the list below (either app's).
+  async function revokePasskey(formData: FormData) {
+    "use server";
+    await assertAdmin();
+    const id = String(formData.get("id") ?? "");
+    const app = String(formData.get("app") ?? "");
+    const table = app === "studio" ? "webauthn_credentials" : app === "capture" ? "passkeys" : null;
+    if (!id || !table) {
+      await flashNotice("Unknown passkey");
+      redirect("/admin");
+    }
+    const admin = createServiceClient();
+    const { error, count } = await admin.from(table).delete({ count: "exact" }).eq("id", id);
+    revalidatePath("/admin");
+    await flashNotice(
+      error ? `Could not remove the passkey: ${error.message}` : count ? "Passkey removed." : "That passkey was already gone.",
+    );
     redirect("/admin");
   }
 
@@ -305,20 +365,31 @@ export default async function AdminPage({
   let users: { id: string; email: string; roles: string[]; created_at: string }[] = [];
   let outbox: number | null = 0;
   let activity: { id: string | number; entity_type: string; action: string; created_at: string }[] = [];
+  let passkeys: AdminPasskey[] = [];
   if (isAdmin) {
     const supabase = await getSupabase();
     const admin = createServiceClient();
-    const [{ data: usersList }, { data: userRoles }, { count: outboxCount }, { data: act }] =
-      await Promise.all([
-        admin.auth.admin.listUsers({ perPage: 200 }),
-        supabase.from("user_roles").select("user_id, role"),
-        supabase.from("sync_outbox").select("id", { count: "exact", head: true }).is("processed_at", null),
-        supabase
-          .from("activity_log")
-          .select("id, entity_type, action, created_at")
-          .order("created_at", { ascending: false })
-          .limit(15),
-      ]);
+    const passkeyCols = "id, user_id, device_label, created_at, last_used_at";
+    const [
+      { data: usersList },
+      { data: userRoles },
+      { count: outboxCount },
+      { data: act },
+      { data: studioKeys },
+      { data: captureKeys },
+    ] = await Promise.all([
+      admin.auth.admin.listUsers({ perPage: 200 }),
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.from("sync_outbox").select("id", { count: "exact", head: true }).is("processed_at", null),
+      supabase
+        .from("activity_log")
+        .select("id, entity_type, action, created_at")
+        .order("created_at", { ascending: false })
+        .limit(15),
+      // Both apps' passkeys, so none can sit on an account unseen.
+      admin.from("webauthn_credentials").select(passkeyCols),
+      admin.from("passkeys").select(passkeyCols),
+    ]);
     const rolesByUser = new Map<string, string[]>();
     (userRoles ?? []).forEach((r) => {
       rolesByUser.set(r.user_id, [...(rolesByUser.get(r.user_id) ?? []), r.role]);
@@ -331,6 +402,14 @@ export default async function AdminPage({
     }));
     outbox = outboxCount ?? 0;
     activity = (act ?? []) as typeof activity;
+    const emailOf = new Map(users.map((u) => [u.id, u.email]));
+    type Row = Omit<AdminPasskey, "app" | "email">;
+    passkeys = [
+      ...((studioKeys ?? []) as Row[]).map((k) => ({ ...k, app: "studio" as const })),
+      ...((captureKeys ?? []) as Row[]).map((k) => ({ ...k, app: "capture" as const })),
+    ]
+      .map((k) => ({ ...k, email: emailOf.get(k.user_id) ?? "—" }))
+      .sort((a, b) => a.email.localeCompare(b.email) || a.created_at.localeCompare(b.created_at));
   }
 
   // The admin tools, each a page of its own.
@@ -437,7 +516,8 @@ export default async function AdminPage({
           <Section title="Users">
             <p id="admin-reset-hint" className="mb-3 max-w-[70ch] text-[12px] leading-[1.4] text-meta">
               To reset a password, type a new one of at least {PASSWORD_MIN} characters, or leave the box
-              blank to generate one. Either way it is shown once, above.
+              blank to generate one. Either way it is shown once, above. A reset also removes all of the
+              user&rsquo;s passkeys, in the studio and the capture app.
             </p>
             <TableFrame>
               <Table className="min-w-[720px]">
@@ -497,6 +577,55 @@ export default async function AdminPage({
                 </tbody>
               </Table>
             </TableFrame>
+          </Section>
+
+          <Section
+            title="Passkeys on all accounts"
+            meta="Every passkey on every account, in the studio and the capture app. Remove any nobody recognises; resetting a password removes all of that user's."
+          >
+            {passkeys.length === 0 ? (
+              <EmptyState compact>No passkeys yet.</EmptyState>
+            ) : (
+              <TableFrame>
+                <Table className="min-w-[720px]">
+                  <thead>
+                    <tr>
+                      <Th>Email</Th>
+                      <Th>App</Th>
+                      <Th>Device</Th>
+                      <Th>Added</Th>
+                      <Th>Last used</Th>
+                      <Th>Manage</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {passkeys.map((k) => {
+                      const appLabel = k.app === "studio" ? "Studio" : "Capture";
+                      const device = k.device_label ?? "Passkey";
+                      return (
+                        <Tr key={`${k.app}:${k.id}`}>
+                          <Td className="text-ink">{k.email}</Td>
+                          <Td className="text-body">{appLabel}</Td>
+                          <Td className="text-body">{device}</Td>
+                          <Td className="tabular whitespace-nowrap text-body">{formatDate(k.created_at, "short")}</Td>
+                          <Td className="tabular whitespace-nowrap text-body">
+                            {k.last_used_at ? formatDate(k.last_used_at, "short") : "Never"}
+                          </Td>
+                          <Td>
+                            <DeleteListButton
+                              action={revokePasskey}
+                              id={k.id}
+                              name={`${device} passkey (${appLabel}) of ${k.email}`}
+                              extra={{ app: k.app }}
+                            />
+                          </Td>
+                        </Tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+              </TableFrame>
+            )}
           </Section>
 
           <Section

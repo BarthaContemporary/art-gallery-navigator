@@ -1,16 +1,25 @@
 import { NextResponse } from "next/server";
 import { generateRegistrationOptions } from "@simplewebauthn/server";
 import { requireCapture, createServiceClient } from "@/lib/supabase";
-import { rpInfo, stashChallenge, RP_NAME } from "@/lib/webauthn";
+import { fromOwnOrigin, issueChallenge, rpInfo, signedInRecently, RP_NAME } from "@/lib/webauthn";
+import { REAUTH_MESSAGE } from "@/lib/passkey-rules";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Registration challenge — only a signed-in user can enrol a new passkey. */
-export async function POST() {
+export async function POST(req: Request) {
   const gate = await requireCapture();
   if ("error" in gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
+  if (!(await fromOwnOrigin(req))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const user = gate.session.user;
+
+  // A passkey outlasts the session that adds it, so adding one needs a
+  // recent sign-in, not just a live session (someone else's for a few
+  // minutes on an unlocked phone, say). The app offers "Sign in again".
+  if (!(await signedInRecently(user.id, user.last_sign_in_at)))
+    return NextResponse.json({ error: REAUTH_MESSAGE, reauth: true }, { status: 403 });
+
   const { rpID, secure } = await rpInfo();
 
   const db = createServiceClient();
@@ -41,6 +50,8 @@ export async function POST() {
     },
   });
 
-  await stashChallenge("reg", options.challenge, secure);
+  // Bound to this user: nobody else's enrolment can use it.
+  if (!(await issueChallenge("register", options.challenge, secure, user.id)))
+    return NextResponse.json({ error: "Passkeys are unavailable right now; try again later" }, { status: 503 });
   return NextResponse.json(options);
 }

@@ -145,6 +145,13 @@
       ],
       "fields": [
         {
+          "name": "app",
+          "via": "DeleteListButton",
+          "prop": "extra.app",
+          "type": "hidden",
+          "hidden": true
+        },
+        {
           "name": "confirm",
           "tag": "input",
           "type": "password",

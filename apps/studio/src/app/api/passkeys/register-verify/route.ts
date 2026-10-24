@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyRegistrationResponse } from "@simplewebauthn/server";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { getSession, createServiceClient } from "@/lib/supabase";
-import { relyingParty, takeChallenge } from "@/lib/webauthn";
+import { fromOwnOrigin, relyingParty, takeChallenge } from "@/lib/webauthn";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +10,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // A page on a sibling subdomain shares the session cookies but not the
+  // origin: it must not enrol its own key on this account.
+  if (!(await fromOwnOrigin(req))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = (await req.json().catch(() => null)) as {
     response: RegistrationResponseJSON;
@@ -17,7 +20,9 @@ export async function POST(req: Request) {
   } | null;
   if (!body?.response) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
-  const expectedChallenge = await takeChallenge("pk_reg");
+  // Only a challenge register-options issued to this very user, after a
+  // recent sign-in, is accepted; it is used up either way.
+  const expectedChallenge = await takeChallenge("register", session.user.id);
   if (!expectedChallenge)
     return NextResponse.json({ error: "Challenge expired — try again" }, { status: 400 });
 

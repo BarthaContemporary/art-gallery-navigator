@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyRegistrationResponse } from "@simplewebauthn/server";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { requireCapture, createServiceClient } from "@/lib/supabase";
-import { rpInfo, takeChallenge } from "@/lib/webauthn";
+import { fromOwnOrigin, rpInfo, takeChallenge } from "@/lib/webauthn";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,15 +11,20 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const gate = await requireCapture();
   if ("error" in gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
-  const { rpID, origin } = await rpInfo();
+  // A page on a sibling subdomain shares the session cookies but not the
+  // origin: it must not enrol its own key on this account.
+  if (!(await fromOwnOrigin(req))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { rpID, origin, secure } = await rpInfo();
 
   const body = (await req.json().catch(() => ({}))) as {
     response?: RegistrationResponseJSON;
-    label?: string;
+    label?: unknown;
   };
   if (!body.response) return NextResponse.json({ error: "Missing response" }, { status: 400 });
 
-  const expectedChallenge = await takeChallenge("reg");
+  // Only a challenge register/options issued to this very user, after a
+  // recent sign-in, is accepted; it is used up either way.
+  const expectedChallenge = await takeChallenge("register", secure, gate.session.user.id);
   if (!expectedChallenge) return NextResponse.json({ error: "Challenge expired" }, { status: 400 });
 
   let verification;
@@ -45,7 +50,8 @@ export async function POST(req: Request) {
     public_key: Buffer.from(credential.publicKey).toString("base64"),
     counter: credential.counter,
     transports: credential.transports ?? [],
-    device_label: body.label?.trim() || null,
+    // Shown to the admin beside every passkey, so kept to a short label.
+    device_label: (typeof body.label === "string" ? body.label.trim().slice(0, 80) : "") || null,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
