@@ -97,16 +97,18 @@ Postgres is bound to `127.0.0.1:5432` on the VPS only. Work over an SSH
 tunnel:
 
 ```sh
-ssh -p 2222 -N -L 54322:127.0.0.1:5432 deploy@<vps>
-# then, from the repo root on your machine:
-supabase db push --db-url "postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres"
+ssh -N -L 54322:127.0.0.1:5432 root@<vps>     # add -p <port> if SSH uses another
+# then, from the repo root on your machine, in number order, each file in one transaction:
+CHECK=1 scripts/apply-migrations.sh 0097       # lists what would run
+scripts/apply-migrations.sh 0097
 # or ad-hoc admin:
-psql "postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres"
+psql "host=127.0.0.1 port=54322 user=supabase_admin dbname=postgres"
 ```
 
 Never through postgres-meta's `/pg/query` on the public gateway; the
-security runbook (step 5) checks that route is closed and gives the
-copy-paste tunnel commands.
+security runbook (step 5) checks that route is closed, and step 5.4 is the
+full migration procedure. Never `supabase db push` either: the live database
+has no CLI migration history, so a push would re-run every migration.
 
 Migrations live in `supabase/migrations/` and are the only supported way to
 change schema. They also create the storage buckets (`piece-originals`,

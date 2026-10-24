@@ -35,7 +35,8 @@ guess passwords, as fast as they liked. After this runbook:
   gallery's own sites (step 8).
 - the security changes' database updates are applied through the tunnel
   (step 5.4), and the stock book's old copies on the shared drive are
-  removed (step 9).
+  removed (step 9);
+- the image worker refuses photographs filed somewhere unexpected (step 10).
 
 | Step | What | Interruption | Time |
 |---|---|---|---|
@@ -49,6 +50,7 @@ guess passwords, as fast as they liked. After this runbook:
 | 7 | Cloudflare check for capture and at the sign-in server | none | 20 min |
 | 8 | Google Maps keys | none if done in order | 20 min |
 | 9 | Remove old stock-book files from the shared drive | none | 10 min |
+| 10 | Update the image worker | new photographs wait a minute | 5 min |
 
 Do steps 1 to 5 in one sitting, and step 7 in the same sitting or within a
 few days. Until step 7 is done, someone calling the sign-in server directly
@@ -805,6 +807,42 @@ new copy meanwhile.
 
 **Undo:** none needed; the files can be exported again from the studio at
 any time.
+
+## Step 10. Update the image worker
+
+The image worker (the server program that makes the display copies of
+photographs) now refuses a photograph whose file is not where the studio and
+capture app put it (security review F6), so a planted path cannot make it
+read another folder. It runs on the server, so it is updated by hand. Do it
+any time; it does not depend on the other steps.
+
+1. Back up the two files it replaces (on the server, after the usual first
+   commands; `$B` is the folder from step 1):
+
+   ```sh
+   cp -a ../image-worker/src/worker.ts "$B"/image-worker-worker.ts
+   ```
+
+2. On your computer, in the repository folder:
+
+   ```sh
+   scp infra/image-worker/src/storage-path.ts infra/image-worker/src/worker.ts root@104.238.184.145:/opt/jvb/infra/image-worker/src/
+   ```
+
+3. On the server:
+
+   ```sh
+   docker compose up -d --build image-worker
+   docker compose logs --tail=20 image-worker
+   ```
+
+   **Check:** the last lines include `listening on channel` and no error.
+   Then add a photograph to any piece in the studio: its thumbnail appears
+   within a minute or two, as before.
+
+**Undo:** `cp -a "$B"/image-worker-worker.ts ../image-worker/src/worker.ts`,
+then `rm ../image-worker/src/storage-path.ts` and run the two commands of
+3 again.
 
 ## Afterwards
 
