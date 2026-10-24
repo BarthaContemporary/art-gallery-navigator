@@ -6,6 +6,9 @@ import { selectInChunks } from "@/lib/chunk";
 import { detectPortraitFocus, sanityFraming, type PortraitFocus } from "@/lib/face/focus";
 import { analysePhotograph, flatWorkHint, renderObjectSquare, renderPhotoSquare, type Analysed, type Box } from "@/lib/squares";
 import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
+import { safeStoragePath } from "@jvb/db/storage-path";
+import { WEBSITE_IMAGE_ROLES, displayMasterRule, isUuid, portraitRule, squareTileRule } from "@/lib/website-images";
+import { deleteUnusedAssets, forgetMissingAssets } from "@/lib/sanity-assets";
 import {
   artistDocId,
   listDocId,
@@ -41,14 +44,24 @@ const RENDER_BUDGET_MS = 24_000;
  * Supabase → Sanity sync (one way). Woken by the database the moment an
  * outbox row is written (pg_net trigger, migration 0074), by Admin → Resync,
  * and by a Vercel cron as the fallback drain. Pushes web-visible pieces as
- * read-only `work` documents with their display images, and makers as
- * `artist` documents (every maker, unless switched off); unpublishes
- * pieces and makers that are no longer web-visible, and pieces in the trash.
+ * read-only `work` documents with their display images (views of the work
+ * only: WEBSITE_IMAGE_ROLES), and makers as `artist` documents (every maker,
+ * unless switched off); unpublishes pieces and makers that are no longer
+ * web-visible, and pieces in the trash. Once the documents are written, the
+ * images the sync had uploaded for them that nothing uses any more are
+ * deleted from Sanity (lib/sanity-assets.ts).
+ *
+ * Every storage path read here comes from a database column that staff can
+ * write, and the downloads use the service role, so each one is checked
+ * against the shape the pipeline gives it (lib/website-images.ts) and
+ * skipped when it does not fit: a path that climbed into another bucket
+ * would otherwise publish that file to the public CDN.
  */
 type Db = Parameters<typeof ensureImageAsset>[0];
 
 /** Download a storage object and find the face in it; null when either fails. */
 async function detectFocusInStorage(supabase: Db, bucket: string, path: string): Promise<PortraitFocus | null> {
+  if (!safeStoragePath(path)) return null;
   try {
     const { data: blob, error } = await supabase.storage.from(bucket).download(path);
     if (error || !blob) return null;
@@ -58,8 +71,9 @@ async function detectFocusInStorage(supabase: Db, bucket: string, path: string):
   }
 }
 
-/** Download a storage object as a buffer; null when it is missing. */
+/** Download a storage object as a buffer; null when it is missing (or its path is refused). */
 async function downloadBuffer(supabase: Db, bucket: string, path: string): Promise<Buffer | null> {
+  if (!safeStoragePath(path)) return null;
   const { data: blob, error } = await supabase.storage.from(bucket).download(path);
   if (error || !blob) return null;
   return Buffer.from(await blob.arrayBuffer());
@@ -190,7 +204,7 @@ export async function POST(request: Request) {
 
   const started = Date.now();
   const renderUntil = started + RENDER_BUDGET_MS;
-  const totals = { processed: 0, pieces: 0, makers: 0, lists: 0, runs: 0, deferred: 0 };
+  const totals = { processed: 0, pieces: 0, makers: 0, lists: 0, runs: 0, deferred: 0, assetsDeleted: 0 };
   while (Date.now() - started < TIME_BUDGET_MS) {
     const r = await processBatch(supabase, env, renderUntil);
     if (!r.ok) {
@@ -203,6 +217,7 @@ export async function POST(request: Request) {
     totals.lists += r.lists;
     totals.runs += 1;
     totals.deferred += r.deferred;
+    totals.assetsDeleted += r.assetsDeleted;
     // Tiles left for later belong to the next invocation, not to this one.
     if (r.deferred > 0) break;
   }
@@ -226,7 +241,7 @@ async function isAuthorised(supabase: ReturnType<typeof createServiceClient>, pr
 }
 
 type BatchResult =
-  | { ok: true; processed: number; pieces: number; makers: number; lists: number; deferred: number }
+  | { ok: true; processed: number; pieces: number; makers: number; lists: number; deferred: number; assetsDeleted: number }
   | { ok: false; detail: string };
 
 async function processBatch(
@@ -240,7 +255,7 @@ async function processBatch(
   // dies, and the next run picks the row up again.
   const { data: outbox, error } = await supabase.rpc("claim_sync_outbox", { batch: BATCH });
   if (error) return { ok: false, detail: error.message };
-  if (!outbox || outbox.length === 0) return { ok: true, processed: 0, pieces: 0, makers: 0, lists: 0, deferred: 0 };
+  if (!outbox || outbox.length === 0) return { ok: true, processed: 0, pieces: 0, makers: 0, lists: 0, deferred: 0, assetsDeleted: 0 };
 
   const rows = outbox as { id: number; entity_type: string; entity_id: string; op: string }[];
   const pieceIds = [...new Set(rows.filter((o) => o.entity_type === "piece").map((o) => o.entity_id))];
@@ -309,24 +324,31 @@ async function processBatch(
     }
   }
 
-  // Display masters for the live pieces, in sort order.
-  const imagesByPiece = new Map<
-    string,
-    { id: string; path: string; caption: string | null; role: string; width: number | null; height: number | null }[]
-  >();
+  // Display masters for the live pieces, in sort order: views of the work
+  // only. Backs, condition and document shots (labels, tickets, lot slips)
+  // and "other" stay in the studio. The role and caption are staff notes and
+  // the website reads neither, so they are not sent.
+  const imagesByPiece = new Map<string, { id: string; path: string; width: number | null; height: number | null }[]>();
   if (livePieceIds.length > 0) {
-    const { data: imgs } = await supabase
+    const { data: imgs, error: imgErr } = await supabase
       .from("piece_images")
-      .select("id, piece_id, storage_path_display, caption, role, sort_order, width, height")
+      .select("id, piece_id, storage_path_display, sort_order, width, height")
       .in("piece_id", livePieceIds)
+      .in("role", [...WEBSITE_IMAGE_ROLES])
       .not("storage_path_display", "is", null)
       .eq("processing_status", "done")
       .order("sort_order", { ascending: true });
+    // Without its photographs a work would go out bare and the cleanup would
+    // then delete its images from the website: leave the claim to lapse.
+    if (imgErr) return { ok: false, detail: imgErr.message };
     for (const row of imgs ?? []) {
-      const list = imagesByPiece.get(row.piece_id) ?? [];
-      if (list.length < IMAGES_PER_WORK) {
-        list.push({ id: row.id, path: row.storage_path_display, caption: row.caption, role: row.role, width: row.width, height: row.height });
+      const path = safeStoragePath(row.storage_path_display, displayMasterRule(row.piece_id, row.id));
+      if (!path) {
+        console.warn(`[sync] skipped image ${row.id}: storage path is not the worker's own`);
+        continue;
       }
+      const list = imagesByPiece.get(row.piece_id) ?? [];
+      if (list.length < IMAGES_PER_WORK) list.push({ id: row.id, path, width: row.width, height: row.height });
       imagesByPiece.set(row.piece_id, list);
     }
   }
@@ -334,13 +356,19 @@ async function processBatch(
   // Each live piece's first photograph makes its square tile; what the sync
   // decided for that master before is kept, so analysis and rendering run once.
   const squareRows = new Map<string, SquareRow>();
-  const firstImageIds = [...imagesByPiece.values()].map((l) => l[0]?.id).filter((id): id is string => !!id);
-  if (firstImageIds.length > 0) {
+  const firstImagePiece = new Map<string, string>();
+  for (const [pieceId, list] of imagesByPiece) if (list[0]) firstImagePiece.set(list[0].id, pieceId);
+  if (firstImagePiece.size > 0) {
     const { data } = await supabase
       .from("piece_image_squares")
       .select("image_id, guess, kind, square_path, source_width, source_height, flat_hint")
-      .in("image_id", firstImageIds);
-    for (const row of (data ?? []) as SquareRow[]) squareRows.set(row.image_id, row);
+      .in("image_id", [...firstImagePiece.keys()]);
+    for (const row of (data ?? []) as SquareRow[]) {
+      // A tile path that is not the sync's own is dropped, so the tile is rendered afresh.
+      const pieceId = firstImagePiece.get(row.image_id) ?? "";
+      const squarePath = row.square_path ? safeStoragePath(row.square_path, squareTileRule(pieceId, row.image_id)) : null;
+      squareRows.set(row.image_id, { ...row, square_path: squarePath });
+    }
   }
 
   /* ---- makers ---------------------------------------------------------- */
@@ -360,11 +388,19 @@ async function processBatch(
   };
   const makers = new Map<string, MakerRow | null>();
   if (makerIds.length > 0) {
-    const { data } = await supabase
+    const { data, error: makerErr } = await supabase
       .from("makers")
       .select("id, display_name, romanized_name, native_name, life_dates, region, school_or_workshop, biography, profile_html, portrait_path, portrait_focus, web_visible")
       .in("id", makerIds);
-    for (const id of makerIds) makers.set(id, ((data ?? []).find((m) => m.id === id) as MakerRow | undefined) ?? null);
+    // A failed read must not be mistaken for "gone" (that unpublishes the artist).
+    if (makerErr) return { ok: false, detail: makerErr.message };
+    for (const id of makerIds) {
+      const m = ((data ?? []).find((r) => r.id === id) as MakerRow | undefined) ?? null;
+      // A portrait outside the maker's own folder is not published.
+      const portrait = m?.portrait_path ? safeStoragePath(m.portrait_path, portraitRule(m.id)) : null;
+      if (m?.portrait_path && !portrait) console.warn(`[sync] skipped portrait of maker ${m.id}: storage path is not in its folder`);
+      makers.set(id, m ? { ...m, portrait_path: portrait } : null);
+    }
   }
   // Every maker has an artist page unless switched off in the studio.
   const makerPublished = (m: MakerRow | null) => !!m && m.web_visible;
@@ -376,6 +412,8 @@ async function processBatch(
     ...[...makers.values()].filter((m) => makerPublished(m) && m?.portrait_path).map((m) => `maker-portraits/${m!.portrait_path}`),
   ];
   const assetCache = await loadAssetCache(supabase, assetKeys);
+  // Every asset the new documents reference: in use, whatever else is found.
+  const published = new Set<string>();
 
   const mutations: unknown[] = [];
   // Pieces whose square tile could not be made within this invocation's budget.
@@ -396,6 +434,7 @@ async function processBatch(
     const portraitAsset = m!.portrait_path
       ? await ensureImageAsset(supabase, env, "maker-portraits", m!.portrait_path, assetCache)
       : null;
+    if (portraitAsset) published.add(portraitAsset);
     // Portraits uploaded before face detection existed get their focus here,
     // once; the makers trigger then queues one more pass that finds it set.
     let focus = m!.portrait_focus;
@@ -435,12 +474,11 @@ async function processBatch(
     for (const img of imagesByPiece.get(pieceId) ?? []) {
       const assetId = await ensureImageAsset(supabase, env, "piece-derivatives", img.path, assetCache);
       if (!assetId) continue;
+      published.add(assetId);
       images.push({
         _type: "image",
         _key: img.id.replace(/-/g, "").slice(0, 12),
         asset: { _type: "reference", _ref: assetId },
-        caption: img.caption,
-        role: img.role,
       });
     }
     // The square tile: decided from the first photograph (or forced on the piece).
@@ -453,13 +491,18 @@ async function processBatch(
       if (square.deferred) deferredPieceIds.push(pieceId);
       if (square.squarePath) {
         if (square.rendered) {
-          // New pixels at a path the website may already hold: forget the old asset.
+          // New pixels at a path the website may already hold: forget the old
+          // asset (the table's trigger files it as retired, and the cleanup
+          // below deletes it once the new tile has replaced it).
           const key = `piece-derivatives/${square.squarePath}`;
           assetCache.delete(key);
           await supabase.from("sanity_assets").delete().eq("storage_path", key);
         }
         const tileAssetId = await ensureImageAsset(supabase, env, "piece-derivatives", square.squarePath, assetCache);
-        if (tileAssetId) tile = { _type: "image", asset: { _type: "reference", _ref: tileAssetId } };
+        if (tileAssetId) {
+          published.add(tileAssetId);
+          tile = { _type: "image", asset: { _type: "reference", _ref: tileAssetId } };
+        }
       }
     }
     const maker = piece.maker;
@@ -552,6 +595,9 @@ async function processBatch(
   ];
 
   if (!result.ok) {
+    // A remembered asset that is gone from Sanity fails every retry the same
+    // way; forget any such, so the retry uploads them again.
+    await forgetMissingAssets(supabase, env, [...published]).catch((e) => console.error("[sync] could not check assets:", e));
     // Record the failure; the claim lapses and the next run retries the rows.
     await supabase.from("sanity_sync_state").upsert(
       stateRows.map((r) => ({ ...r, status: "error", error: result.detail })),
@@ -588,7 +634,32 @@ async function processBatch(
   if (deferredPieceIds.length > 0) {
     await supabase.from("sync_outbox").insert(deferredPieceIds.map((id) => ({ entity_type: "piece", entity_id: id, op: "upsert" })));
   }
-  return { ok: true, processed: rows.length, pieces: pieceIds.length, makers: makerIds.length, lists: listIds.length, deferred: deferredPieceIds.length };
+
+  // The documents are written: the images the sync uploaded for these works
+  // and artists that no document uses any more (a photo deleted, rotated,
+  // re-rendered or not for the website, a work withdrawn, an artist switched
+  // off) are deleted from Sanity, so they stop being public. Best effort: the
+  // documents are already right, and the hourly cleanup cron catches anything
+  // left (api/cron/sanity-assets).
+  let assetsDeleted = 0;
+  const prefixes = [
+    ...pieceIds.filter(isUuid).map((id) => `piece-derivatives/${id}/`),
+    ...makerIds.filter(isUuid).map((id) => `maker-portraits/${id}/`),
+  ];
+  try {
+    assetsDeleted = (await deleteUnusedAssets(supabase, env, prefixes, published)).deleted;
+  } catch (e) {
+    console.error("[sync] asset cleanup failed:", e);
+  }
+  return {
+    ok: true,
+    processed: rows.length,
+    pieces: pieceIds.length,
+    makers: makerIds.length,
+    lists: listIds.length,
+    deferred: deferredPieceIds.length,
+    assetsDeleted,
+  };
 }
 
 /** Vercel cron entry point — drains any outbox rows pg_net missed. */
