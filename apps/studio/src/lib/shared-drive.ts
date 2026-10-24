@@ -13,6 +13,13 @@
  * Env (Vercel): SHARED_DRIVE_URL (e.g. https://drive.joostvandenbergh.com),
  * SHARED_DRIVE_USER, SHARED_DRIVE_PASSWORD — a dedicated `studio` WebDAV
  * account, so drive access from the app can be revoked independently.
+ *
+ * Financial exports never come here. The drive has no per-role separation:
+ * every staff member's drive account can read and edit the whole tree, and
+ * Syncthing copies Downloads/ to every paired Mac, with a year of old
+ * versions. The stock book (purchase costs, margins, VAT, sellers) is for
+ * admin and accountant only, so its exports are plain downloads
+ * (downloadResponse below) and are never written to the drive.
  */
 
 export type DriveFolder = "Certificates" | "Presentations" | "Docs";
@@ -66,6 +73,26 @@ export async function copyToSharedDrive(
     console.warn("shared-drive copy failed:", e instanceof Error ? e.message : e);
     return false;
   }
+}
+
+/**
+ * A plain browser download and nothing else: no drive copy, whatever the
+ * request asks for. For exports that must stay off the shared drive (the
+ * stock book). no-store, so no browser or proxy cache keeps a copy either.
+ */
+export function downloadResponse(
+  body: Uint8Array | string,
+  contentType: string,
+  filename: string,
+): Response {
+  const bytes = typeof body === "string" ? new TextEncoder().encode(body) : body;
+  return new Response(bytes as unknown as BodyInit, {
+    headers: {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "private, no-store",
+    },
+  });
 }
 
 /**

@@ -1,8 +1,12 @@
 import { redirect } from "next/navigation";
+import type { UserRole } from "@jvb/db";
 import { getSession, getSupabase, hasRole } from "@/lib/supabase";
+import { CALENDAR_ROLES } from "@/lib/calendar-access";
 import { AppHeader } from "@/components/app-header";
 import { CommandPalette } from "@/components/command-palette";
 
+// `roles`: only those roles see the entry (in the header and the command
+// palette). The page itself checks again; hiding a link is not a gate.
 const NAV = [
   { href: "/", label: "Dashboard", group: "overview" },
   { href: "/inventory", label: "Inventory", group: "inventory" },
@@ -11,7 +15,7 @@ const NAV = [
   { href: "/crm/lists", label: "Contact list", group: "crm" },
   { href: "/crm/campaigns", label: "Newsletter", group: "crm" },
   { href: "/offers", label: "Offers", group: "crm" },
-  { href: "/appointments", label: "Appointments", group: "crm" },
+  { href: "/appointments", label: "Appointments", roles: CALENDAR_ROLES, group: "crm" },
   { href: "/analytics", label: "Analytics", group: "ops" },
   { href: "/stock-book", label: "Stock book", roles: ["admin", "accountant"], group: "ops" },
   { href: "/admin", label: "Admin", group: "ops" },
@@ -33,9 +37,7 @@ export default async function AppLayout({
   if (!session) redirect("/login");
   const { user, roles } = session;
 
-  const items = NAV.filter(
-    (n) => !("roles" in n) || hasRole(roles, ...(n.roles as readonly ("admin" | "accountant")[])),
-  );
+  const items = NAV.filter((n) => !("roles" in n) || hasRole(roles, ...(n.roles as readonly UserRole[])));
 
   return (
     <div className="min-h-dvh">

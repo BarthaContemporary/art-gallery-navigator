@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession, getSupabase } from "@/lib/supabase";
+import { canUseCalendar } from "@/lib/calendar-access";
 import {
   calendarWebUrl,
   createCalendarEvent,
@@ -34,6 +35,18 @@ import { Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 export const metadata = { title: "Appointments" };
 
 // --- shared calendar server actions (write to Radicale over CalDAV) ---------
+
+/**
+ * Every action on this page starts here. The calendar is written with the
+ * gallery's own CalDAV account, which no database policy covers, so this
+ * check is the only thing between a signed-in accountant and the shared
+ * calendar; a server action can be called without the page that renders it.
+ */
+async function requireCalendarUser() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!canUseCalendar(session.roles)) throw new Error("Forbidden");
+}
 
 function cleanMonth(formData: FormData): string {
   const m = String(formData.get("month") ?? "");
@@ -73,7 +86,7 @@ function fieldsFromForm(formData: FormData): EventFields | { error: string } {
 
 async function createEvent(formData: FormData) {
   "use server";
-  if (!(await getSession())) redirect("/login");
+  await requireCalendarUser();
   const month = cleanMonth(formData);
   const fields = fieldsFromForm(formData);
   let err: string | null = null;
@@ -89,7 +102,7 @@ async function createEvent(formData: FormData) {
 
 async function updateEvent(formData: FormData) {
   "use server";
-  if (!(await getSession())) redirect("/login");
+  await requireCalendarUser();
   const month = cleanMonth(formData);
   const fields = fieldsFromForm(formData);
   let err: string | null = null;
@@ -109,7 +122,7 @@ async function updateEvent(formData: FormData) {
 
 async function deleteEvent(formData: FormData) {
   "use server";
-  if (!(await getSession())) redirect("/login");
+  await requireCalendarUser();
   const month = cleanMonth(formData);
   const res = await deleteCalendarEvent(
     String(formData.get("href") ?? ""),
@@ -173,6 +186,9 @@ function fmt(iso: string): string {
 
 async function setStatus(formData: FormData) {
   "use server";
+  // The appointments table's own policies already allow only admin and
+  // staff; the same check as the calendar keeps the page's actions alike.
+  await requireCalendarUser();
   const db = await getSupabase();
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "");
@@ -438,6 +454,19 @@ export default async function AppointmentsPage({
     calerr?: string;
   }>;
 }) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  // Before anything is fetched: the calendar and the bookings both name
+  // clients, and the accountant has neither (see lib/calendar-access.ts).
+  if (!canUseCalendar(session.roles)) {
+    return (
+      <div>
+        <PageHeader title="Appointments" />
+        <EmptyState>Appointments and the shared calendar are not available for your role.</EmptyState>
+      </div>
+    );
+  }
+
   const sp = await searchParams;
   const supabase = await getSupabase();
 
