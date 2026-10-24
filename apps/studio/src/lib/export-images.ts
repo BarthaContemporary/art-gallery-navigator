@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { createServiceClient } from "@/lib/supabase";
 import { selectInChunks } from "@/lib/chunk";
+import { pieceDisplayPath } from "@/lib/storage-paths";
 
 /**
  * Thumbnails for exports that embed imagery.
@@ -75,11 +76,15 @@ export async function fetchExportThumbnails(
         .order("sort_order", { ascending: true, nullsFirst: false }),
   );
 
-  // First image per piece wins; each chunk arrives in sort order.
+  // First image per piece wins; each chunk arrives in sort order. The service
+  // client signs whatever path it is given, and the bytes are embedded in the
+  // export, so only a work's own display master counts; a row pointing
+  // anywhere else is passed over (lib/storage-paths.ts).
   const firstByPiece = new Map<string, string>();
   rows.forEach((r) => {
     const pid = r.piece_id as string;
-    if (pid && !firstByPiece.has(pid)) firstByPiece.set(pid, r.storage_path_display as string);
+    const path = pid ? pieceDisplayPath(r.storage_path_display, pid) : null;
+    if (path && !firstByPiece.has(pid)) firstByPiece.set(pid, path);
   });
 
   // Preserve the caller's ordering so the cap keeps the first N of the export,

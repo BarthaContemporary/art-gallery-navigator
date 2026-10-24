@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { publishablePath } from "@/lib/storage-paths";
 
 /**
  * Helpers for the one-way inventory → website (Sanity) push. Nothing here
@@ -31,6 +32,12 @@ export async function sanityMutate(env: SanityEnv, mutations: unknown[]): Promis
  * Upload one storage object (a display master) as a Sanity image asset,
  * once: `sanity_assets` remembers the asset id per storage path. Returns
  * null when the file can't be read — the caller just omits that image.
+ *
+ * The path comes from a row and the client is the service role, which no
+ * storage policy limits, and whatever it reads here goes to the public
+ * website. So the path must be one file under a piece's or maker's id in
+ * its own bucket (under `ownerId`, the row's own id, when given); anything
+ * else is refused and the image omitted (lib/storage-paths.ts).
  */
 export async function ensureImageAsset(
   supabase: SupabaseClient,
@@ -38,7 +45,12 @@ export async function ensureImageAsset(
   bucket: string,
   path: string,
   cache: Map<string, string>,
+  ownerId?: string,
 ): Promise<string | null> {
+  if (!publishablePath(bucket, path, ownerId)) {
+    console.warn(`[sanity-sync] refused to publish an unexpected storage path in ${bucket}: ${JSON.stringify(path).slice(0, 200)}`);
+    return null;
+  }
   const key = `${bucket}/${path}`;
   const cached = cache.get(key);
   if (cached) return cached;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { getSupabase, getSession } from "@/lib/supabase";
+import { getSupabase, getSession, hasRole } from "@/lib/supabase";
 import { createServiceClient } from "@jvb/db/server";
 
 export const runtime = "nodejs";
@@ -19,7 +19,11 @@ export const dynamic = "force-dynamic";
  * token at all, exactly as the image uploader has always worked.
  *
  * The route decides the object key itself. The client only names a scope and
- * a record; it cannot choose an arbitrary path in the bucket.
+ * a record; it cannot choose an arbitrary path in the bucket. Each key it
+ * issues is recorded in pending_uploads (who, for which record), and commit
+ * will only record — or ever delete — a file whose key it finds there for the
+ * same user (security review 2026-10, F2). Only admin and staff attach
+ * documents; the accountant reads them and cannot write the rows.
  */
 
 const SCOPES = new Set(["shipment", "piece", "document"]);
@@ -28,6 +32,8 @@ const EXT = new Set(["pdf", "jpg", "jpeg", "png", "tif", "tiff", "doc", "docx", 
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasRole(session.roles, "admin", "staff"))
+    return NextResponse.json({ error: "Your role cannot attach documents" }, { status: 403 });
 
   let body: { scope?: string; recordId?: string; filename?: string };
   try {
@@ -45,12 +51,13 @@ export async function POST(req: Request) {
   const supabase = await getSupabase();
   const id = randomUUID();
   let path: string;
+  let recordId: string | null = null;
 
   if (scope === "document") {
     // Standalone shared document — the object id becomes the row id at commit.
     path = `documents/${id}.${ext}`;
   } else {
-    const recordId = String(body.recordId ?? "");
+    recordId = String(body.recordId ?? "");
     if (!/^[0-9a-f-]{36}$/.test(recordId))
       return NextResponse.json({ error: "Missing record" }, { status: 400 });
     // The record must exist and be visible to this user (RLS applies).
@@ -61,9 +68,17 @@ export async function POST(req: Request) {
   }
 
   // Service client: the signed URL is the capability; the path above is ours.
-  const { data, error } = await createServiceClient()
-    .storage.from("piece-documents")
-    .createSignedUploadUrl(path);
+  const service = createServiceClient();
+  const { error: issueErr } = await service.rpc("pending_upload_issue", {
+    _user: session.user.id,
+    _path: path,
+    _scope: scope,
+    _record: recordId,
+  });
+  if (issueErr)
+    return NextResponse.json({ error: `Could not start the upload: ${issueErr.message}` }, { status: 500 });
+
+  const { data, error } = await service.storage.from("piece-documents").createSignedUploadUrl(path);
   if (error || !data)
     return NextResponse.json({ error: error?.message ?? "Could not sign upload" }, { status: 500 });
 

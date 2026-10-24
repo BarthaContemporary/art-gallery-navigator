@@ -23,6 +23,7 @@ import exifr from "exifr";
 import convert from "heic-convert";
 import pg from "pg";
 import sharp from "sharp";
+import { safeStoragePath, UUID_PATTERN } from "./storage-path.js";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -225,7 +226,19 @@ async function processImage(row: PendingImage): Promise<void> {
     return;
   }
 
-  const original = await downloadOriginal(row.storage_path_original);
+  // The path comes from the row, which staff write, and this worker holds the
+  // service role: only a file directly under the row's own piece in
+  // piece-originals is read, never a path that climbs into another bucket
+  // (security review 2026-10, F6; migration 0090 holds new rows to the shape).
+  const originalPath = new RegExp(`^${UUID_PATTERN}$`).test(row.piece_id)
+    ? safeStoragePath(row.storage_path_original, { pattern: new RegExp(`^${row.piece_id}/[^/]+$`) })
+    : null;
+  if (!originalPath) {
+    await markError(row.id, new Error("Original image path is not under this work's own folder; not processed"));
+    return;
+  }
+
+  const original = await downloadOriginal(originalPath);
   const exif = await extractExif(original);
 
   // sharp: .rotate() with no args auto-orients from EXIF; TIFF input is
