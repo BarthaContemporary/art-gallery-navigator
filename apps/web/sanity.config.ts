@@ -1,4 +1,4 @@
-import { defineConfig } from "sanity";
+import { defineConfig, type PortableTextPluginsProps } from "sanity";
 import { structureTool, type StructureResolver } from "sanity/structure";
 import { visionTool } from "@sanity/vision";
 import { schemaTypes } from "./sanity/schema";
@@ -37,6 +37,19 @@ const structure: StructureResolver = (S) =>
         .child(S.document().schemaType("siteSettings").documentId("602103fd-d2f9-4938-9b7f-8af768cfd65b")),
     ]);
 
+/**
+ * Rich text is saved exactly as typed. From version 5 the Studio rewrites
+ * typing by default ("--" to an em dash, "(c)" to ©, straight quotes to
+ * curly ones), which would turn a catalogue's "fig. 3(c)" into "fig. 3©";
+ * the 3.x Studio did nothing of the kind, so its typography plugin stays off.
+ */
+function PortableTextPlugins(props: PortableTextPluginsProps) {
+  return props.renderDefault({
+    ...props,
+    plugins: { ...props.plugins, typography: { ...props.plugins.typography, enabled: false } },
+  });
+}
+
 export default defineConfig({
   name: "jvb",
   title: "Joost van den Bergh",
@@ -44,4 +57,5 @@ export default defineConfig({
   dataset: process.env.SANITY_STUDIO_DATASET || "production",
   plugins: [structureTool({ structure }), visionTool()],
   schema: { types: schemaTypes },
+  form: { components: { portableText: { plugins: PortableTextPlugins } } },
 });

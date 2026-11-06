@@ -824,6 +824,7 @@ Repeat it whenever `infra/image-worker` changes.
    ```sh
    cp -a ../image-worker/src/worker.ts "$B"/image-worker-worker.ts
    cp -a ../image-worker/package.json "$B"/image-worker-package.json
+   [ -f ../image-worker/src/storage-path.ts ] && cp -a ../image-worker/src/storage-path.ts "$B"/image-worker-storage-path.ts
    ```
 
 2. On your computer, in the repository folder:
@@ -841,17 +842,23 @@ Repeat it whenever `infra/image-worker` changes.
    ```
 
    **Check:** the last lines include `listening on channel` and no error,
-   and `docker compose exec image-worker node -p "require('sharp/package.json').version"`
+   and `docker compose exec image-worker node -p "require('sharp').versions.sharp"`
    prints 0.35.5 or later. Then add a photograph to any piece in the studio:
    its thumbnail appears within a minute or two, as before. sharp 0.35
    refuses an original with more than 5 colour channels (a layered TIFF
    with extra alpha channels) with "Input image exceeds channel limit":
    re-save such a file flattened, as RGB, and upload it again.
 
-**Undo:** `cp -a "$B"/image-worker-worker.ts ../image-worker/src/worker.ts`
-and `cp -a "$B"/image-worker-package.json ../image-worker/package.json`,
-then `rm ../image-worker/src/storage-path.ts` and run the two commands of
-3 again.
+**Undo:** put back what step 1 saved, then run the two commands of 3 again:
+
+```sh
+cp -a "$B"/image-worker-worker.ts ../image-worker/src/worker.ts
+cp -a "$B"/image-worker-package.json ../image-worker/package.json
+if [ -f "$B"/image-worker-storage-path.ts ]; then cp -a "$B"/image-worker-storage-path.ts ../image-worker/src/storage-path.ts; else rm -f ../image-worker/src/storage-path.ts; fi
+```
+
+The last line keeps `storage-path.ts` when this step had been done before
+(the saved `worker.ts` needs it) and removes it only on a first run.
 
 ## Afterwards
 

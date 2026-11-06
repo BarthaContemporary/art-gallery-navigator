@@ -21,7 +21,8 @@ import { ChevronRightIcon } from "@/components/ui/icons";
 import { sendEmail } from "@/lib/email";
 import { PASSWORD_MIN } from "@/lib/auth-rules";
 // London time: this page renders on the server, where the zone is UTC.
-import { formatCount, formatDate, formatTime } from "@/lib/format";
+import { GALLERY_TIME_ZONE, formatCount, formatDate, formatTime } from "@/lib/format";
+import { resolvePieces } from "@/lib/piece-store";
 import { ACTIVITY_ACTION_LABELS, ACTIVITY_ENTITY_LABELS, labelOf } from "@/lib/labels";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -104,8 +105,8 @@ const ROLE_LABELS: Record<string, string> = { admin: "Admin", staff: "Staff", ac
 const rolesText = (roles: string[]) =>
   roles.length ? roles.map((r) => ROLE_LABELS[r] ?? r).join(" and ") : "No role";
 
-/** Activity entries logged under a work's id: the record itself and its financials. */
-const WORK_ENTITIES = new Set(["pieces", "piece_financials"]);
+/** Activity entries logged under a work's id: the record (either register) and its financials. */
+const WORK_ENTITIES = new Set(["pieces", "external_pieces", "piece_financials"]);
 /** The page an activity entry opens, by its table, for records found by id. */
 const ENTITY_PAGES: Record<string, string> = {
   makers: "/makers",
@@ -441,7 +442,9 @@ export default async function AdminPage({
       .sort((a, b) => a.email.localeCompare(b.email) || a.created_at.localeCompare(b.created_at));
 
     // A work's changes (the record or its financials) are logged under the
-    // work's id; its stock number names it and opens it.
+    // work's id; its stock number names it and opens it. Looked up in both
+    // registers by id, which a move between them keeps, so a work moved
+    // since still opens under its current number.
     const workIds = [
       ...new Set(
         activity
@@ -450,8 +453,8 @@ export default async function AdminPage({
       ),
     ];
     if (workIds.length) {
-      const { data: works } = await supabase.from("pieces").select("id, stock_number").in("id", workIds);
-      stockNumberOf = new Map((works ?? []).map((w) => [w.id as string, w.stock_number as string]));
+      const works = await resolvePieces(supabase, workIds);
+      stockNumberOf = new Map([...works].map(([id, ref]) => [id, ref.stockNumber]));
     }
   }
 
@@ -471,8 +474,22 @@ export default async function AdminPage({
   }
 
   // The activity by London day, newest first, under "Today", "Yesterday" or the date.
-  const today = formatDate(new Date(), "short");
-  const yesterday = formatDate(new Date(Date.now() - 86_400_000), "short");
+  // Yesterday is the London calendar day before today (noon UTC falls on the
+  // same London date all year), not 24 hours ago, which is wrong for an hour
+  // around each change of the clocks.
+  const londonToday = new Intl.DateTimeFormat("en-CA", {
+    timeZone: GALLERY_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date()); // "2026-11-06"
+  const noonDaysBefore = (days: number) => {
+    const d = new Date(`${londonToday}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - days);
+    return d;
+  };
+  const today = formatDate(noonDaysBefore(0), "short");
+  const yesterday = formatDate(noonDaysBefore(1), "short");
   const activityDays: { day: string; rows: ActivityRow[] }[] = [];
   for (const a of activity) {
     const day = formatDate(a.created_at, "short");
