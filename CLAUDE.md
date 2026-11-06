@@ -54,6 +54,11 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   panel and the full-screen view always show the whole photograph; full
   screen swaps in the largest rendition (up to 4096 px, the image worker's
   display-master cap, live since 10 October 2026).
+- **Sanity Studio** (`apps/web/sanity.config.ts`, a development dependency
+  of the website) is hosted at joostvandenbergh.sanity.studio and changes
+  only when someone runs `pnpm exec sanity deploy` from `apps/web` (Node
+  22.12 or newer). The website reads Sanity with `@sanity/client` and
+  checks the revalidate webhook with `@sanity/webhook` (no `next-sanity`).
 - **Artist pages**: `ARTISTS_UNDER_CONSTRUCTION` in `apps/web/src/lib/site.ts`
   is the one switch that hides or restores the whole artist section; do not
   add artist links that bypass it.
@@ -90,6 +95,11 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   `pnpm test:db` must pass. Unit tests: `pnpm test:unit`.
 - The auth server, Caddy and key rotation are hardened by hand on the VPS:
   `docs/ops/security-runbook.md`.
+- `pnpm audit` stays at zero (the CI `audit` job fails on any advisory). Fix
+  by upgrading the package that pulls the vulnerable one; only when no
+  release fixes it, force the version in root `package.json`
+  `pnpm.overrides` (narrowest selector, same major where possible) and
+  explain it in `docs/ops/dependency-overrides.md`.
 
 ## Money / VAT
 

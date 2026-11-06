@@ -1,12 +1,12 @@
 import { revalidateTag } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
-import { parseBody } from "next-sanity/webhook";
+import { SIGNATURE_HEADER_NAME, isValidSignature } from "@sanity/webhook";
 import { safeEqual } from "@/lib/secret";
 
 /**
  * Sanity webhook → tag revalidation.
  * Configure the webhook (create/update/delete, all types) with the shared
- * secret SANITY_REVALIDATE_SECRET; next-sanity verifies the signature.
+ * secret SANITY_REVALIDATE_SECRET; @sanity/webhook verifies the signature.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -59,6 +59,28 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ message }, { status: 500 });
   }
+}
+
+/**
+ * A signed webhook's body and whether its signature matches `secret`: null
+ * when the request has no signature header or no secret is set. Unless the
+ * signature is wrong it first waits 3 s, so the change has reached the
+ * Content Lake's read side before the pages refetch. The same steps as
+ * next-sanity's `parseBody`, which this replaces.
+ */
+async function parseBody<T>(
+  req: NextRequest,
+  secret: string | undefined,
+): Promise<{ body: T | null; isValidSignature: boolean | null }> {
+  const signature = req.headers.get(SIGNATURE_HEADER_NAME);
+  if (!signature) {
+    console.error("Missing signature header");
+    return { body: null, isValidSignature: null };
+  }
+  const body = await req.text();
+  const valid = secret ? await isValidSignature(body, signature, secret.trim()) : null;
+  if (valid !== false) await new Promise((resolve) => setTimeout(resolve, 3000));
+  return { body: body.trim() ? (JSON.parse(body) as T) : null, isValidSignature: valid };
 }
 
 /**

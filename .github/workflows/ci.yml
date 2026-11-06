@@ -22,3 +22,16 @@ jobs:
         run: pnpm ui:guard
       # Builds and typechecks every workspace, the studio and the website included.
       - run: pnpm turbo build typecheck
+  # Fails on any published advisory for a package in the lockfile, so a new
+  # one shows up on the next push. Fixes and the forced versions in
+  # package.json's pnpm.overrides: docs/ops/dependency-overrides.md.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # No version here: the action reads it from package.json's
+      # packageManager, and naming both fails the job.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: pnpm audit

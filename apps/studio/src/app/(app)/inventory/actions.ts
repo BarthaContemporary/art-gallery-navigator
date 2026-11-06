@@ -26,12 +26,14 @@ const jsonStringArray = z.preprocess(
   z.array(z.string().transform((s) => s.trim())).transform((a) => a.filter(Boolean)),
 );
 
+// Ids: z.guid() takes any 8-4-4-4-12 hex id, as Zod 3's uuid() did (Zod 4's
+// z.uuid() also checks the RFC 9562 version and variant digits).
 const pieceSchema = z.object({
   title: z.string().trim().max(500).transform((v) => v || null),
   year: z.string().trim().max(50).transform((v) => v || null),
-  maker_id: z.string().uuid().nullable().or(z.literal("").transform(() => null)),
-  category_id: z.string().uuid().nullable().or(z.literal("").transform(() => null)),
-  location_id: z.string().uuid().nullable().or(z.literal("").transform(() => null)),
+  maker_id: z.guid().nullable().or(z.literal("").transform(() => null)),
+  category_id: z.guid().nullable().or(z.literal("").transform(() => null)),
+  location_id: z.guid().nullable().or(z.literal("").transform(() => null)),
   status: z.enum([
     "in_stock",
     "reserved",

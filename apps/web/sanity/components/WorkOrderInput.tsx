@@ -99,7 +99,7 @@ export function WorkOrderInput(props: ArrayOfObjectsInputProps) {
   }, [client, works, lists, current, props]);
 
   return (
-    <Stack space={3}>
+    <Stack gap={3}>
       <Card padding={3} radius={2} tone="transparent" border>
         <Flex align="center" gap={3} wrap="wrap">
           <Button text={busy ? "Working…" : "Collect works from the fields above"} tone="primary" disabled={busy} onClick={() => collect(false)} />

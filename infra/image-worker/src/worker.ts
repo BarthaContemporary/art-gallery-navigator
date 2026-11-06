@@ -22,7 +22,7 @@ import { createClient } from "@supabase/supabase-js";
 import exifr from "exifr";
 import convert from "heic-convert";
 import pg from "pg";
-import sharp from "sharp";
+import sharp, { type OutputInfo } from "sharp";
 import { safeStoragePath, UUID_PATTERN } from "./storage-path.js";
 
 // ---------------------------------------------------------------------------
@@ -269,7 +269,7 @@ async function processImage(row: PendingImage): Promise<void> {
       .toBuffer({ resolveWithObject: true });
 
   let displayJpeg: Buffer;
-  let info: sharp.OutputInfo;
+  let info: OutputInfo;
   try {
     ({ data: displayJpeg, info } = await toMaster(original));
   } catch (err) {

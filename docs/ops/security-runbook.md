@@ -813,20 +813,24 @@ any time.
 The image worker (the server program that makes the display copies of
 photographs) now refuses a photograph whose file is not where the studio and
 capture app put it (security review F6), so a planted path cannot make it
-read another folder. It runs on the server, so it is updated by hand. Do it
-any time; it does not depend on the other steps.
+read another folder, and it uses sharp 0.35.5, which fixes the image
+library's advisories (November 2026). It runs on the server, so it is
+updated by hand. Do it any time; it does not depend on the other steps.
+Repeat it whenever `infra/image-worker` changes.
 
-1. Back up the two files it replaces (on the server, after the usual first
+1. Back up the files it replaces (on the server, after the usual first
    commands; `$B` is the folder from step 1):
 
    ```sh
    cp -a ../image-worker/src/worker.ts "$B"/image-worker-worker.ts
+   cp -a ../image-worker/package.json "$B"/image-worker-package.json
    ```
 
 2. On your computer, in the repository folder:
 
    ```sh
    scp infra/image-worker/src/storage-path.ts infra/image-worker/src/worker.ts root@104.238.184.145:/opt/jvb/infra/image-worker/src/
+   scp infra/image-worker/package.json root@104.238.184.145:/opt/jvb/infra/image-worker/
    ```
 
 3. On the server:
@@ -836,11 +840,16 @@ any time; it does not depend on the other steps.
    docker compose logs --tail=20 image-worker
    ```
 
-   **Check:** the last lines include `listening on channel` and no error.
-   Then add a photograph to any piece in the studio: its thumbnail appears
-   within a minute or two, as before.
+   **Check:** the last lines include `listening on channel` and no error,
+   and `docker compose exec image-worker node -p "require('sharp/package.json').version"`
+   prints 0.35.5 or later. Then add a photograph to any piece in the studio:
+   its thumbnail appears within a minute or two, as before. sharp 0.35
+   refuses an original with more than 5 colour channels (a layered TIFF
+   with extra alpha channels) with "Input image exceeds channel limit":
+   re-save such a file flattened, as RGB, and upload it again.
 
-**Undo:** `cp -a "$B"/image-worker-worker.ts ../image-worker/src/worker.ts`,
+**Undo:** `cp -a "$B"/image-worker-worker.ts ../image-worker/src/worker.ts`
+and `cp -a "$B"/image-worker-package.json ../image-worker/package.json`,
 then `rm ../image-worker/src/storage-path.ts` and run the two commands of
 3 again.
 

@@ -7,6 +7,7 @@ import { contactIdByEmail } from "@/lib/contacts";
 import { fromLine, galleryNotificationAddress, maskAddress, sendEmail } from "@/lib/email";
 import { enquiryEmail, enquiryOrigin, enquiryWork } from "@/lib/enquiry-email";
 import { clientIp } from "@/lib/form-fields";
+import { zod3Wording } from "@/lib/form-messages";
 import { oneLine, siteText } from "@/lib/form-schema";
 import {
   confirmTokenHash,
@@ -33,8 +34,12 @@ const schema = z.object({
   kind: z.enum(["work", "publication", "appointment"]),
   /** Human label of what the enquiry is about, e.g. "HARA Satoshi, Title | Code". */
   subject: siteText(z.string().max(300)),
-  /** Inventory piece id when the work is current stock — links the enquiry to the record. */
-  pieceId: z.string().uuid().optional(),
+  /**
+   * Inventory piece id when the work is current stock — links the enquiry to
+   * the record. z.guid() takes any 8-4-4-4-12 hex id, as Zod 3's uuid() did;
+   * Zod 4's z.uuid() also checks the RFC 9562 version and variant digits.
+   */
+  pieceId: z.guid().optional(),
   /** The work on the website (a work's slug, or a catalogue entry's key), looked up for the email. */
   work: z
     .object({ source: z.enum(["work", "catalogue"]), id: siteText(z.string().min(1).max(200)) })
@@ -55,7 +60,7 @@ const schema = z.object({
     .optional(),
   mailingList: z.boolean().optional(),
   /** Explicit agreement to be contacted about the enquiry (privacy policy and terms). */
-  consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to be contacted" }) }),
+  consent: z.literal(true, { error: "Please tick the box to agree to be contacted" }),
   turnstileToken: z.string().max(4096).optional(),
   website: z.string().optional(), // honeypot
 });
@@ -103,7 +108,7 @@ const addressKey = (parts: (string | null | undefined)[]) =>
 export async function POST(req: NextRequest) {
   let payload: z.infer<typeof schema>;
   try {
-    const parsed = schema.safeParse(await req.json());
+    const parsed = schema.safeParse(await req.json(), { error: zod3Wording });
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0]?.message ?? "Invalid request" },

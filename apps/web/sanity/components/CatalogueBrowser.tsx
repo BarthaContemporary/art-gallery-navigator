@@ -112,7 +112,7 @@ export function CatalogueBrowser() {
   return (
     <Flex direction="column" height="fill">
       <Card padding={3} borderBottom>
-        <Stack space={3}>
+        <Stack gap={3}>
           <TextInput
             value={q}
             onChange={(e) => setQ(e.currentTarget.value)}
@@ -157,9 +157,9 @@ export function CatalogueBrowser() {
                         <img src={src} alt="" width={48} height={48} style={{ display: "block", objectFit: "cover" }} />
                       ) : null}
                     </Box>
-                    <Stack space={2} flex={1}>
+                    <Stack gap={2} flex={1}>
                       <Flex align="center" gap={2}>
-                        {r.reference ? <Badge mode="outline">{r.reference}</Badge> : null}
+                        {r.reference ? <Badge>{r.reference}</Badge> : null}
                         <Text size={1} weight="medium">
                           {makerLine ?? r.title ?? "Untitled"}
                         </Text>

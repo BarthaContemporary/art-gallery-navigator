@@ -10,7 +10,7 @@ import {
   Preview,
   Section,
   Text,
-} from "@react-email/components";
+} from "react-email";
 
 export interface NewsletterWork {
   title: string;
@@ -81,7 +81,7 @@ export function NewsletterEmail({
               ))}
             </Section>
           ) : null}
-          <Hr style={{ borderColor: "#e2e2e2", margin: "28px 0" }} />
+          <Hr style={{ borderTop: "1px solid #e2e2e2", margin: "28px 0" }} />
           <Text style={{ fontSize: 12, color: "#8a8a8a", lineHeight: 1.6 }}>
             {galleryName}
             {galleryAddress ? ` · ${galleryAddress}` : ""} ·{" "}

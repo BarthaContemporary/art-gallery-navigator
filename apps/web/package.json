@@ -12,26 +12,26 @@
     "@jvb/db": "workspace:*",
     "@jvb/ui": "workspace:*",
     "@sanity/client": "^7",
+    "@sanity/webhook": "^4.0.4",
     "@supabase/supabase-js": "^2.49.4",
     "groq": "^4",
-    "next": "^15.3.0",
-    "next-sanity": "^10",
+    "next": "^15.5.29",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "resend": "^4",
-    "zod": "^3.24.2"
+    "resend": "^6.37.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@sanity/ui": "^2.16.25",
-    "@sanity/vision": "^3.99.0",
-    "@tailwindcss/postcss": "^4.1.0",
+    "@sanity/ui": "^4.4.10",
+    "@sanity/vision": "^6.22.0",
+    "@tailwindcss/postcss": "^4.3.4",
     "@types/node": "^22",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "postcss": "^8.5",
-    "sanity": "^3.99.0",
+    "postcss": "^8.5.32",
+    "sanity": "^6.22.0",
     "styled-components": "^6.4.3",
-    "tailwindcss": "^4.1.0",
+    "tailwindcss": "^4.3.4",
     "typescript": "^5.8.3"
   }
 }

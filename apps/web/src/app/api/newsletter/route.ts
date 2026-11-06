@@ -6,6 +6,7 @@ import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
 import { contactIdByEmail } from "@/lib/contacts";
 import { maskAddress } from "@/lib/email";
 import { clientIp } from "@/lib/form-fields";
+import { zod3Wording } from "@/lib/form-messages";
 import { oneLine } from "@/lib/form-schema";
 import {
   emailedRecently,
@@ -26,7 +27,7 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   name: oneLine(z.string().trim().min(1, "Please enter your name").max(200)),
   email: oneLine(z.string().trim().email("Please enter a valid email address").max(320)),
-  consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to receive the newsletter" }) }),
+  consent: z.literal(true, { error: "Please tick the box to agree to receive the newsletter" }),
   turnstileToken: z.string().max(4096).optional(),
   website: z.string().optional(), // honeypot
 });
@@ -54,7 +55,7 @@ const PER_IP_PER_HOUR = 10;
 export async function POST(req: NextRequest) {
   let payload: z.infer<typeof schema>;
   try {
-    const parsed = schema.safeParse(await req.json());
+    const parsed = schema.safeParse(await req.json(), { error: zod3Wording });
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0]?.message ?? "Invalid request" },

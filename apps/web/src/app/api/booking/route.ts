@@ -7,6 +7,7 @@ import { hashKey, rateLimit } from "@jvb/db/rate-limit";
 import { consentEvidence, mergeEvidence } from "@/lib/consent-evidence";
 import { contactIdByEmail } from "@/lib/contacts";
 import { clientIp, greetingName } from "@/lib/form-fields";
+import { zod3Wording } from "@/lib/form-messages";
 import { oneLine } from "@/lib/form-schema";
 import { buildIcs } from "@/lib/ics";
 import { OPTIN_COLUMNS, settleSignUpPatch, type OptInContact } from "@/lib/newsletter-optin";
@@ -43,7 +44,7 @@ const bookingSchema = z.object({
   phone: oneLine(z.string().trim().max(50)).optional(),
   notes: z.string().trim().max(2000).optional(),
   /** Explicit agreement to be contacted (privacy policy and terms). */
-  consent: z.literal(true, { errorMap: () => ({ message: "Please tick the box to agree to be contacted" }) }),
+  consent: z.literal(true, { error: "Please tick the box to agree to be contacted" }),
   turnstileToken: z.string().max(4096).optional(),
 });
 
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
   let payload: z.infer<typeof bookingSchema>;
   try {
     const json = await req.json();
-    const parsed = bookingSchema.safeParse(json);
+    const parsed = bookingSchema.safeParse(json, { error: zod3Wording });
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0]?.message ?? "Invalid request" },
