@@ -12,16 +12,16 @@ import {
 import { DeleteListButton } from "@/components/delete-list-button";
 import { PasskeyManager } from "@/components/passkey-manager";
 import { PageHeader } from "@/components/ui/page-header";
-import { Section } from "@/components/ui/section";
+import { Panel, Section } from "@/components/ui/section";
+import { Disclosure } from "@/components/ui/collapse";
 import { Notice } from "@/components/ui/notice";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 import { ChevronRightIcon } from "@/components/ui/icons";
 import { sendEmail } from "@/lib/email";
 import { PASSWORD_MIN } from "@/lib/auth-rules";
 // London time: this page renders on the server, where the zone is UTC.
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatCount, formatDate, formatTime } from "@/lib/format";
 import { ACTIVITY_ACTION_LABELS, ACTIVITY_ENTITY_LABELS, labelOf } from "@/lib/labels";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -88,6 +88,31 @@ type AdminPasskey = {
   last_used_at: string | null;
 };
 
+type ActivityRow = {
+  id: string | number;
+  actor_id: string | null;
+  entity_type: string;
+  entity_id: string | null;
+  action: string;
+  created_at: string;
+};
+
+/** Shown for an account the auth server holds without an email address. */
+const NO_EMAIL = "(no email)";
+
+const ROLE_LABELS: Record<string, string> = { admin: "Admin", staff: "Staff", accountant: "Accountant" };
+const rolesText = (roles: string[]) =>
+  roles.length ? roles.map((r) => ROLE_LABELS[r] ?? r).join(" and ") : "No role";
+
+/** Activity entries logged under a work's id: the record itself and its financials. */
+const WORK_ENTITIES = new Set(["pieces", "piece_financials"]);
+/** The page an activity entry opens, by its table, for records found by id. */
+const ENTITY_PAGES: Record<string, string> = {
+  makers: "/makers",
+  crm_contacts: "/crm/contacts",
+  offers: "/offers",
+};
+
 // Everyone can change their own password.
 async function changePassword(formData: FormData) {
   "use server";
@@ -146,7 +171,7 @@ export default async function AdminPage({
       { onConflict: "user_id,role" },
     );
     revalidatePath("/admin");
-    await flashNotice(`Created ${email} (${role}) — password: ${pw}`);
+    await flashNotice(`Created ${email} (${role}). Password: ${pw}`);
     redirect("/admin");
   }
 
@@ -172,7 +197,7 @@ export default async function AdminPage({
     revalidatePath("/admin");
     await flashNotice(
       passkeys.error
-        ? `Password for ${email} reset to: ${pw}. Their passkeys could not be removed (${passkeys.error}); remove them under "Passkeys on all accounts" below.`
+        ? `Password for ${email} reset to: ${pw}. Their passkeys could not be removed (${passkeys.error}); remove them under "Passkeys on all accounts".`
         : passkeys.count
           ? `Password for ${email} reset to: ${pw}. ${passkeys.count} passkey${passkeys.count === 1 ? "" : "s"} removed.`
           : `Password for ${email} reset to: ${pw}`,
@@ -241,7 +266,7 @@ export default async function AdminPage({
         {
           from,
           to: email,
-          subject: "Set your password — Joost van den Bergh Studio",
+          subject: "Set your password for the Joost van den Bergh studio",
           html: `<p>You've been given access to the Joost van den Bergh studio.</p>
 <p><a href="${link}">Click here to set your password</a>. This link expires in 24 hours.</p>
 <p>If you didn't expect this, you can ignore this email.</p>`,
@@ -362,10 +387,12 @@ export default async function AdminPage({
   }
 
   // Admin-only data used by the sections further down.
-  let users: { id: string; email: string; roles: string[]; created_at: string }[] = [];
+  let users: { id: string; email: string | null; roles: string[]; created_at: string }[] = [];
   let outbox: number | null = 0;
-  let activity: { id: string | number; entity_type: string; action: string; created_at: string }[] = [];
+  let activity: ActivityRow[] = [];
   let passkeys: AdminPasskey[] = [];
+  // Stock numbers of the works named in the activity, to show and link them.
+  let stockNumberOf = new Map<string, string>();
   if (isAdmin) {
     const supabase = await getSupabase();
     const admin = createServiceClient();
@@ -383,7 +410,7 @@ export default async function AdminPage({
       supabase.from("sync_outbox").select("id", { count: "exact", head: true }).is("processed_at", null),
       supabase
         .from("activity_log")
-        .select("id, entity_type, action, created_at")
+        .select("id, actor_id, entity_type, entity_id, action, created_at")
         .order("created_at", { ascending: false })
         .limit(15),
       // Both apps' passkeys, so none can sit on an account unseen.
@@ -394,23 +421,66 @@ export default async function AdminPage({
     (userRoles ?? []).forEach((r) => {
       rolesByUser.set(r.user_id, [...(rolesByUser.get(r.user_id) ?? []), r.role]);
     });
-    users = (usersList?.users ?? []).map((u) => ({
-      id: u.id,
-      email: u.email ?? "—",
-      roles: rolesByUser.get(u.id) ?? [],
-      created_at: u.created_at,
-    }));
+    users = (usersList?.users ?? [])
+      .map((u) => ({
+        id: u.id,
+        email: u.email ?? null,
+        roles: rolesByUser.get(u.id) ?? [],
+        created_at: u.created_at,
+      }))
+      .sort((a, b) => (a.email ?? "").localeCompare(b.email ?? ""));
     outbox = outboxCount ?? 0;
-    activity = (act ?? []) as typeof activity;
-    const emailOf = new Map(users.map((u) => [u.id, u.email]));
+    activity = (act ?? []) as ActivityRow[];
+    const emailOf = new Map(users.map((u) => [u.id, u.email ?? NO_EMAIL]));
     type Row = Omit<AdminPasskey, "app" | "email">;
     passkeys = [
       ...((studioKeys ?? []) as Row[]).map((k) => ({ ...k, app: "studio" as const })),
       ...((captureKeys ?? []) as Row[]).map((k) => ({ ...k, app: "capture" as const })),
     ]
-      .map((k) => ({ ...k, email: emailOf.get(k.user_id) ?? "—" }))
+      .map((k) => ({ ...k, email: emailOf.get(k.user_id) ?? NO_EMAIL }))
       .sort((a, b) => a.email.localeCompare(b.email) || a.created_at.localeCompare(b.created_at));
+
+    // A work's changes (the record or its financials) are logged under the
+    // work's id; its stock number names it and opens it.
+    const workIds = [
+      ...new Set(
+        activity
+          .filter((a) => a.entity_id && WORK_ENTITIES.has(a.entity_type))
+          .map((a) => a.entity_id as string),
+      ),
+    ];
+    if (workIds.length) {
+      const { data: works } = await supabase.from("pieces").select("id, stock_number").in("id", workIds);
+      stockNumberOf = new Map((works ?? []).map((w) => [w.id as string, w.stock_number as string]));
+    }
   }
+
+  const passkeysOf = new Map<string, number>();
+  passkeys.forEach((k) => passkeysOf.set(k.user_id, (passkeysOf.get(k.user_id) ?? 0) + 1));
+  const actorOf = new Map(users.map((u) => [u.id, u.email ?? NO_EMAIL]));
+
+  /** Where an activity entry's record opens, when it still exists and has a page. */
+  function activityHref(a: ActivityRow): string | null {
+    if (a.action === "DELETE" || !a.entity_id) return null;
+    if (WORK_ENTITIES.has(a.entity_type)) {
+      const stock = stockNumberOf.get(a.entity_id);
+      return stock ? `/inventory/${encodeURIComponent(stock)}` : null;
+    }
+    const base = ENTITY_PAGES[a.entity_type];
+    return base ? `${base}/${a.entity_id}` : null;
+  }
+
+  // The activity by London day, newest first, under "Today", "Yesterday" or the date.
+  const today = formatDate(new Date(), "short");
+  const yesterday = formatDate(new Date(Date.now() - 86_400_000), "short");
+  const activityDays: { day: string; rows: ActivityRow[] }[] = [];
+  for (const a of activity) {
+    const day = formatDate(a.created_at, "short");
+    const last = activityDays[activityDays.length - 1];
+    if (last?.day === day) last.rows.push(a);
+    else activityDays.push({ day, rows: [a] });
+  }
+  const dayLabel = (day: string) => (day === today ? "Today" : day === yesterday ? "Yesterday" : day);
 
   // The admin tools, each a page of its own.
   const tools = [
@@ -436,14 +506,26 @@ export default async function AdminPage({
    * Fields: the native controls with the shared .field look, under Field for
    * the label (Field's own Input would do the same, but the ui:guard baseline
    * records native controls, and these posts must not move).
+   *
+   * Users and passkeys are lists, not tables, so every row's actions stay in
+   * view on a phone instead of scrolling sideways out of it.
    */
   return (
     <div className="max-w-[var(--jvb-measure-wide)]">
-      <PageHeader title="Admin" meta={`${user.email} · ${roles.join(", ") || "no role"}`} />
+      <PageHeader title="Admin" meta={`${user.email} · ${rolesText(roles)}`}>
+        {isAdmin && notice ? (
+          // The outcome of the last admin action, first on the page after its
+          // redirect. It may hold a generated password, so it is set in
+          // figures that read character by character.
+          <Notice tone="info">
+            <span className="tabular select-all break-words">{notice}</span>
+          </Notice>
+        ) : null}
+      </PageHeader>
 
+      {/* Your own account: open to everyone */}
       <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-        {/* Password: available to everyone */}
-        <Section title="Change your password" meta={`At least ${PASSWORD_MIN} characters. You stay signed in after changing it.`}>
+        <Section title="Change your password" meta={`At least ${PASSWORD_MIN} characters. You stay signed in.`}>
           {pwError ? (
             <Notice tone="danger" className="mb-3">
               {pwError}
@@ -483,25 +565,16 @@ export default async function AdminPage({
           </form>
         </Section>
 
-        {/* Passkeys: available to everyone */}
         <PasskeyManager />
       </div>
 
       {!isAdmin ? null : (
         <div className="mt-8 space-y-8">
-          {notice ? (
-            // The outcome of the last admin action; may hold a generated
-            // password, so it is set in figures that read character by character.
-            <Notice tone="info">
-              <span className="tabular select-all break-words">{notice}</span>
-            </Notice>
-          ) : null}
-
           <Section title="Tools">
-            <ul>
+            <ul className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
               {tools.map((t) => (
                 <li key={t.href} className="border-b border-rule">
-                  <Link href={t.href} className="group flex items-center justify-between gap-3 py-2.5">
+                  <Link href={t.href} className="group flex h-full items-center justify-between gap-3 py-2.5">
                     <span className="min-w-0">
                       <span className="block text-[13px] font-medium text-ink group-hover:underline">{t.label}</span>
                       <span className="block text-[12px] leading-[1.4] text-meta">{t.hint}</span>
@@ -513,181 +586,217 @@ export default async function AdminPage({
             </ul>
           </Section>
 
-          <Section title="Users">
-            <p id="admin-reset-hint" className="mb-3 max-w-[70ch] text-[12px] leading-[1.4] text-meta">
-              To reset a password, type a new one of at least {PASSWORD_MIN} characters, or leave the box
-              blank to generate one. Either way it is shown once, above. A reset also removes all of the
-              user&rsquo;s passkeys, in the studio and the capture app.
-            </p>
-            <TableFrame>
-              <Table className="min-w-[720px]">
-                <thead>
-                  <tr>
-                    <Th>Email</Th>
-                    <Th>Roles</Th>
-                    <Th>Since</Th>
-                    <Th>Reset password</Th>
-                    <Th>Manage</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <Tr key={u.id}>
-                      <Td className="text-ink">{u.email}</Td>
-                      <Td className="text-body">{u.roles.join(", ") || "—"}</Td>
-                      <Td className="tabular whitespace-nowrap text-body">{formatDate(u.created_at, "short")}</Td>
-                      <Td>
-                        <form action={resetPassword} className="flex items-center gap-1.5">
-                          <input type="hidden" name="user_id" value={u.id} />
-                          <input type="hidden" name="email" value={u.email} />
+          <Section title="Users" meta={`${formatCount(users.length)} ${users.length === 1 ? "account" : "accounts"}`}>
+            <ul className="divide-y divide-rule border-b border-rule">
+              {users.map((u) => {
+                const email = u.email ?? NO_EMAIL;
+                const keys = passkeysOf.get(u.id) ?? 0;
+                const isMe = u.id === user.id;
+                return (
+                  // Phone: who on one row, the three actions under it. Wider:
+                  // one row. Either way the reset form opens under the row.
+                  <li
+                    key={u.id}
+                    className="grid grid-cols-[repeat(3,auto)_minmax(0,1fr)] items-center gap-x-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_minmax(4rem,auto)]"
+                  >
+                    <div className="col-span-full mb-1.5 min-w-0 sm:col-span-1 sm:mb-0">
+                      <p className="truncate text-[13px] text-ink">
+                        {email}
+                        {isMe ? <span className="text-meta"> (you)</span> : null}
+                      </p>
+                      <p className="text-[12px] leading-[1.4] text-meta">
+                        {rolesText(u.roles)}, since {formatDate(u.created_at, "short")}
+                        {keys ? `, ${keys} ${keys === 1 ? "passkey" : "passkeys"}` : null}
+                      </p>
+                    </div>
+                    {/* `contents`: the trigger takes its grid cell and the
+                        form a full row of its own below. */}
+                    <Disclosure summary="Reset password" className="contents" panelClassName="order-last col-span-full">
+                      <form action={resetPassword} className="flex flex-wrap items-end gap-3 pb-1 pt-3">
+                        <input type="hidden" name="user_id" value={u.id} />
+                        <input type="hidden" name="email" value={email} />
+                        <Field id={`admin-reset-${u.id}`} label="New password" optional className="w-full sm:w-60">
                           <input
+                            id={`admin-reset-${u.id}`}
                             name="password"
                             minLength={PASSWORD_MIN}
-                            placeholder="Blank to generate"
-                            aria-label={`New password for ${u.email}`}
-                            aria-describedby="admin-reset-hint"
-                            className="field field-sm w-44"
+                            placeholder="Blank to generate one"
+                            aria-describedby={`admin-reset-hint-${u.id}`}
+                            className="field"
                           />
-                          <Button type="submit" size="sm" pendingLabel="Resetting…">
-                            Reset
-                          </Button>
-                        </form>
-                      </Td>
-                      <Td>
-                        <div className="flex items-center gap-3">
-                          <form action={reinvite}>
-                            <input type="hidden" name="email" value={u.email} />
-                            <Button
-                              type="submit"
-                              size="sm"
-                              variant="quiet"
-                              title="Email this user a link to set their own password"
-                              pendingLabel="Sending…"
-                            >
-                              Re-invite
-                            </Button>
-                          </form>
-                          {/* A row's destructive action: DeleteListButton draws its first
-                              step quiet in danger and keeps its "Yes, delete" step. */}
-                          <DeleteListButton action={deleteUser} id={u.id} name={u.email} />
-                        </div>
-                      </Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableFrame>
+                        </Field>
+                        <Button type="submit" pendingLabel="Resetting…">
+                          Set new password
+                        </Button>
+                        <p id={`admin-reset-hint-${u.id}`} className="w-full max-w-[65ch] text-[12px] leading-[1.4] text-meta">
+                          At least {PASSWORD_MIN} characters, or leave it blank to generate one. The new password
+                          is shown once, at the top of this page. A reset also removes all of{" "}
+                          {isMe ? "your" : "this user’s"} passkeys, in the studio and the capture app.
+                        </p>
+                      </form>
+                    </Disclosure>
+                    {u.email ? (
+                      <form action={reinvite}>
+                        <input type="hidden" name="email" value={u.email} />
+                        <Button
+                          type="submit"
+                          size="sm"
+                          variant="quiet"
+                          title="Email this user a link to set their own password"
+                          pendingLabel="Sending…"
+                        >
+                          Re-invite
+                        </Button>
+                      </form>
+                    ) : (
+                      <span />
+                    )}
+                    {/* A row's destructive action: DeleteListButton draws its first
+                        step quiet in danger and keeps its "Yes, delete" step. Not
+                        offered on your own account, which cannot delete itself; its
+                        column keeps its width so the other rows' actions line up. */}
+                    <div className="sm:justify-self-end">
+                      {isMe ? null : <DeleteListButton action={deleteUser} id={u.id} name={email} />}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <Panel title="Add a user" className="mt-5">
+              <form action={createUser} className="flex flex-wrap items-end gap-3">
+                <Field id="admin-add-email" label="Email" className="w-full sm:w-64">
+                  <input id="admin-add-email" name="email" type="email" required className="field" />
+                </Field>
+                <Field id="admin-add-role" label="Role" className="w-full sm:w-40">
+                  <select id="admin-add-role" name="role" className="field">
+                    <option value="staff">Staff</option>
+                    <option value="accountant">Accountant</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </Field>
+                <Field id="admin-add-password" label="Password" optional className="w-full sm:w-52">
+                  <input
+                    id="admin-add-password"
+                    name="password"
+                    minLength={PASSWORD_MIN}
+                    aria-describedby="admin-add-hint"
+                    className="field"
+                  />
+                </Field>
+                <Button type="submit" variant="primary" pendingLabel="Creating…">
+                  Create user
+                </Button>
+              </form>
+              <p id="admin-add-hint" className="mt-2 max-w-[65ch] text-[12px] leading-[1.4] text-meta">
+                The account works straight away. Leave the password blank to generate one; it is shown once, at
+                the top of this page. A password you choose needs at least {PASSWORD_MIN} characters.
+              </p>
+            </Panel>
           </Section>
 
           <Section
             title="Passkeys on all accounts"
-            meta="Every passkey on every account, in the studio and the capture app. Remove any nobody recognises; resetting a password removes all of that user's."
+            meta="Every passkey in the studio and the capture app. Delete any that nobody recognises."
           >
             {passkeys.length === 0 ? (
-              <EmptyState compact>No passkeys yet.</EmptyState>
+              <EmptyState compact>No passkeys yet. People add their own under Passkeys above.</EmptyState>
             ) : (
-              <TableFrame>
-                <Table className="min-w-[720px]">
-                  <thead>
-                    <tr>
-                      <Th>Email</Th>
-                      <Th>App</Th>
-                      <Th>Device</Th>
-                      <Th>Added</Th>
-                      <Th>Last used</Th>
-                      <Th>Manage</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {passkeys.map((k) => {
-                      const appLabel = k.app === "studio" ? "Studio" : "Capture";
-                      const device = k.device_label ?? "Passkey";
-                      return (
-                        <Tr key={`${k.app}:${k.id}`}>
-                          <Td className="text-ink">{k.email}</Td>
-                          <Td className="text-body">{appLabel}</Td>
-                          <Td className="text-body">{device}</Td>
-                          <Td className="tabular whitespace-nowrap text-body">{formatDate(k.created_at, "short")}</Td>
-                          <Td className="tabular whitespace-nowrap text-body">
-                            {k.last_used_at ? formatDate(k.last_used_at, "short") : "Never"}
-                          </Td>
-                          <Td>
-                            <DeleteListButton
-                              action={revokePasskey}
-                              id={k.id}
-                              name={`${device} passkey (${appLabel}) of ${k.email}`}
-                              extra={{ app: k.app }}
-                            />
-                          </Td>
-                        </Tr>
-                      );
-                    })}
-                  </tbody>
-                </Table>
-              </TableFrame>
+              <ul className="divide-y divide-rule border-b border-rule">
+                {passkeys.map((k) => {
+                  const appLabel = k.app === "studio" ? "Studio" : "Capture";
+                  const device = k.device_label ?? "Passkey";
+                  return (
+                    <li key={`${k.app}:${k.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-[13px] text-ink">{device}</p>
+                        <p className="truncate text-[12px] leading-[1.4] text-meta">
+                          {k.email} · {appLabel}
+                        </p>
+                        <p className="tabular text-[12px] leading-[1.4] text-meta">
+                          Added {formatDate(k.created_at, "short")},{" "}
+                          {k.last_used_at ? `last used ${formatDate(k.last_used_at, "short")}` : "never used"}
+                        </p>
+                      </div>
+                      <DeleteListButton
+                        action={revokePasskey}
+                        id={k.id}
+                        name={`${device} passkey (${appLabel}) of ${k.email}`}
+                        extra={{ app: k.app }}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </Section>
 
           <Section
-            title="Add user"
-            meta={`Creates the account at once. Leave the password blank to generate one (shown once, above); one you choose needs at least ${PASSWORD_MIN} characters, as does a reset.`}
-          >
-            <form action={createUser} className="flex flex-wrap items-end gap-3">
-              <Field id="admin-add-email" label="Email" className="w-full sm:w-64">
-                <input id="admin-add-email" name="email" type="email" required className="field" />
-              </Field>
-              <Field id="admin-add-role" label="Role" className="w-full sm:w-40">
-                <select id="admin-add-role" name="role" className="field">
-                  <option value="staff">Staff</option>
-                  <option value="accountant">Accountant</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </Field>
-              <Field id="admin-add-password" label="Password" optional className="w-full sm:w-52">
-                <input id="admin-add-password" name="password" minLength={PASSWORD_MIN} className="field" />
-              </Field>
-              <Button type="submit" variant="primary" pendingLabel="Creating…">
-                Create user
-              </Button>
-            </form>
-          </Section>
-
-          <Section
             title="Website sync"
-            meta={`${(outbox ?? 0) === 0 ? "Nothing waiting" : `${outbox} ${outbox === 1 ? "entry" : "entries"} waiting`} in the outbox. Web-visible works are pushed to the website when they change; a cron sends anything missed every 10 minutes.`}
+            meta={
+              (outbox ?? 0) === 0
+                ? "Nothing waiting to go to the website."
+                : `${formatCount(outbox ?? 0)} ${outbox === 1 ? "change" : "changes"} waiting to go to the website.`
+            }
           >
-            <form action={resyncWebsite} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p className="mb-3 max-w-[65ch] text-[13px] leading-[1.45] text-body">
+              Web-visible works go to the website as they change, and anything missed follows within 10 minutes.
+              A resync sends every web-visible work (with its images), every maker and every website list again,
+              for example after the site moves to a new Sanity dataset. It is safe to repeat.
+            </p>
+            <form action={resyncWebsite}>
               <Button type="submit" pendingLabel="Resyncing…">
                 Resync all web-visible works
               </Button>
-              <span className="max-w-[60ch] text-[12px] leading-[1.4] text-meta">
-                Sends every web-visible work (with images), every maker and every list to the website
-                again. Use it after pointing the site at a new Sanity dataset. Safe to repeat.
-              </span>
             </form>
           </Section>
 
-          <Section title="Recent activity">
+          <Section title="Recent activity" meta="The last 15 changes, newest first, in London time.">
             {activity.length === 0 ? (
               <EmptyState compact>No activity yet.</EmptyState>
             ) : (
-              <ul>
-                {activity.map((a) => (
-                  <li
-                    key={a.id}
-                    className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-rule py-1.5 text-[13px]"
-                  >
-                    {/* In the change history's words ("Edited · Financials"), not
-                        the raw SQL action and table name. */}
-                    <span className="text-body">
-                      {labelOf(ACTIVITY_ACTION_LABELS, a.action)} · {labelOf(ACTIVITY_ENTITY_LABELS, a.entity_type)}
-                    </span>
-                    <time dateTime={a.created_at} className="text-[12px] text-meta">
-                      {formatDateTime(a.created_at, "short")}
-                    </time>
-                  </li>
+              <div className="space-y-4">
+                {activityDays.map(({ day, rows }) => (
+                  <div key={day}>
+                    <h3 className="mb-1 text-[12px] font-medium leading-[1.4] text-meta">{dayLabel(day)}</h3>
+                    <ul>
+                      {rows.map((a) => {
+                        // In the change history's words ("Edited record 2026-0042"),
+                        // not the raw SQL action and table name.
+                        const stock =
+                          a.entity_id && WORK_ENTITIES.has(a.entity_type) ? stockNumberOf.get(a.entity_id) : undefined;
+                        const what =
+                          `${labelOf(ACTIVITY_ACTION_LABELS, a.action)} ${labelOf(ACTIVITY_ENTITY_LABELS, a.entity_type).toLowerCase()}` +
+                          (stock ? (a.entity_type === "piece_financials" ? ` of ${stock}` : ` ${stock}`) : "");
+                        const href = activityHref(a);
+                        const who = a.actor_id ? (actorOf.get(a.actor_id) ?? "A former user") : "The system";
+                        return (
+                          <li
+                            key={a.id}
+                            className="grid grid-cols-[3rem_minmax(0,1fr)] gap-x-3 py-1 text-[13px] sm:grid-cols-[3rem_minmax(0,1fr)_auto]"
+                          >
+                            <time dateTime={a.created_at} className="tabular text-meta">
+                              {formatTime(a.created_at)}
+                            </time>
+                            <span className="min-w-0 text-body">
+                              {href ? (
+                                <Link href={href} className="link-plain">
+                                  {what}
+                                </Link>
+                              ) : (
+                                what
+                              )}
+                            </span>
+                            <span className="col-start-2 truncate text-[12px] leading-[1.6] text-meta sm:col-start-auto sm:text-right">
+                              {who}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </Section>
         </div>
