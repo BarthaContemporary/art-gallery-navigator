@@ -227,9 +227,13 @@ docker compose logs -f image-worker          # watch it come up clean
 
 Stopping or rebuilding the worker no longer strands photographs: it
 finishes the ones in hand (compose gives it `stop_grace_period: 2m`) and
-hands the rest back as pending. Should a row still sit at `processing` (the
-server lost power, say), the worker takes it again 15 minutes later once
-0099 is applied; before that, set it back to `pending` as below.
+hands the rest back as pending. It claims no more photographs than it
+works on at once (two), so a crash leaves at most those at `processing`.
+Should a row still sit there (the server lost power, say), the worker takes
+it again 15 minutes later once 0099 is applied (a try counts only once the
+worker starts on a photograph, and one tried before is made on its own, so
+a photograph that crashes the worker uses up only its own three tries);
+before 0099, set it back to `pending` as below.
 
 Then re-queue any rows that failed on the old worker (the derivative job is
 idempotent — it overwrites the display master):

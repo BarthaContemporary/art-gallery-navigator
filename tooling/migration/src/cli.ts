@@ -5,7 +5,7 @@
  * Offline commands (no DB, write to out/):
  *   parse, gen-mappings, clean, scan-images, match-images, report
  * DB commands (need SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY):
- *   load-raw, import-mappings, finalize
+ *   load-raw, import-mappings, finalize, backfill-codes, attach-images
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -46,6 +46,7 @@ import { fillRates, readWorkbook } from "./lib/xlsx.ts";
 import { MAPPING_KINDS } from "./lib/finalize-plan.ts";
 import { runFinalize } from "./commands/finalize.ts";
 import { runAttachImages } from "./commands/attach-images.ts";
+import { runBackfillCodes } from "./commands/backfill-codes.ts";
 
 const program = new Command();
 program
@@ -300,6 +301,26 @@ program
         "If this run created works before it failed: fix the cause, then run finalize again with --resume " +
           "straight away (linked rows are skipped). Never run it again once the import is complete.",
       );
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// backfill-codes (DB) — category / storage location for works already imported
+// ---------------------------------------------------------------------------
+program
+  .command("backfill-codes")
+  .description(
+    "Give imported works the category and storage location their reviewed mappings name, where still empty " +
+      "(reports only, unless --apply)",
+  )
+  .option("--apply", "write the changes (without it: report what would change)", false)
+  .action(async (opts: { apply: boolean }) => {
+    const db = getSupabase();
+    try {
+      await runBackfillCodes(db, { apply: opts.apply });
+    } catch (err) {
+      console.error(`backfill-codes failed: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
     }
   });

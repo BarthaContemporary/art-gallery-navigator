@@ -142,8 +142,10 @@ Appendix A shows the exact lines and what each does.
    Lines starting with `>` are only in the new file, lines starting with `<`
    only in the live one.
 
-   - If the `>` lines are just the new block (Appendix A) and there are no
-     `<` lines, use the new file:
+   - If the `>` lines are just the new block (Appendix A), perhaps with
+     some comment lines (starting with `#`) and the image worker's
+     `stop_grace_period: 2m` (step 10 adds it otherwise; harmless before
+     then), and there are no `<` lines, use the new file:
 
      ```sh
      mv docker-compose.yml.new docker-compose.yml
@@ -824,7 +826,10 @@ whenever `infra/image-worker` changes. This version:
   hands the rest back; with database change 0099 a photograph it was
   working on when it stopped (a reboot, a crash) is picked up again 15
   minutes later, a passing storage or network failure is retried a few
-  minutes later, and after 3 tries the photograph shows an error instead;
+  minutes later, and after 3 tries the photograph shows an error instead
+  (a try counts only for a photograph the worker had started, and one
+  that was tried before is made on its own, so a photograph that crashes
+  the worker does not use up the tries of the others);
 - survives a database restart, works on two photographs at a time (memory),
   and puts cut-out photographs with a transparent background on white
   rather than black;
@@ -844,12 +849,21 @@ It does not depend on the other steps.
    starts using it by itself once it is there.
 
 2. Back up what it replaces (on the server, after the usual first
-   commands; `$B` is the folder from step 1, which also holds
-   `docker-compose.yml`):
+   commands). This step keeps its own folder, named with the date and
+   time, so doing step 10 again later never mixes with an earlier copy:
 
    ```sh
-   cp -a ../image-worker "$B"/image-worker
+   S=/root/image-worker-backup-$(date +%Y%m%d-%H%M)
+   mkdir -p "$S" && chmod 700 "$S"
+   cp -a ../image-worker docker-compose.yml "$S"/
+   ls -la "$S"
+   echo "Step 10 backup folder: $S"
    ```
+
+   Write down the folder's name. In a new SSH session set it again first:
+   `S=/root/image-worker-backup-<what you wrote down>`.
+
+   **Check:** the listing shows `image-worker` and `docker-compose.yml`.
 
 3. On your computer, in the repository folder (every file of the worker:
    the program, its library list and lockfile, and the build recipe):
@@ -860,18 +874,34 @@ It does not depend on the other steps.
      root@104.238.184.145:/opt/jvb/infra/image-worker/
    ```
 
-4. On the server, give it two minutes to finish when it is stopped: `nano
-   docker-compose.yml`, press Ctrl+W and search for `context: ../image-worker`,
-   go down one line to `restart: unless-stopped`, press End, press Enter and
-   type the line below. It must start with exactly four spaces, like the
-   `restart:` line above it. Save with Ctrl+O, Enter, then leave with Ctrl+X.
+4. On the server, give it two minutes to finish when it is stopped. First
+   see whether the compose file has the line already (it has if step 2
+   took the repository's file, or step 10 was done before):
 
-   ```yaml
-       stop_grace_period: 2m
+   ```sh
+   grep -n 'stop_grace_period' docker-compose.yml || echo "not there yet"
    ```
 
+   - If it shows a line ending in `stop_grace_period: 2m`, leave the file
+     alone and go on to the check below. Adding the line a second time
+     makes the file invalid.
+   - If it prints `not there yet`: `nano docker-compose.yml`, press Ctrl+W
+     and search for `context: ../image-worker`, go down one line to
+     `restart: unless-stopped`, press End, press Enter and type the line
+     below. It must start with exactly four spaces, like the `restart:`
+     line above it. Save with Ctrl+O, Enter, then leave with Ctrl+X.
+
+     ```yaml
+         stop_grace_period: 2m
+     ```
+
    Check: `docker compose config --quiet && echo "compose file OK"` prints
-   `compose file OK`.
+   `compose file OK`. If it says instead that `stop_grace_period` is
+   "already defined", the line is there twice: open the file in nano,
+   press Ctrl+W, search for `stop_grace_period`, press Ctrl+K on the one
+   you typed to delete it, save and check again. On any other complaint,
+   put the copy from 2 back (`cp -a "$S"/docker-compose.yml
+   docker-compose.yml`) and do this point again.
 
 5. On the server:
 
@@ -890,32 +920,89 @@ It does not depend on the other steps.
    re-save such a file flattened, as RGB, and upload it again.
 
 6. Optional, once: photographs uploaded before this as PNG, WebP or TIFF
-   may show a black background where the file was transparent. Making them
-   again is harmless for the others (it gives the same picture). See how
-   many there are, then queue them; the website picks up the new copies and
-   square tiles by itself:
+   may show a black background where the file was transparent. This makes
+   every such photograph again, transparent or not. Most come out as
+   before, but the new worker may refuse one that the old one took (a
+   TIFF with more than 5 colour channels, see 5, or a file it will not
+   read for another reason): that photograph then shows an error in the
+   studio and drops off the website until you put it back with c. below.
+   Its old copy is not touched, so putting it back is safe.
 
-   ```sh
-   docker compose exec -T db psql -U postgres -d postgres -c \
-     "select count(*) from piece_images where processing_status = 'done' and storage_path_original ~* '\.(png|webp|tiff?)$';"
-   docker compose exec -T db psql -U postgres -d postgres -c \
-     "with redo as (update piece_images set processing_status = 'pending', processing_error = null
-                     where processing_status = 'done' and storage_path_original ~* '\.(png|webp|tiff?)$'
-                     returning id, storage_path_display),
-           squares as (delete from piece_image_squares s using redo where s.image_id = redo.id)
-      delete from sanity_assets a using redo where a.storage_path = 'piece-derivatives/' || redo.storage_path_display;"
-   ```
+   a. Save the list of the photographs this makes again, in the backup
+      folder from 2 (set `S` again in a new SSH session), and count them:
 
-   (Forgetting the square tile and the website's copy is what the studio's
-   rotate button does too: the master is replaced under the same name.)
+      ```sh
+      docker compose exec -T db psql -U postgres -d postgres -At -c \
+        "select id from piece_images where processing_status = 'done' and storage_path_original ~* '\.(png|webp|tiff?)$';" \
+        > "$S"/step10-remade.txt
+      wc -l < "$S"/step10-remade.txt
+      ```
 
-**Undo:** put back what step 2 saved and the compose file from step 1, then
-run the two commands of 5 again. 0099 can stay: the old worker ignores it.
+   b. Queue exactly those. The website picks up the new copies and square
+      tiles by itself:
+
+      ```sh
+      IDS=$(paste -sd, "$S"/step10-remade.txt)
+      docker compose exec -T db psql -U postgres -d postgres -c \
+        "with redo as (update piece_images set processing_status = 'pending', processing_error = null
+                        where id = any('{$IDS}'::uuid[]) and processing_status = 'done'
+                        returning id, storage_path_display),
+              squares as (delete from piece_image_squares s using redo where s.image_id = redo.id)
+         delete from sanity_assets a using redo where a.storage_path = 'piece-derivatives/' || redo.storage_path_display;"
+      ```
+
+      (Forgetting the square tile and the website's copy is what the
+      studio's rotate button does too: the master is replaced under the
+      same name.)
+
+   c. Afterwards, check how they came out, and put back any the new
+      worker refused. Run the first command until it shows no `pending`
+      or `processing` (two at a time, a few seconds each; a passing
+      storage failure is tried again up to about 15 minutes later):
+
+      ```sh
+      IDS=$(paste -sd, "$S"/step10-remade.txt)
+      docker compose exec -T db psql -U postgres -d postgres -c \
+        "select processing_status, count(*) from piece_images where id = any('{$IDS}'::uuid[]) group by 1;"
+      docker compose exec -T db psql -U postgres -d postgres -c \
+        "select id, piece_id, processing_error from piece_images where id = any('{$IDS}'::uuid[]) and processing_status = 'error';"
+      ```
+
+      If the second command lists any, put them back to their old copy
+      (the master the old worker made is still in storage under the same
+      name; the website sync makes their square tile again and puts them
+      back on the site):
+
+      ```sh
+      docker compose exec -T db psql -U postgres -d postgres -c \
+        "update piece_images set processing_status = 'done', processing_error = null
+          where id = any('{$IDS}'::uuid[]) and processing_status = 'error' and storage_path_display is not null;"
+      ```
+
+      Note the errors listed (a TIFF with too many channels can be re-saved
+      as RGB and uploaded again, as in 5).
+
+**Undo:** put back the worker folder saved in 2, take out the one line 4
+added, then run the two commands of 5 again. 0099 can stay: the old worker
+ignores it. Do not copy the whole saved `docker-compose.yml` back: step 2,
+or any other change made since, may have changed the live file, and
+copying it would undo that (for step 2, the sign-in server's limits). In a
+new SSH session set `S` again first, as in 2; the commands below change
+nothing and say STOP while `$S` does not hold the saved folder.
 
 ```sh
-rm -rf ../image-worker && cp -a "$B"/image-worker ../image-worker
-cp -a "$B"/docker-compose.yml docker-compose.yml
+if [ -d "$S"/image-worker ]; then
+  rm -rf ../image-worker && cp -a "$S"/image-worker ../image-worker
+  sed -i '/^    stop_grace_period: 2m$/d' docker-compose.yml
+  docker compose config --quiet && echo "compose file OK"
+else
+  echo "STOP: set S to the step 10 backup folder first (point 2)"
+fi
 ```
+
+The line taken out is harmless to keep if you would rather leave the
+compose file alone (the old worker stops at once either way); taking it
+out makes `grep` in 4 show the true state next time.
 
 ## Afterwards
 
@@ -926,7 +1013,8 @@ cp -a "$B"/docker-compose.yml docker-compose.yml
   anyone following those notes will find `/pg/query` closed: that is
   intended, use 5.4.
 - Record what step 6.7 found in the review file.
-- Delete the backup folder from step 1 a week after the last step.
+- Delete the backup folder from step 1 a week after the last step, and
+  step 10's (`/root/image-worker-backup-…`) a week after that step.
 
 ## If staff see "Too many sign-in attempts"
 

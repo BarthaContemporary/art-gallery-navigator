@@ -27,7 +27,7 @@ export interface FinalizeOptions {
   resume: boolean;
 }
 
-interface Mapping {
+export interface Mapping {
   field: string;
   raw_value: string;
   mapped_kind: string | null;
@@ -37,7 +37,7 @@ interface Mapping {
 
 type MappingIndex = Map<string, Mapping>; // `${field}<NUL>${raw_value}`
 
-function mappingKey(field: string, rawValue: string): string {
+export function mappingKey(field: string, rawValue: string): string {
   return `${field}\u0000${rawValue.trim()}`;
 }
 

@@ -8,9 +8,9 @@
  *     `pg_notify('new_piece_image', <image id>)` (created in supabase/migrations).
  *   - This worker LISTENs on that channel and additionally polls every
  *     POLL_INTERVAL_MS (default 60s) as the reliable fallback.
- *   - Each cycle claims up to BATCH_SIZE pending rows (FOR UPDATE SKIP LOCKED,
- *     so multiple workers would not double-process) and works through them
- *     CONCURRENCY at a time, per image:
+ *   - Each cycle claims as many pending rows as it works on at once
+ *     (CONCURRENCY, at most BATCH_SIZE; FOR UPDATE SKIP LOCKED, so multiple
+ *     workers would not double-process) and works through them, per image:
  *       download original → EXIF subset via exifr → sharp: auto-rotate,
  *       sRGB, flattened on white, max 4096px longest side (no enlargement),
  *       JPEG q85 → upload to `piece-derivatives/${piece_id}/${image_id}.jpg`
@@ -18,8 +18,11 @@
  *   - A claim is a lease once migration 0099 is applied (claim_piece_images):
  *     a row left 'processing' by a worker that stopped mid-image is taken
  *     again 15 minutes later, a passing storage/network failure is retried a
- *     few minutes later, and after 3 tries the row is marked 'error'. Without
- *     0099 the worker claims and fails as it always did.
+ *     few minutes later, and after 3 tries the row is marked 'error'. A try
+ *     counts when work on the image starts, not when it is claimed, and a
+ *     row tried before is worked on alone, so an image that kills the worker
+ *     uses up only its own tries. Without 0099 the worker claims and fails
+ *     as it always did.
  *   - Any other failure marks the row 'error' with the message; a retry is
  *     setting the status back to 'pending'.
  *   - On SIGTERM it finishes the images in hand, hands back the ones of the
@@ -34,11 +37,13 @@ import pg from "pg";
 import sharp, { type OutputInfo } from "sharp";
 import { displayMaster } from "./master.js";
 import {
+  claimLimit,
   isMissingObject,
   isNotFound,
   isTransient,
   LEASE_SECONDS,
   MAX_ATTEMPTS,
+  planBatch,
   positiveInt,
   retryDelaySeconds,
   runLimited,
@@ -75,6 +80,8 @@ function numberEnv(name: string, fallback: number): number {
 }
 
 const POLL_INTERVAL_MS = numberEnv("POLL_INTERVAL_MS", 60_000);
+// Most rows one claim takes. A claim never takes more than CONCURRENCY
+// (claimLimit), so this only matters when set lower.
 const BATCH_SIZE = numberEnv("BATCH_SIZE", 5);
 // Images worked on at once. Each holds its original (up to the storage
 // limit) and a decoded bitmap in memory, so a whole batch at once could run
@@ -142,7 +149,10 @@ interface PendingImage {
   storage_path_original: string | null;
   /** Manual quarter-turns applied to the previous derivative (0/90/180/270). */
   rotation: number | null;
-  /** This claim's try number (lease mode, migration 0099); absent without it. */
+  /**
+   * Lease mode (migration 0099): the tries so far as claimed, then this
+   * try's number once work starts (startAttempt). Absent without 0099.
+   */
   processing_attempts?: number;
 }
 
@@ -203,18 +213,20 @@ async function detectLeaseMode(): Promise<void> {
 }
 
 /**
- * Atomically claim up to BATCH_SIZE rows by flipping them to 'processing'.
- * SKIP LOCKED makes this safe under concurrent workers. With 0099 it also
- * takes rows whose lease ran out (a worker stopped mid-image).
+ * Atomically claim the rows of one round by flipping them to 'processing':
+ * as many as are worked on at once (claimLimit), so none waits claimed but
+ * unstarted. SKIP LOCKED makes this safe under concurrent workers. With
+ * 0099 it also takes rows whose lease ran out (a worker stopped mid-image).
  */
 async function claimBatch(): Promise<PendingImage[]> {
+  const limit = claimLimit(BATCH_SIZE, CONCURRENCY);
   await detectLeaseMode();
   if (leaseMode) {
     try {
       const result = await pool.query<PendingImage>(
         `select id, piece_id, storage_path_original, rotation, processing_attempts
            from public.claim_piece_images($1, $2, $3)`,
-        [BATCH_SIZE, LEASE_SECONDS, MAX_ATTEMPTS],
+        [limit, LEASE_SECONDS, MAX_ATTEMPTS],
       );
       return result.rows;
     } catch (err) {
@@ -238,7 +250,7 @@ async function claimBatch(): Promise<PendingImage[]> {
                  FOR UPDATE SKIP LOCKED
             )
   RETURNING id, piece_id, storage_path_original, rotation`,
-    [BATCH_SIZE],
+    [limit],
   );
   return result.rows;
 }
@@ -316,16 +328,35 @@ async function retryLater(imageId: string, err: unknown, delaySeconds: number): 
   }
 }
 
-/** Lease mode: the lease counts from when work on the image starts, not the claim. */
-async function touchLease(imageId: string): Promise<void> {
-  await pool
-    .query(`UPDATE piece_images SET processing_started_at = now() WHERE id = $1 AND processing_status = 'processing'`, [
-      imageId,
-    ])
-    .catch((err) => log("warn", "could not renew lease", { imageId, error: errorMessage(err) }));
+/**
+ * Lease mode: work on the image starts. Counts the try and renews the lease
+ * (it runs from the start, not the claim) in one write, and returns this
+ * try's number. The claim counted nothing, so a row claimed but never
+ * started keeps its tries.
+ */
+async function startAttempt(row: PendingImage): Promise<number> {
+  const guess = (row.processing_attempts ?? 0) + 1;
+  try {
+    const { rows } = await pool.query<{ processing_attempts: number }>(
+      `UPDATE piece_images
+          SET processing_started_at = now(),
+              processing_attempts   = processing_attempts + 1
+        WHERE id = $1 AND processing_status = 'processing'
+    RETURNING processing_attempts`,
+      [row.id],
+    );
+    return rows[0]?.processing_attempts ?? guess;
+  } catch (err) {
+    log("warn", "could not record the start of a try", { imageId: row.id, error: errorMessage(err) });
+    return guess;
+  }
 }
 
-/** Hand claimed rows that were never started back to the queue (shutdown). */
+/**
+ * Hand claimed rows that were never started back to the queue (shutdown).
+ * Back at 'pending' a row starts a fresh count when claimed again; the old
+ * worker (runbook step 10's undo) takes 'pending' rows only.
+ */
 async function release(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   try {
@@ -505,18 +536,21 @@ async function runCycle(): Promise<void> {
       return;
     }
     if (batch.length === 0) return;
-    log("info", "claimed batch", { count: batch.length, lease: leaseMode });
 
     // CONCURRENCY images at a time: overlapping the downloads and uploads
     // drains a bulk upload faster, while the memory each decode takes stays
-    // bounded. A failure is isolated per image. Once shutdown starts no new
+    // bounded. A row tried before goes last and alone (planBatch), so if it
+    // is the image that kills the worker no other image loses a try with
+    // it. A failure is isolated per image. Once shutdown starts no new
     // image is begun; those are handed back below.
+    const plan = planBatch(batch, CONCURRENCY);
+    log("info", "claimed batch", { count: batch.length, lease: leaseMode, atOnce: plan.concurrency });
     const skipped = await runLimited(
-      batch,
-      CONCURRENCY,
+      plan.rows,
+      plan.concurrency,
       async (row) => {
         try {
-          if (leaseMode) await touchLease(row.id);
+          if (row.processing_attempts !== undefined) row.processing_attempts = await startAttempt(row);
           await processImage(row);
         } catch (err) {
           log("error", "image failed", { imageId: row.id, error: errorMessage(err) });
@@ -602,7 +636,7 @@ async function shutdown(signal: string): Promise<void> {
 
   if (pollTimer) clearInterval(pollTimer);
 
-  // Let the images in hand finish (at most CONCURRENCY); the rest of the
+  // Let the images in hand finish (at most CONCURRENCY); any rest of the
   // batch is handed back as 'pending'. Compose allows 2 minutes for this
   // (stop_grace_period) before it kills the container.
   if (cycleInFlight) {
@@ -623,7 +657,7 @@ async function main(): Promise<void> {
   log("info", "image-worker starting", {
     supabaseUrl: SUPABASE_URL,
     pollIntervalMs: POLL_INTERVAL_MS,
-    batchSize: BATCH_SIZE,
+    claimSize: claimLimit(BATCH_SIZE, CONCURRENCY),
     concurrency: CONCURRENCY,
     maxDimensionPx: MAX_DIMENSION_PX,
     jpegQuality: JPEG_QUALITY,

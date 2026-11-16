@@ -1,7 +1,8 @@
 /**
- * Pure decisions for `finalize` (no I/O, so `node --test` covers them):
- * whether a run may start, the purchase-year stock numbers, and the
- * category / storage-location codes the dealer mapped.
+ * Pure decisions for `finalize` and `backfill-codes` (no I/O, so
+ * `node --test` covers them): whether a run may start, the purchase-year
+ * stock numbers, and the category / storage-location codes the dealer
+ * mapped, for new works and for the works an earlier import made.
  */
 
 export interface FinalizeState {
@@ -89,3 +90,83 @@ export const MAPPING_KINDS = [
   "buyer_note",
   "unknown",
 ] as const;
+
+/** A legacy row already linked to its work, with its raw category and location. */
+export interface LinkedLegacyRow {
+  piece_id: string;
+  category_raw: string | null;
+  location_raw: string | null;
+}
+
+export type CodeColumn = "category_id" | "location_id";
+
+export interface CodeBackfillPlan {
+  /** Per column: target id -> the works to set (only works still empty there). */
+  updates: Record<CodeColumn, Map<string, string[]>>;
+  /** Works that already carry a value there: kept, whatever the legacy row says. */
+  kept: Record<CodeColumn, number>;
+  /** Mapped values naming no code, for works still empty: "<field> <value>" -> works. */
+  unresolved: Map<string, number>;
+  /** Works whose legacy rows map to two different codes: left empty, listed. */
+  conflicts: Record<CodeColumn, string[]>;
+}
+
+const CODE_FIELDS = [
+  { field: "category", kind: "category_code", column: "category_id", raw: (r: LinkedLegacyRow) => r.category_raw },
+  { field: "location", kind: "storage_location", column: "location_id", raw: (r: LinkedLegacyRow) => r.location_raw },
+] as const;
+
+/**
+ * backfill-codes: the category and storage location the first import should
+ * have given its works (finalize did not apply those mappings then). Only a
+ * work whose column is still empty is set, so anything a person chose since
+ * is kept; a mapped value that names no code is reported, never guessed.
+ */
+export function planCodeBackfill(
+  rows: readonly LinkedLegacyRow[],
+  pieces: ReadonlyMap<string, { category_id: string | null; location_id: string | null }>,
+  mappingFor: (field: "category" | "location", rawValue: string | null) => CodeMapping | null,
+  idsByCode: { category: ReadonlyMap<string, string>; location: ReadonlyMap<string, string> },
+): CodeBackfillPlan {
+  const plan: CodeBackfillPlan = {
+    updates: { category_id: new Map(), location_id: new Map() },
+    kept: { category_id: 0, location_id: 0 },
+    unresolved: new Map(),
+    conflicts: { category_id: [], location_id: [] },
+  };
+  const wanted: Record<CodeColumn, Map<string, Set<string>>> = { category_id: new Map(), location_id: new Map() };
+  const keptWorks: Record<CodeColumn, Set<string>> = { category_id: new Set(), location_id: new Set() };
+  for (const row of rows) {
+    const piece = pieces.get(row.piece_id);
+    if (!piece) continue; // the work is gone
+    for (const f of CODE_FIELDS) {
+      const { id, unresolved } = resolveCode(mappingFor(f.field, f.raw(row)), f.kind, idsByCode[f.field]);
+      if (piece[f.column] !== null) {
+        if (id) keptWorks[f.column].add(row.piece_id);
+        continue;
+      }
+      if (unresolved) {
+        const key = `${f.field} ${unresolved}`;
+        plan.unresolved.set(key, (plan.unresolved.get(key) ?? 0) + 1);
+      }
+      if (!id) continue;
+      const ids = wanted[f.column].get(row.piece_id) ?? new Set<string>();
+      ids.add(id);
+      wanted[f.column].set(row.piece_id, ids);
+    }
+  }
+  for (const column of ["category_id", "location_id"] as const) {
+    plan.kept[column] = keptWorks[column].size;
+    for (const [pieceId, ids] of wanted[column]) {
+      if (ids.size > 1) {
+        plan.conflicts[column].push(pieceId);
+        continue;
+      }
+      const [id] = [...ids] as [string];
+      const list = plan.updates[column].get(id) ?? [];
+      list.push(pieceId);
+      plan.updates[column].set(id, list);
+    }
+  }
+  return plan;
+}

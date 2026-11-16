@@ -1,7 +1,8 @@
 /**
  * Small, pure pieces of the image worker (no imports, so `node --test` runs
  * them directly): reading its numeric settings, telling a passing failure
- * from a lasting one, and working through a batch a few images at a time.
+ * from a lasting one, and sizing, ordering and working through a batch a
+ * few images at a time.
  */
 
 /**
@@ -57,6 +58,34 @@ export const MAX_ATTEMPTS = 3;
 /** How long to wait before the next try after a passing failure on try n. */
 export function retryDelaySeconds(attempt: number): number {
   return attempt <= 1 ? 120 : 600;
+}
+
+/**
+ * How many rows one claim takes: no more than are worked on at once. A
+ * claimed row waits at 'processing' until it is started, so a worker that
+ * died with more claimed than in hand left the rest stranded (before 0099)
+ * or waiting out their lease; unclaimed, they stay 'pending' and the next
+ * cycle takes them at once.
+ */
+export function claimLimit(batchSize: number, concurrency: number): number {
+  return Math.max(1, Math.min(batchSize, concurrency));
+}
+
+/**
+ * The order and width in which to work through a claimed batch. A row
+ * started before that did not finish (lease mode: processing_attempts above
+ * 0, because the worker died on it or a passing failure is being retried)
+ * may be the photograph that kills the worker. It runs after the fresh rows
+ * and with nothing else in hand, so if it kills the worker again no other
+ * image loses a try with it. Without 0099 (no counts) nothing changes.
+ */
+export function planBatch<T extends { processing_attempts?: number }>(
+  rows: readonly T[],
+  concurrency: number,
+): { rows: T[]; concurrency: number } {
+  const tried = (row: T) => row.processing_attempts ?? 0;
+  const ordered = [...rows].sort((a, b) => tried(a) - tried(b)); // stable: claim order kept
+  return { rows: ordered, concurrency: ordered.some((row) => tried(row) > 0) ? 1 : concurrency };
 }
 
 /**

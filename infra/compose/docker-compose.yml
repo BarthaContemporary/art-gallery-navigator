@@ -411,7 +411,8 @@ services:
       context: ../image-worker
     restart: unless-stopped
     # On stop the worker finishes the images in hand (two at a time) and hands
-    # the rest of its batch back; give it time to before Docker kills it.
+    # any rest of its batch back; give it time to do that before Docker kills
+    # it. docs/ops/security-runbook.md step 10 adds this line on the server.
     stop_grace_period: 2m
     # This service decodes attacker-influenceable image bytes (sharp/libvips +
     # the heic-convert WASM decoder). Deny privilege escalation so a decoder
