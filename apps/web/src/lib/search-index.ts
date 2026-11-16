@@ -2,6 +2,9 @@ import groq from "groq";
 import { formatLifeDates } from "@/lib/life-dates";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
 import { sanityFetch, type SanityImage } from "@/lib/sanity";
+import { fold, foldedTerms } from "@/lib/fold";
+import { eventYear } from "@/lib/events";
+import { catalogueShown } from "@/lib/grid-work";
 
 /**
  * Search works over a compact, cached index rather than per-keystroke GROQ:
@@ -21,7 +24,7 @@ export type SearchHit = {
   image: SanityImage | null;
   /** Aspect ratio of the thumbnail (1, 3/4, 4/5, 16/9). */
   ratio: number;
-  /** Everything matchable, lower-cased. */
+  /** Everything matchable, folded (lower case, Latin accents dropped: lib/fold). */
   haystack: string;
 };
 
@@ -67,9 +70,9 @@ const indexQuery = groq`{
   }
 }`;
 
+/** The year of a calendar date, read from its text (no time-zone shift). */
 function yearOf(d: string | null): string | null {
-  const y = d ? new Date(d).getFullYear() : NaN;
-  return Number.isNaN(y) ? null : String(y);
+  return eventYear({ startDate: d, endDate: null });
 }
 
 export async function loadSearchIndex(): Promise<SearchHit[]> {
@@ -80,7 +83,7 @@ export async function loadSearchIndex(): Promise<SearchHit[]> {
   });
   if (!doc) return [];
   const hits: SearchHit[] = [];
-  const lc = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(" ").toLowerCase();
+  const lc = (...parts: (string | null | undefined)[]) => fold(parts.filter(Boolean).join(" "));
 
   for (const a of doc.artists) {
     if (!a.slug || ARTISTS_UNDER_CONSTRUCTION) continue;
@@ -109,6 +112,8 @@ export async function loadSearchIndex(): Promise<SearchHit[]> {
       haystack: lc(e.title, e.venue, e.fairName, year),
     });
     for (const c of e.catalogue ?? []) {
+      // Only entries the event page shows: the result links to that tile.
+      if (!catalogueShown(c)) continue;
       const who = c.maker ? (c.makerDates ? `${c.maker} (${c.makerDates})` : c.maker) : null;
       hits.push({
         kind: "work",
@@ -163,9 +168,13 @@ export async function loadSearchIndex(): Promise<SearchHit[]> {
   return hits;
 }
 
-/** Every whitespace-separated term must appear somewhere in the haystack. */
+/**
+ * Every whitespace-separated term must appear somewhere in the haystack,
+ * both folded the same way, so a query typed without long-vowel marks
+ * ("hozan") finds the romanised names that carry them ("Hōzan").
+ */
 export function searchHits(index: SearchHit[], query: string): SearchHit[] {
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const terms = foldedTerms(query);
   if (terms.length === 0) return [];
   return index.filter((h) => terms.every((t) => h.haystack.includes(t)));
 }

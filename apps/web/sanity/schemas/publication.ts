@@ -3,17 +3,26 @@
  * (e.g. "Showa", "Gutai", "East"). Cover image, description and an
  * optional external/PDF link.
  */
+import { richTextBlock } from "./richText";
+import { wanted } from "./validation";
+
 const publication = {
   name: "publication",
   title: "Publication",
   type: "document",
   fields: [
-    { name: "title", title: "Title", type: "string" },
+    {
+      name: "title",
+      title: "Title",
+      type: "string",
+      validation: wanted("Without a title the publication page has no heading."),
+    },
     {
       name: "slug",
       title: "Slug",
       type: "slug",
       options: { source: "title", maxLength: 96 },
+      validation: wanted("Without a slug the publication has no page and is not listed."),
     },
     {
       name: "coverImage",
@@ -27,7 +36,7 @@ const publication = {
       title: "Description",
       type: "array",
       of: [
-        { type: "block" },
+        richTextBlock,
         {
           type: "image",
           options: { hotspot: true },
@@ -106,7 +115,8 @@ const publication = {
       name: "externalUrl",
       title: "External / PDF link",
       type: "url",
-      description: "Optional link to a PDF or external catalogue page.",
+      description:
+        "Optional link to a PDF or external catalogue page. A link ending in .pdf is offered as “Download PDF”, any other as “View catalogue”; an uploaded PDF above wins.",
     },
     {
       name: "seo",

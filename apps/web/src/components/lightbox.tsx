@@ -1,17 +1,28 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /**
  * Full-screen view of one photograph over the blurred page. Scroll or pinch
  * to zoom around the pointer, drag to pan, double-click or double-tap to
  * jump between fit and 2.5×. Esc, ✕ or a click on the ground closes it.
+ * Keyboard focus moves to ✕ on opening, stays on it while open (it is the
+ * layer's only control) and returns to where it was on closing.
  */
 const MIN = 1;
 const MAX = 5;
 
 type Pt = { x: number; y: number };
+type Size = { w: number; h: number };
+
+/**
+ * The stage is `fixed inset-0`, i.e. the viewport, and the lightbox only
+ * mounts in the browser after a click, so the window's size is the stage's
+ * size from the first render; the layout effect below then measures it.
+ */
+const viewportSize = (): Size =>
+  typeof window === "undefined" ? { w: 0, h: 0 } : { w: window.innerWidth, h: window.innerHeight };
 
 export function Lightbox({
   src,
@@ -34,6 +45,25 @@ export function Lightbox({
   onClose: () => void;
 }) {
   const stage = useRef<HTMLDivElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  // The stage's size, kept in state so the photograph is fitted on the very
+  // first painted frame and refitted when the window resizes or the phone
+  // turns (a ref read during render is still null on the first render).
+  const [view, setView] = useState<Size>(viewportSize);
+  useLayoutEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const measure = () =>
+      setView((v) => (v.w === el.clientWidth && v.h === el.clientHeight ? v : { w: el.clientWidth, h: el.clientHeight }));
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // The large file arrives in the background; until then the page's picture
   // stands in, so opening is instant and zooming sharpens a moment later.
   const [shown, setShown] = useState(src);
@@ -70,25 +100,41 @@ export function Lightbox({
   }, [onClose]);
 
   // Fit-to-screen size of the photograph, so zoom maths stay in one space.
-  const fit = useCallback(() => {
-    const el = stage.current;
-    if (!el) return { w: width, h: height };
+  const fit = useCallback((): Size => {
+    if (view.w <= 0 || view.h <= 0) return { w: width, h: height };
     const pad = 48;
-    const r = Math.min((el.clientWidth - pad) / width, (el.clientHeight - pad) / height, 1);
+    const r = Math.max(0, Math.min((view.w - pad) / width, (view.h - pad) / height, 1));
     return { w: width * r, h: height * r };
-  }, [width, height]);
+  }, [width, height, view]);
 
   const clamp = useCallback(
     (p: Pt, s: number): Pt => {
-      const el = stage.current;
-      if (!el) return p;
+      if (view.w <= 0 || view.h <= 0) return p;
       const { w, h } = fit();
-      const maxX = Math.max(0, (w * s - el.clientWidth) / 2);
-      const maxY = Math.max(0, (h * s - el.clientHeight) / 2);
+      const maxX = Math.max(0, (w * s - view.w) / 2);
+      const maxY = Math.max(0, (h * s - view.h) / 2);
       return { x: Math.min(maxX, Math.max(-maxX, p.x)), y: Math.min(maxY, Math.max(-maxY, p.y)) };
     },
-    [fit],
+    [fit, view],
   );
+
+  // A new stage size (resize, rotation) can leave the pan out of bounds;
+  // zooming and panning already clamp, so for them this changes nothing.
+  useEffect(() => {
+    setPos((p) => {
+      const c = clamp(p, scale);
+      return c.x === p.x && c.y === p.y ? p : c;
+    });
+  }, [clamp, scale]);
+
+  // Focus: onto ✕ on opening, back to the opener (the picture's button) on closing.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButton.current?.focus({ preventScroll: true });
+    return () => {
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, []);
 
   /** Zoom to `next` keeping the point under `at` (stage-centre coordinates) still. */
   const zoomAt = useCallback(
@@ -116,7 +162,18 @@ export function Lightbox({
       if (e.key === "Escape") {
         e.preventDefault();
         close();
+        return;
       }
+      // ✕ is the layer's only control: Tab and Shift+Tab keep focus on it
+      // rather than walking through the page hidden behind.
+      if (e.key === "Tab") {
+        e.preventDefault();
+        closeButton.current?.focus({ preventScroll: true });
+        return;
+      }
+      // Ctrl/Cmd +/- is the browser's own zoom; leave it alone. Shift is
+      // not checked: "+" is Shift+= on UK and US keyboards.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "+" || e.key === "=") zoomAt(scale * 1.25, { x: 0, y: 0 });
       if (e.key === "-") zoomAt(scale / 1.25, { x: 0, y: 0 });
     };
@@ -205,6 +262,7 @@ export function Lightbox({
       }}
     >
       <button
+        ref={closeButton}
         type="button"
         onClick={close}
         aria-label="Close"
@@ -245,6 +303,8 @@ export function Lightbox({
           style={{
             width: w,
             height: h,
+            // Never painted at the master's own pixel size before the stage is known.
+            visibility: view.w > 0 && view.h > 0 ? undefined : "hidden",
             transform: `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px)) scale(${scale})`,
             transition: dragging || pinch.current ? "none" : "transform 220ms var(--ease-out)",
           }}

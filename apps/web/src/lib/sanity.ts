@@ -18,31 +18,49 @@ export const sanityClient = createClient({
   perspective: "published",
 });
 
+/** False for a build or preview with no Sanity project set. */
+const sanityConfigured = projectId !== "placeholder";
+
 /**
  * Cached, tag-revalidated fetch. Every query is tagged with "sanity" plus
  * its document-type tags so `/api/revalidate` can invalidate precisely.
- * Falls back gracefully (empty state instead of a 500/build failure) when
- * Sanity is unreachable or not yet configured.
+ *
+ * A failure is always logged (quietly only for the unconfigured
+ * placeholder build). By default it then falls back gracefully (empty state
+ * instead of a 500 or a failed build). With `required`, a configured site
+ * rethrows instead, at request time: the loader of a page that would
+ * otherwise render a 404 or an empty list from the fallback, and be cached
+ * that way for the next hour, lets the regeneration fail so the last good
+ * page stays served (a first render with nothing cached shows app/error).
+ * During `next build` it still falls back, so a build with Sanity briefly
+ * unreachable succeeds as before. A missing document is not a failure:
+ * Sanity answers null, and the page's notFound() still applies.
  */
 export async function sanityFetch<T>({
   query,
   params = {},
   tags = [],
   fallback,
+  required = false,
 }: {
   query: string;
   params?: Record<string, unknown>;
   tags?: string[];
   fallback: T;
+  required?: boolean;
 }): Promise<T> {
   try {
     return await sanityClient.fetch<T>(query, params, {
       next: { revalidate: 3600, tags: ["sanity", ...tags] },
     });
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[sanity] fetch failed, using fallback:", error);
+    if (sanityConfigured) {
+      console.error("[sanity] fetch failed:", error instanceof Error ? error.message : error, { tags });
+    } else if (process.env.NODE_ENV !== "production") {
+      console.warn("[sanity] fetch failed (no project configured), using fallback:", error);
     }
+    const building = process.env.NEXT_PHASE === "phase-production-build";
+    if (required && sanityConfigured && !building) throw error;
     return fallback;
   }
 }
@@ -207,22 +225,6 @@ export interface Work {
   tile?: SanityImage | null;
 }
 
-export interface WorkListResult {
-  items: Work[];
-  total: number;
-  categories: { category: string | null; categorySlug: string | null }[];
-}
-
-export interface Collection {
-  _id: string;
-  title: string | null;
-  slug: string | null;
-  description: string | null;
-  cover: SanityImage | null;
-  workCount: number | null;
-  works?: Work[] | null;
-}
-
 export interface Seo {
   title: string | null;
   description: string | null;
@@ -341,8 +343,6 @@ export interface ExhibitionListItem {
   coverImage: SanityImage | null;
   /** First 16:9 hero image, falling back to the cover — for the slideshow. */
   hero: SanityImage | null;
-  workCount: number | null;
-  catalogueCount: number | null;
 }
 
 /** Lightweight shape returned by the publications index query. */
@@ -374,16 +374,6 @@ export interface Publication {
   seo: Seo | null;
 }
 
-export interface JournalPost {
-  _id: string;
-  title: string | null;
-  slug: string | null;
-  excerpt: string | null;
-  publishedAt: string | null;
-  cover: SanityImage | null;
-  body?: PortableBlock[] | null;
-}
-
 export interface SitePage {
   _id: string;
   title: string | null;
@@ -411,7 +401,6 @@ export interface SiteSettings {
     description: string | null;
     ogImage: SanityImage | null;
   } | null;
-  featuredWorks: Work[] | null;
   /** Meta pixel ID, set in Sanity so it can go live without a deploy. */
   facebookPixelId: string | null;
   legalName?: string | null;
@@ -453,7 +442,9 @@ const workFields = /* groq */ `{
   tile{ asset }
 }`;
 
-export const siteSettingsQuery = groq`*[_type == "siteSettings"][0]{
+/* The oldest settings document wins, so a second one created by mistake can
+   never take over the site (the Studio also refuses to create one). */
+export const siteSettingsQuery = groq`*[_type == "siteSettings"] | order(_createdAt asc)[0]{
   legalName, companyNumber, registeredOffice, vatNumber, tradeMemberships, dpContactEmail,
   galleryName,
   tagline,
@@ -470,58 +461,10 @@ export const siteSettingsQuery = groq`*[_type == "siteSettings"][0]{
   pressLinks[]{ _key, title, source, url },
   socials[]{ _key, label, url },
   defaultSeo{ title, description, ogImage{ asset } },
-  featuredWorks[]->${workFields},
   facebookPixelId
 }`;
 
-/**
- * Paginated works list, filterable by category slug.
- * Pass $category = "" for "all".
- */
-/* Shared predicate: category facet + a tokenised text search across the
-   catalogue fields (prefix wildcard so partial words match). */
-const worksMatch = /* groq */ `
-  _type == "work" &&
-  defined(slug.current) &&
-  ($category == "" || categorySlug == $category) &&
-  ($q == "" ||
-    title match ($q + "*") ||
-    maker match ($q + "*") ||
-    medium match ($q + "*") ||
-    period match ($q + "*") ||
-    originRegion match ($q + "*") ||
-    stockNumber match ($q + "*"))
-`;
-
-export const worksQuery = groq`{
-  "items": *[${worksMatch}] | order(_createdAt desc) [$offset...$end] ${workFields},
-  "total": count(*[${worksMatch}]),
-  "categories": *[_type == "work" && defined(categorySlug)]{ category, categorySlug }
-}`;
-
 export const workBySlugQuery = groq`*[_type == "work" && slug.current == $slug][0]${workFields}`;
-
-export const workSlugsQuery = groq`*[_type == "work" && defined(slug.current)].slug.current`;
-
-export const collectionsQuery = groq`*[_type == "collection" && defined(slug.current)] | order(title asc){
-  _id,
-  title,
-  "slug": slug.current,
-  description,
-  cover{ asset, caption },
-  "workCount": count(works)
-}`;
-
-export const collectionBySlugQuery = groq`*[_type == "collection" && slug.current == $slug][0]{
-  _id,
-  title,
-  "slug": slug.current,
-  description,
-  cover{ asset, caption },
-  works[]->${workFields}
-}`;
-
-export const collectionSlugsQuery = groq`*[_type == "collection" && defined(slug.current)].slug.current`;
 
 /* Fields for the exhibitions index (no dereferenced works — lightweight). */
 const exhibitionListFields = /* groq */ `{
@@ -537,9 +480,7 @@ const exhibitionListFields = /* groq */ `{
   isArtFair,
   fairName,
   coverImage{ asset, caption, hotspot },
-  "hero": coalesce(heroImages[0], coverImage){ asset, caption, hotspot },
-  "workCount": count(works),
-  "catalogueCount": count(catalogue)
+  "hero": coalesce(heroImages[0], coverImage){ asset, caption, hotspot }
 }`;
 
 /** Hidden documents are kept in the CMS but neither listed nor served. */
@@ -628,7 +569,8 @@ export const publicationBySlugQuery = groq`*[_type == "publication" && slug.curr
   availability,
   "pdfUrl": pdf.asset->url,
   externalUrl,
-  relatedExhibition->{ title, "slug": slug.current },
+  // A hidden exhibition keeps its catalogue but has no page: no slug, so no link.
+  relatedExhibition->{ title, "slug": select(!coalesce(hidden, false) => slug.current) },
   seo{ title, description, ogImage{ asset } }
 }`;
 
@@ -705,27 +647,6 @@ export const sitemapQuery = groq`{
 
 export const artistSlugsQuery = groq`*[_type == "artist" && defined(slug.current) && !coalesce(hidden, false)].slug.current`;
 
-export const journalPostsQuery = groq`*[_type == "journalPost" && defined(slug.current)] | order(coalesce(publishedAt, _createdAt) desc){
-  _id,
-  title,
-  "slug": slug.current,
-  excerpt,
-  publishedAt,
-  cover{ asset, caption }
-}`;
-
-export const journalPostBySlugQuery = groq`*[_type == "journalPost" && slug.current == $slug][0]{
-  _id,
-  title,
-  "slug": slug.current,
-  excerpt,
-  publishedAt,
-  cover{ asset, caption },
-  body
-}`;
-
-export const journalSlugsQuery = groq`*[_type == "journalPost" && defined(slug.current)].slug.current`;
-
 export const pageBySlugQuery = groq`*[_type == "page" && slug.current == $slug][0]{
   _id,
   title,
@@ -737,10 +658,16 @@ export const pageBySlugQuery = groq`*[_type == "page" && slug.current == $slug][
 /* Convenience loaders                                                 */
 /* ------------------------------------------------------------------ */
 
+/**
+ * The site settings, read by the root layout on every page. Tagged
+ * "siteSettings" only: the settings carry no works, so a work's sync does not
+ * invalidate every cached page. Falls back to null (never `required`), so a
+ * Sanity failure here cannot turn every page into an error.
+ */
 export function getSiteSettings(): Promise<SiteSettings | null> {
   return sanityFetch<SiteSettings | null>({
     query: siteSettingsQuery,
-    tags: ["siteSettings", "work"],
+    tags: ["siteSettings"],
     fallback: null,
   });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
+import { TurnstileUnavailable, TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -21,11 +21,24 @@ export function OfferResponse({
   // even one that then fails; after a failure the widget is remounted for a
   // fresh token, so "please try again" works straight away.
   const [turnstileRound, setTurnstileRound] = useState(0);
+  // The check could not run (TurnstileWidget onUnavailable): say so, not "something went wrong".
+  const [turnstileDown, setTurnstileDown] = useState(false);
+  const onTurnstileToken = (t: string) => {
+    setTurnstileToken(t);
+    if (t) setTurnstileDown(false);
+  };
+  const retryTurnstile = () => {
+    setTurnstileDown(false);
+    setStatus("idle");
+    setTurnstileRound((n) => n + 1);
+  };
+  const checkDown = turnstileDown && !turnstileToken;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (turnstileEnabled && !turnstileToken) {
-      setStatus("error");
+      // When the check is down, its own message already says why.
+      if (!turnstileDown) setStatus("error");
       return;
     }
     setStatus("submitting");
@@ -77,8 +90,9 @@ export function OfferResponse({
         placeholder="Which works caught your eye, or any questions."
         className="w-full border border-hairline bg-washi px-3 py-2.5 font-serif text-ui text-ink-70 placeholder:text-ink-50 focus:border-sumi"
       />
-      <TurnstileWidget key={turnstileRound} onToken={setTurnstileToken} />
-      {status === "error" ? (
+      <TurnstileWidget key={turnstileRound} onToken={onTurnstileToken} onUnavailable={() => setTurnstileDown(true)} />
+      {checkDown ? <TurnstileUnavailable onRetry={retryTurnstile} className="font-sans text-ui text-sumi" /> : null}
+      {status === "error" && !checkDown ? (
         <p role="alert" className="font-sans text-ui text-sumi">
           Something went wrong — please try again, or simply reply to our email.
         </p>

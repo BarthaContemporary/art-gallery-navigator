@@ -1,32 +1,40 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@jvb/db/server";
 import { safeEqual } from "@/lib/secret";
+import { planResendEvent, type ResendEvent } from "@/lib/resend-event";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
  * Resend event webhook — records opens / clicks / bounces for newsletter
- * campaign recipients (and offer recipients) so the studio tracking views
- * reflect real engagement.
+ * campaign recipients, and suppresses contacts after a spam complaint or a
+ * permanent bounce (campaign or offer email alike).
  *
  * Security: fails CLOSED — RESEND_WEBHOOK_SECRET must be set and the request
  * must carry a matching `?secret=` param (constant-time compared). This route
  * writes with the service client (bypasses RLS), so it must never be open.
+ *
+ * Delivery: Resend (Svix) redelivers an event for hours when the answer is
+ * not 2xx. So a failed read or write answers 500 and the event comes back;
+ * an email nobody tracks (a booking confirmation, a test send) matches no
+ * row, which is not an error and answers 200. Every write is safe to repeat:
+ * the times come from the event itself, and the audit row is written last.
+ *
+ * An email open is not an offer page view: opens are not written to
+ * offer_recipients' view columns, which count real visits to the page
+ * (app/o/[token]); the open is kept on the audit row, linked to the offer
+ * recipient.
  */
 
-type ResendEvent = {
-  type?: string;
-  data?: { email_id?: string; bounce?: { type?: string }; created_at?: string } & Record<string, unknown>;
-  created_at?: string;
-};
+type DbError = { code?: string | null; message?: string | null };
 
-const FIELD_BY_TYPE: Record<string, "opened_at" | "clicked_at" | "bounced_at"> = {
-  "email.opened": "opened_at",
-  "email.clicked": "clicked_at",
-  "email.bounced": "bounced_at",
-  "email.complained": "bounced_at",
-};
+/** Log the step and PostgREST's code and message (no addresses), and ask Resend to retry. */
+function retryLater(step: string, error: DbError | unknown) {
+  const e = error as DbError | null;
+  console.error(`[resend-webhook] ${step} failed:`, e?.code ?? null, e?.message ?? String(error));
+  return NextResponse.json({ error: "temporarily unavailable" }, { status: 500 });
+}
 
 export async function POST(req: NextRequest) {
   const secret = process.env.RESEND_WEBHOOK_SECRET;
@@ -45,88 +53,72 @@ export async function POST(req: NextRequest) {
   const type = event.type ?? "";
   if (!emailId) return NextResponse.json({ ok: true, ignored: "no email_id" });
 
-  const supabase = createServiceClient();
-  const at = event.created_at ?? new Date().toISOString();
-  const field = FIELD_BY_TYPE[type];
+  const plan = planResendEvent(event);
 
-  // Update the matching campaign recipient (if any).
-  const { data: rec } = await supabase
-    .from("crm_campaign_recipients")
-    .select("id")
-    .eq("resend_email_id", emailId)
-    .maybeSingle();
-  const recipientId = (rec as { id: string } | null)?.id ?? null;
+  try {
+    const supabase = createServiceClient();
 
-  // A spam complaint is a withdrawal of consent (PECR reg. 22); a permanent
-  // bounce means the address is dead. Both stop further marketing to the
-  // contact, whichever campaign or offer the email belonged to.
-  if (type === "email.complained" || type === "email.bounced") {
-    const transient = type === "email.bounced" && /transient|soft/i.test(event.data?.bounce?.type ?? "");
-    if (!transient) {
-      const contactId = await contactForEmail(supabase, emailId, recipientId);
+    // The campaign recipient the email went to, if any. limit(1): the column
+    // has no unique index, and a duplicate must not turn into endless retries.
+    const { data: rec, error: recError } = await supabase
+      .from("crm_campaign_recipients")
+      .select("id, contact_id")
+      .eq("resend_email_id", emailId)
+      .limit(1)
+      .maybeSingle();
+    if (recError) return retryLater("campaign recipient lookup", recError);
+    const campaignRecipient = rec as { id: string; contact_id: string | null } | null;
+
+    // Otherwise the offer recipient (offer emails carry their own ids).
+    let offerRecipient: { id: string; contact_id: string | null } | null = null;
+    if (!campaignRecipient) {
+      const { data: orec, error: orecError } = await supabase
+        .from("offer_recipients")
+        .select("id, contact_id")
+        .eq("resend_email_id", emailId)
+        .limit(1)
+        .maybeSingle();
+      if (orecError) return retryLater("offer recipient lookup", orecError);
+      offerRecipient = orec as { id: string; contact_id: string | null } | null;
+    }
+
+    if (plan.suppression) {
+      const contactId = campaignRecipient?.contact_id ?? offerRecipient?.contact_id ?? null;
       if (contactId) {
-        await supabase
+        const { data: updated, error: updError } = await supabase
           .from("crm_contacts")
-          .update(
-            type === "email.complained"
-              ? { marketing_consent: false, unsubscribed_at: at, do_not_mail: true }
-              : { email_bounced_at: at, do_not_mail: true },
-          )
-          .eq("id", contactId);
+          .update(plan.suppression)
+          .eq("id", contactId)
+          .select("id");
+        if (updError) return retryLater("contact suppression", updError);
+        // Erased between the lookup and the update: nothing left to suppress,
+        // and a retry would never find it either.
+        if (!updated || (updated as unknown[]).length === 0) {
+          console.warn("[resend-webhook] contact suppression matched no row");
+        }
       }
     }
-  }
 
-  if (recipientId && field) {
-    const patch: Record<string, unknown> = { [field]: at };
-    if (field === "bounced_at") patch.status = "bounced";
-    else if (type === "email.opened") patch.status = "opened";
-    else if (type === "email.clicked") patch.status = "clicked";
-    await supabase.from("crm_campaign_recipients").update(patch).eq("id", recipientId);
-  }
-
-  // Also surface offer email opens (offer_recipients tracks the same ids).
-  if (type === "email.opened") {
-    const { data: orec } = await supabase
-      .from("offer_recipients")
-      .select("id, first_viewed_at, view_count")
-      .eq("resend_email_id", emailId)
-      .maybeSingle();
-    const o = orec as
-      | { id: string; first_viewed_at: string | null; view_count: number }
-      | null;
-    if (o) {
-      await supabase
-        .from("offer_recipients")
-        .update({
-          first_viewed_at: o.first_viewed_at ?? at,
-          last_viewed_at: at,
-          view_count: (o.view_count ?? 0) + 1,
-        })
-        .eq("id", o.id);
+    if (campaignRecipient && plan.recipientPatch) {
+      const { error: patchError } = await supabase
+        .from("crm_campaign_recipients")
+        .update(plan.recipientPatch)
+        .eq("id", campaignRecipient.id);
+      if (patchError) return retryLater("campaign recipient update", patchError);
     }
-  }
 
-  // Always record the raw event for the audit trail.
-  await supabase.from("email_events").insert({
-    event_type: type || "unknown",
-    campaign_recipient_id: recipientId,
-    payload: event as unknown as Record<string, unknown>,
-  });
+    // Always record the raw event for the audit trail (last, so a retry
+    // after an earlier failure does not leave a second row).
+    const { error: auditError } = await supabase.from("email_events").insert({
+      event_type: type || "unknown",
+      campaign_recipient_id: campaignRecipient?.id ?? null,
+      offer_recipient_id: offerRecipient?.id ?? null,
+      payload: event as unknown as Record<string, unknown>,
+    });
+    if (auditError) return retryLater("audit insert", auditError);
+  } catch (error) {
+    return retryLater("event handling", error);
+  }
 
   return NextResponse.json({ ok: true });
-}
-
-/** The contact behind a Resend email id, via the campaign or offer recipient row. */
-async function contactForEmail(
-  supabase: ReturnType<typeof createServiceClient>,
-  emailId: string,
-  recipientId: string | null,
-): Promise<string | null> {
-  if (recipientId) {
-    const { data } = await supabase.from("crm_campaign_recipients").select("contact_id").eq("id", recipientId).maybeSingle();
-    if (data?.contact_id) return data.contact_id as string;
-  }
-  const { data } = await supabase.from("offer_recipients").select("contact_id").eq("resend_email_id", emailId).maybeSingle();
-  return (data?.contact_id as string | undefined) ?? null;
 }

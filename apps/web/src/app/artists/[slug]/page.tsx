@@ -20,6 +20,8 @@ async function getArtist(slug: string): Promise<Artist | null> {
     params: { slug },
     tags: ["artist", "work", "exhibition", "publication"],
     fallback: null,
+    // A Sanity outage must not be cached as a 404 (lib/sanity sanityFetch).
+    required: true,
   });
 }
 

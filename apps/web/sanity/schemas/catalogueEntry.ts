@@ -5,6 +5,8 @@
  * the inventory. They are deliberately NOT references to the synced `work`
  * type: the inventory exports to the website, the website never feeds back.
  */
+import type { RuleLike } from "./validation";
+
 const catalogueEntry = {
   name: "catalogueEntry",
   title: "Catalogue entry",
@@ -16,6 +18,11 @@ const catalogueEntry = {
       type: "image",
       options: { hotspot: true },
       fields: [{ name: "caption", title: "Caption", type: "string" }],
+      // The event and artist pages and the search show only entries with a picture.
+      validation: (Rule: RuleLike) =>
+        Rule.custom((image) =>
+          (image as { asset?: unknown } | undefined)?.asset ? true : "Without an image this entry is not shown on the site.",
+        ).warning(),
     },
     {
       name: "reference",

@@ -33,6 +33,16 @@ export type GridWork = {
   tile: SanityImage | null;
 };
 
+/**
+ * A catalogue entry the site shows: one with an uploaded picture (an image
+ * field with only a caption does not count). The one test for the event
+ * page, the meta description and the search, so a search result never
+ * links to a tile the page leaves out.
+ */
+export function catalogueShown(c: { image?: SanityImage | null } | null | undefined): boolean {
+  return !!c?.image?.asset;
+}
+
 export function workToGrid(w: Work): GridWork | null {
   if (!w.slug) return null;
   return {

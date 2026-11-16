@@ -1,3 +1,10 @@
+import { richTextBlock } from "./richText";
+
+/**
+ * Retired: the website has no journal (/journal redirects home), so the
+ * Studio no longer offers new journal posts (sanity.config.ts). Kept only
+ * so any existing document still opens.
+ */
 const journalPost = {
   name: "journalPost",
   title: "Journal post",
@@ -24,7 +31,7 @@ const journalPost = {
       title: "Body",
       type: "array",
       of: [
-        { type: "block" },
+        richTextBlock,
         {
           type: "image",
           options: { hotspot: true },

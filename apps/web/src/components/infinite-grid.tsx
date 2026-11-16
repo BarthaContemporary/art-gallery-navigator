@@ -1,6 +1,58 @@
 "use client";
 
-import { Children, cloneElement, isValidElement, useEffect, useRef, useState, type ReactNode } from "react";
+import { Children, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+
+/*
+ * Coming Back to the grid: how many tiles were revealed and how far down
+ * the reader was are kept per page in sessionStorage, and restored when the
+ * page is reached by Back or Forward. Otherwise the grid would remount with
+ * one page of tiles, the browser's remembered scroll position would lie
+ * beyond the now much shorter page, and the reader would lose their place in
+ * the archive after every event opened from deep in it. A fresh visit starts
+ * at the top with one page, as before.
+ */
+let lastPopState = 0;
+let firstMount = true;
+if (typeof window !== "undefined") {
+  window.addEventListener("popstate", () => {
+    lastPopState = Date.now();
+  });
+}
+
+/** True when this mount comes from Back or Forward (in-app, or a whole page restored from history). */
+function cameBack(): boolean {
+  const first = firstMount;
+  firstMount = false;
+  if (Date.now() - lastPopState < 3000) return true;
+  if (!first) return false;
+  try {
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    return nav?.type === "back_forward";
+  } catch {
+    return false;
+  }
+}
+
+type Saved = { visible: number; y: number };
+const storageKey = () => `infinite-grid:${window.location.pathname}`;
+
+function readSaved(): Saved | null {
+  try {
+    const raw = window.sessionStorage.getItem(storageKey());
+    const v = raw ? (JSON.parse(raw) as Partial<Saved>) : null;
+    return v && typeof v.visible === "number" && typeof v.y === "number" ? { visible: v.visible, y: v.y } : null;
+  } catch {
+    return null; // private mode, blocked storage
+  }
+}
+
+function writeSaved(saved: Saved): void {
+  try {
+    window.sessionStorage.setItem(storageKey(), JSON.stringify(saved));
+  } catch {
+    // storage unavailable: the grid simply starts afresh next time
+  }
+}
 
 /**
  * Reveals a long grid in pages as the reader approaches the end
@@ -22,6 +74,36 @@ export function InfiniteGrid({
   const [animateFrom, setAnimateFrom] = useState<number | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const total = children.length;
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+
+  // Back or Forward: reveal as many tiles as before, without the tile-in
+  // stagger, before the first paint (the server markup is unchanged, so
+  // hydration is too), then put the reader back where they were.
+  const arrived = useRef(false);
+  useLayoutEffect(() => {
+    if (arrived.current) return; // once, on arrival
+    arrived.current = true;
+    if (!cameBack()) return;
+    const saved = readSaved();
+    if (!saved) return;
+    const count = Math.min(total, Math.max(pageSize, saved.visible));
+    if (count > visibleRef.current) setVisible(count);
+    requestAnimationFrame(() => {
+      if (Math.abs(window.scrollY - saved.y) > 2) window.scrollTo(0, saved.y);
+    });
+  }, [total, pageSize]);
+
+  // Remember the place on leaving: a layout-effect cleanup runs before the
+  // next page resets the scroll; pagehide covers leaving the site.
+  useLayoutEffect(() => {
+    const save = () => writeSaved({ visible: visibleRef.current, y: window.scrollY });
+    window.addEventListener("pagehide", save);
+    return () => {
+      window.removeEventListener("pagehide", save);
+      save();
+    };
+  }, []);
   const reveal = () => {
     setVisible((v) => {
       setAnimateFrom(v);

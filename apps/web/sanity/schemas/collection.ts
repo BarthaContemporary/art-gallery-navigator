@@ -1,4 +1,9 @@
-/** Curated grouping of works (e.g. "Meiji bronzes", "Indian miniatures"). */
+/**
+ * Curated grouping of works (e.g. "Meiji bronzes", "Indian miniatures").
+ * Retired: the website has no collections (/collections redirects home), so
+ * the Studio no longer offers new ones (sanity.config.ts). Kept only so any
+ * existing document still opens.
+ */
 const collection = {
   name: "collection",
   title: "Collection",

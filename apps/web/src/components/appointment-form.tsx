@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
+import { londonNow, minutesOf } from "@/lib/london-time";
+import { TurnstileUnavailable, TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
 
 /**
  * "Book an appointment" (About page). Folds open inline: a month calendar to
@@ -19,10 +20,23 @@ function ymd(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * The times still open on a London date: all of them on a later day, only
+ * those later than now on London's today, none on an earlier day. The
+ * gallery's clock decides, not the visitor's, so a visitor abroad gets the
+ * same choice the server accepts (api/booking, lib/london-time).
+ */
+function openTimes(date: string | null, now = londonNow()): Set<string> {
+  if (!date || date < now.date) return new Set();
+  if (date > now.date) return new Set(TIMES);
+  return new Set(TIMES.filter((t) => minutesOf(t) > now.minutes));
+}
+
 function Calendar({ value, onChange }: { value: string | null; onChange: (ymd: string) => void }) {
+  // Today on the London clock, as a local calendar day like the cells below.
   const today = useMemo(() => {
-    const t = new Date();
-    return new Date(t.getFullYear(), t.getMonth(), t.getDate());
+    const [y, m, d] = londonNow().date.split("-").map(Number);
+    return new Date(y as number, (m as number) - 1, d as number);
   }, []);
   const [view, setView] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   // Direction of the last month change, so the grid slides in from that side.
@@ -70,7 +84,7 @@ function Calendar({ value, onChange }: { value: string | null; onChange: (ymd: s
         key={`${view.getFullYear()}-${view.getMonth()}`}
         className="panel-swap mt-1 grid grid-cols-7 text-center"
         style={{ "--swap-x": `${dir * 12}px` } as React.CSSProperties}
-        role="grid"
+        role="group"
         aria-label="Choose a date"
       >
         {WEEKDAYS.map((w, i) => (
@@ -83,7 +97,8 @@ function Calendar({ value, onChange }: { value: string | null; onChange: (ymd: s
           const key = ymd(d);
           const past = d < today;
           const sunday = d.getDay() === 0;
-          const disabled = past || sunday;
+          // Today goes once its last time has passed in London.
+          const disabled = past || sunday || openTimes(key).size === 0;
           const selected = value === key;
           const isToday = d.getTime() === today.getTime();
           return (
@@ -119,6 +134,17 @@ export function AppointmentForm() {
   // even one that then fails; after a failure the widget is remounted for a
   // fresh token, so "please try again" works straight away.
   const [turnstileRound, setTurnstileRound] = useState(0);
+  // The check could not run (TurnstileWidget onUnavailable): say so instead of "please wait".
+  const [turnstileDown, setTurnstileDown] = useState(false);
+  const onTurnstileToken = (token: string) => {
+    setTurnstileToken(token);
+    if (token) setTurnstileDown(false);
+  };
+  const retryTurnstile = () => {
+    setTurnstileDown(false);
+    setError(null);
+    setTurnstileRound((n) => n + 1);
+  };
 
   const show = () => {
     setMounted(true);
@@ -132,8 +158,15 @@ export function AppointmentForm() {
       setError("Please suggest a date and a time.");
       return;
     }
+    // The form may have stayed open while the chosen hour went by.
+    if (!openTimes(date).has(time)) {
+      setTime(null);
+      setError("That time has passed. Please choose a later one.");
+      return;
+    }
     if (turnstileEnabled && !turnstileToken) {
-      setError("Please wait a moment for the verification to complete, then try again.");
+      // When the check is down, the message below the form already says why.
+      setError(turnstileDown ? null : "Please wait a moment for the verification to complete, then try again.");
       return;
     }
     setStatus("sending");
@@ -165,7 +198,13 @@ export function AppointmentForm() {
     }
   }
 
+  const available = openTimes(date);
   const chosen = date && time ? `${LONG.format(new Date(`${date}T12:00:00`))} at ${time}` : null;
+  // A new date can rule out the time already picked (an earlier hour today).
+  const pickDate = (next: string) => {
+    setDate(next);
+    if (time && !openTimes(next).has(time)) setTime(null);
+  };
 
   return (
     <div>
@@ -194,22 +233,29 @@ export function AppointmentForm() {
                 <form onSubmit={onSubmit} className="flex max-w-[480px] flex-col gap-4">
                   <div>
                     <p className="label mb-2">Suggest a date and time</p>
-                    <Calendar value={date} onChange={setDate} />
+                    <Calendar value={date} onChange={pickDate} />
                     <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Choose a time">
-                      {TIMES.map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setTime(t)}
-                          aria-pressed={time === t}
-                          className={`tabular min-h-[34px] px-2.5 font-sans text-small ${time === t ? "bg-accent text-white" : "bg-form text-ink hover:bg-form-hover"}`}
-                        >
-                          {t}
-                        </button>
-                      ))}
+                      {TIMES.map((t) => {
+                        // Before a date is picked every time is offered; then only those still open.
+                        const unavailable = date !== null && !available.has(t);
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setTime(t)}
+                            disabled={unavailable}
+                            aria-pressed={time === t}
+                            className={`tabular min-h-[34px] px-2.5 font-sans text-small ${
+                              time === t ? "bg-accent text-white" : unavailable ? "bg-form text-light/60" : "bg-form text-ink hover:bg-form-hover"
+                            }`}
+                          >
+                            {t}
+                          </button>
+                        );
+                      })}
                     </div>
                     <p className="mt-2 font-sans text-small text-meta" aria-live="polite">
-                      {chosen ? chosen : "Monday to Saturday. Other times on request."}
+                      {chosen ? `${chosen} (London time)` : "Monday to Saturday, London time. Other times on request."}
                     </p>
                   </div>
 
@@ -239,7 +285,8 @@ export function AppointmentForm() {
                       {status === "sending" ? "Sending…" : "Book"}
                     </button>
                   </div>
-                  <TurnstileWidget key={turnstileRound} onToken={setTurnstileToken} />
+                  <TurnstileWidget key={turnstileRound} onToken={onTurnstileToken} onUnavailable={() => setTurnstileDown(true)} />
+                  {turnstileDown && !turnstileToken ? <TurnstileUnavailable onRetry={retryTurnstile} /> : null}
                   {error ? (
                     <p className="font-sans text-small text-accent-deep" role="alert">
                       {error}

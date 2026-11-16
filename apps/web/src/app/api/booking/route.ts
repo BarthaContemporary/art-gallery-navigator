@@ -10,6 +10,7 @@ import { clientIp, greetingName } from "@/lib/form-fields";
 import { zod3Wording } from "@/lib/form-messages";
 import { oneLine } from "@/lib/form-schema";
 import { buildIcs } from "@/lib/ics";
+import { bookingTimeProblem, londonWallToUtc } from "@/lib/london-time";
 import { OPTIN_COLUMNS, settleSignUpPatch, type OptInContact } from "@/lib/newsletter-optin";
 import { getSiteSettings } from "@/lib/sanity";
 import { noteSent, withinSendLimit } from "@/lib/send-limit";
@@ -48,33 +49,6 @@ const bookingSchema = z.object({
   turnstileToken: z.string().max(4096).optional(),
 });
 
-const LONDON = "Europe/London";
-
-/** Offset of Europe/London from UTC, in minutes, at a given instant. */
-function londonOffsetMinutes(atMs: number): number {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, timeZoneName: "shortOffset" }).formatToParts(new Date(atMs));
-  const name = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT";
-  const m = /GMT([+-])(\d{1,2})(?::(\d{2}))?/.exec(name);
-  if (!m) return 0;
-  const sign = m[1] === "-" ? -1 : 1;
-  return sign * (Number(m[2]) * 60 + Number(m[3] ?? 0));
-}
-
-/** "YYYY-MM-DDTHH:MM:SS" on a London clock → UTC epoch ms. */
-function londonWallToUtc(wall: string): number {
-  const naive = Date.parse(`${wall}Z`);
-  if (Number.isNaN(naive)) return NaN;
-  // Two passes: the offset can differ either side of a clock change.
-  let guess = naive - londonOffsetMinutes(naive) * 60_000;
-  guess = naive - londonOffsetMinutes(guess) * 60_000;
-  return guess;
-}
-
-/** UTC epoch ms → "YYYY-MM-DDTHH:MM:SS" on a London clock (for the ICS). */
-function londonWall(ms: number): string {
-  return new Date(ms + londonOffsetMinutes(ms) * 60_000).toISOString().slice(0, 19);
-}
-
 export async function POST(req: NextRequest) {
   let payload: z.infer<typeof bookingSchema>;
   try {
@@ -97,19 +71,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: turnstile.error ?? "Verification failed" }, { status: 400 });
   }
 
-  // The visitor picks a London wall-clock time. The ICS keeps that floating
-  // local time; the database gets the real instant (timestamptz), so the
-  // studio and calendar show 11:00 as 11:00 in summer as well as winter.
-  const startLocal = `${payload.date}T${payload.time}:00`;
-  const startMs = londonWallToUtc(startLocal);
-  if (Number.isNaN(startMs)) {
-    return NextResponse.json({ error: "Invalid date or time" }, { status: 400 });
+  // The visitor picks a London wall-clock time. The database and the
+  // invitation get the real instant (timestamptz; UTC in the ICS), so the
+  // studio and every calendar, in whatever time zone, show 11:00 London as
+  // 11:00 London in summer as well as winter. A date that does not exist,
+  // or a time that is not later than now, is refused.
+  const timeProblem = bookingTimeProblem(payload.date, payload.time);
+  if (timeProblem) {
+    return NextResponse.json({ error: timeProblem }, { status: 400 });
   }
-  if (startMs < Date.now() - 24 * 60 * 60 * 1000) {
-    return NextResponse.json({ error: "Please choose a date in the future" }, { status: 400 });
-  }
+  const startMs = londonWallToUtc(`${payload.date}T${payload.time}:00`);
   const endMs = startMs + DEFAULT_DURATION_MINUTES * 60 * 1000;
-  const endLocal = londonWall(endMs);
   const startsAt = new Date(startMs).toISOString();
   const endsAt = new Date(endMs).toISOString();
 
@@ -222,11 +194,13 @@ export async function POST(req: NextRequest) {
       // links included (security review 2026-10, F12).
       const visitorName = greetingName(payload.name);
       const invitation = (description: string, attendeeName: string | null) => {
+        // TENTATIVE: this is a request; the gallery confirms it afterwards.
         const ics = buildIcs({
           uid: icsUid,
-          start: startLocal,
-          end: endLocal,
-          summary: `${typeLabel} — ${galleryName}`,
+          start: new Date(startMs),
+          end: new Date(endMs),
+          status: "TENTATIVE",
+          summary: `Requested: ${typeLabel} — ${galleryName}`,
           description,
           location: settings?.address?.replace(/\r?\n/g, ", ") ?? undefined,
           organizer: settings?.email ? { name: galleryName, email: settings.email } : undefined,
@@ -259,7 +233,7 @@ export async function POST(req: NextRequest) {
           text: [
             visitorName ? `Dear ${visitorName},` : "Hello,",
             "",
-            `Thank you — we have received your request for a ${typeLabel.toLowerCase()} on ${prettyDate} at ${payload.time}.`,
+            `Thank you — we have received your request for a ${typeLabel.toLowerCase()} on ${prettyDate} at ${payload.time} (London time).`,
             "We will confirm the appointment shortly. A calendar invitation is attached.",
             "",
             `With best wishes,`,
@@ -282,7 +256,7 @@ export async function POST(req: NextRequest) {
           subject: `New booking request: ${payload.name} — ${prettyDate} ${payload.time}`,
           text: [
             `Type: ${typeLabel}`,
-            `When: ${prettyDate} at ${payload.time}`,
+            `When: ${prettyDate} at ${payload.time} (London time)`,
             `Name: ${payload.name}`,
             `Email: ${payload.email}`,
             payload.phone ? `Phone: ${payload.phone}` : null,

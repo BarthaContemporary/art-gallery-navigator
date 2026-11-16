@@ -50,6 +50,17 @@ function PortableTextPlugins(props: PortableTextPluginsProps) {
   });
 }
 
+/**
+ * Types the Create menu does not offer. Site settings is a singleton (the
+ * site reads the oldest one, and a second, empty one would only confuse);
+ * works, artists and lists are written by the inventory sync, never by
+ * hand; collections and journal posts have no pages on the website.
+ */
+const NOT_CREATABLE = new Set(["siteSettings", "work", "artist", "workList", "collection", "journalPost"]);
+
+/** What the pinned Site settings document cannot be: duplicated, unpublished or deleted. */
+const SINGLETON_REMOVED_ACTIONS = new Set(["duplicate", "unpublish", "delete"]);
+
 export default defineConfig({
   name: "jvb",
   title: "Joost van den Bergh",
@@ -58,4 +69,11 @@ export default defineConfig({
   plugins: [structureTool({ structure }), visionTool()],
   schema: { types: schemaTypes },
   form: { components: { portableText: { plugins: PortableTextPlugins } } },
+  document: {
+    newDocumentOptions: (prev) => prev.filter((item) => !NOT_CREATABLE.has(item.templateId)),
+    actions: (prev, context) =>
+      context.schemaType === "siteSettings"
+        ? prev.filter((action) => !SINGLETON_REMOVED_ACTIONS.has(action.action ?? ""))
+        : prev,
+  },
 });

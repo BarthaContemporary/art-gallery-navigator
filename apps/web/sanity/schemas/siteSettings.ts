@@ -1,4 +1,10 @@
-/** Singleton — gallery identity, contact details and SEO defaults. */
+import { richTextBlock } from "./richText";
+
+/**
+ * Singleton — gallery identity, contact details and SEO defaults. The
+ * Studio pins the one document and offers no way to create, duplicate,
+ * unpublish or delete it (sanity.config.ts).
+ */
 const siteSettings = {
   name: "siteSettings",
   title: "Site settings",
@@ -66,7 +72,7 @@ const siteSettings = {
       name: "statement",
       title: "About — statement",
       type: "array",
-      of: [{ type: "block" }],
+      of: [richTextBlock],
     },
     {
       name: "pressLinks",
@@ -110,8 +116,11 @@ const siteSettings = {
     },
     {
       name: "featuredWorks",
-      title: "Featured works (home page)",
+      title: "Featured works (not shown)",
       type: "array",
+      description: "Not used by the website: the home page shows events. Kept only for what was entered before.",
+      // Hidden unless something was entered, so nobody fills it expecting it on the site.
+      hidden: ({ value }: { value?: unknown[] }) => !value || value.length === 0,
       of: [{ type: "reference", to: [{ type: "work" }], weak: true }],
     },
     {

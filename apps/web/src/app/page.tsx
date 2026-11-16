@@ -26,7 +26,8 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function HomePage() {
   const [events, settings] = await Promise.all([
-    sanityFetch<ExhibitionListItem[]>({ query: exhibitionsQuery, tags: ["exhibition"], fallback: [] }),
+    // required: a Sanity outage must not be cached as an empty home page (lib/sanity sanityFetch).
+    sanityFetch<ExhibitionListItem[]>({ query: exhibitionsQuery, tags: ["exhibition"], fallback: [], required: true }),
     getSiteSettings(),
   ]);
 

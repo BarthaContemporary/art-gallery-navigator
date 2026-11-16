@@ -17,7 +17,9 @@ export function ReadMore({
   return (
     <div className={className}>
       <div className="fold" data-open={open}>
-        <div id={id} aria-hidden={!open}>
+        {/* inert as well as aria-hidden: links in the folded text must not
+            take keyboard focus while it is collapsed out of sight. */}
+        <div id={id} aria-hidden={!open} inert={!open}>
           <div className="fold-body pt-4">{children}</div>
         </div>
       </div>
