@@ -35,6 +35,12 @@ class FakeDb {
   hang = new Map<string, () => void>();
   /** `${table}:${op}` that fail with an error. */
   failOps = new Set<string>();
+  /**
+   * Looks at each statement before it runs: "fail" answers with an error and
+   * changes nothing, "lost" runs it and then answers with an error (the reply
+   * never arrived), "hang" never answers (the function is cut off there).
+   */
+  intercept: ((table: string, op: string, payload: unknown) => "fail" | "lost" | "hang" | void) | null = null;
   private seq: Record<string, number> = {};
 
   rows(t: string) {
@@ -176,7 +182,14 @@ class Query {
 
   then<T>(resolve: (v: { data: unknown; error: unknown; count?: number | null }) => T, reject?: (e: unknown) => T) {
     return tick()
-      .then(() => this.run())
+      .then(() => {
+        const how = this.db.intercept?.(this.table, this.op, this.payload);
+        if (how === "hang") return new Promise<never>(() => undefined);
+        if (how === "fail") return { data: null, error: { message: `${this.op} failed` }, count: null };
+        const out = this.run();
+        if (how === "lost") return { data: null, error: { message: "connection reset" }, count: null };
+        return out;
+      })
       .then(resolve, reject);
   }
 
@@ -198,6 +211,9 @@ class Query {
       if (this.head) return { data: null, error: null, count: out.length };
     } else if (this.op === "insert") {
       const rows = (Array.isArray(this.payload) ? this.payload : [this.payload]) as Row[];
+      // The primary key: the whole statement is refused, nothing is numbered.
+      if (rows.some((r) => r.id != null && all.some((a) => a.id === r.id)))
+        return { data: null, error: { code: "23505", message: "duplicate key value violates unique constraint" }, count: null };
       out = rows.map((r) => this.db.onInsert(this.table, r));
       all.push(...out);
       if (!this.returning) return { data: null, error: null };
@@ -286,6 +302,7 @@ test("a push files each work once, links the maker it names and skips empty work
 
   const pieces = db.rows("pieces");
   assert.equal(pieces.length, 1, "no stock record for the empty work");
+  assert.equal(pieces[0]!.id, workIds[0], "the record takes the work's id");
   assert.equal(pieces[0]!.maker_id, makerId);
   assert.equal(db.rows("makers").length, 2, "capture creates no maker");
   assert.deepEqual(
@@ -405,6 +422,122 @@ test("a failed piece insert leaves the work free to push again", async () => {
   assert.equal(db.rows("pieces").length, 1);
 });
 
+/** The write that records the new stock record on the capture work. */
+const recordsPiece = (table: string, op: string, payload: unknown) =>
+  table === "capture_works" && op === "update" && "pushed_piece_id" in (payload as Row) && !("status" in (payload as Row));
+
+for (const ledger of ["jvb", "external"] as const) {
+  test(`a work whose record was created but not recorded gets no second record (${ledger})`, async () => {
+    const db = new FakeDb();
+    const table = ledger === "jvb" ? "pieces" : "external_pieces";
+    const { batchId, workIds } = seed(db, [{ fields: { title: "Inro" }, photos: [{}, {}] }], { ledger });
+    const t0 = new Date("2026-07-15T10:00:00Z");
+    // Writes to the capture work fail after the insert: recording the record
+    // and letting go of the claim both, so the claim has to lapse.
+    let broken = true;
+    db.intercept = (t, op, payload) => {
+      if (!broken) return;
+      if (recordsPiece(t, op, payload)) return "fail";
+      if (t === "capture_works" && op === "update" && (payload as Row).pushed_at === null) return "fail";
+    };
+    const first = await run(db, batchId, t0);
+    broken = false;
+    assert.ok(first.found);
+    if (!first.found) return;
+    assert.ok(first.results[0]!.error);
+    assert.equal(first.results[0]!.incomplete, true);
+    assert.match(String(first.results[0]!.stockNumber), /2026-0001$/);
+    const work = db.rows("capture_works")[0]!;
+    assert.equal(work.status, "draft");
+    assert.equal(work.pushed_piece_id, null, "the record was never written down");
+    assert.equal(db.rows(table).length, 1);
+
+    const during = await run(db, batchId, new Date(t0.getTime() + 60_000));
+    assert.ok(during.found && during.results[0]!.busy === true);
+
+    const later = await run(db, batchId, new Date(t0.getTime() + (LEASE_MINUTES + 1) * 60_000));
+    assert.ok(later.found && !later.results[0]!.incomplete && !later.results[0]!.error);
+    assert.match(String(later.results[0]!.stockNumber), /2026-0001$/);
+    assert.equal(db.rows(table).length, 1, "one stock record");
+    assert.equal(db.rows("pieces").length + db.rows("external_pieces").length, 1);
+    assert.equal(db.rows("piece_images").length, 2);
+    assert.equal(work.status, "pushed");
+    assert.equal(work.pushed_piece_id, workIds[0]);
+  });
+}
+
+test("a failed record write is released, and pushing again at once continues on the record", async () => {
+  const db = new FakeDb();
+  const { batchId } = seed(db, [{ fields: { title: "Inro" }, photos: [{}] }]);
+  let failures = 1;
+  db.intercept = (t, op, payload) => (recordsPiece(t, op, payload) && failures-- > 0 ? "fail" : undefined);
+  const first = await run(db, batchId);
+  assert.ok(first.found && first.results[0]!.error && first.results[0]!.incomplete);
+  assert.equal(db.rows("capture_works")[0]!.pushed_at, null);
+  const retry = await run(db, batchId);
+  assert.ok(retry.found && retry.results[0]!.stockNumber === "2026-0001" && !retry.results[0]!.error);
+  assert.equal(db.rows("pieces").length, 1);
+  assert.equal(db.rows("capture_works")[0]!.status, "pushed");
+});
+
+test("a push cut off between creating the record and recording it is resumed, not duplicated", async () => {
+  const db = new FakeDb();
+  const { batchId } = seed(db, [{ fields: { title: "Netsuke" }, photos: [{}] }]);
+  const t0 = new Date("2026-07-15T10:00:00Z");
+  let cut: () => void = () => undefined;
+  const reached = new Promise<void>((r) => (cut = r));
+  db.intercept = (t, op, payload) => {
+    if (!recordsPiece(t, op, payload)) return;
+    cut();
+    return "hang";
+  };
+  void run(db, batchId, t0);
+  await reached;
+  db.intercept = null;
+  assert.equal(db.rows("pieces").length, 1);
+
+  const later = await run(db, batchId, new Date(t0.getTime() + (LEASE_MINUTES + 1) * 60_000));
+  assert.ok(later.found && later.results[0]!.stockNumber === "2026-0001" && !later.results[0]!.incomplete);
+  assert.equal(db.rows("pieces").length, 1);
+  assert.equal(db.rows("piece_images").length, 1);
+  assert.equal(db.rows("capture_works")[0]!.status, "pushed");
+});
+
+test("an insert whose reply was lost is found on the next push", async () => {
+  const db = new FakeDb();
+  const { batchId } = seed(db, [{ fields: { title: "Tsuba" }, photos: [{}] }]);
+  let lost = 1;
+  db.intercept = (t, op) => (t === "pieces" && op === "insert" && lost-- > 0 ? "lost" : undefined);
+  const first = await run(db, batchId);
+  assert.ok(first.found && first.results[0]!.error);
+  assert.equal(db.rows("pieces").length, 1, "the insert did reach the database");
+  assert.equal(db.rows("capture_works")[0]!.pushed_at, null);
+
+  const retry = await run(db, batchId);
+  assert.ok(retry.found && retry.results[0]!.stockNumber === "2026-0001" && !retry.results[0]!.error);
+  assert.equal(db.rows("pieces").length, 1);
+  assert.equal(db.rows("capture_works")[0]!.status, "pushed");
+});
+
+test("an insert that runs into a record created meanwhile is refused and that record is used", async () => {
+  const db = new FakeDb();
+  const { batchId, workIds } = seed(db, [{ fields: { title: "Kogo" } }, { fields: { title: "Kogai" } }]);
+  let once = true;
+  db.intercept = (t, op, payload) => {
+    if (t !== "pieces" || op !== "insert" || !once) return;
+    once = false;
+    // An earlier run's insert, still on its way, lands first.
+    db.rows("pieces").push(db.onInsert("pieces", { ...(payload as Row) }));
+  };
+  const out = await run(db, batchId);
+  assert.ok(out.found && out.results.every((r) => !r.error && !r.incomplete));
+  if (!out.found) return;
+  assert.equal(out.results[0]!.stockNumber, "2026-0001");
+  assert.equal(out.results[1]!.stockNumber, "2026-0002", "the refused insert used no number");
+  assert.deepEqual(db.rows("pieces").map((p) => p.id), workIds);
+  assert.equal(db.rows("piece_financials").length, 2);
+});
+
 /** An invoice with one page (and its squared version) in the captures bucket. */
 function seedInvoice(db: FakeDb, inv: Row) {
   const id = randomUUID();
@@ -482,6 +615,38 @@ test("several invoices on one work are all attached, with no figures guessed", a
   assert.equal(fin.purchase_cost, null);
   assert.equal(fin.purchase_invoice_document_id, null);
   assert.equal(fin.purchase_date, "2026-07-15", "the batch's London day");
+});
+
+test("an invoice that fails once still gives its own purchase date when pushed again", async () => {
+  const db = new FakeDb();
+  const { batchId, workIds } = seed(db, [{ fields: { title: "Box" }, photos: [{}] }]);
+  const inv = seedInvoice(db, { invoice_date: "2026-07-01" });
+  db.rows("capture_invoice_links").push({ invoice_id: inv.id, work_id: workIds[0], piece_id: null });
+  const page = db.rows("capture_invoice_pages")[0]!;
+  db.failDownloadOnce.add(`captures/${page.squared_path}`);
+
+  const first = await run(db, batchId);
+  assert.ok(first.found && first.results[0]!.incomplete && first.results[0]!.invoiceFailed);
+  const fin = db.rows("piece_financials")[0]!;
+  assert.equal(fin.purchase_date, null, "no batch-day stand-in while the invoice is missing");
+
+  const retry = await run(db, batchId);
+  assert.ok(retry.found && !retry.results[0]!.incomplete);
+  assert.equal(fin.purchase_date, "2026-07-01", "the invoice date, not the batch day");
+  assert.equal(fin.purchase_cost, 1250);
+  assert.ok(fin.purchase_invoice_document_id);
+  assert.equal(db.rows("piece_documents").length, 1);
+});
+
+test("a photo that fails keeps the batch day off until the work is complete", async () => {
+  const db = new FakeDb();
+  const { batchId } = seed(db, [{ fields: { title: "Box" }, photos: [{}] }]);
+  db.failDownloadOnce.add(`captures/${db.rows("capture_photos")[0]!.storage_path}`);
+  await run(db, batchId);
+  const fin = db.rows("piece_financials")[0]!;
+  assert.equal(fin.purchase_date, null);
+  await run(db, batchId);
+  assert.equal(fin.purchase_date, "2026-07-15");
 });
 
 test("the batch stays open when the remaining count cannot be read", async () => {

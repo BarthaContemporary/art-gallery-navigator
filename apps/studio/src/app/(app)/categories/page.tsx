@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabase, getSession, hasRole } from "@/lib/supabase";
+import { NAME_CANDIDATES, namePattern, pickSameName } from "@/lib/name-match";
 import { ReorderGrid } from "@/components/reorder-grid";
 import { persistOrder } from "@/lib/reorder";
 import { CategoryTableRow, type CategoryRow } from "@/components/category-row";
@@ -78,12 +79,12 @@ export default async function CategoriesPage({
 
     // Reuse rather than duplicate — and if the match is hidden, bring it back
     // rather than creating a second category with the same name.
-    const { data: existing } = await db
+    const { data: candidates } = await db
       .from("categories")
-      .select("id, is_active")
-      .ilike("name", name)
-      .limit(1)
-      .maybeSingle();
+      .select("id, name, is_active")
+      .ilike("name", namePattern(name))
+      .limit(NAME_CANDIDATES);
+    const existing = pickSameName(candidates, name, (c) => c.name);
     if (existing) {
       if (!existing.is_active) {
         await db.from("categories").update({ is_active: true }).eq("id", existing.id);

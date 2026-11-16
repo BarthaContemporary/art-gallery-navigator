@@ -60,7 +60,9 @@ export default async function ReviewBatchPage({ params }: { params: Promise<{ id
     for (const l of links ?? []) if (l.work_id) linkedWorkIds.add(l.work_id);
 
     // Works an earlier push created a stock record for but did not finish.
-    const pieceIds = (works ?? []).map((w) => w.pushed_piece_id).filter((v): v is string => Boolean(v));
+    // The record takes the work's id (lib/push.ts), so one that was never
+    // written down as pushed_piece_id is found too.
+    const pieceIds = (works ?? []).map((w) => w.pushed_piece_id ?? w.id);
     if (pieceIds.length) {
       const { data: pieces } = await supabase.from("vw_pieces_list").select("id, stock_number").in("id", pieceIds);
       for (const p of pieces ?? []) if (p.stock_number) stockNumbers.set(p.id, p.stock_number);
@@ -84,7 +86,7 @@ export default async function ReviewBatchPage({ params }: { params: Promise<{ id
       },
       photos: photosByWork.get(w.id) ?? [],
       hasInvoice: linkedWorkIds.has(w.id),
-      stockNumber: w.pushed_piece_id ? (stockNumbers.get(w.pushed_piece_id) ?? null) : null,
+      stockNumber: stockNumbers.get(w.pushed_piece_id ?? w.id) ?? null,
     }));
 
   // The day the push records as the purchase date (lib/push.ts londonDay),

@@ -14,14 +14,21 @@ import type { createServiceClient } from "@jvb/db/server";
  * 1. Each work is claimed before anything is created for it: pushed_at is
  *    set as a lease, only on a draft whose lease is free or older than
  *    LEASE_MINUTES. A work another run holds is reported as busy.
- * 2. pushed_piece_id is written straight after the stock record is created;
- *    a claimed work that already has one continues on that record.
+ * 2. The stock record takes the capture work's own id, so a work can never
+ *    have two: before creating one, a record with that id is looked up in
+ *    both registers and continued on, and a second insert is refused by the
+ *    primary key (the statement rolls back, stock-number counter included)
+ *    and the record it ran into is continued on. pushed_piece_id is written
+ *    straight after; a claimed work that already has one continues on that
+ *    record (works pushed before this rule have records with other ids).
  * 3. Photos are copied to `<piece>/<capture photo id>.<ext>` and skipped when
  *    that piece_images row exists; the invoice page goes to
  *    `<piece>/<page id>.<ext>` and is skipped when that document exists.
- * 4. A work is marked pushed only when every photo and the invoice made it.
- *    Otherwise it stays a draft, with its stock record, and the lease is
- *    released so pushing again finishes it.
+ * 4. A work is marked pushed only when every photo and the invoice made it;
+ *    the batch-day purchase date goes on only then, so an invoice that
+ *    attaches on a later push still gives its own date. Otherwise the work
+ *    stays a draft, with its stock record, and the lease is released so
+ *    pushing again finishes it.
  *
  * Needs no database object beyond those of migration 0030 and 0056.
  */
@@ -395,9 +402,31 @@ async function stockNumberOf(db: Db, pieceId: string): Promise<string | undefine
   return undefined;
 }
 
+type Piece = { id: string; stock_number: string | null };
+
+/**
+ * The stock record with this id, in either register, or null when there is
+ * none. Throws when it cannot be read: creating a record without knowing is
+ * how a work would get two.
+ */
+async function findPiece(db: Db, id: string): Promise<Piece | null> {
+  for (const table of ["pieces", "external_pieces"]) {
+    const { data, error } = await db.from(table).select("id, stock_number").eq("id", id).maybeSingle();
+    if (error) throw new Error(`Could not check the inventory: ${error.message}`);
+    if (data) return data as Piece;
+  }
+  return null;
+}
+
 type Ctx = { db: Db; userId: string; batch: Batch; purchaseDate: string; now: Date };
 
-async function createPiece(ctx: Ctx, work: Work): Promise<{ id: string; stock_number: string }> {
+/**
+ * Create the work's stock record under the work's own id. When a record with
+ * that id is already there (a run cut off after its insert, or whose insert
+ * reached the database although the reply was lost), the primary key refuses
+ * this one and that record is returned instead.
+ */
+async function createPiece(ctx: Ctx, work: Work): Promise<Piece> {
   const clean = (v: string | null | undefined) => v?.trim() || null;
   const makerText = clean(work.maker);
   const makerId = makerText ? await findMaker(ctx.db, makerText) : null;
@@ -422,6 +451,8 @@ async function createPiece(ctx: Ctx, work: Work): Promise<{ id: string; stock_nu
   const { data, error } = await ctx.db
     .from(ctx.batch.ledger === "external" ? "external_pieces" : "pieces")
     .insert({
+      // ensure_piece_ref (0056) keeps a supplied id for piece_ref.
+      id: work.id,
       title: clean(work.title),
       maker_id: makerId,
       year: clean(work.year),
@@ -437,8 +468,12 @@ async function createPiece(ctx: Ctx, work: Work): Promise<{ id: string; stock_nu
     })
     .select("id, stock_number")
     .single();
+  if (error && (error as { code?: string }).code === "23505") {
+    const there = await findPiece(ctx.db, work.id);
+    if (there) return there;
+  }
   if (error || !data) throw new Error(error?.message ?? "Could not create the stock record");
-  return data as { id: string; stock_number: string };
+  return data as Piece;
 }
 
 /** Copy the work's photos onto the record; returns how many failed. */
@@ -492,7 +527,6 @@ async function pushWork(ctx: Ctx, work: Work): Promise<WorkResult> {
 
   let pieceId = lease.pushed_piece_id;
   let stockNumber: string | undefined;
-  let keepLease = false;
   try {
     const { data: photoRows, error: phErr } = await db
       .from("capture_photos")
@@ -503,6 +537,18 @@ async function pushWork(ctx: Ctx, work: Work): Promise<WorkResult> {
     if (phErr) throw new Error(`Could not read the photos: ${phErr.message}`);
     const photos = (photoRows ?? []) as Photo[];
 
+    if (pieceId) {
+      stockNumber = await stockNumberOf(db, pieceId);
+    } else {
+      // A run that created the record but never recorded it (cut off, or the
+      // write below failed) left it under the work's id.
+      const there = await findPiece(db, work.id);
+      if (there) {
+        pieceId = there.id;
+        stockNumber = there.stock_number ?? undefined;
+      }
+    }
+
     if (!pieceId && isEmptyWork(work, photos.length)) {
       const { error } = await db
         .from("capture_works")
@@ -512,33 +558,32 @@ async function pushWork(ctx: Ctx, work: Work): Promise<WorkResult> {
       return { workId: work.id, skipped: true };
     }
 
-    if (pieceId) {
-      stockNumber = await stockNumberOf(db, pieceId);
-    } else {
+    if (!pieceId) {
       const piece = await createPiece(ctx, work);
       pieceId = piece.id;
-      stockNumber = piece.stock_number;
-      const { error } = await db.from("capture_works").update({ pushed_piece_id: piece.id }).eq("id", work.id);
-      if (error) {
-        // Keep the claim: releasing it would let a retry create a second
-        // record. It lapses after LEASE_MINUTES.
-        keepLease = true;
-        throw new Error(
-          `Added as ${piece.stock_number}, but the capture could not be marked. Check the studio before pushing again.`,
-        );
-      }
+      stockNumber = piece.stock_number ?? undefined;
+    }
+    if (pieceId !== lease.pushed_piece_id) {
+      const { error } = await db.from("capture_works").update({ pushed_piece_id: pieceId }).eq("id", work.id);
+      // Safe to let go: the next push finds the record by the work's id.
+      if (error) throw new Error("The record exists but this capture could not be updated: push again to finish.");
     }
 
     const photosFailed = await copyPhotos(db, work.id, pieceId, photos);
-    let invoiceOk = await attachWorkInvoices(db, work.id, pieceId);
+    const invoiceOk = await attachWorkInvoices(db, work.id, pieceId);
 
-    // A purchase date even without an invoice: the batch's day.
-    const { error: dErr } = await db
-      .from("piece_financials")
-      .update({ purchase_date: ctx.purchaseDate })
-      .eq("piece_id", pieceId)
-      .is("purchase_date", null);
-    if (dErr) invoiceOk = false;
+    // A purchase date even without an invoice: the batch's day. Written last,
+    // only when nothing else is left: an invoice that failed this time (or
+    // is linked before the next push) fills its own date then, which it
+    // could not do over this fallback.
+    if (photosFailed === 0 && invoiceOk) {
+      const { error: dErr } = await db
+        .from("piece_financials")
+        .update({ purchase_date: ctx.purchaseDate })
+        .eq("piece_id", pieceId)
+        .is("purchase_date", null);
+      if (dErr) throw new Error(`Could not set the purchase date: ${dErr.message}`);
+    }
 
     if (photosFailed > 0 || !invoiceOk) {
       await release(db, work.id);
@@ -558,7 +603,7 @@ async function pushWork(ctx: Ctx, work: Work): Promise<WorkResult> {
     if (mErr) throw new Error(`Could not mark the work as added: ${mErr.message}`);
     return { workId: work.id, stockNumber };
   } catch (e) {
-    if (!keepLease) await release(db, work.id).catch(() => undefined);
+    await release(db, work.id).catch(() => undefined);
     return {
       workId: work.id,
       ...(stockNumber ? { stockNumber, incomplete: true } : {}),

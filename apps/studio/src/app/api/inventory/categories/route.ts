@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { NAME_CANDIDATES, namePattern, pickSameName } from "@/lib/name-match";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,12 +24,12 @@ export async function POST(req: Request) {
 
   // Reuse an existing category with the same name (case-insensitive) rather
   // than creating a duplicate.
-  const { data: existing } = await supabase
+  const { data: candidates } = await supabase
     .from("categories")
     .select("id, name, is_active")
-    .ilike("name", name)
-    .limit(1)
-    .maybeSingle();
+    .ilike("name", namePattern(name))
+    .limit(NAME_CANDIDATES);
+  const existing = pickSameName(candidates, name, (c) => c.name);
   if (existing) {
     // 20260713000021 hid every category that came in from FileMaker and
     // re-activated only six, so a name typed here is often already on file as
