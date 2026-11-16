@@ -17,6 +17,7 @@ type Row = {
   title: string | null;
   year: string | null;
   maker_name: string | null;
+  deleted_at: string | null;
 } & PieceDimensions;
 
 /**
@@ -55,18 +56,24 @@ export async function GET(request: Request) {
   const byId = await loadPieceRows<Row>(
     supabase,
     ids,
-    `id, stock_number, title, year, maker_name, ${DIMENSION_COLUMNS}`,
+    `id, stock_number, title, year, maker_name, deleted_at, ${DIMENSION_COLUMNS}`,
   );
-  // loadPieceRows returns a map; walk the list's own order.
+  // loadPieceRows returns a map; walk the list's own order. A static list
+  // keeps its rows for works moved to the trash (so a restore keeps the
+  // list), and vw_pieces_all still has them: leave them out, as the list
+  // page and the list's other exports do.
   const works: WorkLabel[] = ids
     .map((id) => byId.get(id))
-    .filter((r): r is Row => Boolean(r))
+    .filter((r): r is Row => Boolean(r) && !r?.deleted_at)
     .map((r) => ({
       stockNumber: r.stock_number,
       maker: r.maker_name ?? undefined,
       title: titleWithYear(r.title, r.year),
       dimensions: formatDimensionsFullCm(r) ?? undefined,
     }));
+  // Every member in the trash: say so, rather than print a blank sheet.
+  if (works.length === 0)
+    return new Response("This list has no works to label.", { status: 422 });
 
   const buf = await renderToBuffer(WorkLabels({ works, template }));
 

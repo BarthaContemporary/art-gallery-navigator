@@ -1,6 +1,6 @@
 import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
-import { csvLine } from "@/lib/csv";
+import { csvFile, csvLine } from "@/lib/csv";
 import { EXPORT_COLUMNS, loadInventoryExportRows, toExportRow } from "@/lib/inventory-query";
 
 /** Inventory export — CSV opens directly in Proton Sheets / Excel. */
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   ];
   return exportResponse(
     request,
-    lines.join("\n"),
+    csvFile(lines),
     "text/csv; charset=utf-8",
     "inventory.csv",
     "Docs",

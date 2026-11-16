@@ -76,7 +76,7 @@ function Row({
 }) {
   const [price, setPrice] = useState(item.price_override_gbp?.toString() ?? "");
   const [note, setNote] = useState(item.note ?? "");
-  const [saved, setSaved] = useState(false);
+  const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   // Baseline of what's persisted, so blur only saves real changes.
   const persisted = useRef({ price, note });
 
@@ -86,16 +86,27 @@ function Row({
     if (
       parseAmount(price) === parseAmount(persisted.current.price) &&
       note === persisted.current.note
-    )
+    ) {
+      // Put back to what is saved: nothing is left unsaved.
+      setStatus((s) => (s === "error" ? "idle" : s));
       return;
+    }
+    const sending = { price, note };
     const fd = new FormData();
     fd.set("item_id", item.id);
     fd.set("price_override_gbp", price.trim());
     fd.set("note", note.trim());
-    await updateItem(fd);
-    persisted.current = { price, note };
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
+    try {
+      // Throws when the database did not take it.
+      await updateItem(fd);
+    } catch {
+      // The baseline stays where it was, so leaving the field again resends.
+      setStatus("error");
+      return;
+    }
+    persisted.current = sending;
+    setStatus("saved");
+    setTimeout(() => setStatus((s) => (s === "saved" ? "idle" : s)), 1500);
   }
 
   const priceId = `offer-item-price-${item.id}`;
@@ -142,9 +153,11 @@ function Row({
       </div>
       <span
         aria-live="polite"
-        className={`self-center text-[12px] text-ok transition-opacity ${saved ? "opacity-100" : "opacity-0"}`}
+        className={`self-center text-[12px] transition-opacity ${status === "error" ? "text-danger" : "text-ok"} ${
+          status === "idle" ? "opacity-0" : "opacity-100"
+        }`}
       >
-        {saved ? "Saved" : ""}
+        {status === "saved" ? "Saved" : status === "error" ? "Couldn’t save. Leave the field to try again." : ""}
       </span>
       <form action={removeItem} className="self-center">
         <input type="hidden" name="item_id" value={item.id} />

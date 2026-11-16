@@ -1,6 +1,7 @@
 import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
 import { loadListContacts } from "@/lib/crm-list-members";
+import { selectAllRows } from "@/lib/paged-read";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,12 +59,23 @@ export async function GET(request: Request) {
       return new Response(e instanceof Error ? e.message : "Could not read list", { status: 500 });
     }
   } else {
-    const { data: rows, error } = await supabase
-      .from("crm_contacts")
-      .select(CONTACT_FIELDS)
-      .order("last_name", { nullsFirst: false });
-    if (error) return new Response(error.message, { status: 500 });
-    contacts = (rows ?? []) as unknown as ContactRow[];
+    try {
+      // Paged, so a row cap on the API cannot cut the file short; id breaks
+      // ties so no contact is skipped or repeated between pages.
+      contacts = await selectAllRows<ContactRow>((from, to) =>
+        supabase
+          .from("crm_contacts")
+          .select(CONTACT_FIELDS)
+          .order("last_name", { nullsFirst: false })
+          .order("id")
+          .range(from, to) as unknown as PromiseLike<{
+          data: ContactRow[] | null;
+          error: { message: string } | null;
+        }>,
+      );
+    } catch (e) {
+      return new Response(e instanceof Error ? e.message : "Export failed", { status: 500 });
+    }
   }
 
   const cards = contacts

@@ -2,6 +2,7 @@ import sharp from "sharp";
 import { createServiceClient } from "@/lib/supabase";
 import { selectInChunks } from "@/lib/chunk";
 import { pieceDisplayPath } from "@/lib/storage-paths";
+import { pickLeadImages } from "@/lib/lead-image";
 
 /**
  * Thumbnails for exports that embed imagery.
@@ -65,27 +66,33 @@ export async function fetchExportThumbnails(
 
   // Chunked — IMAGE_CAP alone is 300 ids, already past the URL limit that
   // returns 414 (lib/chunk.ts).
-  const rows = await selectInChunks<{ piece_id: string; storage_path_display: string }>(
-    pieceIds,
-    (chunk) =>
-      admin
-        .from("piece_images")
-        .select("piece_id, storage_path_display, sort_order")
-        .in("piece_id", chunk)
-        .not("storage_path_display", "is", null)
-        .order("sort_order", { ascending: true, nullsFirst: false }),
+  const rows = await selectInChunks<{
+    piece_id: string;
+    storage_path_display: string;
+    role: string | null;
+    sort_order: number | null;
+    created_at: string | null;
+    processing_status: string | null;
+  }>(pieceIds, (chunk) =>
+    admin
+      .from("piece_images")
+      .select("piece_id, storage_path_display, role, sort_order, created_at, processing_status")
+      .in("piece_id", chunk)
+      .not("storage_path_display", "is", null),
   );
 
-  // First image per piece wins; each chunk arrives in sort order. The service
-  // client signs whatever path it is given, and the bytes are embedded in the
-  // export, so only a work's own display master counts; a row pointing
-  // anywhere else is passed over (lib/storage-paths.ts).
+  // The leading photograph of each work, by the rule the studio screens use
+  // (lib/lead-image.ts: front first, then sort order), not sort order alone.
+  // The service client signs whatever path it is given, and the bytes are
+  // embedded in the export, so only a work's own display master counts; a
+  // row pointing anywhere else is passed over (lib/storage-paths.ts).
   const firstByPiece = new Map<string, string>();
-  rows.forEach((r) => {
-    const pid = r.piece_id as string;
-    const path = pid ? pieceDisplayPath(r.storage_path_display, pid) : null;
-    if (path && !firstByPiece.has(pid)) firstByPiece.set(pid, path);
-  });
+  for (const [pid, r] of pickLeadImages(rows, {
+    usable: (r) => Boolean(pieceDisplayPath(r.storage_path_display, r.piece_id)),
+  })) {
+    const path = pieceDisplayPath(r.storage_path_display, pid);
+    if (path) firstByPiece.set(pid, path);
+  }
 
   // Preserve the caller's ordering so the cap keeps the first N of the export,
   // not an arbitrary N.

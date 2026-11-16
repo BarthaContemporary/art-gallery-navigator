@@ -42,7 +42,10 @@ export function cellValue(key: string, value: unknown): string | number | boolea
   if (value == null) return "";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (/_date$/i.test(key) && typeof value === "string" && DATE_RE.test(value)) {
-    return new Date(`${value}T00:00:00`);
+    // UTC midnight: ExcelJS writes the serial from the UTC timestamp, so a
+    // local midnight showed the day before on any host not set to UTC (UK
+    // summer time put every sale date one day early).
+    return new Date(`${value}T00:00:00Z`);
   }
   return value as string | number;
 }

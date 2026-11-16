@@ -1,7 +1,7 @@
 // node --test apps/studio/src/lib/csv.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { csvCell, csvLine } from "./csv.ts";
+import { csvCell, csvFile, csvLine, UTF8_BOM } from "./csv.ts";
 
 /**
  * A strict reader of what the exports write: rows end on LF, CR or CRLF
@@ -99,4 +99,24 @@ test("every cell of a crafted row stays in its row and column", () => {
     assert.ok(!/^[=+\-@]/.test(cell) || cell === "-5", JSON.stringify(cell));
   }
   assert.deepEqual(row, ["Ann", "Lee\n=1+1", 'x",=2+2', "'\n@3", "-5"]);
+});
+
+test("a CSV file starts with the UTF-8 byte-order mark, once", () => {
+  const file = csvFile([csvLine(["maker", "period"]), csvLine(["Hamada Shōji", "Shōwa — 1950s"])]);
+  assert.equal(file.charCodeAt(0), 0xfeff);
+  assert.equal(file.indexOf(UTF8_BOM, 1), -1);
+  // Encoded, the mark is the three bytes Excel looks for.
+  assert.deepEqual([...new TextEncoder().encode(file).slice(0, 3)], [0xef, 0xbb, 0xbf]);
+  // After the mark the rows read as before, non-ASCII text intact.
+  assert.deepEqual(parse(file.slice(1)), [
+    ["maker", "period"],
+    ["Hamada Shōji", "Shōwa — 1950s"],
+  ]);
+  // Decoding as UTF-8, as the contact import does, drops the mark again.
+  assert.ok(new TextDecoder().decode(new TextEncoder().encode(file)).startsWith("maker"));
+});
+
+test("an empty export is still a file with its mark", () => {
+  assert.equal(csvFile([]), UTF8_BOM);
+  assert.equal(csvFile([csvLine(["stock_number"])]), `${UTF8_BOM}stock_number`);
 });

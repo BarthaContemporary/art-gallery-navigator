@@ -6,12 +6,20 @@ import { loadPieceRows } from "@/lib/piece-store";
 import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 import { gbpDisplay } from "@/lib/format";
 import { pieceDisplayPath } from "@/lib/storage-paths";
+import { selectInChunks } from "@/lib/chunk";
+import { pickLeadImages } from "@/lib/lead-image";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Offer prices in whole pounds ("£12,000"), the same format the studio shows.
 const gbp = gbpDisplay;
+
+/** A read that failed: logged with its detail, answered as a plain 500. */
+function failed(what: string, detail: string): Response {
+  console.error(`[offer-presentation] could not read ${what}:`, detail);
+  return new Response(`Could not read ${what}. Try again.`, { status: 500 });
+}
 
 /**
  * Editable DOCX presentation of an offer: one work per page with its display
@@ -26,28 +34,37 @@ export async function GET(request: Request) {
   if (!offerId) return new Response("Missing offer", { status: 400 });
 
   const supabase = await getSupabase();
-  const { data: offer } = await supabase
+  const { data: offer, error: offerError } = await supabase
     .from("offers")
     .select("id, title, intro, show_prices")
     .eq("id", offerId)
     .maybeSingle();
+  // A failed read answers 500, never a document that looks complete without
+  // its works, pictures or prices.
+  if (offerError) return failed("the offer", offerError.message);
   if (!offer) return new Response("Not found", { status: 404 });
 
-  const { data: itemRows } = await supabase
+  const { data: itemRows, error: itemsError } = await supabase
     .from("offer_items")
     .select(
       "price_override_gbp, note, sort_order, piece_id",
     )
     .eq("offer_id", offerId)
     .order("sort_order");
+  if (itemsError) return failed("the offer's works", itemsError.message);
 
   // Works come from the union view: an offer can carry works from either
   // register, and satellites no longer key on a single stock table.
-  const pieceById = await loadPieceRows<Row["piece"] & { id: string }>(
-    supabase,
-    ((itemRows ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
-    `id, stock_number, title, medium, period, origin_region, ${DIMENSION_COLUMNS}, description, maker_name, maker_life_dates`,
-  );
+  let pieceById: Map<string, NonNullable<Row["piece"]>>;
+  try {
+    pieceById = await loadPieceRows<NonNullable<Row["piece"]>>(
+      supabase,
+      ((itemRows ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
+      `id, stock_number, title, medium, period, origin_region, ${DIMENSION_COLUMNS}, description, maker_name, maker_life_dates`,
+    );
+  } catch (e) {
+    return failed("the works", e instanceof Error ? e.message : String(e));
+  }
 
   type Row = {
     price_override_gbp: number | null;
@@ -77,36 +94,59 @@ export async function GET(request: Request) {
   // marked_price_gbp lives in piece_financials, which staff cannot see. Only
   // fall back to it for privileged roles; staff get the price_override the
   // offers UI already exposes to them (and nothing else).
+  // Both reads in chunks of ids: an offer made from a whole list passes the
+  // URL limit in one .in() (lib/chunk.ts), which used to come back as a
+  // document with no pictures and no prices.
   if (offer.show_prices && canSeeFinancials(session.roles)) {
-    const { data: fins } = await svc
-      .from("piece_financials")
-      .select("piece_id, marked_price_gbp")
-      .in("piece_id", pieceIds);
-    for (const f of (fins ?? []) as { piece_id: string; marked_price_gbp: number | null }[]) {
+    let fins: { piece_id: string; marked_price_gbp: number | null }[];
+    try {
+      fins = await selectInChunks<{ piece_id: string; marked_price_gbp: number | null }>(pieceIds, (chunk) =>
+        svc.from("piece_financials").select("piece_id, marked_price_gbp").in("piece_id", chunk),
+      );
+    } catch (e) {
+      return failed("the marked prices", e instanceof Error ? e.message : String(e));
+    }
+    for (const f of fins) {
       if (f.marked_price_gbp != null) priceByPiece.set(f.piece_id, f.marked_price_gbp);
     }
   }
 
-  // Primary display image per piece (lowest role/sort with a display master).
-  const { data: imgs } = await svc
-    .from("piece_images")
-    .select("piece_id, storage_path_display, width, height, sort_order")
-    .in("piece_id", pieceIds)
-    .not("storage_path_display", "is", null)
-    .order("sort_order");
-  const imgByPiece = new Map<string, { path: string; width: number; height: number }>();
-  for (const im of (imgs ?? []) as {
+  // The leading display image of each work: the front shot first, then sort
+  // order (lib/lead-image.ts, the rule the studio and the offer's own web
+  // page use), never a label shot: this document goes to the client.
+  type ImageRow = {
     piece_id: string;
     storage_path_display: string;
     width: number | null;
     height: number | null;
-  }[]) {
-    // Only the work's own display master: the bytes go into the download,
-    // so a path pointing into another bucket must never be fetched
-    // (lib/storage-paths.ts). Such a row is passed over, as if it had none.
-    const path = pieceDisplayPath(im.storage_path_display, im.piece_id);
-    if (path && !imgByPiece.has(im.piece_id))
-      imgByPiece.set(im.piece_id, {
+    role: string | null;
+    sort_order: number | null;
+    created_at: string | null;
+    processing_status: string | null;
+  };
+  let imgs: ImageRow[];
+  try {
+    imgs = await selectInChunks<ImageRow>(pieceIds, (chunk) =>
+      svc
+        .from("piece_images")
+        .select("piece_id, storage_path_display, width, height, role, sort_order, created_at, processing_status")
+        .in("piece_id", chunk)
+        .not("storage_path_display", "is", null),
+    );
+  } catch (e) {
+    return failed("the photographs", e instanceof Error ? e.message : String(e));
+  }
+  const imgByPiece = new Map<string, { path: string; width: number; height: number }>();
+  // Only the work's own display master: the bytes go into the download, so a
+  // path pointing into another bucket must never be fetched
+  // (lib/storage-paths.ts). Such a row is passed over, as if it had none.
+  for (const [pid, im] of pickLeadImages(imgs, {
+    excludeRoles: ["document"],
+    usable: (r) => Boolean(pieceDisplayPath(r.storage_path_display, r.piece_id)),
+  })) {
+    const path = pieceDisplayPath(im.storage_path_display, pid);
+    if (path)
+      imgByPiece.set(pid, {
         path,
         width: im.width ?? 1600,
         height: im.height ?? 1600,

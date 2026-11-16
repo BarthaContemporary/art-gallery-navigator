@@ -57,8 +57,45 @@ test("is stable, so sanitising on read and again on save changes nothing", () =>
     '<p><a href="https://example.com/a?b=1&amp;c=2" title="t">link</a> and <b>bold</b></p>',
     "<p>Fish &amp; chips &lt;3</p><img src=x onerror=alert(1)><p>after</p>",
     "",
+    // Block shapes the editor and pastes produce (below).
+    "Born.<div>He studied.</div><div><br></div><div>Exhibited.</div>",
+    "<div><div>x</div><div>y</div></div>",
+    "<div>t<p>u</p></div>",
+    "<p><div>x</div></p>",
+    "<p>a<h1>T</h1>b</p>",
+    "<h1><h2>nested</h2></h1>",
+    "<section><h4>Sub</h4><p>x</p></section><table><tr><td>a</td><td>b</td></tr></table>",
   ]) {
     const once = sanitizeHtml(html);
     assert.equal(sanitizeHtml(once), once, html);
   }
+});
+
+test("lines typed with Enter keep their breaks (Chrome and Safari's <div>s)", () => {
+  // Typing into an empty editor: the first line bare, each later one a <div>.
+  assert.equal(
+    sanitizeHtml(
+      "Born in Kyoto in 1890.<div>He studied under Tanabe Chikuunsai.</div><div><br></div><div>Exhibited at the Teiten from 1929.</div>",
+    ),
+    "Born in Kyoto in 1890.<div>He studied under Tanabe Chikuunsai.</div><div><br /></div><div>Exhibited at the Teiten from 1929.</div>",
+  );
+  // Enter after a heading made with the toolbar.
+  assert.equal(sanitizeHtml("<h2>Life</h2><div>Born</div>"), "<h2>Life</h2><div>Born</div>");
+});
+
+test("Firefox's one <div> per line is kept, and was saved as 'A.B.'", () => {
+  assert.equal(sanitizeHtml("<div>A.</div><div>B.</div>"), "<div>A.</div><div>B.</div>");
+});
+
+test("a pasted page keeps its block boundaries, with no attributes", () => {
+  assert.equal(
+    sanitizeHtml(
+      '<h1 id="x">Biography</h1><div class="c" style="color:red"><div>one</div><div>two</div></div>' +
+        '<blockquote cite="u">said</blockquote><section><h4>Sub</h4><p>x</p></section>' +
+        "<table><tr><td>a</td><td>b</td></tr></table>",
+    ),
+    "<h2>Biography</h2><div><div>one</div><div>two</div></div><blockquote>said</blockquote>" +
+      "<div><h3>Sub</h3><p>x</p></div><div>a</div><div>b</div>",
+  );
+  assert.equal(sanitizeHtml('<div onclick="x()" onmouseover="y()">z</div>'), "<div>z</div>");
 });

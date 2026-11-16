@@ -45,3 +45,21 @@ export function csvCell(v: unknown): string {
 export function csvLine(values: readonly unknown[]): string {
   return values.map(csvCell).join(",");
 }
+
+/**
+ * The UTF-8 byte-order mark. Excel opens a .csv without it in the machine's
+ * legacy code page, so "Shōwa" read "ShÅwa" and an em dash "â€”"; with it,
+ * Excel reads UTF-8. Numbers, LibreOffice and Google and Proton Sheets
+ * accept it, and the studio's own contact import drops it (Blob.text()
+ * strips it and the header cells are trimmed).
+ */
+export const UTF8_BOM = "﻿";
+
+/**
+ * A whole CSV file: the byte-order mark, then the rows (from csvLine), one
+ * per line. Every CSV export builds its file through here, so none can go
+ * out without the mark.
+ */
+export function csvFile(lines: readonly string[]): string {
+  return UTF8_BOM + lines.join("\n");
+}

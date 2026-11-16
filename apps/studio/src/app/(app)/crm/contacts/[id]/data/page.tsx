@@ -4,8 +4,9 @@ import { buildContactExport } from "@/lib/contact-export";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
-import { Button, ButtonLink } from "@/components/ui/button";
-import { DownloadIcon, PrintIcon } from "@/components/ui/icons";
+import { ButtonLink } from "@/components/ui/button";
+import { DownloadIcon } from "@/components/ui/icons";
+import { PrintButton } from "@/components/print-button";
 
 export const metadata = { title: "Personal data" };
 
@@ -17,6 +18,8 @@ export default async function ContactDataPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const session = await getSession();
   if (!session || !hasRole(session.roles, "admin")) redirect(`/crm/contacts/${id}`);
+  // Throws when any read fails, so the page shows the error boundary rather
+  // than a copy with an empty section that reads "None held."
   const data = await buildContactExport(createServiceClient(), id);
   if (!data) notFound();
 
@@ -101,20 +104,11 @@ export default async function ContactDataPage({ params }: { params: Promise<{ id
         <DataSection title="Appointments" rows={data.appointments} />
         <DataSection title="Purchases from the gallery" rows={data.purchases} />
         <DataSection title="Sales to the gallery" rows={data.sales_to_gallery} />
+        <DataSection title="Orders" rows={data.orders} />
         <DataSection title="Consignments" rows={data.consignments} />
         <DataSection title="Anti-money-laundering checks" rows={data.aml} />
         <DataSection title="Previous data-protection requests" rows={data.requests} />
       </div>
     </div>
-  );
-}
-
-function PrintButton() {
-  return (
-    <form action="javascript:window.print()">
-      <Button type="submit" variant="primary" icon={<PrintIcon size={14} />}>
-        Print or save as PDF
-      </Button>
-    </form>
   );
 }

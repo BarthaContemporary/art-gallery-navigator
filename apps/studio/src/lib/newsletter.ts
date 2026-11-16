@@ -165,16 +165,14 @@ function renderWorks(items: WorkItem[]): string {
         ? `<a href="${escapeHtml(workUrl)}" target="_blank" style="text-decoration:none;color:inherit;">${inner}</a>`
         : inner;
       return `<td width="50%" valign="top" style="padding:0 8px 20px;">${body}</td>`;
-    })
-    .join("");
-  // Two-per-row grid.
+    });
+  // Two-per-row grid, paired straight from the cells (an odd last one gets an
+  // empty partner). They used to be joined and split again with a regex,
+  // which a <td> inside a cell would have cut short.
   const rows: string[] = [];
-  const arr = items.slice();
-  const cellArr = cells.match(/<td[\s\S]*?<\/td>/g) ?? [];
-  for (let i = 0; i < cellArr.length; i += 2) {
-    rows.push(`<tr>${cellArr[i] ?? ""}${cellArr[i + 1] ?? '<td width="50%"></td>'}</tr>`);
+  for (let i = 0; i < cells.length; i += 2) {
+    rows.push(`<tr>${cells[i]}${cells[i + 1] ?? '<td width="50%"></td>'}</tr>`);
   }
-  void arr;
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px -8px 0;">${rows.join(
     "",
   )}</table>`;
@@ -243,8 +241,6 @@ export function personalise(
     .split(UNSUB_TOKEN)
     .join(vars.unsubscribeUrl);
 }
-
-export const NEWSLETTER_TOKENS = { SALUTATION_TOKEN, UNSUB_TOKEN };
 
 export function emptyDesign(): NewsletterDesign {
   return {

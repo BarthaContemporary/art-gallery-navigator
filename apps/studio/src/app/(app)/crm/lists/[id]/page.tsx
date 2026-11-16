@@ -71,12 +71,14 @@ export default async function ListDetail({
   const term = (q ?? "").trim();
   let results: typeof members = [];
   if (term) {
-    // Trigram-fuzzy contact search.
+    // Trigram-fuzzy contact search. Members are taken out before the first
+    // 20 are kept: taking 20 first showed nothing when the best matches were
+    // already on the list, though more contacts matched.
     const { data } = await supabase
       .rpc("crm_contacts_search", { q: term })
       .select("id, first_name, last_name, email")
-      .limit(20);
-    results = ((data ?? []) as unknown as typeof members).filter((c) => !memberIds.has(c.id));
+      .limit(100);
+    results = ((data ?? []) as unknown as typeof members).filter((c) => !memberIds.has(c.id)).slice(0, 20);
   }
 
   async function addMember(formData: FormData) {
