@@ -15,12 +15,18 @@
 # the engine refuses or no body at all.
 #
 # Each line says who answered: "edge" (Caddy itself; the request never
-# reached OpenSearch) or "engine" (OpenSearch answered: its replies carry an
-# X-OpenSearch-Version header). Where the engine should answer, any answer
-# from it is right: 200, or 404 while an index has not been made yet, or 400
-# for the v0 probes. apps/studio/src/app/login/search-edge-config.test.ts
-# checks every line below against the Caddyfile's search block, so keep the
-# `check` lines in this exact form.
+# reached OpenSearch), "login" (Caddy's password check: a 401 with a
+# password prompt, the WWW-Authenticate header) or "engine" (OpenSearch
+# answered: its replies carry an X-OpenSearch-Version header). Where the
+# engine should answer, any answer from it is right: 200, or 404 while an
+# index has not been made yet, or 400 for the v0 probes. A name that is not
+# one of the two logins, and the search login asking for anything but a
+# search, must get "edge 401": refused before Caddy checks any password
+# (Caddy checks a name its password list does not hold against a built-in
+# hash that costs it almost a second of processor time).
+# apps/studio/src/app/login/search-edge-config.test.ts checks every line
+# below against the Caddyfile's search block, so keep the `check` lines in
+# this exact form.
 set -u
 BASE=${BASE:?set BASE, for example BASE=https://search.104-238-184-145.sslip.io}
 BASE=${BASE%/}
@@ -47,7 +53,10 @@ check() { # want label login method target [body]
   local auth=''
   case $login in
     none) ;;
-    wrong) auth="user = \"$SEARCH_USER:not-the-password\"" ;;
+    wrong-search) auth="user = \"$SEARCH_USER:not-the-password\"" ;;
+    wrong-index) auth="user = \"$INDEX_USER:not-the-password\"" ;;
+    unknown) auth="user = \"jvb-nobody:not-the-password\"" ;;
+    lookalike) auth="user = \"jvb-index9:not-the-password\"" ;;
     search) auth="user = \"$SEARCH_USER:$SEARCH_PW\"" ;;
     index) auth="user = \"$INDEX_USER:$INDEX_PW\"" ;;
     *) echo "unknown login $login"; exit 2 ;;
@@ -56,8 +65,10 @@ check() { # want label login method target [body]
   local code who
   # The login goes to curl on its standard input (-K -), never as an argument.
   code=$(printf '%s\n' "$auth" | curl -K - "${args[@]}" "$BASE$target") || code=000
-  if grep -qi '^x-opensearch-version:' "$HDR"; then who=engine; else who=edge; fi
-  if { [ "$want" = engine ] && [ "$who" = engine ]; } || { [ "$who" = edge ] && [ "$code" = "$want" ]; }; then
+  if grep -qi '^x-opensearch-version:' "$HDR"; then who=engine
+  elif [ "$code" = 401 ] && grep -qi '^www-authenticate:' "$HDR"; then who=login
+  else who=edge; fi
+  if [ "$who" = "$want" ] || { [ "$who" = edge ] && [ "$code" = "$want" ]; }; then
     printf 'OK     %-6s %s  %s\n' "$who" "$code" "$label"
   else
     printf 'WRONG  %-6s %s  (want %s)  %s\n' "$who" "$code" "$want" "$label"
@@ -65,43 +76,56 @@ check() { # want label login method target [body]
   fi
 }
 
-echo "-- no password, or a wrong one"
-check 401 "search, no password" none POST '/jvb-works-v1/_search' "$Q"
-check 401 "search, wrong password" wrong POST '/jvb-works-v1/_search' "$Q"
-check 401 "health, no password" none GET '/_cluster/health'
-check 401 "bulk write, no password" none POST '/jvb-works-v0/_bulk'
+echo "-- no password, or a wrong one: the password prompt"
+check login "search, no password" none POST '/jvb-works-v1/_search' "$Q"
+check login "search, wrong password" wrong-search POST '/jvb-works-v1/_search' "$Q"
+check login "search, the index name with a wrong password" wrong-index POST '/jvb-works-v1/_search' "$Q"
+check login "health, no password" none GET '/_cluster/health'
+check login "health, the index name with a wrong password" wrong-index GET '/_cluster/health'
+check login "bulk write, no password" none POST '/jvb-works-v0/_bulk'
+check login "bulk write, the index name with a wrong password" wrong-index POST '/jvb-works-v0/_bulk'
 check 404 "front page" none GET '/'
 check 404 "the old /health path" none GET '/health'
 check 404 "every index" none GET '/_cat/indices'
 check 400 "encoded comma" none POST '/jvb-works-v1%2C%2A/_search' "$Q"
 
-echo "-- the search login: one index per search, POST, nothing else"
+echo "-- a name that is not one of the two: refused before any password check"
+check 401 "search, a made-up name" unknown POST '/jvb-works-v1/_search' "$Q"
+check 401 "search, a name that begins like jvb-index" lookalike POST '/jvb-works-v1/_search' "$Q"
+check 401 "bulk write, a made-up name" unknown POST '/jvb-works-v0/_bulk'
+check 401 "bulk write, a name that begins like jvb-index" lookalike POST '/jvb-works-v0/_bulk'
+check 401 "health, a made-up name" unknown GET '/_cluster/health'
+check 401 "health, a name that begins like jvb-index" lookalike GET '/_cluster/health'
+check 401 "front page, a made-up name" unknown GET '/'
+check 400 "encoded comma, a made-up name" unknown POST '/jvb-works-v1%2C%2A/_search' "$Q"
+
+echo "-- the search login: one index per search, POST; anything else refused before any password check"
 check engine "search works" search POST '/jvb-works-v1/_search' "$Q"
 check engine "search makers" search POST '/jvb-makers-v1/_search' "$Q"
 check engine "search contacts" search POST '/jvb-contacts-v1/_search' "$Q"
-check 404 "a name without a version" search POST '/jvb-works/_search' "$Q"
-check 404 "an index the studio does not have" search POST '/jvb-records-v1/_search' "$Q"
-check 404 "two indices in one address" search POST '/jvb-works-v1,jvb-contacts-v1/_search' "$Q"
-check 404 "a wildcard" search POST '/jvb-*/_search' "$Q"
-check 404 "an index plus everything" search POST '/jvb-works-v1,*/_search' "$Q"
-check 404 "_all" search POST '/_all/_search' "$Q"
-check 404 "every index at once" search POST '/_search' "$Q"
+check 401 "a name without a version" search POST '/jvb-works/_search' "$Q"
+check 401 "an index the studio does not have" search POST '/jvb-records-v1/_search' "$Q"
+check 401 "two indices in one address" search POST '/jvb-works-v1,jvb-contacts-v1/_search' "$Q"
+check 401 "a wildcard" search POST '/jvb-*/_search' "$Q"
+check 401 "an index plus everything" search POST '/jvb-works-v1,*/_search' "$Q"
+check 401 "_all" search POST '/_all/_search' "$Q"
+check 401 "every index at once" search POST '/_search' "$Q"
 check 400 "encoded comma" search POST '/jvb-works-v1%2C%2A/_search' "$Q"
 check 400 "encoded letter" search POST '/%6Avb-works-v1/_search' "$Q"
 check 400 "doubled slash" search POST '//jvb-works-v1/_search' "$Q"
 check 400 "dot segments" search POST '/jvb-works-v1/../_all/_search' "$Q"
-check 404 "trailing slash" search POST '/jvb-works-v1/_search/' "$Q"
-check 404 "query string: q=" search POST '/jvb-contacts-v1/_search?q=email:a*' "$Q"
-check 404 "query string: scroll=" search POST '/jvb-works-v1/_search?scroll=1m' "$Q"
-check 404 "query string: index=" search POST '/jvb-works-v1/_search?index=jvb-contacts-v1' "$Q"
-check 404 "GET search" search GET '/jvb-works-v1/_search'
-check 404 "multi-search" search POST '/jvb-works-v1/_msearch' "$Q"
-check 404 "multi-get" search POST '/jvb-contacts-v1/_mget' '{"ids":[]}'
-check 404 "one document" search GET '/jvb-contacts-v1/_doc/x'
-check 404 "point in time" search POST '/jvb-contacts-v0/_search/point_in_time?keep_alive=1m'
-check 404 "aliases" search GET '/_aliases'
-check 404 "query log" search GET '/_insights/top_queries'
-check 404 "node details" search GET '/_nodes'
+check 401 "trailing slash" search POST '/jvb-works-v1/_search/' "$Q"
+check 401 "query string: q=" search POST '/jvb-contacts-v1/_search?q=email:a*' "$Q"
+check 401 "query string: scroll=" search POST '/jvb-works-v1/_search?scroll=1m' "$Q"
+check 401 "query string: index=" search POST '/jvb-works-v1/_search?index=jvb-contacts-v1' "$Q"
+check 401 "GET search" search GET '/jvb-works-v1/_search'
+check 401 "multi-search" search POST '/jvb-works-v1/_msearch' "$Q"
+check 401 "multi-get" search POST '/jvb-contacts-v1/_mget' '{"ids":[]}'
+check 401 "one document" search GET '/jvb-contacts-v1/_doc/x'
+check 401 "point in time" search POST '/jvb-contacts-v0/_search/point_in_time?keep_alive=1m'
+check 401 "aliases" search GET '/_aliases'
+check 401 "query log" search GET '/_insights/top_queries'
+check 401 "node details" search GET '/_nodes'
 check 401 "search login, bulk write" search POST '/jvb-works-v0/_bulk'
 check 401 "search login, make an index" search PUT '/jvb-works-v0' "$NO_INDEX"
 check 401 "search login, delete an index" search DELETE '/jvb-works-v0'
@@ -110,6 +134,8 @@ check 401 "search login, count" search GET '/jvb-works-v1/_count'
 check 401 "search login, mapping" search GET '/jvb-contacts-v1/_mapping'
 check 401 "search login, health" search GET '/_cluster/health'
 check 401 "search login, list of indices" search GET '/_cat/indices/jvb-*?format=json&h=index,health,docs.count,docs.deleted,store.size'
+check 401 "search name with a wrong password, bulk write" wrong-search POST '/jvb-works-v0/_bulk'
+check 401 "search name with a wrong password, health" wrong-search GET '/_cluster/health'
 
 echo "-- the index login: what the sync route, reconcile and Admin send"
 check engine "search (reconcile lists the ids)" index POST '/jvb-contacts-v1/_search' "$Q"

@@ -28,14 +28,17 @@ results are added to its results, never put in their place.
   `search.<server name>`, with two logins: `jvb-search`, which can only
   search, and `jvb-index`, which also keeps the copy up to date. Each may
   send a short, fixed list of requests; everything else is turned away
-  without reaching OpenSearch. There is no address that answers without a
-  password, not even a health check.
+  without reaching OpenSearch. Any other login name, and the search login
+  asking for anything but a search, is turned away before a password is
+  even checked. There is no address that answers without a password, not
+  even a health check.
 - The passwords exist only in the password manager and in the studio's
   Vercel settings. The server holds only their hashes, in the Caddyfile.
 - It uses about 0.8 GB of memory at its busiest (normal size) and some
-  20 MB of disk for the index, plus about 3 GB once for its program. If the
-  server ever runs short of memory, the kernel stops OpenSearch first, not
-  the database or the shared drive.
+  20 MB of disk for the index, plus about 3 GB once for its program (the
+  build needs about 1.6 GB more while it runs, which step 5 frees again).
+  If the server ever runs short of memory, the kernel stops OpenSearch
+  first, not the database or the shared drive.
 - What people type into the search box is never stored: OpenSearch's
   query log is not in the program, and the search words travel inside the
   requests, which the edge server's log leaves out.
@@ -285,11 +288,16 @@ OpenSearch completely").
 ```sh
 docker compose build opensearch
 docker compose up -d opensearch
+docker builder prune -af
 ```
 
 The build downloads OpenSearch (about 1.2 GB; a few minutes) and removes
 its add-ons. `up -d opensearch` starts only this one service; nothing else
-restarts.
+restarts. The last line deletes what Docker kept from the build to make a
+second build quicker (about 1.6 GB, measured; `docker image ls` does not
+show it). The program itself, about 2.9 GB, stays. It also deletes the
+image worker's build leftovers, which does no harm: they are made again
+the next time the image worker is built.
 
 **Check:**
 
@@ -304,6 +312,7 @@ ss -ltn | grep -E ':(9200|9300|9600) '
 docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' jvb-opensearch
 docker compose ps
 awk '/^MemAvailable:/ {print int($2/1024) " MB available"}' /proc/meminfo
+docker system df --format '{{.Type}}: {{.Size}}' | grep 'Build Cache'
 ```
 
 Expect, in order:
@@ -336,7 +345,8 @@ Expect, in order:
   size);
 - every other service still `Up` (and `healthy` where shown);
 - still at least 800 MB available. If less than 800 MB is available, undo,
-  and either repeat with the small size (step 4's extra line) or stop.
+  and either repeat with the small size (step 4's extra line) or stop;
+- `Build Cache: 0B` (or a few kB).
 
 If it never becomes healthy: `docker compose logs --tail=40 opensearch`
 names the problem. Undo, and tell whoever looks after the code with those
@@ -371,14 +381,24 @@ passwords exist only in it and in the password manager.
 
    Expect no `STOP` line and `hashes: 60 and 60 characters, starting
    $2a$10$ and $2a$10$`. The passwords are 48 random letters and digits
-   (nothing to quote). Why cost 10 and not Caddy's usual 14: every wrong
-   password makes Caddy check the hash, and at 14 each check takes almost a
-   second of processor time (measured), so anyone on the internet could keep
-   the server's four processors busy with a few wrong passwords a second; at
-   10 it takes about 0.06 s, and a 48-character random password loses
-   nothing by it. Caddy older than 2.10 cannot choose the cost, so the box
-   then borrows a current Caddy for this one command (a small download); the
-   hash works in any Caddy.
+   (nothing to quote).
+
+   Why cost 10 and not Caddy's usual 14: every password Caddy checks takes
+   processor time, almost a second at 14 and about 0.06 s at 10 (both
+   measured), and a 48-character random password loses nothing by the
+   cheaper hash. Caddy checks a password even when the login name is not
+   one it knows, against a hash of its own at cost 14, and the hashes made
+   here cannot change that. So the search site turns away, before any
+   password is checked, every name other than `jvb-search` and
+   `jvb-index`, and the search login asking for anything but a search.
+   Without that, anyone on the internet could keep the server's four
+   processors busy with a few made-up logins a second. What is left is
+   0.06 s for each wrong password given with one of the two real names;
+   step 7's script checks that the rest is turned away at once.
+
+   Caddy older than 2.10 cannot choose the cost, so the box then borrows a
+   current Caddy for this one command (a small download); the hash works
+   in any Caddy.
 
 2. Save the passwords: show them, copy them into a new password-manager
    entry "JVB search logins" (two lines: `jvb-search` with its password,
@@ -404,7 +424,7 @@ passwords exist only in it and in the password manager.
    grep -c '' /root/search-site.caddy; grep -c CHANGE_ME /root/search-site.caddy; grep -c '[$]2a[$]10[$]' /root/search-site.caddy; grep -n ' {$' /root/search-site.caddy | head -1
    ```
 
-   Expect about `146` lines; `0` (no placeholder left); `4` (the four hash
+   Expect about `176` lines; `0` (no placeholder left); `4` (the four hash
    lines); and a line ending `search.<your address> {`.
 
 4. Make the log file, owned by Caddy's user (a root-owned file makes the
@@ -430,14 +450,22 @@ minute):
 sleep 30
 curl -s -o /dev/null -w 'search without a password: %{http_code}\n' -X POST "https://$SEARCH_HOST/jvb-works-v1/_search"
 curl -s -o /dev/null -w 'front page: %{http_code}\n' "https://$SEARCH_HOST/"
-curl -s -o /dev/null -w 'health with the index login: %{http_code}\n' -u "jvb-index:$INDEX_PW" "https://$SEARCH_HOST/_cluster/health"
-curl -s -o /dev/null -w 'health with the search login: %{http_code}\n' -u "jvb-search:$SEARCH_PW" "https://$SEARCH_HOST/_cluster/health"
+printf 'user = "jvb-index:%s"\n' "$INDEX_PW" | curl -K - -s -o /dev/null -w 'health with the index login: %{http_code}\n' "https://$SEARCH_HOST/_cluster/health"
+printf 'user = "jvb-search:%s"\n' "$SEARCH_PW" | curl -K - -s -o /dev/null -w 'health with the search login: %{http_code}\n' "https://$SEARCH_HOST/_cluster/health"
+curl -s -o /dev/null -w 'a made-up login: %{http_code} in %{time_total} s\n' -u 'nobody:x' -X POST "https://$SEARCH_HOST/jvb-works-v1/_search"
 curl -s -o /dev/null -w 'API: %{http_code}\n' "$API/auth/v1/health" -H "apikey: $ANON"
 ```
 
+The two passwords go to curl on its input (`-K -`), not on its command
+line, where any other account on the server could read them while curl
+runs.
+
 Expect `search without a password: 401`, `front page: 404`,
 `health with the index login: 200`, `health with the search login: 401`
-(that login may only search), `API: 200`.
+(that login may only search), `a made-up login: 401` in a few hundredths
+of a second (about a second means a password was checked that should
+have been refused before: undo, and tell whoever looks after the code),
+`API: 200`.
 
 If the first lines are `000` or a certificate error: wait two minutes and
 run the box again. If it persists,
@@ -459,10 +487,12 @@ The passwords in the password manager are then unused; delete the entry.
 ## Step 7. Check the search site from outside
 
 1. Still in the SSH window of step 6, run the check script. It sends about
-   80 requests to the search site, each with or without a login, and says
-   for each one whether the edge server or OpenSearch answered and whether
-   that is right. It only reads: nothing is created, changed or deleted,
-   and it prints no password.
+   95 requests to the search site, with no login, a wrong password, a
+   made-up name or one of the two logins, and says for each one who
+   answered (`edge`: the edge server itself; `login`: the edge server's
+   password check; `engine`: OpenSearch) and whether that is right. It
+   only reads: nothing is created, changed or deleted, and it prints no
+   password.
 
    ```sh
    SEARCH_PW="$SEARCH_PW" INDEX_PW="$INDEX_PW" BASE="https://$SEARCH_HOST" /opt/jvb/infra/scripts/verify-search-edge.sh
@@ -766,10 +796,21 @@ line and checks the add-on removal still works; then on the server:
    ```
 
 3. Step 5's check, then Admin → Search → Reconcile now.
-4. Remove the old program to get its 3 GB back:
-   `docker image ls | grep -i opensearch`, then `docker image rm <the old
-   IMAGE ID>` for the lines that are not the one just built (the old
-   version, or `<none>`).
+4. Get the disk space back. The old program (about 3 GB) has lost its
+   name to the new one (`docker image ls` shows it as `<none>`, if at
+   all), and the build left the downloaded original behind as well (1.5 to
+   3 GB, which `docker image ls` never shows):
+
+   ```sh
+   docker image prune -f
+   docker builder prune -af
+   docker system df --format '{{.Type}}: {{.Size}}'
+   ```
+
+   The first deletes programs that have no name and that no container
+   uses; the second deletes every build's leftovers, the image worker's
+   too, which does no harm (they are made again the next time it is
+   built).
 
 Starting from an empty volume every time means no version can trip over
 data another version wrote (OpenSearch cannot open data a newer version
@@ -777,7 +818,10 @@ wrote, so "go back to the old line" alone never works), and going back is
 the same steps with the old `Dockerfile`. Search uses Postgres alone for
 the minute in between.
 
-**Check:** step 5's check and Admin → Search, as above.
+**Check:** step 5's check and Admin → Search, as above. The last command
+of point 4 shows `Build Cache: 0B` (or a few kB), and
+`docker image ls --format '{{.Repository}} {{.ID}}' | grep -iE 'opensearch|none'`
+shows one line, `jvb-supabase-opensearch`.
 
 **Undo:** the same four steps with the old `Dockerfile`.
 
@@ -799,17 +843,31 @@ the minute in between.
    if nothing else changed since: `cp -a "$B/docker-compose.yml" .`), then
    `docker compose config --quiet && echo OK`, and only then
    `rm -r opensearch` (the folder) and `docker network rm jvb-supabase_search`.
-5. The program: `docker image ls | grep -i opensearch`, then
-   `docker image rm <IMAGE ID>` for each line (about 3 GB).
+5. The program (about 3 GB), any older one an upgrade left without a
+   name, and the build's leftovers (1.5 to 3 GB, which `docker image ls`
+   never shows):
+
+   ```sh
+   docker image rm jvb-supabase-opensearch
+   docker image prune -f
+   docker builder prune -af
+   docker system df --format '{{.Type}}: {{.Size}}'
+   ```
+
+   The last line should show `Build Cache: 0B` (or a few kB). The build
+   leftovers of the image worker go too, which does no harm: they are made
+   again the next time it is built.
 6. If step 3 made `/etc/sysctl.d/60-opensearch.conf`, remove it.
 7. Delete the "JVB search logins" entry from the password manager.
 
 The database change 0100 can stay: with no search address set, the studio
 empties the queue without sending anything.
 
-**Check:** `docker compose ps` lists no `opensearch`; `curl -s -o /dev/null
--w '%{http_code}\n' https://<search address>/` fails to connect or gives a
-certificate error; the studio's search works (Postgres).
+**Check:** `docker compose ps` lists no `opensearch`;
+`docker image ls --format '{{.Repository}} {{.ID}}' | grep -iE 'opensearch|none'`
+prints nothing; `curl -s -o /dev/null -w '%{http_code}\n' https://<search address>/`
+fails to connect or gives a certificate error; the studio's search works
+(Postgres).
 
 **Undo:** this runbook from step 4.
 
@@ -872,7 +930,10 @@ What the parts do, in order: each request is logged to
 `/var/log/caddy/search-access.log` (kept to 40 MB) without the password and
 without the search words; any address written in other than its plain form
 (percent-encoding, doubled slashes, `.` or `..`) gets "Bad request", so
-Caddy and OpenSearch always read the same address; then only these get
+Caddy and OpenSearch always read the same address; a login name other
+than `jvb-search` and `jvb-index`, and the search login asking for
+anything but a search, get "Unauthorized" (401) at once, before any
+password is checked (step 6, point 1, says why); then only these get
 through, each with the login shown, each with a size limit, and with the
 password taken off before OpenSearch sees the request:
 
@@ -888,11 +949,12 @@ password taken off before OpenSearch sees the request:
 | `GET /_cluster/settings?flat_settings=true` | | yes | 1 MB |
 | `GET /_cat/indices/jvb-*?format=json&h=index,health,docs.count,docs.deleted,store.size` | | yes | 1 MB |
 
-A listed request without a login it allows gets 401 (password needed).
-Everything else gets "Not found" (404) without a password prompt: other
-indexes, two indexes at once, wildcards, any other query string, aliases,
-changes to the cluster's settings, snapshots, tasks, node details, scroll,
-scripts, single documents. There is no health check without a password.
+A listed request with no login, or with a wrong password, gets 401 with a
+password prompt. Everything else gets "Not found" (404) without a
+password prompt: other indexes, two indexes at once, wildcards, any other
+query string, aliases, changes to the cluster's settings, snapshots,
+tasks, node details, scroll, scripts, single documents. There is no
+health check without a password.
 
 ## Appendix C: what changed in the repository
 
@@ -907,8 +969,10 @@ scripts, single documents. There is no health check without a password.
 - `infra/scripts/verify-search-edge.sh`: the read-only check of step 7.
 - `apps/studio/src/app/login/search-edge-config.test.ts`: fails the tests
   if the search site lets through anything but the shapes above, to any
-  login but the one shown, if the engine settings it relies on change, or
-  if the check script's expectations stop matching it.
+  login but the one shown, if any request with any login name could make
+  the edge check a password against Caddy's own slow hash, if the engine
+  settings it relies on change, or if the check script's expectations stop
+  matching it.
 - `supabase/migrations/0100_search_outbox.sql`: the change queue and the
   reconcile record (step 8).
 - `docs/ops/security-runbook.md` step 6: the two passwords in its list of
