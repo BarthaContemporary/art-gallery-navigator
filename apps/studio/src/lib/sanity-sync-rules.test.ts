@@ -12,6 +12,11 @@ import {
   ASSET_LOOKUP_BYTES,
   assetKeyChunks,
   entityKey,
+  failedWriteState,
+  HOLD_LIMIT_MS,
+  heldError,
+  heldSince,
+  heldTooLong,
   htmlToText,
   isReferenceRefusal,
   overlappedEntities,
@@ -208,7 +213,7 @@ test("held rows stay unprocessed; deferred work is queued again with no state; o
       ["list", L2, "error", false],
     ],
   );
-  assert.match(plan.state.find((s) => s.id === P2)!.error!, /^Not pushed; will retry: Could not read/);
+  assert.match(plan.state.find((s) => s.id === P2)!.error!, /^Not pushed, held since \S+; will retry: Could not read/);
   assert.equal(plan.state.find((s) => s.id === M1)!.error, null);
   // Held, given up and deferred entities keep their old documents and new uploads: never swept.
   assert.deepEqual(
@@ -254,4 +259,136 @@ test("an entity written by an overlapping run is queued once more; one still wai
   ];
   assert.deepEqual(overlappedEntities(batch, later, written), [{ type: "piece", id: P1 }]);
   assert.deepEqual(overlappedEntities(batch, [], written), []);
+});
+
+/* ---- holding ------------------------------------------------------------------------ */
+
+test("the hold start is kept in the state's error text and read back exactly", () => {
+  const t = Date.parse("2026-11-16T09:15:30.250Z");
+  const text = heldError(t, "Could not upload x to Sanity (503): Service Unavailable");
+  assert.equal(text, "Not pushed, held since 2026-11-16T09:15:30.250Z; will retry: Could not upload x to Sanity (503): Service Unavailable");
+  assert.equal(heldSince(text), t);
+  // A reason that itself mentions a hold does not move the start.
+  assert.equal(heldSince(heldError(t, heldError(t - 60_000, "nested"))), t);
+  // Anything else records no hold: a push, a refusal, a give-up, a failed write, older wording, nonsense.
+  for (const e of [
+    null,
+    undefined,
+    "",
+    "Gave up after 6 h of failures: boom",
+    "Could not remove from the website (still referenced by an event?): x",
+    "Not pushed; will retry: boom",
+    "Not pushed, held since yesterday; will retry: boom",
+    "Not pushed, held since 2026-13-45T99:99:99Z; will retry: boom",
+    `see: ${text}`,
+  ]) {
+    assert.equal(heldSince(e), null, String(e));
+  }
+});
+
+test("only a hold an earlier run recorded counts towards the limit", () => {
+  const now = Date.parse("2026-11-16T12:00:00Z");
+  assert.equal(heldTooLong(undefined, now), false);
+  assert.equal(heldTooLong(null, now), false);
+  assert.equal(heldTooLong(now - HOLD_LIMIT_MS + 60_000, now), false);
+  assert.equal(heldTooLong(now - HOLD_LIMIT_MS, now), false);
+  assert.equal(heldTooLong(now - HOLD_LIMIT_MS - 60_000, now), true);
+  assert.equal(heldTooLong(now - 10 * 60_000, now, 5 * 60_000), true);
+});
+
+/**
+ * One run of the route's decision for a work whose upload fails again, as
+ * processBatch makes it: the hold earlier runs recorded is read from the
+ * state row they left (false: that read failed); held too long, the image is
+ * left out and the work published (orLeaveOut), else the work is held.
+ */
+function failingRun(rows: { id: number; entity_type: string; entity_id: string }[], stateError: string | null | false, now: number) {
+  const key = entityKey("piece", P1);
+  const recorded = stateError === false ? null : heldSince(stateError);
+  const since = stateError === false ? null : new Map(recorded === null ? [] : [[key, recorded]]);
+  const tooLong = heldTooLong(since?.get(key), now);
+  const outcomes = new Map<string, Outcome>([
+    [
+      key,
+      tooLong
+        ? { kind: "pushed", incomplete: "Published without 1 image that would not upload for 6 h: 503" }
+        : { kind: "held", reason: "Could not upload to Sanity (503)" },
+    ],
+  ]);
+  return { tooLong, outcome: outcomes.get(key)!, plan: settleBatch(rows, outcomes, { since, now }) };
+}
+
+test("a row queued more than 6 h ago that fails for the first time is held, not given up and not published incomplete", () => {
+  const t0 = Date.parse("2026-11-16T12:00:00Z");
+  // Queued 7 h before anyone tried it (the sync was down); the queue time plays no part.
+  const queued = new Date(t0 - 7 * 3_600_000).toISOString();
+  const rows = [
+    { id: 41, entity_type: "piece", entity_id: P1, created_at: queued },
+    { id: 42, entity_type: "piece", entity_id: P2, created_at: queued },
+  ];
+
+  // First failure: no hold recorded (never pushed, or an earlier episode that ended).
+  for (const before of [null, "Gave up after 6 h of failures: an earlier episode"]) {
+    const first = failingRun(rows, before, t0);
+    assert.equal(first.tooLong, false);
+    assert.equal(first.outcome.kind, "held");
+    assert.deepEqual(first.plan.done, [42], "the failing work's row stays for a retry");
+    const state = first.plan.state.find((s) => s.id === P1)!;
+    assert.equal(state.pushed, false);
+    assert.equal(heldSince(state.error), t0, "the clock starts now");
+    assert.ok(!first.plan.sweep.some((e) => e.id === P1));
+  }
+
+  // The retry after the claim lapses: still held, the start carried forward.
+  const firstError = failingRun(rows, null, t0).plan.state.find((s) => s.id === P1)!.error;
+  const again = failingRun(rows, firstError, t0 + 12 * 60_000);
+  assert.equal(again.outcome.kind, "held");
+  assert.equal(heldSince(again.plan.state.find((s) => s.id === P1)!.error), t0);
+
+  // The state could not be read: held, and its record left alone (no state row), however old the row.
+  const unread = failingRun(rows, false, t0 + 8 * 3_600_000);
+  assert.equal(unread.outcome.kind, "held");
+  assert.deepEqual(unread.plan.done, [42]);
+  assert.equal(unread.plan.state.find((s) => s.id === P1), undefined);
+
+  // Only once the recorded hold is older than the limit does the work go out without the image.
+  const late = failingRun(rows, firstError, t0 + HOLD_LIMIT_MS + 60_000);
+  assert.equal(late.tooLong, true);
+  assert.equal(late.outcome.kind, "pushed");
+  assert.deepEqual(late.plan.done, [41, 42]);
+  assert.equal(heldSince(late.plan.state.find((s) => s.id === P1)!.error), null, "a push ends the hold");
+});
+
+test("a failed write to Sanity keeps every hold start and starts none of its own", () => {
+  const now = Date.parse("2026-11-16T12:00:00Z");
+  const earlier = now - 2 * 3_600_000;
+  const rows = [
+    { id: 1, entity_type: "piece", entity_id: P1 },
+    { id: 2, entity_type: "piece", entity_id: P2 },
+    { id: 3, entity_type: "piece", entity_id: P3 },
+    { id: 4, entity_type: "maker", entity_id: M1 },
+  ];
+  const outcomes = new Map<string, Outcome>([
+    [entityKey("piece", P1), { kind: "held", reason: "storage 503" }],
+    [entityKey("piece", P2), { kind: "held", reason: "storage 503" }],
+    [entityKey("piece", P3), { kind: "pushed" }],
+  ]);
+  const since = new Map([
+    [entityKey("piece", P2), earlier],
+    [entityKey("maker", M1), earlier],
+  ]);
+  const state = failedWriteState(rows, outcomes, { since, now }, "Sanity 500");
+  assert.deepEqual(
+    state.map((s) => [s.id, s.status, s.pushed, heldSince(s.error)]),
+    [
+      [P1, "error", false, now], // held for the first time by this run
+      [P2, "error", false, earlier], // held before: the start is kept
+      [P3, "error", false, null], // the failed write is not its own failure
+      [M1, "error", false, earlier], // held before, fine this run: still not pushed
+    ],
+  );
+  assert.equal(state.find((s) => s.id === P3)!.error, "Sanity 500");
+  assert.match(state.find((s) => s.id === M1)!.error!, /will retry: the write to Sanity failed: Sanity 500$/);
+  // Records that could not be read are left as they are.
+  assert.deepEqual(failedWriteState(rows, outcomes, { since: null, now }, "Sanity 500"), []);
 });

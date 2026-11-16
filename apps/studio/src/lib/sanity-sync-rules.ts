@@ -110,15 +110,65 @@ export type OutboxRow = { id: number; entity_type: string; entity_id: string };
 
 export const entityKey = (type: string, id: string) => `${type}:${id}`;
 
+/* ---- holding ---------------------------------------------------------------- */
+
+/**
+ * How long a work, artist or list may be held back by failing reads or
+ * uploads, counted from the first run that held it (not from when its row was
+ * queued: a row that waited out an outage still gets its retries). After that
+ * a work or artist goes out without the images that would not upload, and
+ * anything else is recorded as an error and its rows finished, so one bad file
+ * cannot keep coming back. Until then each retry waits for the claim to lapse
+ * (two minutes) and the next wake-up (the cron, at most ten).
+ */
+export const HOLD_LIMIT_MS = 6 * 60 * 60_000;
+
+/**
+ * When a hold began is kept in the entity's sanity_sync_state error text (no
+ * column for it exists), written by heldError and read back by heldSince.
+ */
+const HELD = /^Not pushed, held since (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z); will retry: /;
+
+/** The sync state's error text for an entity held back since `since` (ms). */
+export function heldError(since: number, reason: string): string {
+  return `Not pushed, held since ${new Date(since).toISOString()}; will retry: ${reason}`;
+}
+
+/** When the hold recorded in a sync state error text began (ms); null when the text records none. */
+export function heldSince(error: string | null | undefined): number | null {
+  const m = HELD.exec(error ?? "");
+  if (!m) return null;
+  const t = Date.parse(m[1]!);
+  return Number.isFinite(t) ? t : null;
+}
+
+/**
+ * True once an earlier run recorded a hold for the entity that began more
+ * than `limit` ago. With no hold recorded (this is its first failure, or the
+ * record could not be read) it is false whatever the row's age, so the
+ * entity is held and tried again after its claim lapses.
+ */
+export function heldTooLong(since: number | null | undefined, now: number, limit = HOLD_LIMIT_MS): boolean {
+  return since != null && now - since > limit;
+}
+
+/**
+ * What settling a batch needs to know about holds: when each entity's hold
+ * began, as earlier runs recorded it (null when that could not be read), and
+ * the time now, which starts the clock for an entity held the first time.
+ */
+export type HoldClock = { since: ReadonlyMap<string, number> | null; now: number };
+
 /**
  * What one run did with a work, artist or list.
  *  pushed   its document was written or removed. `incomplete` names images
  *           left out because they would not upload (only once the entity
- *           has waited too long, see the route's HOLD_LIMIT_MS); `requeue`
- *           queues it once more (a square tile left for a fresh invocation).
+ *           has been held too long, see HOLD_LIMIT_MS); `requeue` queues it
+ *           once more (a square tile left for a fresh invocation).
  *  refused  Sanity would not delete it (still referenced): recorded, done.
  *  held     a read or upload failed: nothing written, its rows left
- *           unprocessed so the claim lapses and a later run tries again.
+ *           unprocessed so the claim lapses and a later run tries again;
+ *           the state records when its hold began (heldError).
  *  gave_up  held for too long: recorded as an error, its rows finished, so
  *           one bad entity cannot keep coming back for ever.
  *  deferred not started before the invocation ran out of time: nothing
@@ -146,13 +196,28 @@ export type Settlement = {
   written: SyncEntity[];
 };
 
-/** What the outbox and the sync state learn from a batch. An entity with no outcome counts as pushed. */
-export function settleBatch(rows: readonly OutboxRow[], outcomes: ReadonlyMap<string, Outcome>): Settlement {
+/** The batch's entities, once each, in the order of their first row. */
+function batchEntities(rows: readonly OutboxRow[]): Map<string, SyncEntity> {
   const entities = new Map<string, SyncEntity>();
   for (const r of rows) {
     const key = entityKey(r.entity_type, r.entity_id);
     if (!entities.has(key)) entities.set(key, { type: r.entity_type as EntityType, id: r.entity_id });
   }
+  return entities;
+}
+
+/**
+ * What the outbox and the sync state learn from a batch. An entity with no
+ * outcome counts as pushed. A held entity keeps the hold start an earlier run
+ * recorded, or starts its clock now; when the records could not be read its
+ * state is left as it is, so the clock is never restarted by a failed read.
+ */
+export function settleBatch(
+  rows: readonly OutboxRow[],
+  outcomes: ReadonlyMap<string, Outcome>,
+  clock: HoldClock = { since: new Map(), now: Date.now() },
+): Settlement {
+  const entities = batchEntities(rows);
   const out: Settlement = { done: [], requeue: [], state: [], sweep: [], written: [] };
   const held = new Set<string>();
   for (const [key, entity] of entities) {
@@ -170,7 +235,9 @@ export function settleBatch(rows: readonly OutboxRow[], outcomes: ReadonlyMap<st
         break;
       case "held":
         held.add(key);
-        out.state.push({ ...entity, status: "error", error: `Not pushed; will retry: ${o.reason}`, pushed: false });
+        if (clock.since) {
+          out.state.push({ ...entity, status: "error", error: heldError(clock.since.get(key) ?? clock.now, o.reason), pushed: false });
+        }
         break;
       case "gave_up":
         out.state.push({ ...entity, status: "error", error: o.reason, pushed: false });
@@ -182,6 +249,35 @@ export function settleBatch(rows: readonly OutboxRow[], outcomes: ReadonlyMap<st
   }
   out.done = rows.filter((r) => !held.has(entityKey(r.entity_type, r.entity_id))).map((r) => r.id);
   return out;
+}
+
+/**
+ * The sync state after the batch's write to Sanity failed, which leaves every
+ * row for the claim to lapse. Each entity records the failure. One held, by
+ * this run or an earlier one, keeps when its hold began: the failed write
+ * neither restarts its clock nor starts one for the others (it is not their
+ * own failure). Nothing is written when the records could not be read.
+ */
+export function failedWriteState(
+  rows: readonly OutboxRow[],
+  outcomes: ReadonlyMap<string, Outcome>,
+  clock: HoldClock,
+  detail: string,
+): StateUpdate[] {
+  if (!clock.since) return [];
+  const state: StateUpdate[] = [];
+  for (const [key, entity] of batchEntities(rows)) {
+    const o = outcomes.get(key);
+    const since = clock.since.get(key);
+    const error =
+      o?.kind === "held"
+        ? heldError(since ?? clock.now, o.reason)
+        : since !== undefined
+          ? heldError(since, `the write to Sanity failed: ${detail}`)
+          : detail;
+    state.push({ ...entity, status: "error", error, pushed: false });
+  }
+  return state;
 }
 
 /**

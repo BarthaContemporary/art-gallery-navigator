@@ -24,11 +24,16 @@ import {
 } from "@/lib/sanity-sync";
 import {
   entityKey,
+  failedWriteState,
+  HOLD_LIMIT_MS,
+  heldSince,
+  heldTooLong,
   overlappedEntities,
   settleBatch,
   storageFailureIsPermanent,
   type OutboxRow,
   type Outcome,
+  type StateUpdate,
   type SyncEntity,
 } from "@/lib/sanity-sync-rules";
 
@@ -59,15 +64,6 @@ const RENDER_BUDGET_MS = 24_000;
  * the write, the deletes and the cleanup.
  */
 const WORK_BUDGET_MS = 32_000;
-/**
- * How long a work, artist or list may be held back by failing reads or
- * uploads, counted from when its outbox row was queued. After that a work or
- * artist goes out without the images that would not upload, and anything
- * else is recorded as an error and its rows finished, so one bad file cannot
- * keep coming back. Until then each retry waits for the claim to lapse (two
- * minutes) and the next wake-up (the cron, at most ten).
- */
-const HOLD_LIMIT_MS = 6 * 60 * 60_000;
 
 /**
  * Supabase → Sanity sync (one way). Woken by the database the moment an
@@ -86,7 +82,8 @@ const HOLD_LIMIT_MS = 6 * 60 * 60_000;
  * storage would not take just then, a delete refused for any reason but a
  * reference) is held back on its own: nothing of it is written, its rows
  * stay unprocessed, and a later run retries it while the rest of the batch
- * goes out (HOLD_LIMIT_MS bounds how long). Entity outcomes and what they
+ * goes out (HOLD_LIMIT_MS bounds how long, counted from the first run that
+ * held it, which its sync state records). Entity outcomes and what they
  * write back are in lib/sanity-sync-rules.ts.
  *
  * Every storage path read here comes from a database column that staff can
@@ -311,23 +308,32 @@ type BatchResult =
     }
   | { ok: false; detail: string };
 
-/** When each entity's oldest row in the batch was queued (ms), for HOLD_LIMIT_MS. Empty when the read fails: nothing then counts as held too long. */
-async function loadQueuedAt(supabase: Db, rows: OutboxRow[]): Promise<Map<string, number>> {
-  const at = new Map<string, number>();
-  const { data, error } = await supabase
-    .from("sync_outbox")
-    .select("id, entity_type, entity_id, created_at")
-    .in("id", rows.map((r) => r.id));
-  if (error) {
-    console.warn(`[sync] could not read when the held rows were queued: ${error.message}`);
+/**
+ * When each of the batch's entities began to be held, as earlier runs
+ * recorded it in sanity_sync_state (lib/sanity-sync-rules.ts, heldSince), for
+ * HOLD_LIMIT_MS. An entity with no hold recorded is absent. Null when the
+ * read fails: nothing then counts as held too long, and held entities leave
+ * their records as they are.
+ */
+async function loadHoldStarts(supabase: Db, rows: OutboxRow[]): Promise<Map<string, number> | null> {
+  const keys = new Set(rows.map((r) => entityKey(r.entity_type, r.entity_id)));
+  try {
+    const { data, error } = await supabase
+      .from("sanity_sync_state")
+      .select("entity_type, entity_id, error")
+      .in("entity_id", [...new Set(rows.map((r) => r.entity_id))]);
+    if (error) throw new Error(error.message);
+    const at = new Map<string, number>();
+    for (const r of (data ?? []) as { entity_type: string; entity_id: string; error: string | null }[]) {
+      const key = entityKey(r.entity_type, r.entity_id);
+      const since = keys.has(key) ? heldSince(r.error) : null;
+      if (since !== null) at.set(key, since);
+    }
     return at;
+  } catch (e) {
+    console.warn(`[sync] could not read when the held entities were first held: ${message(e)}`);
+    return null;
   }
-  for (const r of (data ?? []) as (OutboxRow & { created_at: string })[]) {
-    const key = entityKey(r.entity_type, r.entity_id);
-    const t = Date.parse(r.created_at);
-    if (Number.isFinite(t)) at.set(key, Math.min(at.get(key) ?? Infinity, t));
-  }
-  return at;
 }
 
 /**
@@ -393,14 +399,20 @@ async function processBatch(
     console.warn(`[sync] ${what} held back for a later run: ${message(e)}`);
     outcomes.set(key, { kind: "held", reason: message(e) });
   };
-  let queuedAt: Promise<Map<string, number>> | null = null;
-  const waitedTooLong = async (key: string) => {
-    queuedAt ??= loadQueuedAt(supabase, rows);
-    const at = (await queuedAt).get(key);
-    return at !== undefined && Date.now() - at > HOLD_LIMIT_MS;
-  };
-  // Images that would not upload, per entity, once it has waited too long:
-  // it then goes out without them rather than keep coming back.
+  // When each entity's hold began, as earlier runs recorded it: read once,
+  // the first time a failure needs it. The clock starts at the first held
+  // attempt, not at queueing, so a row that waited out an outage is still
+  // held and retried on its first failure.
+  let recordedHolds: Promise<Map<string, number> | null> | null = null;
+  const holdStarts = () => (recordedHolds ??= loadHoldStarts(supabase, rows));
+  const waitedTooLong = async (key: string) => heldTooLong((await holdStarts())?.get(key), Date.now());
+  const holdClock = async () => ({
+    // Read only when something is held: the records are not needed otherwise.
+    since: [...outcomes.values()].some((o) => o.kind === "held") ? await holdStarts() : new Map<string, number>(),
+    now: Date.now(),
+  });
+  // Images that would not upload, per entity, once it has been held too long
+  // by earlier runs: it then goes out without them rather than keep coming back.
   const leftOut = new Map<string, string[]>();
   const orLeaveOut = async <T>(key: string, attempt: () => Promise<T>, fallback: T): Promise<T> => {
     try {
@@ -804,17 +816,23 @@ async function processBatch(
 
   const docIdOf = (e: SyncEntity) => (e.type === "piece" ? workDocId(e.id) : e.type === "maker" ? artistDocId(e.id) : listDocId(e.id));
 
+  const stateRow = (s: StateUpdate) => ({
+    entity_type: s.type,
+    entity_id: s.id,
+    sanity_doc_id: docIdOf(s),
+    status: s.status,
+    error: s.error,
+  });
+
   const result = await sanityMutate(env, mutations);
   if (!result.ok) {
     // A remembered asset that is gone from Sanity fails every retry the same
     // way; forget any such, so the retry uploads them again.
     await forgetMissingAssets(supabase, env, [...published]).catch((e) => console.error("[sync] could not check assets:", e));
     // Record the failure; the claim lapses and the next run retries the rows.
-    const entities = settleBatch(rows, new Map()).state;
-    await supabase.from("sanity_sync_state").upsert(
-      entities.map((e) => ({ entity_type: e.type, entity_id: e.id, sanity_doc_id: docIdOf(e), status: "error", error: result.detail })),
-      { onConflict: "entity_type,entity_id" },
-    );
+    // An entity being held keeps when its hold began.
+    const state = failedWriteState(rows, outcomes, { since: await holdStarts(), now: Date.now() }, result.detail);
+    if (state.length > 0) await supabase.from("sanity_sync_state").upsert(state.map(stateRow), { onConflict: "entity_type,entity_id" });
     return { ok: false, detail: result.detail };
   }
 
@@ -835,15 +853,16 @@ async function processBatch(
     else hold(d.key, `removal of ${d.id}`, new Error(`Could not remove from the website (${r.status || "no answer"}): ${r.detail}`));
   }
 
-  // Held back too long: recorded and finished, so it stops coming back. Its
-  // next edit, or Admin → Resync, tries again.
+  // Held back too long (earlier runs recorded a hold that began more than
+  // HOLD_LIMIT_MS ago): recorded and finished, so it stops coming back. Its
+  // next edit, or Admin → Resync, tries again. A first failure is always held.
   for (const [key, o] of outcomes) {
     if (o.kind === "held" && (await waitedTooLong(key))) {
       outcomes.set(key, { kind: "gave_up", reason: `Gave up after ${HOLD_LIMIT_MS / 3_600_000} h of failures: ${o.reason}` });
     }
   }
 
-  let plan = settleBatch(rows, outcomes);
+  let plan = settleBatch(rows, outcomes, await holdClock());
   // Work left for later goes back on the queue first: the insert wakes a fresh
   // invocation, and a work not started must not be lost if it fails.
   if (plan.requeue.length > 0) {
@@ -856,7 +875,7 @@ async function processBatch(
         const key = entityKey(e.type, e.id);
         if (outcomes.get(key)?.kind === "deferred") outcomes.set(key, { kind: "held", reason: `could not be queued again: ${queueErr.message}` });
       }
-      plan = settleBatch(rows, outcomes);
+      plan = settleBatch(rows, outcomes, await holdClock());
     }
   }
 
@@ -866,13 +885,6 @@ async function processBatch(
   }
   // Two writes so each is uniform: an upsert sets a column missing from some
   // of its rows to null, and only a push moves last_pushed_at.
-  const stateRow = (s: (typeof plan.state)[number]) => ({
-    entity_type: s.type,
-    entity_id: s.id,
-    sanity_doc_id: docIdOf(s),
-    status: s.status,
-    error: s.error,
-  });
   const pushedState = plan.state.filter((s) => s.pushed).map((s) => ({ ...stateRow(s), last_pushed_at: now }));
   const otherState = plan.state.filter((s) => !s.pushed).map(stateRow);
   for (const batch of [pushedState, otherState]) {
