@@ -31,25 +31,30 @@ export async function GET(request: Request) {
   const listId = new URL(request.url).searchParams.get("list");
   if (!listId) return new Response("Missing list", { status: 400 });
 
-  const { data: list } = await supabase
+  const { data: list, error: listErr } = await supabase
     .from("piece_lists")
     .select("id, name, is_dynamic, filter_rules")
     .eq("id", listId)
     .maybeSingle();
+  if (listErr) return new Response(`Could not read the list: ${listErr.message}`, { status: 500 });
   if (!list) return new Response("List not found", { status: 404 });
 
-  const ids = await resolveListPieceIds(supabase, list);
-
+  // A failed read answers 500 with the reason, never an empty spreadsheet.
   let rows: Record<string, unknown>[] = [];
-  if (ids.length > 0) {
-    const data = await selectInChunks<Record<string, unknown> & { id: string }>(ids, (chunk) =>
-      supabase.from("vw_pieces_list").select("*").in("id", chunk),
-    );
-    // Preserve the list's own order, which .in() does not.
-    const byId = new Map(data.map((r) => [r.id, r]));
-    rows = ids
-      .map((id) => byId.get(id))
-      .filter(Boolean) as Record<string, unknown>[];
+  try {
+    const ids = await resolveListPieceIds(supabase, list);
+    if (ids.length > 0) {
+      const data = await selectInChunks<Record<string, unknown> & { id: string }>(ids, (chunk) =>
+        supabase.from("vw_pieces_list").select("*").in("id", chunk),
+      );
+      // Preserve the list's own order, which .in() does not.
+      const byId = new Map(data.map((r) => [r.id, r]));
+      rows = ids
+        .map((id) => byId.get(id))
+        .filter(Boolean) as Record<string, unknown>[];
+    }
+  } catch (e) {
+    return new Response(`Could not read the list: ${e instanceof Error ? e.message : "unknown error"}`, { status: 500 });
   }
 
   const wb = new ExcelJS.Workbook();

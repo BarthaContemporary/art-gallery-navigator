@@ -19,12 +19,16 @@ export async function GET(req: Request) {
   if (q.length < 2) return NextResponse.json({ pieces: [], contacts: [] });
 
   const [pieceHits, contactHits] = await Promise.all([
-    supabase.rpc("pieces_search", { q }),
+    // The ids of the top six only: pieces_search returns whole stock rows
+    // (descriptions, condition reports, the search vector) for every match
+    // otherwise, and a two-letter query matches most of the stock. The
+    // function's own ORDER BY still decides which six.
+    supabase.rpc("pieces_search", { q }).select("id").limit(6),
     supabase.rpc("crm_contacts_search", { q }).select("id, first_name, last_name, email").limit(6),
   ]);
 
   // Hydrate the top piece ids (rank order preserved) for display.
-  const ids = ((pieceHits.data ?? []) as Array<{ id: string }>).slice(0, 6).map((h) => h.id);
+  const ids = ((pieceHits.data ?? []) as Array<{ id: string }>).map((h) => h.id);
   let pieces: Array<{
     id: string;
     stock_number: string;

@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { FlashNotice } from "@/components/ui/notice";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { LEDGER_LABEL, type Ledger, type PieceRef } from "@/lib/piece-store";
 // London dates: this page renders on the server, where the zone is UTC.
@@ -23,7 +25,12 @@ type TrashRow = {
   ledger: Ledger;
 };
 
-export default async function TrashPage() {
+export default async function TrashPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; notice?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await getSupabase();
   // The union view drops soft-deleted rows on purpose, so the recycle bin
   // reads both stock tables directly and remembers which one each row is in.
@@ -59,9 +66,24 @@ export default async function TrashPage() {
     const id = String(formData.get("id") ?? "");
     const table = String(formData.get("table") ?? "");
     if (!id || (table !== "pieces" && table !== "external_pieces")) return;
-    await db.from(table).update({ deleted_at: null }).eq("id", id);
+    // Only a record that is still in the trash, and say when nothing changed
+    // (reinstated in another tab, purged, or refused by RLS).
+    const { data, error } = await db
+      .from(table)
+      .update({ deleted_at: null })
+      .eq("id", id)
+      .not("deleted_at", "is", null)
+      .select("id");
     revalidatePath("/inventory/trash");
     revalidatePath("/inventory");
+    if (error) redirect(`/inventory/trash?error=${encodeURIComponent(`Could not reinstate: ${error.message}`)}`);
+    if (!data?.length) {
+      redirect(
+        `/inventory/trash?error=${encodeURIComponent(
+          "Nothing was reinstated: the record is no longer in the trash, or your role may not change records.",
+        )}`,
+      );
+    }
   }
 
   async function purge(formData: FormData) {
@@ -75,9 +97,25 @@ export default async function TrashPage() {
     const table = String(formData.get("table") ?? "");
     if (!id || (table !== "pieces" && table !== "external_pieces")) return;
     // Permanent delete. Removing the last stock row drops the identity too,
-    // which cascades to images, financials, provenance and the rest.
-    await db.from(table).delete().eq("id", id);
+    // which cascades to images, financials, provenance and the rest. Only
+    // while the record is still in the trash: a page left open while someone
+    // else reinstated it must not delete the live record for good.
+    const { data, error } = await db
+      .from(table)
+      .delete()
+      .eq("id", id)
+      .not("deleted_at", "is", null)
+      .select("id");
     revalidatePath("/inventory/trash");
+    revalidatePath("/inventory");
+    if (error) redirect(`/inventory/trash?error=${encodeURIComponent(`Could not delete: ${error.message}`)}`);
+    if (!data?.length) {
+      redirect(
+        `/inventory/trash?error=${encodeURIComponent(
+          "Nothing was deleted: the record is no longer in the trash (it may have been reinstated), or your role may not delete records.",
+        )}`,
+      );
+    }
   }
 
   const daysLeft = (deletedAt: string) => {
@@ -97,6 +135,8 @@ export default async function TrashPage() {
           on the website is taken off it straight away, and returns if you reinstate the record.
         </p>
       </PageHeader>
+
+      <FlashNotice searchParams={sp} className="mb-4" />
 
       <TableFrame>
         <Table>

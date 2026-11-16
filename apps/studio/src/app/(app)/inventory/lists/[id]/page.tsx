@@ -9,7 +9,15 @@ import { loadThumbnails } from "@/lib/thumbnails";
 import { PublishListButton } from "@/components/publish-list-button";
 import { resolvePieces, byTable } from "@/lib/piece-store";
 import { chunkIds, selectInChunks } from "@/lib/chunk";
-import { resolveListPieceIds, listExcludedIds, type ListLike } from "@/lib/list-members";
+import {
+  ledgerRuleLabel,
+  listExcludedIds,
+  resolveListMembership,
+  resolveListPieceIds,
+  type ListLike,
+  type ListRules,
+} from "@/lib/list-members";
+import { ConfirmDelete } from "@/components/confirm-delete";
 import { titleWithYear } from "@jvb/db";
 import { applyFacet, facetMatches, parseFacet } from "@/lib/facet";
 import { LabelPdfButton } from "@/components/label-pdf-button";
@@ -19,7 +27,7 @@ import { formatCount } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FlashNotice } from "@/components/ui/notice";
+import { FlashNotice, Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 import { WebsiteDot, WebsiteSwitch } from "@/components/ui/website-switch";
@@ -37,13 +45,11 @@ type PieceLite = {
   year: string | null;
 };
 
-type FilterRules = {
-  q?: string | null;
-  status?: string | null;
-  category?: string | null;
-  location?: string | null;
-  framed?: boolean | null;
-};
+/** The redirect a server action answers a failed list read with. */
+function readFailed(id: string, e: unknown): never {
+  const why = e instanceof Error ? e.message : "Could not read the list";
+  redirect(`/inventory/lists/${id}?error=${encodeURIComponent(why)}`);
+}
 
 export default async function InventoryListDetail({
   params,
@@ -64,7 +70,7 @@ export default async function InventoryListDetail({
   if (!list) notFound();
 
   const isDynamic = Boolean(list.is_dynamic);
-  const rules = (list.filter_rules ?? {}) as FilterRules;
+  const rules = (list.filter_rules ?? {}) as ListRules;
   const listOnWebsite = Boolean((list as { web_visible?: boolean | null }).web_visible);
 
   // ---- Members -------------------------------------------------------------
@@ -73,19 +79,26 @@ export default async function InventoryListDetail({
   let addedAt = new Map<string, string>();
   /** Works edited since they were added — the "already handled" marker. */
   const editedSinceAdded = new Set<string>();
+  /** How many works a live list's rules match, before the resolver's cap. */
+  let liveTotal = 0;
+  // A failed read throws to the error page rather than drawing an empty
+  // list, from which "Save as editable copy" or the exports would then go on
+  // to make an empty copy or file.
   if (isDynamic) {
     // Re-run the saved filters through the shared resolver, so the page, the
     // publish-all action, exports and offers all agree on the membership.
-    const ids = await resolveListPieceIds(supabase, list as ListLike);
+    const { ids, total } = await resolveListMembership(supabase, list as ListLike);
+    liveTotal = total;
     const summaries = await loadPieceSummaries(supabase, ids);
     items = ids.map((pid) => summaries.get(pid)).filter(Boolean) as unknown as PieceLite[];
   } else {
-    const { data: itemRows } = await supabase
+    const { data: itemRows, error: itemsErr } = await supabase
       .from("piece_list_items")
       .select("sort_order, piece_id, created_at")
       .eq("list_id", id)
       .eq("excluded", false)
       .order("sort_order", { nullsFirst: true });
+    if (itemsErr) throw new Error(`Could not read the list's works: ${itemsErr.message}`);
     const summaries = await loadPieceSummaries(
       supabase,
       ((itemRows ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
@@ -207,12 +220,16 @@ export default async function InventoryListDetail({
     const fS = parseFacet(rules.status);
     const fC = parseFacet(rules.category);
     const fL = parseFacet(rules.location);
+    // The register the view was saved against; JvdB stock, the default,
+    // goes unsaid unless nothing else narrows the list.
+    const register = ledgerRuleLabel(rules.ledger);
+    if (register) rulesSummary.push(register);
     if (rules.q) rulesSummary.push(`matching “${rules.q}”`);
     if (fS) rulesSummary.push(`status ${fS.exclude ? "not " : ""}${fS.value.replace(/_/g, " ")}`);
     if (fC) rulesSummary.push(`category ${fC.exclude ? "not " : ""}${cats?.[0]?.name ?? fC.value}`);
     if (fL) rulesSummary.push(`location ${fL.exclude ? "not " : ""}${locs?.[0]?.code ?? fL.value}`);
     if (rules.framed) rulesSummary.push("framed");
-    if (rulesSummary.length === 0) rulesSummary = ["all works"];
+    if (rulesSummary.length === 0) rulesSummary = ["all JvdB stock"];
   }
 
   // ---- Add search (static lists only) --------------------------------------
@@ -328,7 +345,13 @@ export default async function InventoryListDetail({
       .eq("id", id)
       .maybeSingle();
     if (!src) redirect(`/inventory/lists/${id}`);
-    const ids = await resolveListPieceIds(db, src as ListLike);
+    // A failed read must not freeze into an empty copy.
+    let ids: string[];
+    try {
+      ids = await resolveListPieceIds(db, src as ListLike);
+    } catch (e) {
+      readFailed(id, e);
+    }
     const { data: created, error } = await db
       .from("piece_lists")
       .insert({ name: `${src.name} (copy)`, is_dynamic: false })
@@ -337,9 +360,14 @@ export default async function InventoryListDetail({
     if (error || !created)
       redirect(`/inventory/lists/${id}?error=${encodeURIComponent(error?.message ?? "Could not copy")}`);
     if (ids.length > 0) {
-      await db
+      const { error: itemsErr } = await db
         .from("piece_list_items")
         .insert(ids.map((pieceId, i) => ({ list_id: created.id, piece_id: pieceId, sort_order: i })));
+      if (itemsErr) {
+        // Not an empty copy left behind under the list's name.
+        await db.from("piece_lists").delete().eq("id", created.id);
+        redirect(`/inventory/lists/${id}?error=${encodeURIComponent(`Could not copy the works: ${itemsErr.message}`)}`);
+      }
     }
     redirect(`/inventory/lists/${created.id}`);
   }
@@ -364,9 +392,15 @@ export default async function InventoryListDetail({
       .eq("id", id)
       .maybeSingle();
     if (!src) redirect(`/inventory/lists/${id}`);
-    const ids = await resolveListPieceIds(db, src as ListLike);
+    let ids: string[];
+    let groups: ReturnType<typeof byTable>;
+    try {
+      ids = await resolveListPieceIds(db, src as ListLike);
+      groups = byTable((await resolvePieces(db, ids)).values());
+    } catch (e) {
+      readFailed(id, e);
+    }
     if (ids.length === 0) redirect(`/inventory/lists/${id}?error=${encodeURIComponent("The list is empty")}`);
-    const groups = byTable((await resolvePieces(db, ids)).values());
     // Only rows in the other state are touched; the returned ids are the true
     // count. RLS filters silently, so zero rows for a non-empty list means the
     // signed-in role may not publish — say so rather than claim success.
@@ -375,8 +409,18 @@ export default async function InventoryListDetail({
     let failure: string | null = null;
     for (const [table, tableIds] of Object.entries(groups) as [keyof typeof groups, string[]][]) {
       if (tableIds.length === 0) continue;
-      const { data: before } = await db.from(table).select("id").in("id", tableIds).eq("web_visible", !visible);
-      candidates += (before ?? []).length;
+      // Chunked like the updates below: one .in() over a few hundred ids is
+      // refused at the gateway (lib/chunk.ts), which left candidates at 0
+      // and the "your role may not publish" check unable to fire.
+      let before: { id: string }[];
+      try {
+        before = await selectInChunks<{ id: string }>(tableIds, (chunk) =>
+          db.from(table).select("id").in("id", chunk).eq("web_visible", !visible),
+        );
+      } catch (e) {
+        readFailed(id, e);
+      }
+      candidates += before.length;
       for (const chunk of chunkIds(tableIds)) {
         const { data, error } = await db
           .from(table)
@@ -476,6 +520,8 @@ export default async function InventoryListDetail({
   }
 
   const n = items.length;
+  /** A live list cut at the resolver's cap (lib/list-members LIVE_LIMIT). */
+  const truncated = isDynamic && liveTotal > n;
   const listHref = (p: PieceLite) => `/inventory/${encodeURIComponent(p.stock_number ?? "")}`;
 
   /** One member row; static lists hand these to ReorderGrid, which keys and orders them. */
@@ -579,7 +625,7 @@ export default async function InventoryListDetail({
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
             <Badge tone={isDynamic ? "info" : "neutral"}>{isDynamic ? "Live" : "Static"}</Badge>
             <span className="tabular">
-              {formatCount(n)} work{n === 1 ? "" : "s"}
+              {truncated ? `Newest ${formatCount(n)} of ${formatCount(liveTotal)} works` : `${formatCount(n)} work${n === 1 ? "" : "s"}`}
               {n > 0 ? `, ${formatCount(onWebsite)} on the website` : ""}
             </span>
           </span>
@@ -594,6 +640,17 @@ export default async function InventoryListDetail({
       </PageHeader>
 
       <FlashNotice searchParams={sp} className="mb-4" />
+
+      {truncated ? (
+        // Everything in the studio that reads the list (the exports, labels,
+        // offers, the publish buttons, a copy) stops at the same works.
+        <Notice tone="warn" className="mb-4">
+          A live list holds the newest {formatCount(n)} works its filters match, and these filters
+          match {formatCount(liveTotal)}. The {formatCount(liveTotal - n)} with the oldest stock
+          numbers are left out here and in everything made from this list: exports, labels, offers,
+          a copy and the website buttons. Narrow the filters to include them.
+        </Notice>
+      ) : null}
 
       {/* What the list does outside the studio, apart from what it makes.
           Two groups rather than one row of eight equal controls. */}
@@ -839,10 +896,13 @@ export default async function InventoryListDetail({
       ) : null}
 
       <div className="mt-10 border-t border-rule-strong pt-4">
+        {/* Two steps: the delete takes the list's members and hand-set
+            order with it, and a list on the website leaves the site. */}
         <form action={deleteList}>
-          <Button type="submit" variant="danger" size="sm" pendingLabel="Deleting…">
-            Delete list
-          </Button>
+          <ConfirmDelete
+            name={list.name}
+            note={listOnWebsite ? "It also leaves the website: an event showing it loses these works." : undefined}
+          />
         </form>
       </div>
     </div>

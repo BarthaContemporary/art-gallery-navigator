@@ -14,14 +14,14 @@ import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { FlashNotice, Notice } from "@/components/ui/notice";
 import { formatCount } from "@/lib/format";
 import { createDraftPiece } from "./actions";
-import { applyFacet, parseFacet } from "@/lib/facet";
+import { parseFacet } from "@/lib/facet";
+import { LIVE_LIMIT } from "@/lib/list-members";
 import {
   FLAG_FILTERS,
   SCREEN_ORDER,
-  applyFlagFilters,
-  applyWebFilter,
   inventoryOrder,
   resolveInventoryIds,
+  selectInventoryPage,
   selectInventoryRows,
 } from "@/lib/inventory-query";
 
@@ -66,7 +66,7 @@ export default async function InventoryPage({
   const [{ data: categories }, { data: locations }, { data: pieceLists }, { data: flagRows }] = await Promise.all([
     supabase.from("categories").select("id, name").eq("is_active", true).order("sort_order").order("name"),
     supabase.from("locations").select("id, code, name").order("sort_order").order("code"),
-    supabase.from("piece_lists").select("id, name").order("sort_order").order("name"),
+    supabase.from("piece_lists").select("id, name, is_dynamic").order("sort_order").order("name"),
     // The current user's temporary flags (RLS scopes the table to them).
     supabase.from("piece_flags").select("piece_id"),
   ]);
@@ -80,12 +80,6 @@ export default async function InventoryPage({
 
   const q = sp.q?.trim();
   const searching = Boolean(q);
-
-  // Non-JvdB works are real stock in every practical sense, but they are the
-  // exception — so the list opens on JvdB stock and the register filter is what
-  // reveals the rest.
-  const ledgerFilter: "jvb" | "external" | null =
-    sp.ledger === "all" ? null : sp.ledger === "external" ? "external" : "jvb";
 
   // Save the current search + facets as a dynamic (saved-view) list. The rules
   // are stored on piece_lists.filter_rules; the list detail page re-runs them
@@ -152,26 +146,23 @@ export default async function InventoryPage({
     error = { message: e instanceof Error ? e.message : "Could not load the inventory" };
   }
 
-  // Everything else counts, sorts and pages in SQL.
+  // Everything else counts, sorts and pages in SQL, with the filters the
+  // exports apply (lib/inventory-query), so the two cannot drift. Non-JvdB
+  // works are real stock in every practical sense, but they are the
+  // exception, so the list opens on JvdB stock and the register filter is
+  // what reveals the rest.
   if (!ids && !error) {
-    const by = order ?? SCREEN_ORDER;
-    let query = supabase
-      .from("vw_pieces_list")
-      .select("*", { count: "exact" })
-      .order(by.column, { ascending: by.ascending, nullsFirst: false })
-      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-
-    if (ledgerFilter) query = query.eq("ledger", ledgerFilter);
-    query = applyFacet(query, "status", sp.status);
-    query = applyFacet(query, "category_id", sp.category, { nullable: true });
-    query = applyFacet(query, "location_id", sp.location, { nullable: true });
-    query = applyFlagFilters(query, sp);
-    query = applyWebFilter(query, sp.web);
-
-    const res = await query;
-    rows = (res.data ?? []) as ListRow[];
-    total = res.count ?? 0;
-    error = res.error;
+    try {
+      ({ rows, total } = await selectInventoryPage<ListRow>(
+        supabase,
+        params,
+        order ?? SCREEN_ORDER,
+        (page - 1) * PAGE_SIZE,
+        page * PAGE_SIZE - 1,
+      ));
+    } catch (e) {
+      error = { message: e instanceof Error ? e.message : "Could not load the inventory" };
+    }
   }
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -288,7 +279,8 @@ export default async function InventoryPage({
           </Button>
         </div>
         <p className="mt-2 text-[12px] leading-[1.4] text-meta">
-          Membership stays live: the list re-runs these filters each time you open it.
+          Membership stays live: the list re-runs these filters each time you open it, and holds the
+          newest {formatCount(LIVE_LIMIT)} works they match.
         </p>
         {/* A live list keeps the search, register and facets only, so say
             which of the screen's filters it will not carry rather than
@@ -421,7 +413,9 @@ export default async function InventoryPage({
           flagTotal={flaggedIds.size}
           showingFlagged={Boolean(sp.flagged)}
           thumbs={Object.fromEntries(thumbByPiece)}
-          lists={(pieceLists ?? []).map((l) => ({ id: l.id, name: l.name }))}
+          // Only static lists can be filed into: a live list's works are its
+          // saved filters (the filter above still offers every list).
+          lists={(pieceLists ?? []).filter((l) => !l.is_dynamic).map((l) => ({ id: l.id, name: l.name }))}
           locations={(locations ?? []).map((l) => ({ id: l.id, name: l.name ?? l.code }))}
           summary={summary}
         />

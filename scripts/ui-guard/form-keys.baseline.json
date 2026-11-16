@@ -567,7 +567,6 @@
     },
     "app/(app)/inventory/[stockNumber]/images/page.tsx": {
       "forms": [
-        "form action={deleteImage}",
         "form action={saveCaption}"
       ],
       "fields": [
@@ -577,13 +576,6 @@
           "type": "text",
           "hidden": false,
           "in": "form action={saveCaption}"
-        },
-        {
-          "name": "id",
-          "tag": "input",
-          "type": "hidden",
-          "hidden": true,
-          "in": "form action={deleteImage}"
         },
         {
           "name": "id",
