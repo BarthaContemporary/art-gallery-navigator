@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { ToggleChip } from "./ui/chips";
 import { Button } from "./ui/button";
 import { PlusIcon } from "./ui/icons";
+import { isComposing } from "@/lib/ui-events";
 
 type Area = { id: string; name: string };
 
@@ -104,6 +105,9 @@ export function InterestSelect({
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => {
+              // The Enter that confirms an input method's conversion (Japanese,
+              // Chinese) is not "add": it would save the half-typed name.
+              if (isComposing(e)) return;
               if (e.key === "Enter") {
                 e.preventDefault();
                 void addNew();

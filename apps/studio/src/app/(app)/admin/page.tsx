@@ -179,8 +179,18 @@ export default async function AdminPage({
   async function resetPassword(formData: FormData) {
     "use server";
     await assertAdmin();
+    const me = await getSession();
     const userId = String(formData.get("user_id") ?? "");
     const email = String(formData.get("email") ?? "");
+    if (!userId) redirect("/admin");
+    // Not your own account: the auth server ends every session of a user
+    // whose password an admin sets, so the redirect would land on /login
+    // before the new password was ever shown, and the reset would also take
+    // your passkeys. "Change your password" keeps you signed in.
+    if (me?.user.id === userId) {
+      await flashNotice('Use "Change your password" above for your own account; it keeps you signed in and keeps your passkeys.');
+      redirect("/admin");
+    }
     const pw = String(formData.get("password") ?? "").trim() || genPassword();
     if (pw.length < PASSWORD_MIN) {
       await flashNotice(`Password must be at least ${PASSWORD_MIN} characters`);
@@ -627,31 +637,40 @@ export default async function AdminPage({
                       </p>
                     </div>
                     {/* `contents`: the trigger takes its grid cell and the
-                        form a full row of its own below. */}
-                    <Disclosure summary="Reset password" className="contents" panelClassName="order-last col-span-full">
-                      <form action={resetPassword} className="flex flex-wrap items-end gap-3 pb-1 pt-3">
-                        <input type="hidden" name="user_id" value={u.id} />
-                        <input type="hidden" name="email" value={email} />
-                        <Field id={`admin-reset-${u.id}`} label="New password" optional className="w-full sm:w-60">
-                          <input
-                            id={`admin-reset-${u.id}`}
-                            name="password"
-                            minLength={PASSWORD_MIN}
-                            placeholder="Blank to generate one"
-                            aria-describedby={`admin-reset-hint-${u.id}`}
-                            className="field"
-                          />
-                        </Field>
-                        <Button type="submit" pendingLabel="Resetting…">
-                          Set new password
-                        </Button>
-                        <p id={`admin-reset-hint-${u.id}`} className="w-full max-w-[65ch] text-[12px] leading-[1.4] text-meta">
-                          At least {PASSWORD_MIN} characters, or leave it blank to generate one. The new password
-                          is shown once, at the top of this page. A reset also removes all of{" "}
-                          {isMe ? "your" : "this user’s"} passkeys, in the studio and the capture app.
-                        </p>
-                      </form>
-                    </Disclosure>
+                        form a full row of its own below. Not on your own row:
+                        an admin reset ends all of that user's sessions and
+                        removes their passkeys, so for yourself it signed you
+                        out before the new password was shown. "Change your
+                        password" above is the way; the empty cell keeps the
+                        other rows' actions in their columns. */}
+                    {isMe ? (
+                      <span />
+                    ) : (
+                      <Disclosure summary="Reset password" className="contents" panelClassName="order-last col-span-full">
+                        <form action={resetPassword} className="flex flex-wrap items-end gap-3 pb-1 pt-3">
+                          <input type="hidden" name="user_id" value={u.id} />
+                          <input type="hidden" name="email" value={email} />
+                          <Field id={`admin-reset-${u.id}`} label="New password" optional className="w-full sm:w-60">
+                            <input
+                              id={`admin-reset-${u.id}`}
+                              name="password"
+                              minLength={PASSWORD_MIN}
+                              placeholder="Blank to generate one"
+                              aria-describedby={`admin-reset-hint-${u.id}`}
+                              className="field"
+                            />
+                          </Field>
+                          <Button type="submit" pendingLabel="Resetting…">
+                            Set new password
+                          </Button>
+                          <p id={`admin-reset-hint-${u.id}`} className="w-full max-w-[65ch] text-[12px] leading-[1.4] text-meta">
+                            At least {PASSWORD_MIN} characters, or leave it blank to generate one. The new password
+                            is shown once, at the top of this page. A reset also removes all of this
+                            user&rsquo;s passkeys, in the studio and the capture app.
+                          </p>
+                        </form>
+                      </Disclosure>
+                    )}
                     {u.email ? (
                       <form action={reinvite}>
                         <input type="hidden" name="email" value={u.email} />

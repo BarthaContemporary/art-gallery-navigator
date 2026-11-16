@@ -43,15 +43,18 @@ export default async function MakerProfilePage({
     portraitUrl = data?.signedUrl ?? null;
   }
 
-  // Works by this maker (context under the profile).
-  const { data: works } = await supabase
+  // Works by this maker (context under the profile). All of them: the list
+  // stopped at 60 and the heading then printed 60 as the maker's total. The
+  // exact count comes with the rows, so the heading is right even if the
+  // server ever caps how many rows one answer carries.
+  const { data: works, count: worksCount } = await supabase
     .from("vw_pieces_list")
-    .select("id, stock_number, title, status")
+    .select("id, stock_number, title, status", { count: "exact" })
     .eq("maker_id", id)
-    .order("stock_number")
-    .limit(60);
+    .order("stock_number");
 
   const list = works ?? [];
+  const total = worksCount ?? list.length;
   const metaParts = [maker.life_dates, maker.region].filter(Boolean) as string[];
 
   return (
@@ -98,7 +101,13 @@ export default async function MakerProfilePage({
 
         <Section
           title="Works by this maker"
-          meta={<span className="tabular">{`${formatCount(list.length)} ${list.length === 1 ? "work" : "works"}`}</span>}
+          meta={
+            <span className="tabular">
+              {list.length < total
+                ? `${formatCount(list.length)} of ${formatCount(total)} works listed`
+                : `${formatCount(total)} ${total === 1 ? "work" : "works"}`}
+            </span>
+          }
         >
           {list.length > 0 ? (
             <TableFrame>

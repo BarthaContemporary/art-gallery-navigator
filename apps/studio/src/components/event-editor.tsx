@@ -1,5 +1,5 @@
 import type { CalDavCalendar, CalendarEvent } from "@/lib/caldav";
-import { londonTime } from "@/lib/caldav";
+import { formEndDay, londonTime } from "@/lib/caldav";
 import { Panel } from "@/components/ui/section";
 import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { CloseIcon } from "@/components/ui/icons";
@@ -40,7 +40,9 @@ export function EventEditor({
 }) {
   const closeHref = `/appointments?month=${month}`;
   const startDay = event ? event.startDay : day;
-  const endDay = event ? event.endDay : day;
+  // The real end day, not the grid's span: an event ending at midnight shows
+  // the next day at 00:00, so saving it does not shorten it (formEndDay).
+  const endDay = event ? formEndDay(event) : day;
   const startTime = event && !event.allDay ? londonTime(event.start) : "10:00";
   const endTime =
     event && !event.allDay
@@ -167,13 +169,18 @@ export function EventEditor({
             />
           </div>
 
+          {/* Text areas, not single-line inputs: a location picked in Apple
+              Calendar is a name and an address on two lines, and notes often
+              run to several. An input strips the line breaks, and every save
+              rewrites both fields from what is posted. */}
           <div>
             <label className={label} htmlFor="ev-location">
               Location
             </label>
-            <input
+            <textarea
               id="ev-location"
               name="location"
+              rows={2}
               defaultValue={event?.location ?? ""}
               className={field}
             />
@@ -182,9 +189,10 @@ export function EventEditor({
             <label className={label} htmlFor="ev-notes">
               Notes
             </label>
-            <input
+            <textarea
               id="ev-notes"
               name="description"
+              rows={3}
               defaultValue={event?.description ?? ""}
               className={field}
             />

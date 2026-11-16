@@ -30,6 +30,9 @@ function suggestLabel(): string {
  */
 export function PasskeyManager() {
   const [keys, setKeys] = useState<Passkey[] | null>(null);
+  // The list could not be read. Kept apart from `keys`: an empty list read
+  // as "No passkeys yet." to someone who has passkeys.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: NoticeTone; text: string } | null>(null);
   /** Set when the server wants a recent sign-in before a passkey is added. */
@@ -38,10 +41,16 @@ export function PasskeyManager() {
   const refresh = useCallback(async () => {
     try {
       const res = await fetch("/api/passkeys");
-      const json = (await res.json()) as { passkeys?: Passkey[] };
-      setKeys(json.passkeys ?? []);
-    } catch {
-      setKeys([]);
+      const json = (await res.json().catch(() => ({}))) as { passkeys?: Passkey[]; error?: string };
+      if (!res.ok || !Array.isArray(json.passkeys)) {
+        throw new Error(res.status === 401 ? "You have been signed out. Sign in again to see your passkeys." : json.error ?? `HTTP ${res.status}`);
+      }
+      setKeys(json.passkeys);
+      setLoadError(null);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Could not load your passkeys");
+      // An earlier list stays shown; the first load leaves Add usable.
+      setKeys((k) => k ?? []);
     }
   }, []);
   useEffect(() => void refresh(), [refresh]);
@@ -90,7 +99,17 @@ export function PasskeyManager() {
   async function remove(k: Passkey) {
     if (!window.confirm(`Remove the passkey “${k.device_label ?? "unnamed"}”? Devices using it will need the password (or another passkey) to sign in.`))
       return;
-    await fetch(`/api/passkeys?id=${k.id}`, { method: "DELETE" });
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/passkeys?id=${encodeURIComponent(k.id)}`, { method: "DELETE" });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+    } catch (e) {
+      setMsg({
+        tone: "danger",
+        text: `Could not remove the passkey (${e instanceof Error ? e.message : "network error"}). It is still active.`,
+      });
+    }
     await refresh();
   }
 
@@ -117,6 +136,19 @@ export function PasskeyManager() {
           {reauth}
         </Notice>
       ) : null}
+      {loadError ? (
+        <Notice
+          tone="danger"
+          className="mb-3"
+          action={
+            <Button size="sm" onClick={() => void refresh()}>
+              Retry
+            </Button>
+          }
+        >
+          Could not load your passkeys: {loadError}
+        </Notice>
+      ) : null}
       <ul>
         {(keys ?? []).map((k) => (
           <li
@@ -136,7 +168,7 @@ export function PasskeyManager() {
             </Button>
           </li>
         ))}
-        {keys !== null && keys.length === 0 ? (
+        {keys !== null && keys.length === 0 && !loadError ? (
           <li className="py-1.5 text-[13px] text-body">No passkeys yet.</li>
         ) : null}
       </ul>

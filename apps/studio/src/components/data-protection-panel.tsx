@@ -16,12 +16,15 @@ export function DataProtectionPanel({
   erased,
   eraseAction,
   logRequestAction,
+  today,
 }: {
   contactId: string;
   holds: string[];
   erased: boolean;
   eraseAction: () => void | Promise<void>;
   logRequestAction: (formData: FormData) => void | Promise<void>;
+  /** Today in London (YYYY-MM-DD), from the server: the default "Received" day. */
+  today: string;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [logging, setLogging] = useState(false);
@@ -83,7 +86,7 @@ export function DataProtectionPanel({
                 id="dp-received"
                 type="date"
                 name="received_at"
-                defaultValue={new Date().toISOString().slice(0, 10)}
+                defaultValue={today}
                 className="field"
               />
             </div>

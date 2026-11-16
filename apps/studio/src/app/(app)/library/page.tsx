@@ -23,6 +23,9 @@ const countCls = "tabular shrink-0 text-[12px] leading-[1.4] text-meta";
 // name, in the studio's date form ("12 Oct 2026").
 const fmt = (d: string | null) => formatDate(d, "short");
 
+/** Shipments and documents listed in the hub; the full lists have their own pages. */
+const RECENT = 50;
+
 export default async function LibraryPage() {
   const supabase = await getSupabase();
   const [lists, shipments, documents, makers, locations, categories] = await Promise.all([
@@ -31,16 +34,18 @@ export default async function LibraryPage() {
       .select("id, name, is_dynamic, filter_rules, piece_list_items(count)")
       .order("sort_order")
       .order("name"),
+    // The newest RECENT of each, with the exact total beside them: the
+    // panel used to print the 50 it read as the number there are.
     supabase
       .from("shipments")
-      .select("id, kind, shipment_date, reference, piece_shipments(count)")
+      .select("id, kind, shipment_date, reference, piece_shipments(count)", { count: "exact" })
       .order("shipment_date", { ascending: false, nullsFirst: false })
-      .limit(50),
+      .limit(RECENT),
     supabase
       .from("piece_documents")
-      .select("id, doc_type, title, doc_date, document_pieces(count)")
+      .select("id, doc_type, title, doc_date, document_pieces(count)", { count: "exact" })
       .order("doc_date", { ascending: false, nullsFirst: false })
-      .limit(50),
+      .limit(RECENT),
     supabase.from("makers").select("id, display_name, life_dates").order("display_name"),
     supabase.from("locations").select("id, code, name, type").order("sort_order").order("code"),
     supabase.from("categories").select("id, name, code, is_active").order("sort_order").order("name"),
@@ -90,6 +95,8 @@ export default async function LibraryPage() {
   const docRows = (documents.data ?? []) as unknown as {
     id: string; doc_type: string; title: string | null; doc_date: string | null; document_pieces: { count: number }[];
   }[];
+  const shipTotal = shipments.count ?? shipRows.length;
+  const docTotal = documents.count ?? docRows.length;
   const makerRows = (makers.data ?? []) as { id: string; display_name: string; life_dates: string | null }[];
   const locRows = (locations.data ?? []) as { id: string; code: string; name: string | null; type: string | null }[];
   const catRows = (categories.data ?? []) as { id: string; name: string; code: string; is_active: boolean }[];
@@ -130,7 +137,7 @@ export default async function LibraryPage() {
         {/* Shipments */}
         <FoldPanel
           title="Shipments"
-          count={shipRows.length}
+          count={shipTotal}
           action={
             <>
               <form action={createShipment}><input type="hidden" name="kind" value="import" /><Button type="submit" size="sm" pendingLabel="Creating…">New import</Button></form>
@@ -152,6 +159,7 @@ export default async function LibraryPage() {
                   <span className={countCls}>{s.piece_shipments?.[0]?.count ?? 0} items</span>
                 </div>
               ))}
+              <NewestOf shown={shipRows.length} total={shipTotal} what="shipments" href="/shipments" />
             </div>
           ) : (
             <EmptyState compact>No shipments yet.</EmptyState>
@@ -161,7 +169,7 @@ export default async function LibraryPage() {
         {/* Documents */}
         <FoldPanel
           title="Documents"
-          count={docRows.length}
+          count={docTotal}
           action={
             <>
               <NewDocument />
@@ -181,6 +189,7 @@ export default async function LibraryPage() {
                   <span className={countCls}>{d.document_pieces?.[0]?.count ?? 0} items</span>
                 </div>
               ))}
+              <NewestOf shown={docRows.length} total={docTotal} what="documents" href="/documents" />
             </div>
           ) : (
             <EmptyState compact>No documents yet.</EmptyState>
@@ -248,6 +257,19 @@ export default async function LibraryPage() {
         </FoldPanel>
       </div>
     </div>
+  );
+}
+
+/** Under a list cut at RECENT: how many of how many, and where the rest are. */
+function NewestOf({ shown, total, what, href }: { shown: number; total: number; what: string; href: string }) {
+  if (shown >= total) return null;
+  return (
+    <p className="pt-2 text-[12px] leading-[1.4] text-meta">
+      The newest {shown} of {total} {what}.{" "}
+      <Link href={href} className="link">
+        See all {total}
+      </Link>
+    </p>
   );
 }
 

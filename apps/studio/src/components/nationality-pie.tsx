@@ -65,21 +65,29 @@ export function NationalityPie() {
   const [slices, setSlices] = useState<Slice[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  // The request failed: said as such, not as "no contacts", which a refused
+  // or failed answer used to read as.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     fetch(`/api/dashboard/nationality?type=${type}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((d: { slices?: Slice[]; total?: number }) => {
         if (cancelled) return;
         setSlices(d.slices ?? []);
         setTotal(d.total ?? 0);
+        setFailed(false);
       })
       .catch(() => {
         if (!cancelled) {
           setSlices([]);
           setTotal(0);
+          setFailed(true);
         }
       })
       .finally(() => !cancelled && setLoading(false));
@@ -148,6 +156,10 @@ export function NationalityPie() {
             ))}
           </div>
         </div>
+      ) : failed ? (
+        <p role="status" className="py-6 text-[13px] text-body">
+          Couldn&rsquo;t load the chart. Reload the page to try again.
+        </p>
       ) : total === 0 ? (
         <p className="py-6 text-[13px] text-body">No contacts with a recorded country for this filter.</p>
       ) : (

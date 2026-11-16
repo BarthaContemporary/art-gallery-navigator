@@ -11,6 +11,7 @@ import {
 import { ContactEditor, type Purchase, type Consignment } from "@/components/contact-editor";
 import { DataProtectionPanel } from "@/components/data-protection-panel";
 import { consignmentSplit } from "@/lib/consignment";
+import { londonToday, requestDates } from "@/lib/dp-requests";
 import { loadPieceRows } from "@/lib/piece-store";
 // London dates: this page renders on the server, where the zone is UTC.
 import { EMPTY, formatDate } from "@/lib/format";
@@ -246,18 +247,19 @@ export default async function ContactProfile({
     const s = await getSession();
     if (!s || !hasRole(s.roles, "admin")) throw new Error("Forbidden");
     const db = createServiceClient();
-    const received = String(formData.get("received_at") ?? "") || new Date().toISOString().slice(0, 10);
-    const due = new Date(received);
-    due.setMonth(due.getMonth() + 1);
-    await db.from("dp_requests").insert({
+    // One calendar month, clamped at month ends (31 Jan is due 28 Feb), from
+    // the London day; see lib/dp-requests.ts.
+    const { received_at, due_at } = requestDates(formData.get("received_at"));
+    const { error } = await db.from("dp_requests").insert({
       contact_id: id,
       subject_name: name,
       kind: String(formData.get("kind") ?? "other"),
       channel: String(formData.get("channel") ?? "").trim() || null,
-      received_at: received,
-      due_at: due.toISOString().slice(0, 10),
+      received_at,
+      due_at,
       created_by: s.user.id,
     });
+    if (error) throw new Error(`Could not log the request: ${error.message}`);
     revalidatePath(`/crm/contacts/${id}`);
   }
 
@@ -323,6 +325,7 @@ export default async function ContactProfile({
           erased={Boolean((contact as { erased_at?: string | null }).erased_at)}
           eraseAction={eraseContact}
           logRequestAction={logRequest}
+          today={londonToday()}
         />
       ) : null}
     </div>

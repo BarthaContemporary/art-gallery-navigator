@@ -9,11 +9,13 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const svc = createServiceClient();
-  const { data } = await svc
+  const { data, error } = await svc
     .from("webauthn_credentials")
     .select("id, device_label, created_at, last_used_at")
     .eq("user_id", session.user.id)
     .order("created_at");
+  // A failed read is an error, not an empty list ("No passkeys yet.").
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ passkeys: data ?? [] });
 }
 

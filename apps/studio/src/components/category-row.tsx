@@ -15,6 +15,8 @@ export type CategoryRow = {
   name: string;
   is_active: boolean;
   pieces: number;
+  /** Works in the trash that still use it: a delete moves them too. */
+  trashed: number;
 };
 
 /**
@@ -50,6 +52,8 @@ export function CategoryTableRow({
   const [mergeTo, setMergeTo] = useState("");
   // colSpan follows the admin grip column, which only exists for admins.
   const span = reorderable ? 6 : 5;
+  // Trashed works count: restored, they would come back with no category.
+  const using = cat.pieces + cat.trashed;
 
   if (editing) {
     return (
@@ -113,6 +117,9 @@ export function CategoryTableRow({
           >
             {formatCount(cat.pieces)}
           </Link>
+          {cat.trashed > 0 ? (
+            <span className="block text-[12px] leading-[1.4] text-meta">{formatCount(cat.trashed)} in the trash</span>
+          ) : null}
         </Td>
         <Td className="whitespace-nowrap text-right">
           <span className="inline-flex items-center gap-1">
@@ -145,7 +152,7 @@ export function CategoryTableRow({
         <tr>
           <td colSpan={span} className="border-b border-rule p-0">
             <Notice tone="danger">
-              {cat.pieces === 0 ? (
+              {using === 0 ? (
                 <form action={deleteAction} className="flex flex-wrap items-center gap-3">
                   <input type="hidden" name="id" value={cat.id} />
                   <span className="text-[13px] text-body">
@@ -165,9 +172,9 @@ export function CategoryTableRow({
                   <label htmlFor={`cat-merge-${cat.id}`} className="text-[13px] text-body">
                     <strong className="text-ink">{cat.name}</strong> is used by{" "}
                     <strong className="text-ink">
-                      {cat.pieces} work{cat.pieces === 1 ? "" : "s"}
+                      {using} work{using === 1 ? "" : "s"}
                     </strong>
-                    . Move {cat.pieces === 1 ? "it" : "them"} to:
+                    {cat.trashed > 0 ? ` (${cat.trashed} in the trash)` : ""}. Move {using === 1 ? "it" : "them"} to:
                   </label>
                   <select
                     id={`cat-merge-${cat.id}`}

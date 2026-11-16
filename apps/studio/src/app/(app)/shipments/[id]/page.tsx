@@ -7,6 +7,7 @@ import { RecordReturn } from "@/components/record-return";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { AutosaveForm } from "@/components/autosave-form";
 import { loadPieceSummaries, type PieceSummary } from "@/lib/piece-store";
+import { selectInChunks, writeInChunks } from "@/lib/chunk";
 import { loadThumbnails } from "@/lib/thumbnails";
 import { PieceLine } from "@/components/piece-line";
 import { formatCount, formatDate } from "@/lib/format";
@@ -16,6 +17,7 @@ import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FlashNotice } from "@/components/ui/notice";
 
 export const metadata = { title: "Shipment" };
 
@@ -38,10 +40,10 @@ export default async function ShipmentDetail({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ add?: string }>;
+  searchParams: Promise<{ add?: string; error?: string }>;
 }) {
   const { id } = await params;
-  const { add } = await searchParams;
+  const { add, error: flashError } = await searchParams;
   const supabase = await getSupabase();
 
   const { data: shipment } = await supabase
@@ -155,46 +157,58 @@ export default async function ShipmentDetail({
     const db = await getSupabase();
     const date = String(formData.get("return_date") ?? "").trim();
     if (!date) return;
-    const { data: open } = await db
+    const fail = (msg: string) => `/shipments/${id}?error=${encodeURIComponent(msg)}`;
+    const { data: open, error: openError } = await db
       .from("piece_shipments")
       .select("piece_id")
       .eq("shipment_id", id)
       .eq("kind", "temporary_export")
       .is("returned_at", null)
       .is("closed_reason", null);
-    const openSummaries = await loadPieceSummaries(
-      db,
-      ((open ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
-    );
-    const rows = ((open ?? []) as { piece_id: string }[]).map((r) => ({
-      piece_id: r.piece_id,
-      piece: openSummaries.get(r.piece_id) ?? null,
-    }));
-    if (rows.length === 0) return;
-    const ids = rows.map((r) => r.piece_id);
+    if (openError) redirect(fail(`Could not record the return: ${openError.message}`));
+    const openIds = ((open ?? []) as { piece_id: string }[]).map((r) => r.piece_id);
+    if (openIds.length === 0) return;
 
-    // Which of these have a permanent export link?
-    const { data: exp } = await db
-      .from("piece_shipments")
-      .select("piece_id")
-      .eq("kind", "export")
-      .in("piece_id", ids);
-    const exportedIds = new Set((exp ?? []).map((r) => r.piece_id as string));
+    // Which still-out works are written off, and which have a permanent
+    // export link. In chunks (a fair shipment holds a couple of hundred
+    // works, past what one URL carries: lib/chunk.ts), and failing closed:
+    // if either lookup fails nothing is stamped, so an exported or
+    // written-off work is never marked returned by default.
+    let rows: { piece_id: string; status: string | null }[];
+    let exportedIds: Set<string>;
+    try {
+      const openSummaries = await loadPieceSummaries(db, openIds);
+      rows = openIds.map((pid) => ({ piece_id: pid, status: openSummaries.get(pid)?.status ?? null }));
+      const exp = await selectInChunks<{ piece_id: string }>(openIds, (chunk) =>
+        db.from("piece_shipments").select("piece_id").eq("kind", "export").in("piece_id", chunk),
+      );
+      exportedIds = new Set(exp.map((r) => r.piece_id));
+    } catch (err) {
+      redirect(fail(`Could not record the return: ${err instanceof Error ? err.message : "the works could not be checked"}`));
+    }
 
     const writtenOff: string[] = [];
     const exported: string[] = [];
     const returned: string[] = [];
     for (const r of rows) {
-      if (r.piece?.status === "written_off") writtenOff.push(r.piece_id);
+      if (r.status === "written_off") writtenOff.push(r.piece_id);
       else if (exportedIds.has(r.piece_id)) exported.push(r.piece_id);
       else returned.push(r.piece_id);
     }
-    if (returned.length)
-      await db.from("piece_shipments").update({ returned_at: date }).eq("shipment_id", id).in("piece_id", returned);
-    if (writtenOff.length)
-      await db.from("piece_shipments").update({ closed_reason: "written_off" }).eq("shipment_id", id).in("piece_id", writtenOff);
-    if (exported.length)
-      await db.from("piece_shipments").update({ closed_reason: "exported" }).eq("shipment_id", id).in("piece_id", exported);
+    const writes: [string[], Record<string, string>][] = [
+      [returned, { returned_at: date }],
+      [writtenOff, { closed_reason: "written_off" }],
+      [exported, { closed_reason: "exported" }],
+    ];
+    for (const [pieceIds, patch] of writes) {
+      const { error } = await writeInChunks(pieceIds, (chunk) =>
+        db.from("piece_shipments").update(patch).eq("shipment_id", id).in("piece_id", chunk),
+      );
+      if (error) {
+        revalidatePath(`/shipments/${id}`);
+        redirect(fail(`The return was only partly recorded: ${error.message}. Check the items below and try again.`));
+      }
+    }
     revalidatePath(`/shipments/${id}`);
   }
 
@@ -229,6 +243,8 @@ export default async function ShipmentDetail({
       />
 
       <div className="space-y-6">
+        <FlashNotice searchParams={{ error: flashError }} />
+
         <Section title="Details">
           <AutosaveForm endpoint={`/api/shipments/${id}`}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

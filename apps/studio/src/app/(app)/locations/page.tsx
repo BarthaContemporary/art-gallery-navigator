@@ -27,6 +27,24 @@ function explain(error: { code?: string; message: string }, code: string): strin
   return error.message;
 }
 
+type Db = Awaited<ReturnType<typeof getSupabase>>;
+
+/**
+ * Works at a location in both registers, the trash included. The list view
+ * leaves trashed works out, but they keep their location for 30 days and
+ * come back with it when restored, and the foreign key would set it to
+ * nothing if the location were deleted under them.
+ */
+async function worksAt(db: Db, id: string): Promise<{ count: number; error: string | null }> {
+  const [own, external] = await Promise.all(
+    (["pieces", "external_pieces"] as const).map((t) =>
+      db.from(t).select("id", { count: "exact", head: true }).eq("location_id", id),
+    ),
+  );
+  const error = own!.error ?? external!.error;
+  return { count: (own!.count ?? 0) + (external!.count ?? 0), error: error?.message ?? null };
+}
+
 export default async function LocationsPage({
   searchParams,
 }: {
@@ -64,6 +82,19 @@ export default async function LocationsPage({
   (counts ?? []).forEach((p) => {
     if (p.location_id) byLocation.set(p.location_id, (byLocation.get(p.location_id) ?? 0) + 1);
   });
+  // Works in the trash (either register) still hold their location, so a
+  // delete must move them too; the list view above leaves them out.
+  const trashed = await Promise.all(
+    (["pieces", "external_pieces"] as const).map((t) =>
+      supabase.from(t).select("location_id").not("deleted_at", "is", null).not("location_id", "is", null),
+    ),
+  );
+  const trashedByLocation = new Map<string, number>();
+  for (const { data } of trashed) {
+    for (const p of (data ?? []) as { location_id: string | null }[]) {
+      if (p.location_id) trashedByLocation.set(p.location_id, (trashedByLocation.get(p.location_id) ?? 0) + 1);
+    }
+  }
 
   async function addLocation(formData: FormData) {
     "use server";
@@ -109,11 +140,12 @@ export default async function LocationsPage({
     const mergeTo = String(formData.get("merge_to") ?? "").trim();
     if (!id || id === mergeTo) return;
 
-    const { count } = await db
-      .from("vw_pieces_list")
-      .select("id", { count: "exact", head: true })
-      .eq("location_id", id);
-    if ((count ?? 0) > 0) {
+    // Counted on the registers themselves, trashed works included.
+    const using = await worksAt(db, id);
+    if (using.error) {
+      redirect("/locations?error=" + encodeURIComponent(`Could not check which works are there: ${using.error}`));
+    }
+    if (using.count > 0) {
       if (!mergeTo) {
         redirect(
           "/locations?error=" +
@@ -146,6 +178,7 @@ export default async function LocationsPage({
     name: l.name,
     type: l.type,
     pieces: byLocation.get(l.id) ?? 0,
+    trashed: trashedByLocation.get(l.id) ?? 0,
   }));
 
   return (

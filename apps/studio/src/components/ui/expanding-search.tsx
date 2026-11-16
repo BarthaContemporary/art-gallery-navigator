@@ -38,6 +38,7 @@
  * Styles: .xsearch in app/globals.css.
  */
 import { useEffect, useId, useRef, useState, type ComponentPropsWithoutRef, type CSSProperties } from "react";
+import { isEditableTarget } from "@/lib/ui-events";
 import { cx } from "./cx";
 import { CloseIcon, SearchIcon } from "./icons";
 
@@ -53,11 +54,6 @@ function setNativeValue(input: HTMLInputElement, next: string) {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function isEditable(el: EventTarget | null): boolean {
-  if (!(el instanceof HTMLElement)) return false;
-  const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
-}
 
 export function ExpandingSearch({
   name,
@@ -131,7 +127,9 @@ export function ExpandingSearch({
     if (!shortcut) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (isEditable(e.target)) return;
+      // Not while typing in a field, a web component's included (the
+      // address finder): the same test as the command palette's "/".
+      if (isEditableTarget(e.target)) return;
       if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
       e.preventDefault();
       // Capture phase on window: stopping here keeps the command palette's

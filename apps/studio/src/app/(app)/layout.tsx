@@ -24,7 +24,10 @@ const NAV = [
 async function signOut() {
   "use server";
   const supabase = await getSupabase();
-  await supabase.auth.signOut();
+  // This browser only. auth-js defaults to the global scope, which ended the
+  // user's sessions on every device, the capture app on their phone
+  // included. Local still revokes this session on the auth server.
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/login");
 }
 

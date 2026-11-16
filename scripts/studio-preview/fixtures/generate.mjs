@@ -1158,14 +1158,16 @@ for (const [key, label, days, mode, basis] of POLICIES) T("retention_policies").
 
 // ------------------------------------------------------ operations, sync, misc
 
-// The panel reads the latest run per kind ("db", "webdav") and flags one
-// older than 26 hours: the database is current, the drive copy is stale.
+// The panel reads the latest good run per kind ("db", "webdav" nightly,
+// "storage" weekly) and flags one older than its cadence: the database and
+// the weekly storage copy are current, the drive copy is stale.
 T("backup_runs").push(
   { id: 1, kind: "db", status: "ok", detail: null, size_bytes: 48_201_993, created_at: daysAgo(2, 3) },
   { id: 2, kind: "webdav", status: "ok", detail: null, size_bytes: 21_390_114_816, created_at: daysAgo(3, 4) },
   { id: 3, kind: "db", status: "ok", detail: null, size_bytes: 48_310_552, created_at: daysAgo(1, 3) },
   { id: 4, kind: "webdav", status: "error", detail: "Remote target refused the connection", size_bytes: null, created_at: daysAgo(2, 4) },
   { id: 5, kind: "db", status: "ok", detail: null, size_bytes: 48_402_310, created_at: daysAgo(0, 3) },
+  { id: 6, kind: "storage", status: "ok", detail: null, size_bytes: 61_004_118_016, created_at: daysAgo(4, 3) },
 );
 T("sync_outbox").push(
   ...pieces.slice(0, 7).map((p, i) => ({ id: i + 1, entity_type: "piece", entity_id: p.id, op: "upsert", created_at: daysAgo(0, 9), processed_at: null, claimed_at: null })),

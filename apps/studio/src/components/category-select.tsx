@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "@/components/ui/icons";
+import { isComposing } from "@/lib/ui-events";
 
 type Option = { id: string; label: string };
 
@@ -99,6 +100,9 @@ export function CategorySelect({
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
+              // The Enter that confirms an input method's conversion (Japanese,
+              // Chinese) is not "add": it would save the half-typed name.
+              if (isComposing(e)) return;
               if (e.key === "Enter") {
                 e.preventDefault();
                 void add();

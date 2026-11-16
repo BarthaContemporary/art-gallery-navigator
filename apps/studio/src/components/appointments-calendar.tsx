@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CalendarEvent, CalendarFeed } from "@/lib/caldav";
-import { isoDayParts, londonTime } from "@/lib/caldav";
+import { daysWithin, londonTime } from "@/lib/caldav";
 import {
   MobileMonthCalendar,
   type MobileItem,
@@ -248,15 +248,13 @@ export function AppointmentsCalendar({
     if (list) list.push(item);
     else map.set(key, [item]);
   };
-  if (feed.status === "ok") {
+  if (feed.status === "ok" && grid.length > 0) {
+    // Multi-day events appear on every day they span that the grid shows
+    // (clamped to the grid, so a long exhibition reaches every month it runs).
+    const gridFirst = grid[0]!.iso;
+    const gridLast = grid[grid.length - 1]!.iso;
     for (const ev of feed.events) {
-      // Multi-day events appear on every day they span (capped at 62 days).
-      let day = ev.startDay;
-      for (let n = 0; day <= ev.endDay && n < 62; n++) {
-        push(eventsByDay, day, ev);
-        const [y, m, d] = isoDayParts(day);
-        day = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
-      }
+      for (const day of daysWithin(ev.startDay, ev.endDay, gridFirst, gridLast)) push(eventsByDay, day, ev);
     }
   }
   const apptsByDay = new Map<string, CalendarAppointment[]>();

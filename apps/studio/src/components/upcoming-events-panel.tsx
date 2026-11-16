@@ -85,6 +85,10 @@ export async function UpcomingEventsPanel() {
   const rows: Row[] = [];
   if (feed.status === "ok") {
     for (const ev of feed.events) {
+      // Already over. In summer the window starts at 23:00 UTC the day
+      // before, and the server compares an all-day DATE as a UTC day, so
+      // yesterday's all-day event comes back and would be filed under Today.
+      if (ev.endDay < today) continue;
       // Show each event once, on its start day (or today if already running).
       const day = ev.startDay >= today ? ev.startDay : today;
       if (day >= addDaysIso(today, WINDOW_DAYS)) continue;
