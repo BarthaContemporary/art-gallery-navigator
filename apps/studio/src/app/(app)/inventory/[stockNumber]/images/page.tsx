@@ -97,11 +97,18 @@ export default async function ManageImagesPage({
     }),
   );
 
+  /**
+   * Delete one of this work's photographs (an id posted for another work's
+   * image deletes nothing). Its files (original, display master, square
+   * tiles) are not removed here: the database queues them as the row goes
+   * (migration 0097) and /api/cron/storage-sweep removes them once the
+   * database backups that could bring the row back have rotated out.
+   */
   async function deleteImage(formData: FormData) {
     "use server";
     const id = String(formData.get("id"));
     const supabase = await getSupabase();
-    await supabase.from("piece_images").delete().eq("id", id);
+    await supabase.from("piece_images").delete().eq("id", id).eq("piece_id", pieceId);
     revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/images`);
   }
 

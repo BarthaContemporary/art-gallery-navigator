@@ -198,10 +198,20 @@ export default async function ShipmentDetail({
     revalidatePath(`/shipments/${id}`);
   }
 
+  /**
+   * Delete the shipment; its documents' rows cascade. Their files are not
+   * removed here: the database queues them as the rows go (migration 0097)
+   * and /api/cron/storage-sweep removes them once the database backups that
+   * could bring the rows back have rotated out. A delete RLS refuses (the
+   * accountant) returns no row rather than an error, so ask for the row back
+   * and never report a delete that did not happen.
+   */
   async function deleteShipment() {
     "use server";
     const db = await getSupabase();
-    await db.from("shipments").delete().eq("id", id);
+    const { data, error } = await db.from("shipments").delete().eq("id", id).select("id");
+    if (error) throw new Error(`The shipment could not be deleted: ${error.message}`);
+    if (!data?.length) throw new Error("The shipment was not deleted: it may already be gone, or your role cannot delete shipments.");
     redirect("/shipments");
   }
 
