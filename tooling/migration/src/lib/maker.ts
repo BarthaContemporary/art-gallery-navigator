@@ -25,6 +25,15 @@ function plausibleName(name: string): boolean {
   if (!/\p{L}/u.test(n)) return false;
   // Reject fragments that are clearly not names.
   if (/^(the|a|an|with|height|width|depth|signed|japan|india)\b/i.test(n)) return false;
+  // A period or an attribution is not a maker: 'Bronze vase, Meiji period
+  // (1868-1912)', 'Edo period (1603–1868)', 'Attributed to Hokusai
+  // (1760–1849)', 'School of …', 'After …' (makers publish by default, 0075).
+  if (/\b(period|dynasty|era|century|style)\b/i.test(n)) return false;
+  if (/^(attributed|attrib\.|ascribed|school|circle|workshop|studio|follower|followers|manner|after|by|in the style)\b/i.test(n)) {
+    return false;
+  }
+  // An object description, not a name: 'Bronze vase, …'.
+  if (/,\s*\S/.test(n)) return false;
   return true;
 }
 

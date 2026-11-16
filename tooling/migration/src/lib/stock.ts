@@ -1,6 +1,6 @@
-import type { RawRow } from "./columns.js";
-import { COL } from "./columns.js";
-import { toText } from "./values.js";
+import type { RawRow } from "./columns.ts";
+import { COL } from "./columns.ts";
+import { toText } from "./values.ts";
 
 /**
  * Normalize a legacy stock number to a trimmed string.
@@ -8,9 +8,7 @@ import { toText } from "./values.js";
  * no decimal part. Returns null for blank cells.
  */
 export function normalizeStockNumber(v: unknown): string | null {
-  if (typeof v === "number" && Number.isFinite(v)) {
-    return Number.isInteger(v) ? String(v) : String(v);
-  }
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
   const s = toText(v);
   if (!s) return null;
   return s.replace(/\.0$/, "");

@@ -6,6 +6,7 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
+import { textRuns } from "./docx-text";
 
 /*
  * Offer presentation DOCX — one work per page with its photograph embedded,
@@ -119,7 +120,7 @@ function workSection(w: PresentationWork): Paragraph[] {
     out.push(
       new Paragraph({
         spacing: { before: 120 },
-        children: [new TextRun({ text: w.description, size: 21, color: "3A3A3A" })],
+        children: textRuns(w.description, { size: 21, color: "3A3A3A" }),
       }),
     );
   }
@@ -127,7 +128,7 @@ function workSection(w: PresentationWork): Paragraph[] {
     out.push(
       new Paragraph({
         spacing: { before: 120 },
-        children: [new TextRun({ text: w.note, italics: true, size: 20, color: "5F5F5F" })],
+        children: textRuns(w.note, { italics: true, size: 20, color: "5F5F5F" }),
       }),
     );
   }
@@ -158,7 +159,7 @@ export async function offerPresentationDocx(props: {
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 320 },
-        children: [new TextRun({ text: props.intro, italics: true, size: 22, color: "3A3A3A" })],
+        children: textRuns(props.intro, { italics: true, size: 22, color: "3A3A3A" }),
       }),
     );
   }

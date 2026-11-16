@@ -205,12 +205,16 @@ files first, from a machine with the repo checked out:
 
 ```
 cd <repo-root>
-tar cz infra/image-worker | ssh deploy@<vps> 'tar xz -C /opt/jvb'
+tar cz --exclude=node_modules infra/image-worker | ssh deploy@<vps> 'tar xz -C /opt/jvb'
 ```
 
 (No repo checkout at hand? Any HTTPS-reachable copy of `infra/image-worker/`
-{package.json, tsconfig.json, src/} untarred into `/opt/jvb/infra/image-worker`
-works the same — the build context is that directory alone.)
+{package.json, pnpm-lock.yaml, Dockerfile, .dockerignore, tsconfig.json, src/}
+untarred into `/opt/jvb/infra/image-worker` works the same — the build context
+is that directory alone. The image installs from that `pnpm-lock.yaml`,
+frozen, so it gets the versions CI checked; `docs/ops/security-runbook.md`
+step 10 is the step-by-step version, including database change 0099 that
+lets the worker pick up photographs it was stopped in the middle of.)
 
 Then rebuild on the VPS:
 
@@ -220,6 +224,12 @@ docker compose build image-worker
 docker compose up -d image-worker
 docker compose logs -f image-worker          # watch it come up clean
 ```
+
+Stopping or rebuilding the worker no longer strands photographs: it
+finishes the ones in hand (compose gives it `stop_grace_period: 2m`) and
+hands the rest back as pending. Should a row still sit at `processing` (the
+server lost power, say), the worker takes it again 15 minutes later once
+0099 is applied; before that, set it back to `pending` as below.
 
 Then re-queue any rows that failed on the old worker (the derivative job is
 idempotent — it overwrites the display master):
@@ -767,6 +777,15 @@ record the tag in the compose file when you first deploy). To upgrade:
 
 Rollback = revert the tag and `docker compose up -d <service>` (except
 Postgres once its data directory has been upgraded — hence step 2).
+
+PostgREST (the `rest` service) runs with **no row cap** on purpose: several
+studio reads take a whole table without paging (list sends and labels, the
+contact, inventory and stock-book exports, the contact import's duplicate
+check, per-category and per-location counts). Supabase's hosted platform and
+some templates set `PGRST_DB_MAX_ROWS=1000`; doing that here would cut those
+reads off at the cap without any error. Do not add one, on an upgrade or as
+hardening, until every such read pages. `supabase/config.toml` sets the local
+stack's cap far above any table for the same reason.
 
 OS security patches are automatic (unattended-upgrades); reboots are manual:
 `docker compose down && reboot` in a quiet window, `up -d` after.

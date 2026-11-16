@@ -4,16 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./tokens.css": "./src/tokens.css",
-    ".": "./src/index.ts"
+    "./tokens.css": "./src/tokens.css"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
     "build": "echo 'css package, no build'"
-  },
-  "peerDependencies": { "react": "^19.0.0" },
-  "devDependencies": {
-    "@types/react": "^19.1.0",
-    "typescript": "^5.8.3"
   }
 }

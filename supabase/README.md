@@ -71,20 +71,15 @@ Never run `supabase db push` against the VPS: the live database was built
 without the CLI's `supabase_migrations` history, so a push would try to apply
 every migration again from the first one.
 
-## Regenerating TypeScript types
+## TypeScript types
 
-Generated types live in `packages/db` and must be regenerated after any
-schema change:
-
-```sh
-# from the local stack
-supabase gen types typescript --local > packages/db/src/types/database.ts
-
-# or from the VPS through the tunnel
-supabase gen types typescript \
-  --db-url "postgresql://supabase_admin:<password>@localhost:54322/postgres" \
-  > packages/db/src/types/database.ts
-```
+No generated database types are kept: the apps type each query result next
+to the query, and `@jvb/db` exports only the `UserRole` union. Should
+generated types be wanted later, `supabase gen types typescript --local`
+(the Supabase CLI, installed separately) prints them; through the tunnel of
+`docs/ops/security-runbook.md` step 5.4 use
+`--db-url "postgresql://supabase_admin:<password>@localhost:54322/postgres"`.
+Commit them to one file that something imports, or they drift unseen.
 
 ## Schema conventions
 

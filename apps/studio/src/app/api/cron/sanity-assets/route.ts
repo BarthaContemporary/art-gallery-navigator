@@ -155,7 +155,8 @@ async function worksWithoutWebsitePicture(supabase: Db): Promise<string[]> {
   }
   const withPhotos = new Set<string>();
   const withWebsitePhoto = new Set<string>();
-  // Small chunks: one row per photograph, and a response holds at most 1000 rows.
+  // Small chunks: one row per photograph, and a response may be capped
+  // should PostgREST ever cap rows (none is today; docker-compose.yml).
   for (const chunk of chunkIds(works.map((w) => w.id), 20)) {
     const { data, error } = await supabase
       .from("piece_images")

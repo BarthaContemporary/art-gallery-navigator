@@ -1,4 +1,5 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { SANS, SERIF } from "./fonts";
 
 export interface CertificateWork {
   stockNumber: string;
@@ -25,18 +26,18 @@ export interface CertificateProps {
 }
 
 const s = StyleSheet.create({
-  page: { padding: 56, fontSize: 11, color: "#2a2a2a", fontFamily: "Times-Roman" },
+  page: { padding: 56, fontSize: 11, color: "#2a2a2a", fontFamily: SERIF },
   wordmark: {
     fontSize: 9,
     letterSpacing: 1.4,
     textTransform: "uppercase",
     color: "#8a8a8a",
-    fontFamily: "Helvetica",
+    fontFamily: SANS,
     textAlign: "center",
   },
   title: {
     fontSize: 22,
-    fontFamily: "Times-Roman",
+    fontFamily: SERIF,
     textAlign: "center",
     marginTop: 28,
     marginBottom: 4,
@@ -45,13 +46,13 @@ const s = StyleSheet.create({
   lede: { fontSize: 11.5, lineHeight: 1.6, textAlign: "center", marginBottom: 24, color: "#3a3a3a" },
   image: { maxHeight: 240, objectFit: "contain", marginBottom: 22, alignSelf: "center" },
   makerLine: { fontSize: 13, textAlign: "center", color: "#3a3a3a" },
-  workTitle: { fontSize: 16, fontFamily: "Times-Bold", textAlign: "center", marginTop: 2 },
+  workTitle: { fontSize: 16, fontWeight: 700, textAlign: "center", marginTop: 2 },
   workSub: { fontSize: 11, textAlign: "center", color: "#5f5f5f", marginTop: 3, marginBottom: 20 },
   specRow: { flexDirection: "row", borderTop: "0.5 solid #dcdcdc", paddingVertical: 5 },
   specLabel: {
     width: 120,
     fontSize: 8.5,
-    fontFamily: "Helvetica",
+    fontFamily: SANS,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     color: "#8a8a8a",
@@ -60,7 +61,7 @@ const s = StyleSheet.create({
   section: { marginTop: 18 },
   sectionLabel: {
     fontSize: 8.5,
-    fontFamily: "Helvetica",
+    fontFamily: SANS,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     color: "#8a8a8a",
@@ -69,14 +70,14 @@ const s = StyleSheet.create({
   body: { fontSize: 10.5, lineHeight: 1.5, color: "#3a3a3a" },
   signBlock: { marginTop: 56, flexDirection: "row", justifyContent: "space-between" },
   signCol: { width: "45%" },
-  signLine: { borderTop: "0.75 solid #6a6a6a", paddingTop: 5, fontSize: 9, color: "#6f6f6f", fontFamily: "Helvetica" },
+  signLine: { borderTop: "0.75 solid #6a6a6a", paddingTop: 5, fontSize: 9, color: "#6f6f6f", fontFamily: SANS },
   footer: {
     position: "absolute",
     bottom: 32,
     left: 56,
     right: 56,
     fontSize: 8,
-    fontFamily: "Helvetica",
+    fontFamily: SANS,
     color: "#9a9a9a",
     textAlign: "center",
   },

@@ -21,7 +21,6 @@
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
     "@tabler/icons-react": "^3.48.0",
-    "docx": "^9.0.0",
     "exceljs": "^4.4.0",
     "heic-convert": "^2.1.0",
     "next": "^15.5.29",

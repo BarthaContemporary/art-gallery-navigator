@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import type { RawRow } from "./columns.js";
+import type { RawRow } from "./columns.ts";
 
 /**
  * Normalize an exceljs cell value to a JSON-safe primitive.
@@ -56,11 +56,10 @@ export async function readWorkbook(filePath: string): Promise<ParsedWorkbook> {
     let hasAny = false;
     for (const [colNumber, header] of headersByCol) {
       const value = normalizeCellValue(row.getCell(colNumber).value);
-      const cleaned = typeof value === "string" ? value : value;
-      if (cleaned !== null && cleaned !== "" && String(cleaned).trim() !== "") {
+      if (value !== null && value !== "" && String(value).trim() !== "") {
         hasAny = true;
       }
-      data[header] = cleaned === "" ? null : cleaned;
+      data[header] = value === "" ? null : value;
     }
     if (hasAny) rows.push({ row_number: rowNumber, data });
   });

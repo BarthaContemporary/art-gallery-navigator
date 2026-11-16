@@ -21,6 +21,14 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@jvb/db", "@jvb/ui"],
+  // The PDF exports embed the Noto fonts of @jvb/documents (macrons and
+  // Japanese; packages/documents/src/fonts.ts). They are read from disk by a
+  // path worked out at run time, which file tracing cannot follow, so name
+  // them here or the Vercel functions ship without them (the PDFs would then
+  // fall back to the standard fonts). Paths are relative to apps/studio.
+  outputFileTracingIncludes: {
+    "/api/export/*.pdf": ["../../packages/documents/fonts/*.ttf"],
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

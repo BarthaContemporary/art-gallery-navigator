@@ -9,7 +9,11 @@ enabled = true
 port = 54321
 schemas = ["public", "storage", "graphql_public"]
 extra_search_path = ["public", "extensions"]
-max_rows = 1000
+# The live PostgREST has no row cap, on purpose (infra/compose/docker-compose.yml,
+# the rest service): several studio reads take a whole table without paging.
+# The CLI always applies one, so it is set far above any table here; at the
+# CLI's usual 1000 the exports and list sends would stop short locally.
+max_rows = 100000
 
 [db]
 port = 54322

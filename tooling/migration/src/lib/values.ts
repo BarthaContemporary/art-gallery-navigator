@@ -26,20 +26,45 @@ export function hasValue(v: unknown): boolean {
   return toText(v) !== null;
 }
 
-/** ISO date string (YYYY-MM-DD) from a Date / ISO string / dd/mm/yyyy string, else null. */
+/** YYYY-MM-DD when y/m/d is a real calendar date, else null. */
+function isoIfValid(y: number, m: number, d: number): string | null {
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return null;
+  const t = new Date(Date.UTC(y, m - 1, d));
+  if (t.getUTCFullYear() !== y || t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) return null;
+  return t.toISOString().slice(0, 10);
+}
+
+/**
+ * An Excel date serial (days since 30 December 1899) as YYYY-MM-DD, in UTC.
+ * Only plausible serials (1920 to 2099) count; a small number in a date
+ * column is junk, not a day in 1900.
+ */
+export function excelSerialToIso(n: number): string | null {
+  if (!Number.isFinite(n) || n < 7306 || n >= 73051) return null;
+  return new Date(Math.round((Math.floor(n) - 25569) * 86_400_000)).toISOString().slice(0, 10);
+}
+
+/**
+ * ISO date string (YYYY-MM-DD), else null. Accepts ISO (what exceljs writes
+ * for date cells into raw.json), British day-first d/m/yyyy and d/m/yy
+ * (with / . or -; two-digit years 00–49 are 20xx, 50–99 are 19xx) and Excel
+ * date serials. Nothing else: the old fallback to `new Date(text)` read
+ * '05/03/19' month-first and shifted dates a day in British Summer Time.
+ */
 export function toIsoDate(v: unknown): string | null {
+  if (typeof v === "number") return excelSerialToIso(v);
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v.toISOString().slice(0, 10);
   const s = toText(v);
   if (!s) return null;
-  // exceljs dates are serialized to ISO strings in raw.json
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  const dmy = s.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/);
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/);
+  if (iso) return isoIfValid(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  const dmy = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})$/);
   if (dmy) {
-    const [, d, m, y] = dmy;
-    return `${y}-${m!.padStart(2, "0")}-${d!.padStart(2, "0")}`;
+    let y = Number(dmy[3]);
+    if (dmy[3]!.length === 2) y += y <= 49 ? 2000 : 1900;
+    return isoIfValid(y, Number(dmy[2]), Number(dmy[1]));
   }
-  const parsed = new Date(s);
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  if (/^\d{5}(\.\d+)?$/.test(s)) return excelSerialToIso(Number(s));
   return null;
 }
 

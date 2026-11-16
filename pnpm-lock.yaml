@@ -125,9 +125,6 @@ importers:
       '@tabler/icons-react':
         specifier: ^3.48.0
         version: 3.48.0(react@19.2.7)
-      docx:
-        specifier: ^9.0.0
-        version: 9.7.1
       exceljs:
         specifier: ^4.4.0
         version: 4.4.0
@@ -189,18 +186,12 @@ importers:
       '@jvb/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@jvb/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@sanity/client':
         specifier: ^7
         version: 7.23.0
       '@sanity/webhook':
         specifier: ^4.0.4
         version: 4.0.4
-      '@supabase/supabase-js':
-        specifier: ^2.49.4
-        version: 2.110.2
       groq:
         specifier: ^4
         version: 4.22.0
@@ -216,6 +207,9 @@ importers:
       resend:
         specifier: ^6.37.0
         version: 6.37.0(@react-email/render@2.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -276,8 +270,8 @@ importers:
         version: 4.23.1
     devDependencies:
       '@types/heic-convert':
-        specifier: ^1.2.3
-        version: 1.2.3
+        specifier: ^2.1.0
+        version: 2.1.1
       '@types/node':
         specifier: ^22.14.0
         version: 22.20.1
@@ -318,6 +312,9 @@ importers:
         specifier: ^19.1.0
         version: 19.2.7
     devDependencies:
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
       '@types/react':
         specifier: ^19.1.0
         version: 19.2.17
@@ -341,18 +338,7 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
-  packages/ui:
-    dependencies:
-      react:
-        specifier: ^19.0.0
-        version: 19.2.7
-    devDependencies:
-      '@types/react':
-        specifier: ^19.1.0
-        version: 19.2.17
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
+  packages/ui: {}
 
   tooling/migration:
     dependencies:
@@ -3034,9 +3020,6 @@ packages:
   '@types/hast@3.0.5':
     resolution: {integrity: sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g==}
 
-  '@types/heic-convert@1.2.3':
-    resolution: {integrity: sha512-5LJ2fGuVk/gnOLihoT56xJwrXxfnNepGvrHwlW5ZtT3HS4jO1AqBaAHCxXUpnY9UaD3zYcyxXMRM2fNN1AFF/Q==}
-
   '@types/heic-convert@2.1.1':
     resolution: {integrity: sha512-+s14762Nf62z9zziIs7ItvAkSUCS3ls4Z5XPT9BlVve3Q3S4DAnf6qekffMTvEWycSUF+kulkGaSN65fK6eKvg==}
 
@@ -5598,6 +5581,9 @@ packages:
     resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
     engines: {node: '>=10'}
     hasBin: true
+
+  server-only@0.0.1:
+    resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==}
 
   set-function-length@1.2.2:
     resolution: {integrity: sha512-pgRc4hJ4/sNjWCSS9AmnS40x3bNMDTknHgL5UaMBTMyJnU90EgWh1Rz+MC9eFu4BuN/UwZjKQuY/1v3rM7HMfg==}
@@ -9673,8 +9659,6 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
 
-  '@types/heic-convert@1.2.3': {}
-
   '@types/heic-convert@2.1.1': {}
 
   '@types/mdast@4.0.4':
@@ -12333,6 +12317,8 @@ snapshots:
   semver@6.3.1: {}
 
   semver@7.8.5: {}
+
+  server-only@0.0.1: {}
 
   set-function-length@1.2.2:
     dependencies:

@@ -1,4 +1,4 @@
-import { toText } from "./values.js";
+import { toText } from "./values.ts";
 
 /**
  * The legacy 'Item' column holds box / tomobako notes, e.g.

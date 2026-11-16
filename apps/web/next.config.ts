@@ -44,8 +44,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // @jvb/db and @jvb/ui ship raw TypeScript / CSS source from the workspace.
-  transpilePackages: ["@jvb/db", "@jvb/ui"],
+  // @jvb/db ships raw TypeScript source from the workspace. (The website does
+  // not use @jvb/ui's tokens yet; add it here again with the dependency.)
+  transpilePackages: ["@jvb/db"],
   images: {
     remotePatterns: [
       {

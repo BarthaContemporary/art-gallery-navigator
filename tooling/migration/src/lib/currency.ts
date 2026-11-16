@@ -1,4 +1,4 @@
-import { toText } from "./values.js";
+import { toText } from "./values.ts";
 
 /** Map legacy currency symbols (and codes) to ISO 4217 codes. */
 const CURRENCY_MAP: Record<string, string> = {
@@ -20,8 +20,11 @@ export function parseCurrency(v: unknown): string | null {
 
 /**
  * GBP amount from a foreign amount and FX rate (rate = GBP per unit of the
- * foreign currency, as stored by FileMaker). When the currency already is
- * GBP and no rate is present, the amount passes through unchanged.
+ * foreign currency, as stored by FileMaker). A GBP amount passes through
+ * unchanged. A rate of 0 or less counts as missing, and so does a rate of
+ * exactly 1 on a foreign currency (FileMaker's stale default): such an
+ * amount gets no GBP value (null, flagged by the cleaner) rather than the
+ * foreign figure written as pounds, which migration 0066 had to undo.
  */
 export function toGbp(
   amount: number | null,
@@ -29,7 +32,9 @@ export function toGbp(
   currency: string | null,
 ): number | null {
   if (amount === null) return null;
-  if (fx !== null) return Math.round(amount * fx * 100) / 100;
-  if (currency === "GBP" || currency === null) return amount;
-  return null;
+  if (currency === "GBP") return amount;
+  const rate = fx !== null && Number.isFinite(fx) && fx > 0 ? fx : null;
+  if (currency === null) return rate === null ? amount : Math.round(amount * rate * 100) / 100;
+  if (rate === null || rate === 1) return null;
+  return Math.round(amount * rate * 100) / 100;
 }

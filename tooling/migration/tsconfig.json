@@ -2,7 +2,11 @@
   "extends": "../../packages/config/tsconfig/base.json",
   "compilerOptions": {
     "types": ["node"],
-    "noEmit": true
+    "noEmit": true,
+    // Local imports name the .ts file, so `node --test` (which strips types
+    // but does not map .js to .ts) can load the modules the tests cover; tsx
+    // runs them the same way.
+    "allowImportingTsExtensions": true
   },
   "include": ["src"]
 }

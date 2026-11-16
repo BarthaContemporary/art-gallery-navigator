@@ -1,6 +1,7 @@
 // node --test packages/db/src/storage-path.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { assertStoragePath, safeStoragePath, UUID_PATTERN } from "./storage-path.ts";
 
 const piece = "0b8f7c1e-2d3a-4b5c-8d9e-0f1a2b3c4d5e";
@@ -56,4 +57,16 @@ test("prefix and pattern rules", () => {
 test("assertStoragePath throws on refusal", () => {
   assert.throws(() => assertStoragePath("../x"));
   assert.equal(assertStoragePath("a/b.jpg"), "a/b.jpg");
+});
+
+// The image worker is installed on its own (infra/image-worker/Dockerfile) and
+// cannot import @jvb/db, so it holds a copy of this module below a short
+// header. A tightening here must reach the worker: it guards its
+// service-role reads of piece-originals with it.
+test("the image worker's copy matches this module below its header", () => {
+  const original = readFileSync(new URL("./storage-path.ts", import.meta.url), "utf8");
+  const copy = readFileSync(new URL("../../../infra/image-worker/src/storage-path.ts", import.meta.url), "utf8");
+  const body = copy.replace(/^(\/\/.*\n)+\n/, "");
+  assert.notEqual(body, copy, "the copy's header comment is missing");
+  assert.equal(body, original);
 });

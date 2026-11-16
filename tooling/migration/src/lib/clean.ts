@@ -1,11 +1,11 @@
-import { COL, CONTAINER_COLUMNS, type RawRow } from "./columns.js";
-import { parseBox } from "./box.js";
-import { parseCurrency, toGbp } from "./currency.js";
-import { resolveDimensions } from "./dimensions.js";
-import { extractMaker } from "./maker.js";
-import { proposeCategory, proposeStatus } from "./mappings.js";
-import { normalizeStockNumber, stockStats } from "./stock.js";
-import { toIsoDate, toNumber, toText } from "./values.js";
+import { COL, CONTAINER_COLUMNS, type RawRow } from "./columns.ts";
+import { parseBox } from "./box.ts";
+import { parseCurrency, toGbp } from "./currency.ts";
+import { resolveDimensions } from "./dimensions.ts";
+import { extractMaker } from "./maker.ts";
+import { proposeCategory, proposeStatus } from "./mappings.ts";
+import { normalizeStockNumber, stockStats } from "./stock.ts";
+import { toIsoDate, toNumber, toText } from "./values.ts";
 
 export interface CleanIssue {
   row_number: number;
@@ -112,8 +112,25 @@ export function cleanRows(rawRows: RawRow[]): CleanResult {
       push(rn, COL.sellCurrency, "currency_unknown", sellCurrencyRaw);
     }
 
-    const purchaseCost = toNumber(d[COL.purchaseCost]);
-    const purchaseFx = toNumber(d[COL.purchaseFx]);
+    // A cell with something in it that does not read as a number (or date)
+    // is written as empty: say so in issues.csv instead of losing it quietly.
+    const money = (column: string): number | null => {
+      const n = toNumber(d[column]);
+      const raw = toText(d[column]);
+      if (n === null && raw !== null) push(rn, column, "number_parse_failed", raw);
+      return n;
+    };
+    const purchaseDateRaw = toText(d[COL.datePurchased]);
+    const purchaseDate = toIsoDate(d[COL.datePurchased]);
+    if (purchaseDateRaw !== null && purchaseDate === null) {
+      push(rn, COL.datePurchased, "date_parse_failed", purchaseDateRaw);
+    }
+
+    const purchaseCost = money(COL.purchaseCost);
+    const purchaseFx = money(COL.purchaseFx);
+    if (purchaseFx !== null && purchaseFx <= 0) {
+      push(rn, COL.purchaseFx, "fx_not_positive", String(purchaseFx));
+    }
     const purchaseCostGbp = toGbp(purchaseCost, purchaseFx, purchaseCurrency);
     if (
       purchaseCost !== null &&
@@ -129,8 +146,9 @@ export function cleanRows(rawRows: RawRow[]): CleanResult {
       push(rn, COL.purchaseFx, "fx_missing_for_foreign_currency",
         `${purchaseCurrencyRaw ?? "?"} ${purchaseCost}`);
     }
-    const soldPrice = toNumber(d[COL.soldPrice]);
-    const sellFx = toNumber(d[COL.sellFx]);
+    const soldPrice = money(COL.soldPrice);
+    const soldPriceRaw = toText(d[COL.soldPrice]);
+    const sellFx = money(COL.sellFx);
     const soldPriceGbp = toGbp(soldPrice, sellFx, sellCurrency);
 
     // (d) box fields from 'Item'
@@ -151,6 +169,10 @@ export function cleanRows(rawRows: RawRow[]): CleanResult {
     }
     if (soldPrice !== null && soldPrice > 0) {
       signals.push(`Sold price=${soldPrice}`);
+    } else if (soldPrice === null && soldPriceRaw !== null && /[1-9]/.test(soldPriceRaw)) {
+      // '£3,000 (incl. frame)' does not parse, but a price was recorded:
+      // still a sale (the number itself is in issues.csv).
+      signals.push(`Sold price='${soldPriceRaw}'`);
     }
     const proposedStatus: "sold" | "in_stock" = signals.length > 0 ? "sold" : "in_stock";
     if (proposedStatus === "sold") {
@@ -193,14 +215,14 @@ export function cleanRows(rawRows: RawRow[]): CleanResult {
       proposed_maker: maker?.proposed_maker ?? null,
       proposed_maker_life_dates: maker?.life_dates ?? null,
 
-      purchase_date: toIsoDate(d[COL.datePurchased]),
+      purchase_date: purchaseDate,
       purchase_cost: purchaseCost,
       purchase_currency: purchaseCurrency ?? purchaseCurrencyRaw,
       purchase_fx: purchaseFx,
       purchase_cost_gbp: purchaseCostGbp,
-      restoration_cost: toNumber(d[COL.restorationCost]),
-      other_cost: toNumber(d[COL.otherCost]),
-      marked_price: toNumber(d[COL.markedPrice]),
+      restoration_cost: money(COL.restorationCost),
+      other_cost: money(COL.otherCost),
+      marked_price: money(COL.markedPrice),
       sold_price: soldPrice,
       sell_currency: sellCurrency ?? sellCurrencyRaw,
       sell_fx: sellFx,
