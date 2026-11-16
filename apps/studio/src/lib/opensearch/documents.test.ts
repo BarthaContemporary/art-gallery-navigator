@@ -63,11 +63,11 @@ function workSource(over: Record<string, unknown> = {}) {
     category: { id: "c1", name: "Ceramics" },
     location: { id: "l1", code: "SJ-B2", name: "Back room" },
     provenance: [
-      { piece_id: W, sort_order: 2, date_text: "2001", party: "Mr Smith", details: null },
-      { piece_id: W, sort_order: 1, date_text: "1985", party: "Acquired from the artist", details: null },
-      { piece_id: "someone-else", sort_order: 0, date_text: "x", party: "SECRET-other-work", details: null },
+      { id: "SECRET-prov-row-1", piece_id: W, sort_order: 2, date_text: "2001", party: "Mr Smith", details: null },
+      { id: "SECRET-prov-row-2", piece_id: W, sort_order: 1, date_text: "1985", party: "Acquired from the artist", details: null },
+      { id: "SECRET-prov-row-3", piece_id: "someone-else", sort_order: 0, date_text: "x", party: "SECRET-other-work", details: null },
     ],
-    moves: [{ piece_id: W, from_stock_number: "2023-0099" }, { piece_id: W, from_stock_number: "2024-0003" }],
+    moves: [{ id: "SECRET-move-row-1", piece_id: W, from_stock_number: "2023-0099" }, { id: "SECRET-move-row-2", piece_id: W, from_stock_number: "2024-0003" }],
   };
 }
 

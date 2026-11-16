@@ -181,8 +181,11 @@ export async function reconcileKind(db: Db, cfg: SearchConfig, kind: SearchKind)
     return finish({ ...result, status: up.blocked ? "blocked" : "failed", error: `upsert: ${describeFailures(up)}` });
   }
 
-  // 4. Whatever the index holds that the database does not, at the same version:
-  //    a record created (and drained) since the clock has a newer version and stays.
+  // 4. Whatever the index holds that the full read did not, at the same
+  //    version: a record created (and drained) since the clock has a newer
+  //    version and stays. Each such id is read again by id first, whatever
+  //    its state: one that is live after all (it changed state while the
+  //    pages were read) is written, and only the rest are deleted.
   let indexed: string[];
   try {
     indexed = await listIndexedIds(cfg, kind);
@@ -190,8 +193,20 @@ export async function reconcileKind(db: Db, cfg: SearchConfig, kind: SearchKind)
     return finish({ ...result, status: "failed", error: err instanceof Error ? err.message : "listing ids failed" });
   }
   const stale = indexed.filter((id) => !built.kept.has(id));
-  const del = await bulk(cfg, kind, stale.map((id) => ({ op: "delete" as const, id })), { version: clock.clock, refresh: false, timeoutMs: 60_000 });
-  result.removed = del.ok;
+  let recheck: BulkAction[] = [];
+  if (stale.length) {
+    try {
+      recheck = (await actionsFor(db, kind, stale)).actions;
+    } catch {
+      return finish({ ...result, status: "failed", error: "loading rows failed" });
+    }
+  }
+  const del = await bulk(cfg, kind, recheck, { version: clock.clock, refresh: false, timeoutMs: 60_000 });
+  for (const item of del.items) {
+    if (item.result !== "ok") continue;
+    if (item.op === "delete") result.removed += 1;
+    else result.indexed += 1;
+  }
   result.superseded += del.superseded;
   if (del.blocked || del.failed) {
     result.failed += del.failed + del.blocked;
@@ -498,15 +513,21 @@ export type SearchStatus = {
   otherIndices: string[];
   /** False until migration 0100 is applied. */
   setUp: boolean;
-  /** Outbox rows waiting (null when not set up). */
+  /** Outbox rows waiting (null when not set up, or when the count did not come back). */
   pending: number | null;
   state: Partial<Record<StateKind, StateRow>>;
 };
 
+/**
+ * A count, or null when it is not known. postgrest-js answers a HEAD on a
+ * table that does not exist with NO error (PostgREST's 404 has no body, and
+ * postgrest-js turns that into status 204), count null: so a missing count is
+ * "unknown", never 0, and a HEAD can never tell whether a table exists.
+ */
 async function count(q: PromiseLike<{ count: number | null; error: PgError; status?: number }>): Promise<{ n: number | null; notSetUp: boolean }> {
   const { count: n, error, status } = await q;
   if (error) return { n: null, notSetUp: isNotSetUp(error, status) };
-  return { n: n ?? 0, notSetUp: false };
+  return { n: typeof n === "number" ? n : null, notSetUp: false };
 }
 
 /** Everything the Admin "Search" section shows. Never throws. */
@@ -517,7 +538,9 @@ export async function searchStatus(db: Db, cfg: SearchConfig | null): Promise<Se
     count(db.from("external_pieces").select("id", head).is("deleted_at", null)),
     count(db.from("makers").select("id", head)),
     count(db.from("crm_contacts").select("id", head).is("erased_at", null)),
-    count(db.from("search_outbox").select("id", head)),
+    // A GET, not a HEAD: only an answer with a body says the table is missing
+    // (42P01 from PostgREST 12, as infra/compose runs; PGRST205 from 13).
+    count(db.from("search_outbox").select("id", { count: "exact" }).limit(1)),
     db.from("search_state").select("kind, last_run_at, last_result, last_error"),
   ]);
   const database: Record<SearchKind, number | null> = {
@@ -529,7 +552,8 @@ export async function searchStatus(db: Db, cfg: SearchConfig | null): Promise<Se
   for (const row of ((stateRes.error ? [] : stateRes.data) ?? []) as { kind: StateKind; last_run_at: string | null; last_result: string | null; last_error: string | null }[]) {
     state[row.kind] = { lastRunAt: row.last_run_at, lastResult: row.last_result, lastError: row.last_error };
   }
-  const setUp = !outbox.notSetUp;
+  // Both of 0100's tables must answer: either one missing means it is not (fully) applied.
+  const setUp = !outbox.notSetUp && !(stateRes.error && isNotSetUp(stateRes.error, stateRes.status));
 
   const prefix = cfg?.prefix ?? "jvb";
   const indices: IndexStatus[] = SEARCH_KINDS.map((kind) => ({

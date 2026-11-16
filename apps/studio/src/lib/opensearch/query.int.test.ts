@@ -104,13 +104,50 @@ test("every fixture document fits its strict mapping, and the trash and erased c
   assert.deepEqual(await find("contacts", "Erased"), []);
 });
 
-test("contacts keep no copy: nothing can be read back from a hit", { skip }, async () => {
-  const r = await os("POST", `/${cfg.indices.contacts}/_search`, { size: 3, query: { match_all: {} }, docvalue_fields: ["email.raw"], stored_fields: ["*"] });
-  assert.ok(r.status === 200 || r.status === 400);
-  for (const h of r.json?.hits?.hits ?? []) {
+test("contacts: hits carry no _source and no doc values", { skip }, async () => {
+  // Asked for outright, the stored document is not there to return.
+  let r = await os("POST", `/${cfg.indices.contacts}/_search`, { size: 3, query: { match_all: {} }, _source: true, stored_fields: ["*"] });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.hits.hits.length, 3);
+  for (const h of r.json.hits.hits) {
     assert.equal(h._source, undefined);
     assert.equal(h.fields, undefined);
   }
+  // The fields API needs _source: refused.
+  r = await os("POST", `/${cfg.indices.contacts}/_search`, { size: 3, query: { match_all: {} }, fields: ["*"] });
+  assert.equal(r.status, 400);
+  // Doc values: none on the keyword fields (the uuid `id` keeps its own; it is every hit's _id anyway).
+  r = await os("POST", `/${cfg.indices.contacts}/_search`, { size: 3, query: { match_all: {} }, docvalue_fields: ["email.raw"] });
+  assert.equal(r.status, 400);
+});
+
+test("contacts: a search password can still read indexed terms back (explain): a leak is a disclosure", { skip }, async () => {
+  // What mappings.ts says, pinned: _source and doc values are off, but the
+  // terms themselves are in the index, and explain (or profile) names every
+  // term a query matched. Caddy cannot read bodies, so whoever holds the
+  // search password can list each contact's indexed name, email, phone,
+  // city and country. If this ever stops holding, the docs can say less.
+  // (Over this many contacts an empty prefix passes the clause limit; a
+  // prefix per letter, or a top_terms rewrite, reads the same terms.)
+  const bewick = contactId("Bewick");
+  const r = await os("POST", `/${cfg.indices.contacts}/_search`, {
+    size: 1,
+    explain: true,
+    query: {
+      bool: {
+        filter: [{ ids: { values: [bewick] } }],
+        should: [
+          { prefix: { all: { value: "b", rewrite: "scoring_boolean" } } },
+          { prefix: { phones: { value: "0207946", rewrite: "scoring_boolean" } } },
+        ],
+      },
+    },
+  });
+  assert.equal(r.status, 200, JSON.stringify(r.json?.error?.type));
+  const explained = JSON.stringify(r.json.hits.hits[0]?._explanation ?? null);
+  assert.equal(r.json.hits.hits[0]?._source, undefined);
+  assert.match(explained, /all:bewick/, "a name read back from one letter");
+  assert.match(explained, /phones:02079460018/, "the whole number read back from its first digits");
 });
 
 test("a whole stock number, current, legacy or other register, finds exactly that work", { skip }, async () => {
@@ -124,6 +161,49 @@ test("a whole stock number, current, legacy or other register, finds exactly tha
   assert.deepEqual(await find("works", "2026-0338"), [NETSUKE], "not its neighbour 2026-0339");
   // The fuzzy pass changes nothing for an identifier.
   assert.deepEqual(await find("works", "2024-0003", { fuzzy: true }), [exact.id]);
+});
+
+test("a whole stock number cannot be assembled from parts in different fields", { skip }, async () => {
+  // Postgres's websearch_to_tsquery('2024-0003') is '2024' <-> '-0003': adjacent, in order.
+  // Each work below holds "2024" and "0003" somewhere, but only A as one number.
+  const x = testSearchConfig(process.env.OPENSEARCH_TEST_URL!, `${prefix}-x`);
+  const r = await os("PUT", `/${x.indices.works}`, indexBody("works", INDEX_VERSION.works));
+  assert.equal(r.status, 200);
+  try {
+    const base = { ...db.tables.pieces.find((p: Row) => !p.deleted_at) } as Row;
+    const work = (id: string, stock: string, over: Row, provenance: string[] = []) =>
+      workDoc({
+        work: { ...base, id, stock_number: stock, legacy_stock_number: null, title: "Tea bowl", year: null, description: null, comments: null, tags: [], publications: [], exhibitions: [], published_note: null, ...over },
+        maker: null,
+        category: null,
+        location: null,
+        provenance: provenance.map((details, i) => ({ id: `${id}-p${i}`, piece_id: id, sort_order: i, date_text: null, party: null, details })),
+        moves: [],
+      });
+    const docs = [
+      work("A", "2024-0003", {}),
+      work("B", "2019-0003", { exhibitions: ["Asian Art in London, November 2024"] }),
+      work("C", "2021-0003", {}, ["Private collection, London, until 2024"]),
+      work("D", "2024-0117", { publications: ["Sale catalogue 0003"] }),
+      work("E", "2018-0042", { year: "2024", description: "Lot 0003" }),
+    ] as Row[];
+    const res = await bulk(x, "works", docs.map((d) => ({ op: "index", id: d.id, doc: d })), { version: 1, refresh: true });
+    assert.equal(res.ok, 5);
+    for (const fuzzy of [false, true]) {
+      for (const q of ["2024-0003", "2024-0003 "]) {
+        resetCircuit();
+        const ids = await searchIds(x, "works", buildSearch("works", q, { fuzzy })!, { size: 50, timeoutMs: 5000 });
+        assert.deepEqual(ids, ["A"], `${JSON.stringify(q)} fuzzy=${fuzzy}`);
+      }
+    }
+    // The other numbers are still found whole, and a part still finds every work that holds it.
+    resetCircuit();
+    assert.deepEqual(await searchIds(x, "works", buildSearch("works", "2019-0003")!, { size: 50, timeoutMs: 5000 }), ["B"]);
+    resetCircuit();
+    assert.deepEqual(new Set(await searchIds(x, "works", buildSearch("works", "0003")!, { size: 50, timeoutMs: 5000 })), new Set(["A", "B", "C", "D", "E"]));
+  } finally {
+    await os("DELETE", `/${x.indices.works}`);
+  }
 });
 
 test("part of a stock number finds what Postgres's 'contains' finds, plus former numbers", { skip }, async () => {
@@ -233,10 +313,14 @@ test("the merge: Postgres's stock hits lead, nothing Postgres finds is lost, a b
     db.tables.pieces.push(fresh);
     r = await search.searchWorkIds(db, "2026-0999", { roles: ["admin"], timeoutMs: 5000 });
     assert.deepEqual(r.ids, [fresh.id]);
-    // Only OpenSearch knows the provenance: found and labelled.
-    r = await search.searchWorkIds(db, "acquired artist", { roles: ["admin"], timeoutMs: 5000 });
+    // Only OpenSearch knows the provenance: found, and labelled at the palette's size.
+    r = await search.searchWorkIds(db, "acquired artist", { roles: ["admin"], size: 12, timeoutMs: 5000 });
     assert.ok(r.ids.length > 0);
     assert.ok(Object.values(r.matched ?? {}).includes("provenance"));
+    // The inventory's size: the same works, no highlights asked for, no labels.
+    const all = await search.searchWorkIds(db, "acquired artist", { roles: ["admin"], timeoutMs: 5000 });
+    assert.ok(all.ids.length >= r.ids.length);
+    assert.equal(all.matched, undefined);
     // Nothing exact anywhere: the fuzzy pass, labelled similar.
     r = await search.searchWorkIds(db, "Yosia", { roles: ["staff"], fuzzy: true, timeoutMs: 5000 });
     assert.equal(r.similar, true);

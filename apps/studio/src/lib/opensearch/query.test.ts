@@ -30,6 +30,34 @@ test("identifier rule: a term with a digit or an @ is never fuzzy, in either pas
   assert.deepEqual(fuzzyQueries(buildSearch("contacts", "Bewick bewick@example.com", { fuzzy: true })), ["Bewick"]);
 });
 
+test("identifier rule: a term with a digit or an @ is a phrase (its parts adjacent, in one value), never best_fields", () => {
+  const textMatches = (body: unknown) =>
+    find(body as Json, "multi_match").map((o) => o.multi_match as { query: string; type: string; fields: string[] });
+  // (For contacts "2024-0003" is a phone search; their identifiers are emails, below.)
+  for (const kind of ["works", "makers"] as const) {
+    for (const fuzzy of [false, true]) {
+      // "2024-0003" is the last term (typing): a phrase, and a phrase prefix.
+      const id = textMatches(buildSearch(kind, "2024-0003", { fuzzy })).filter((m) => m.query === "2024-0003");
+      assert.deepEqual(id.map((m) => m.type).sort(), ["phrase", "phrase_prefix"], `${kind} fuzzy=${fuzzy}`);
+      // Finished (trailing space): the phrase alone.
+      const done = textMatches(buildSearch(kind, "2024-0003 ", { fuzzy })).filter((m) => m.query === "2024-0003");
+      assert.deepEqual(done.map((m) => m.type), ["phrase"], `${kind} fuzzy=${fuzzy}`);
+    }
+  }
+  for (const fuzzy of [false, true]) {
+    const email = textMatches(buildSearch("contacts", "lucy.bewick@example.com", { fuzzy })).filter((m) => m.query === "lucy.bewick@example.com");
+    assert.deepEqual(email.map((m) => m.type).sort(), ["phrase", "phrase_prefix"], `contacts fuzzy=${fuzzy}`);
+  }
+  // The phrase runs over the plan's fields, `all` included (a stock number is copied there), so values stay apart.
+  const works = textMatches(buildSearch("works", "2024-0003 ")).find((m) => m.type === "phrase" && m.query === "2024-0003")!;
+  assert.ok(works.fields.includes("all^1"));
+  // An email is an identifier too; plain words keep best_fields and bool_prefix.
+  const mixed = textMatches(buildSearch("contacts", "lucy.bewick@example.com Bewick"));
+  assert.deepEqual(mixed.filter((m) => m.query === "lucy.bewick@example.com").map((m) => m.type), ["phrase"]);
+  assert.deepEqual(mixed.filter((m) => m.query === "Bewick").map((m) => m.type).sort(), ["best_fields", "bool_prefix"]);
+  assert.deepEqual(textMatches(buildSearch("works", "Yosai 1955 ")).filter((m) => m.query === "1955").map((m) => m.type), ["phrase"]);
+});
+
 test("the strict pass has no fuzziness at all", () => {
   for (const q of ["Yosai", "netsuke ivory Masanao", "laquer boxes", "Dr Lucy Bewick"]) {
     for (const kind of ["works", "makers", "contacts"] as const) assert.deepEqual(fuzzyQueries(buildSearch(kind, q)), [], `${kind} ${q}`);

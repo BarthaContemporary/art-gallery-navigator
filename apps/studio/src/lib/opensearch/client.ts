@@ -207,7 +207,8 @@ export type BulkAction = { op: "index"; id: string; doc: Record<string, unknown>
  *   gone        404 on a delete: there was nothing to delete
  *   blocked     429 cluster_block_exception: the index is read-only (disk full)
  *   failed      anything else; `type` says what (e.g. index_not_found_exception,
- *               strict_dynamic_mapping_exception, timeout)
+ *               strict_dynamic_mapping_exception, timeout, or a 429
+ *               es_rejected_execution_exception: a full queue, not a block)
  */
 export type BulkItemResult = "ok" | "superseded" | "gone" | "blocked" | "failed";
 export type BulkItem = { id: string; op: "index" | "delete"; result: BulkItemResult; status: number; type?: string };
@@ -255,11 +256,21 @@ export function chunkLines<T extends { bytes: number }>(lines: readonly T[], max
   return out;
 }
 
+/**
+ * A read-only block (the disk's flood stage) answers 429 cluster_block_exception.
+ * Any other 429 (es_rejected_execution_exception: the write queue is full) is
+ * a passing overload, a plain failure that the lapsing claim retries: it must
+ * never make the erase action drop the contacts index.
+ */
+export function isBlock(status: number, type: string | undefined): boolean {
+  return status === 429 && type === "cluster_block_exception";
+}
+
 function classify(op: "index" | "delete", status: number, type: string | undefined): BulkItemResult {
   if (status >= 200 && status < 300) return "ok";
   if (status === 409) return "superseded";
   if (status === 404 && op === "delete" && type !== "index_not_found_exception") return "gone";
-  if (status === 429) return "blocked";
+  if (isBlock(status, type)) return "blocked";
   return "failed";
 }
 
@@ -285,11 +296,12 @@ export async function bulk(
     const items = (res.json as { items?: Record<string, { _id?: string; status?: number; error?: { type?: unknown } }>[] } | null)?.items;
     if (res.error || !Array.isArray(items) || items.length !== chunk.length) {
       // The whole request failed (or answered something that is not a bulk
-      // response): every action in it shares the outcome. Only a 429 is
-      // anything but a plain failure; a 404 means the index (or the route) is
-      // missing, never that a document is already gone.
+      // response): every action in it shares the outcome. Only a 429
+      // cluster_block_exception is anything but a plain failure; a 404 means
+      // the index (or the route) is missing, never that a document is already
+      // gone.
       const e = res.error ?? { status: 0, type: "bad_response" };
-      const result: BulkItemResult = e.status === 429 ? "blocked" : "failed";
+      const result: BulkItemResult = isBlock(e.status, e.type) ? "blocked" : "failed";
       for (const l of chunk) push(out, { id: l.id, op: l.op, result, status: e.status, type: e.type });
       if (e.status === 404 || e.type === "index_not_found_exception") out.indexMissing = true;
       continue;

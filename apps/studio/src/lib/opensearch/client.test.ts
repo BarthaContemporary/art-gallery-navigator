@@ -176,7 +176,7 @@ test("bulk: index account, NDJSON, external_gte versions, no _index in action li
   assert.equal(calls[1]!.url, "https://search.example.com/jvb-makers-v1/_bulk?refresh=false");
 });
 
-test("bulk results: ok, superseded (409), gone (404 delete), blocked (429), failed, index missing", async () => {
+test("bulk results: ok, superseded (409), gone (404 delete), blocked (429 cluster block), failed, index missing", async () => {
   reply = () =>
     bulkReply([
       ["index", 201],
@@ -186,15 +186,20 @@ test("bulk results: ok, superseded (409), gone (404 delete), blocked (429), fail
       ["index", 429, "cluster_block_exception"],
       ["index", 400, "strict_dynamic_mapping_exception"],
       ["delete", 404, "index_not_found_exception"],
+      // A full write queue is a passing overload, retried by the lapsing claim: not a read-only block.
+      ["delete", 429, "es_rejected_execution_exception"],
+      ["index", 429],
     ]);
-  const actions = Array.from({ length: 7 }, (_, i) => (i === 2 || i === 3 || i === 6 ? { op: "delete" as const, id: `d${i}` } : { op: "index" as const, id: `d${i}`, doc: { id: `d${i}` } }));
+  const deletes = new Set([2, 3, 6, 7]);
+  const actions = Array.from({ length: 9 }, (_, i) => (deletes.has(i) ? { op: "delete" as const, id: `d${i}` } : { op: "index" as const, id: `d${i}`, doc: { id: `d${i}` } }));
   const r = await bulk(cfg, "contacts", actions, { version: 5 });
-  assert.deepEqual(r.items.map((i: { result: string }) => i.result), ["ok", "superseded", "gone", "superseded", "blocked", "failed", "failed"]);
-  assert.deepEqual([r.ok, r.superseded, r.gone, r.blocked, r.failed], [1, 2, 1, 1, 2]);
+  assert.deepEqual(r.items.map((i: { result: string }) => i.result), ["ok", "superseded", "gone", "superseded", "blocked", "failed", "failed", "failed", "failed"]);
+  assert.deepEqual([r.ok, r.superseded, r.gone, r.blocked, r.failed], [1, 2, 1, 1, 4]);
   assert.equal(r.indexMissing, true);
   assert.equal(r.items[5].type, "strict_dynamic_mapping_exception");
+  assert.deepEqual([r.items[7].status, r.items[7].type], [429, "es_rejected_execution_exception"]);
   const d = describeFailures(r);
-  assert.match(d, /2 failed, 1 blocked/);
+  assert.match(d, /4 failed, 1 blocked/);
   assert.ok(!d.includes("Hiroshi") && !JSON.stringify(r).includes("Hiroshi"), "reasons are dropped");
 });
 
@@ -207,6 +212,12 @@ test("bulk: a request that fails as a whole gives every action its outcome", asy
   reply = () => json(429, { error: { type: "cluster_block_exception" } });
   r = await bulk(cfg, "works", [{ op: "delete", id: "a" }], { version: 1 });
   assert.equal(r.items[0].result, "blocked");
+  reply = () => json(429, { error: { type: "es_rejected_execution_exception" } });
+  r = await bulk(cfg, "works", [{ op: "delete", id: "a" }], { version: 1 });
+  assert.deepEqual([r.items[0].result, r.items[0].type], ["failed", "es_rejected_execution_exception"], "a full queue is not a block");
+  reply = () => new Response("Too Many Requests", { status: 429 });
+  r = await bulk(cfg, "works", [{ op: "delete", id: "a" }], { version: 1 });
+  assert.equal(r.items[0].result, "failed", "a 429 without the block type is not a block");
   reply = () => json(404, { error: { type: "index_not_found_exception" } });
   r = await bulk(cfg, "works", [{ op: "delete", id: "a" }], { version: 1 });
   assert.equal(r.items[0].result, "failed", "a missing index is not a document already gone");

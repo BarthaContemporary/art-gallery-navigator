@@ -80,15 +80,32 @@ test("works: the stock-number hit leads, then OpenSearch's order, then the rest 
   assert.equal(requests.length, 1);
   assert.ok(requests[0]!.url.endsWith("/oslib-unit-works-v1/_search"));
   assert.equal(requests[0]!.body.size, 12);
-  assert.ok(requests[0]!.body.highlight, "the strict works pass asks for highlights, to name the field");
+  assert.ok(requests[0]!.body.highlight, "the palette's strict works pass asks for highlights, to name the field");
   assert.equal(isFuzzy(requests[0]!.body), false);
 });
 
 test("works: 'matched' labels a hit found outside the title, maker and stock number", async () => {
   const db = new FakeDb();
   answer = () => hits(["w-prov", ["provenance"]], ["w-title", ["title", "provenance"]], "w-plain");
-  const r = await search.searchWorkIds(db as never, "artist", { roles: ["admin"] });
+  const r = await search.searchWorkIds(db as never, "artist", { roles: ["admin"], size: 12 });
   assert.deepEqual(r.matched, { "w-prov": "provenance" });
+  assert.ok(requests[0]!.body.highlight);
+});
+
+test("works: no highlights at the inventory's size (they cost five times the search); no 'matched'", async () => {
+  const db = new FakeDb();
+  answer = () => hits(["w-prov", ["provenance"]]);
+  for (const size of [undefined, 10_000, search.MATCHED_MAX_SIZE + 1]) {
+    requests = [];
+    const r = await search.searchWorkIds(db as never, "artist", { roles: ["admin"], ...(size === undefined ? {} : { size }) });
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0]!.body.highlight, undefined, `size ${size}`);
+    assert.equal(requests[0]!.body.size, size ?? 10_000);
+    assert.equal(r.matched, undefined);
+  }
+  requests = [];
+  await search.searchWorkIds(db as never, "artist", { roles: ["admin"], size: search.MATCHED_MAX_SIZE });
+  assert.ok(requests[0]!.body.highlight, "the palette's size still names the field");
 });
 
 test("fuzzy: only when strict and Postgres found nothing, labelled similar; never when OpenSearch is down", async () => {

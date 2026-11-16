@@ -2,8 +2,9 @@
  * Loaders for the document builders: the SERVICE client (the index holds
  * every record a staff member may read, whoever later searches it), named
  * columns only (documents.ts holds the lists), ids in chunks of 100
- * (lib/chunk.ts) and every select paged, so neither the gateway's URL limit
- * nor PostgREST's row cap can silently cut a result short.
+ * (lib/chunk.ts) and every select paged by keyset on `id`, so neither the
+ * gateway's URL limit, PostgREST's row cap nor a row changing state while
+ * the pages are read can silently cut a result short.
  *
  * Every function throws on a database error: the drain then leaves its
  * claims to lapse and the reconcile writes nothing for that kind.
@@ -38,27 +39,51 @@ import {
 
 type Db = SupabaseClient;
 type Page<Row> = PromiseLike<{ data: Row[] | null; error: { message: string } | null }>;
+type Keyed = { id: string };
 
-/** PostgREST's default row cap; a page this full means there may be another. */
-const PAGE = 1000;
+/** PostgREST's row cap (supabase/config.toml max_rows); a page this full means there may be another. */
+const PAGE_ROWS = 1000;
+let pageRows = PAGE_ROWS;
+/** TEST ONLY: a smaller page, so the paging is exercised with the fixtures; undefined restores it. */
+export function setPageRowsForTests(n: number | undefined): void {
+  pageRows = n === undefined ? PAGE_ROWS : Math.max(1, Math.trunc(n));
+}
 
-/** Every row of a query, page by page (the query must be ordered on a unique column). */
-async function allPages<Row>(page: (from: number, to: number) => Page<Row>): Promise<Row[]> {
+/** The query builder calls keyset paging needs (supabase-js's filter builder has them all). */
+type KeysetQuery = { gt(column: "id", value: string): KeysetQuery; order(column: "id"): { limit(count: number): unknown } };
+
+/**
+ * One page of a query: rows after `after` in id order. Keyset, not offset:
+ * with offsets, a row that left the filter while the pages were read (a work
+ * trashed, a contact erased) shifted every later page left, one live row was
+ * never read, and the reconcile then deleted it from the index.
+ */
+function keyset<Row>(query: unknown, after: string | null): Page<Row> {
+  const q = query as KeysetQuery;
+  return (after === null ? q : q.gt("id", after)).order("id").limit(pageRows) as Page<Row>;
+}
+
+/** Every row of a query, page by page on the unique `id` (selected by every caller). */
+async function allPages<Row extends Keyed>(page: (after: string | null) => Page<Row>): Promise<Row[]> {
   const out: Row[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await page(from, from + PAGE - 1);
+  let after: string | null = null;
+  for (;;) {
+    const { data, error } = await page(after);
     if (error) throw new Error(error.message);
     const rows = data ?? [];
     out.push(...rows);
-    if (rows.length < PAGE) return out;
+    if (rows.length < pageRows) return out;
+    const last = rows[rows.length - 1]?.id;
+    if (typeof last !== "string" || (after !== null && last <= after)) throw new Error("paging made no progress");
+    after = last;
   }
 }
 
 /** Rows for a list of ids (or of foreign keys), 100 ids per request, each request paged. */
-function byIds<Row>(ids: readonly string[], page: (chunk: string[], from: number, to: number) => Page<Row>): Promise<Row[]> {
+function byIds<Row extends Keyed>(ids: readonly string[], page: (chunk: string[], after: string | null) => Page<Row>): Promise<Row[]> {
   return selectInChunks<Row>(ids, async (chunk) => {
     try {
-      return { data: await allPages<Row>((from, to) => page(chunk, from, to)), error: null };
+      return { data: await allPages<Row>((after) => page(chunk, after)), error: null };
     } catch (err) {
       return { data: null, error: { message: err instanceof Error ? err.message : String(err) } };
     }
@@ -90,37 +115,29 @@ function group<Row, K extends keyof Row>(rows: readonly Row[], key: K): Map<stri
 export async function loadWorkSources(db: Db, ids: readonly string[] | "all"): Promise<Map<string, WorkSource>> {
   const works =
     ids === "all"
-      ? await allPages<WorkRow>((from, to) =>
-          db.from("vw_pieces_all").select(cols(WORK_COLUMNS)).is("deleted_at", null).order("id").range(from, to) as unknown as Page<WorkRow>,
-        )
-      : await byIds<WorkRow>(ids, (chunk, from, to) =>
-          db.from("vw_pieces_all").select(cols(WORK_COLUMNS)).in("id", chunk).order("id").range(from, to) as unknown as Page<WorkRow>,
-        );
+      ? await allPages<WorkRow>((after) => keyset(db.from("vw_pieces_all").select(cols(WORK_COLUMNS)).is("deleted_at", null), after))
+      : await byIds<WorkRow>(ids, (chunk, after) => keyset(db.from("vw_pieces_all").select(cols(WORK_COLUMNS)).in("id", chunk), after));
   if (works.length === 0) return new Map();
   const workIds = works.map((w) => w.id);
   const [makers, categories, locations, provenance, moves] = await Promise.all([
-    byIds<WorkMakerRow>(uniq(works.map((w) => w.maker_id)), (chunk, from, to) =>
-      db.from("makers").select(cols(WORK_MAKER_COLUMNS)).in("id", chunk).order("id").range(from, to) as unknown as Page<WorkMakerRow>,
+    byIds<WorkMakerRow>(uniq(works.map((w) => w.maker_id)), (chunk, after) =>
+      keyset(db.from("makers").select(cols(WORK_MAKER_COLUMNS)).in("id", chunk), after),
     ),
-    byIds<CategoryRow>(uniq(works.map((w) => w.category_id)), (chunk, from, to) =>
-      db.from("categories").select(cols(CATEGORY_COLUMNS)).in("id", chunk).order("id").range(from, to) as unknown as Page<CategoryRow>,
+    byIds<CategoryRow>(uniq(works.map((w) => w.category_id)), (chunk, after) =>
+      keyset(db.from("categories").select(cols(CATEGORY_COLUMNS)).in("id", chunk), after),
     ),
-    byIds<LocationRow>(uniq(works.map((w) => w.location_id)), (chunk, from, to) =>
-      db.from("locations").select(cols(LOCATION_COLUMNS)).in("id", chunk).order("id").range(from, to) as unknown as Page<LocationRow>,
+    byIds<LocationRow>(uniq(works.map((w) => w.location_id)), (chunk, after) =>
+      keyset(db.from("locations").select(cols(LOCATION_COLUMNS)).in("id", chunk), after),
     ),
     ids === "all"
-      ? allPages<ProvenanceRow>((from, to) =>
-          db.from("provenance_entries").select(cols(PROVENANCE_COLUMNS)).order("id").range(from, to) as unknown as Page<ProvenanceRow>,
-        )
-      : byIds<ProvenanceRow>(workIds, (chunk, from, to) =>
-          db.from("provenance_entries").select(cols(PROVENANCE_COLUMNS)).in("piece_id", chunk).order("id").range(from, to) as unknown as Page<ProvenanceRow>,
+      ? allPages<ProvenanceRow>((after) => keyset(db.from("provenance_entries").select(cols(PROVENANCE_COLUMNS)), after))
+      : byIds<ProvenanceRow>(workIds, (chunk, after) =>
+          keyset(db.from("provenance_entries").select(cols(PROVENANCE_COLUMNS)).in("piece_id", chunk), after),
         ),
     ids === "all"
-      ? allPages<LedgerMoveRow>((from, to) =>
-          db.from("piece_ledger_moves").select(cols(LEDGER_MOVE_COLUMNS)).order("id").range(from, to) as unknown as Page<LedgerMoveRow>,
-        )
-      : byIds<LedgerMoveRow>(workIds, (chunk, from, to) =>
-          db.from("piece_ledger_moves").select(cols(LEDGER_MOVE_COLUMNS)).in("piece_id", chunk).order("id").range(from, to) as unknown as Page<LedgerMoveRow>,
+      ? allPages<LedgerMoveRow>((after) => keyset(db.from("piece_ledger_moves").select(cols(LEDGER_MOVE_COLUMNS)), after))
+      : byIds<LedgerMoveRow>(workIds, (chunk, after) =>
+          keyset(db.from("piece_ledger_moves").select(cols(LEDGER_MOVE_COLUMNS)).in("piece_id", chunk), after),
         ),
   ]);
   const makerById = new Map(makers.map((m) => [m.id, m]));
@@ -144,22 +161,16 @@ export async function loadWorkSources(db: Db, ids: readonly string[] | "all"): P
 
 /** The works (outside the trash) of each maker: a renamed maker changes their documents. */
 export async function workIdsByMaker(db: Db, makerIds: readonly string[]): Promise<Map<string, string[]>> {
-  const rows = await byIds<{ id: string; maker_id: string }>(makerIds, (chunk, from, to) =>
-    db.from("vw_pieces_all").select("id, maker_id").in("maker_id", chunk).is("deleted_at", null).order("id").range(from, to) as unknown as Page<{
-      id: string;
-      maker_id: string;
-    }>,
+  const rows = await byIds<{ id: string; maker_id: string }>(makerIds, (chunk, after) =>
+    keyset(db.from("vw_pieces_all").select("id, maker_id").in("maker_id", chunk).is("deleted_at", null), after),
   );
   return idsBy(rows, "maker_id");
 }
 
 /** The works (outside the trash) in each category: a renamed category changes their documents. */
 export async function workIdsByCategory(db: Db, categoryIds: readonly string[]): Promise<Map<string, string[]>> {
-  const rows = await byIds<{ id: string; category_id: string }>(categoryIds, (chunk, from, to) =>
-    db.from("vw_pieces_all").select("id, category_id").in("category_id", chunk).is("deleted_at", null).order("id").range(from, to) as unknown as Page<{
-      id: string;
-      category_id: string;
-    }>,
+  const rows = await byIds<{ id: string; category_id: string }>(categoryIds, (chunk, after) =>
+    keyset(db.from("vw_pieces_all").select("id, category_id").in("category_id", chunk).is("deleted_at", null), after),
   );
   return idsBy(rows, "category_id");
 }
@@ -176,10 +187,8 @@ function idsBy<Row extends { id: string }, K extends keyof Row>(rows: readonly R
 export async function loadMakerRows(db: Db, ids: readonly string[] | "all"): Promise<Map<string, MakerRow>> {
   const rows =
     ids === "all"
-      ? await allPages<MakerRow>((from, to) => db.from("makers").select(cols(MAKER_COLUMNS)).order("id").range(from, to) as unknown as Page<MakerRow>)
-      : await byIds<MakerRow>(ids, (chunk, from, to) =>
-          db.from("makers").select(cols(MAKER_COLUMNS)).in("id", chunk).order("id").range(from, to) as unknown as Page<MakerRow>,
-        );
+      ? await allPages<MakerRow>((after) => keyset(db.from("makers").select(cols(MAKER_COLUMNS)), after))
+      : await byIds<MakerRow>(ids, (chunk, after) => keyset(db.from("makers").select(cols(MAKER_COLUMNS)).in("id", chunk), after));
   return new Map(rows.map((m) => [m.id, m]));
 }
 
@@ -193,15 +202,11 @@ export async function loadMakerRows(db: Db, ids: readonly string[] | "all"): Pro
 export async function loadContactSources(db: Db, ids: readonly string[] | "all"): Promise<Map<string, ContactSource>> {
   const contacts =
     ids === "all"
-      ? await allPages<ContactRow>((from, to) =>
-          db.from("crm_contacts").select(cols(CONTACT_COLUMNS)).is("erased_at", null).order("id").range(from, to) as unknown as Page<ContactRow>,
-        )
-      : await byIds<ContactRow>(ids, (chunk, from, to) =>
-          db.from("crm_contacts").select(cols(CONTACT_COLUMNS)).in("id", chunk).order("id").range(from, to) as unknown as Page<ContactRow>,
-        );
+      ? await allPages<ContactRow>((after) => keyset(db.from("crm_contacts").select(cols(CONTACT_COLUMNS)).is("erased_at", null), after))
+      : await byIds<ContactRow>(ids, (chunk, after) => keyset(db.from("crm_contacts").select(cols(CONTACT_COLUMNS)).in("id", chunk), after));
   if (contacts.length === 0) return new Map();
-  const orgs = await byIds<OrganizationRow>(uniq(contacts.map((c) => c.organization_id)), (chunk, from, to) =>
-    db.from("crm_organizations").select(cols(ORGANIZATION_COLUMNS)).in("id", chunk).order("id").range(from, to) as unknown as Page<OrganizationRow>,
+  const orgs = await byIds<OrganizationRow>(uniq(contacts.map((c) => c.organization_id)), (chunk, after) =>
+    keyset(db.from("crm_organizations").select(cols(ORGANIZATION_COLUMNS)).in("id", chunk), after),
   );
   const orgById = new Map(orgs.map((o) => [o.id, o]));
   return new Map(
@@ -211,14 +216,8 @@ export async function loadContactSources(db: Db, ids: readonly string[] | "all")
 
 /** The contacts (not erased) of each organisation: a renamed organisation changes their documents. */
 export async function contactIdsByOrganization(db: Db, organizationIds: readonly string[]): Promise<Map<string, string[]>> {
-  const rows = await byIds<{ id: string; organization_id: string }>(organizationIds, (chunk, from, to) =>
-    db
-      .from("crm_contacts")
-      .select("id, organization_id")
-      .in("organization_id", chunk)
-      .is("erased_at", null)
-      .order("id")
-      .range(from, to) as unknown as Page<{ id: string; organization_id: string }>,
+  const rows = await byIds<{ id: string; organization_id: string }>(organizationIds, (chunk, after) =>
+    keyset(db.from("crm_contacts").select("id, organization_id").in("organization_id", chunk).is("erased_at", null), after),
   );
   return idsBy(rows, "organization_id");
 }

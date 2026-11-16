@@ -28,10 +28,17 @@
  *    tie-break and the sort key the reconcile pages its id list by.
  *
  * Contacts keep no copy of the documents: `_source` off and no doc values on
- * the keyword fields, so whoever holds a search password can test guesses
- * but cannot read the client list out (the uuid `id` keeps its doc values:
- * it is what every hit returns as `_id` anyway). Their fields are trimmed to
- * name, organisation, email, phone and WhatsApp digits, city and country.
+ * the keyword fields, so no hit, sort or aggregation returns a stored value
+ * (the uuid `id` keeps its doc values: it is what every hit returns as `_id`
+ * anyway). That is ALL it does. The indexed terms themselves can still be
+ * read back: `explain` and `profile` name every term a query matched, and
+ * one body (a prefix "" with rewrite scoring_boolean over `all` and
+ * `phones`, explain on) lists every term of every contact, per document.
+ * Caddy cannot inspect bodies, so a leaked search (or index) password must
+ * be treated as disclosure of every contact's indexed name, organisation,
+ * email, phone and WhatsApp digits, city and country, not as mere probing
+ * (BREACH_PROCEDURE.md, ROPA.md; query.int.test.ts pins this). The fields
+ * are trimmed to exactly those, so that is all such a leak can expose.
  *
  * There is no records index: offers, documents, shipments and lists are
  * searched in Postgres through the user's own client.

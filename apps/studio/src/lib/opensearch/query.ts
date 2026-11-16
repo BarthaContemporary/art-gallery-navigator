@@ -17,8 +17,11 @@
  *     phone number when it is digits, or inside a longer word ("kimono" in
  *     "okimono") as the weakest alternative;
  *   - IDENTIFIER RULE: a term with a digit or an "@" (a stock number, a year,
- *     a phone number, an email) is never fuzzy. With fuzziness on every word
- *     "2024-0003" matched 77 of 119 fixture works where Postgres finds one;
+ *     a phone number, an email) is never fuzzy, and is matched as a phrase:
+ *     its parts ("2024", "0003") next to each other in one value. With
+ *     fuzziness on every word "2024-0003" matched 77 of 119 fixture works
+ *     where Postgres finds one; without the phrase it still matched a
+ *     2019-0003 exhibited in November 2024;
  *   - two passes. `strict` has no fuzziness at all. `fuzzy` (asked for only
  *     when the strict pass and Postgres found nothing) adds fuzziness
  *     "AUTO:4,8", prefix_length 1, to plain words of 4+ letters (no digit, no
@@ -183,8 +186,19 @@ const constant = (filter: Clause, boost: number): Clause => ({ constant_score: {
 /** One term: the alternatives it may match by, best one scoring. */
 function termClause(plan: Plan, term: Term, kind: SearchKind, fuzzy: boolean): Clause {
   const t = term.text;
-  const alts: Clause[] = [{ multi_match: { query: t, type: "best_fields", operator: "and", tie_breaker: 0.1, fields: plan.fields } }];
-  if (term.last) alts.push({ multi_match: { query: t, type: "bool_prefix", operator: "and", fields: plan.prefixFields } });
+  const alts: Clause[] = [];
+  if (term.identifier) {
+    // An identifier's parts must stand next to each other, in order, in ONE
+    // value, as Postgres's '2024' <-> '0003' requires. With best_fields and
+    // operator "and", "2024-0003" split into "2024" and "0003", and `all`
+    // let them come from different fields: a 2019-0003 exhibited in November
+    // 2024 matched. A phrase cannot cross values (position_increment_gap).
+    alts.push({ multi_match: { query: t, type: "phrase", fields: plan.fields } });
+    if (term.last) alts.push({ multi_match: { query: t, type: "phrase_prefix", fields: plan.prefixFields } });
+  } else {
+    alts.push({ multi_match: { query: t, type: "best_fields", operator: "and", tie_breaker: 0.1, fields: plan.fields } });
+    if (term.last) alts.push({ multi_match: { query: t, type: "bool_prefix", operator: "and", fields: plan.prefixFields } });
+  }
   if (term.digit) {
     for (const [field, w] of plan.codes) {
       alts.push(constant({ match: { [`${field}.grams`]: t } }, 3 * w)); // contains, 3..12 characters as typed

@@ -93,6 +93,119 @@ export async function autoCreateRefused(prefix) {
   return !created;
 }
 
+// ------------------------------------------------------------------ a fake OpenSearch (no node)
+
+/**
+ * Just enough of OpenSearch for the indexer's paths, as a fetch stand-in:
+ * index create/delete/mapping, _bulk with external_gte versions (409 for a
+ * stale write, 404 for a delete of nothing, delete tombstones), the id
+ * listing (_search sorted on id with search_after), _refresh, _forcemerge
+ * and the status reads. Like production (action.auto_create_index=-jvb-*),
+ * a bulk to a missing index is refused per item with 404
+ * index_not_found_exception. `intercept(method, path, body)` may answer a
+ * request first (return a Response), to inject a failure.
+ */
+export class FakeOpenSearch {
+  constructor() {
+    this.indices = new Map(); // name -> { mappings, docs: Map<id, { version, doc }>, tombstones: Map<id, version> }
+    this.requests = [];
+    this.intercept = null;
+    this.realFetch = null;
+  }
+  install() {
+    this.realFetch = globalThis.fetch;
+    globalThis.fetch = (input, init) => this.handle(input, init);
+    return this;
+  }
+  restore() {
+    if (this.realFetch) globalThis.fetch = this.realFetch;
+    this.realFetch = null;
+  }
+  ids(name) {
+    return [...(this.indices.get(name)?.docs.keys() ?? [])].sort();
+  }
+  version(name, id) {
+    return this.indices.get(name)?.docs.get(id)?.version ?? null;
+  }
+  async handle(input, init = {}) {
+    const u = new URL(String(input));
+    const method = init.method ?? "GET";
+    const path = u.pathname;
+    const body = typeof init.body === "string" ? init.body : "";
+    this.requests.push({ method, path: path + u.search, body });
+    const reply = (status, json) => new Response(JSON.stringify(json), { status, headers: { "content-type": "application/json" } });
+    const notFound = (name) => reply(404, { error: { type: "index_not_found_exception", reason: `no such index [${name}]` }, status: 404 });
+    if (this.intercept) {
+      const r = this.intercept(method, path + u.search, body);
+      if (r) return r;
+    }
+    if (method === "GET" && path === "/_cluster/health") return reply(200, { status: "green" });
+    if (method === "GET" && path === "/_cluster/settings") return reply(200, { persistent: {}, transient: {} });
+    if (method === "GET" && path.startsWith("/_cat/indices/")) {
+      return reply(200, [...this.indices].map(([index, i]) => ({ index, health: "green", "docs.count": String(i.docs.size), "docs.deleted": "0", "store.size": "1kb" })));
+    }
+    const m = /^\/([^/]+)(?:\/(_mapping|_settings|_bulk|_search|_refresh|_forcemerge|_count))?$/.exec(path);
+    if (!m) return reply(400, { error: { type: "fake_unsupported" } });
+    const [, name, action] = m;
+    const index = this.indices.get(name);
+    if (!action) {
+      if (method === "PUT") {
+        if (index) return reply(400, { error: { type: "resource_already_exists_exception" } });
+        const parsed = JSON.parse(body || "{}");
+        this.indices.set(name, { mappings: parsed.mappings ?? {}, docs: new Map(), tombstones: new Map() });
+        return reply(200, { acknowledged: true, index: name });
+      }
+      if (method === "DELETE") {
+        if (!index) return notFound(name);
+        this.indices.delete(name);
+        return reply(200, { acknowledged: true });
+      }
+    }
+    if (action === "_bulk") return reply(200, this.bulk(name, index, body));
+    if (!index) return notFound(name);
+    if (action === "_mapping") return reply(200, { [name]: { mappings: index.mappings } });
+    if (action === "_settings") return reply(200, { [name]: { settings: { index: {} } } });
+    if (action === "_count") return reply(200, { count: index.docs.size });
+    if (action === "_refresh" || action === "_forcemerge") return reply(200, { _shards: { total: 1, successful: 1, failed: 0 } });
+    if (action === "_search") {
+      const b = JSON.parse(body || "{}");
+      const after = b.search_after?.[0];
+      const page = this.ids(name).filter((id) => after === undefined || id > after).slice(0, b.size ?? 10);
+      return reply(200, { hits: { hits: page.map((id) => ({ _id: id, _score: null, sort: [id] })) } });
+    }
+    return reply(400, { error: { type: "fake_unsupported" } });
+  }
+  bulk(name, index, body) {
+    const lines = body.split("\n").filter(Boolean).map((l) => JSON.parse(l));
+    const items = [];
+    for (let i = 0; i < lines.length; i++) {
+      const [op, meta] = Object.entries(lines[i])[0];
+      const doc = op === "index" ? lines[++i] : null;
+      if (!index) {
+        items.push({ [op]: { _id: meta._id, status: 404, error: { type: "index_not_found_exception", reason: `no such index [${name}]` } } });
+        continue;
+      }
+      const current = index.docs.get(meta._id)?.version ?? index.tombstones.get(meta._id) ?? -1;
+      if (meta.version < current) {
+        items.push({ [op]: { _id: meta._id, status: 409, error: { type: "version_conflict_engine_exception", reason: "current version is higher" } } });
+      } else if (op === "index") {
+        const created = !index.docs.has(meta._id);
+        index.docs.set(meta._id, { version: meta.version, doc });
+        index.tombstones.delete(meta._id);
+        items.push({ index: { _id: meta._id, status: created ? 201 : 200, result: created ? "created" : "updated" } });
+      } else if (!index.docs.has(meta._id)) {
+        index.tombstones.set(meta._id, meta.version);
+        items.push({ delete: { _id: meta._id, status: 404, result: "not_found" } });
+      } else {
+        index.docs.delete(meta._id);
+        index.tombstones.set(meta._id, meta.version);
+        items.push({ delete: { _id: meta._id, status: 200, result: "deleted" } });
+      }
+    }
+    return { errors: items.some((it) => Object.values(it)[0].status >= 300), items };
+  }
+}
+
 // ------------------------------------------------------------------ fixtures
 
 const TABLES = [
@@ -107,13 +220,16 @@ export function loadFixtures() {
 }
 
 const lc = (v) => String(v ?? "").toLowerCase();
+/** Numbers as numbers, everything else by code point (Postgres's uuid order for lower-case hex). */
+const compare = (a, b) => (typeof a === "number" && typeof b === "number" ? a - b : String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0);
 const contains = (v, q) => v != null && lc(v).includes(lc(q));
 
 // ------------------------------------------------------------------ a fake supabase-js client
 
+/** What PostgREST 12.2.8 (infra/compose) answers for migration 0100's objects before it is applied (checked against the real thing). */
 class NotSetUp {
   static table(name) {
-    return { code: "PGRST205", message: `Could not find the table 'public.${name}' in the schema cache` };
+    return { code: "42P01", details: null, hint: null, message: `relation "public.${name}" does not exist` };
   }
   static fn(name) {
     return { code: "PGRST202", message: `Could not find the function public.${name} in the schema cache` };
@@ -122,16 +238,26 @@ class NotSetUp {
 
 /**
  * The parts of supabase-js that load.ts, indexer.ts and search.ts use:
- * from().select(cols, { count, head }).in/.is/.eq/.or/.order/.range/.limit,
+ * from().select(cols, { count, head }).in/.is/.eq/.gt/.or/.order/.range/.limit,
  * from().delete().in(), from().upsert(), rpc(name, args).select(cols).
+ *
+ * Answers as postgrest-js 2.110 does, including its quirk: a HEAD on a table
+ * that does not exist gets PostgREST's body-less 404, which postgrest-js turns
+ * into { error: null, count: null, status: 204 }. A GET gets the PGRST205 error.
+ *
+ *   cap       PostgREST's max_rows (rows per answer at most), default 1000
+ *   onSelect  (table, query) => void, called before each select is answered:
+ *             a test can change rows between two pages
  */
 export class FakeDb {
-  constructor({ setUp = true, clock = () => Date.now() } = {}) {
+  constructor({ setUp = true, clock = () => Date.now(), cap = 1000, onSelect = null } = {}) {
     this.tables = loadFixtures();
     this.tables.search_outbox = [];
     this.tables.search_state = [];
     this.setUp = setUp;
     this.clock = clock;
+    this.cap = cap;
+    this.onSelect = onSelect;
     this.calls = [];
     this.failTables = new Set();
     this.nextOutboxId = 1;
@@ -285,6 +411,11 @@ class Query extends Thenable {
     this.filters.push((r) => r[col] === value);
     return this;
   }
+  gt(col, value) {
+    this.filters.push((r) => r[col] != null && compare(r[col], value) > 0);
+    this.after = { col, value };
+    return this;
+  }
   or(expr) {
     const parts = expr.split(",").map((p) => {
       const m = /^([a-z_]+)\.ilike\.(.*)$/.exec(p);
@@ -308,13 +439,16 @@ class Query extends Thenable {
   }
   run() {
     const db = this.db;
-    db.calls.push({ table: this.table, op: this.op, cols: this.cols, inSizes: this.inSizes ?? [] });
-    if ((this.table === "search_outbox" || this.table === "search_state") && !db.setUp) {
+    db.calls.push({ table: this.table, op: this.op, cols: this.cols, head: this.head, inSizes: this.inSizes ?? [], after: this.after?.value ?? null, window: this.window, limit: this.limitN });
+    const missing = ((this.table === "search_outbox" || this.table === "search_state") && !db.setUp) || !db.rowsOf(this.table);
+    if (missing) {
+      // postgrest-js: PostgREST's 404 to a HEAD has no body, which it reports as status 204 with no error.
+      if (this.op === "select" && this.head) return { data: null, count: null, error: null, status: 204 };
       return { data: null, count: null, error: NotSetUp.table(this.table), status: 404 };
     }
     if (db.failTables.has(this.table)) return { data: null, count: null, error: { code: "57014", message: "canceling statement due to statement timeout" }, status: 500 };
+    if (this.op === "select" && db.onSelect) db.onSelect(this.table, this);
     const all = db.rowsOf(this.table);
-    if (!all) return { data: null, count: null, error: NotSetUp.table(this.table), status: 404 };
     if ((this.inSizes ?? []).some((n) => n > 100)) return { data: null, error: { code: "TEST", message: "more than 100 ids in one request" }, status: 414 };
     if (this.op === "upsert") {
       for (const row of this.payload) {
@@ -330,14 +464,14 @@ class Query extends Thenable {
       db.tables[this.table] = all.filter((r) => !gone.has(r));
       return { data: null, error: null, status: 204 };
     }
-    if (this.orderBy) rows = [...rows].sort((a, b) => String(a[this.orderBy] ?? "").localeCompare(String(b[this.orderBy] ?? "")));
+    if (this.orderBy === "id") rows = [...rows].sort((a, b) => compare(a.id, b.id)); // uuid order: byte order of the lower-case hex
+    else if (this.orderBy) rows = [...rows].sort((a, b) => String(a[this.orderBy] ?? "").localeCompare(String(b[this.orderBy] ?? "")));
     const total = rows.length;
     if (this.head) return { data: null, count: this.count ? total : null, error: null, status: 200 };
-    // PostgREST's row cap, so a loader that forgets to page is caught.
-    const cap = 1000;
     if (this.window) rows = rows.slice(this.window[0], this.window[1] + 1);
     if (this.limitN !== null) rows = rows.slice(0, this.limitN);
-    rows = rows.slice(0, cap);
+    // PostgREST's row cap, so a loader that forgets to page is caught.
+    rows = rows.slice(0, db.cap);
     const p = project(rows, this.cols, db.columnsOf(this.table));
     if (p.error) return { data: null, error: p.error, status: 400 };
     return { data: p.rows, count: this.count ? total : null, error: null, status: 200 };

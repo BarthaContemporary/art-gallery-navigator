@@ -19,10 +19,11 @@
  *   - `similar: true` means nothing matched exactly and the ids are the
  *     typo-tolerant pass's (only when `fuzzy` was asked for). Postgres cannot
  *     add to a fuzzy result. Say so on screen ("Similar matches").
- *   - `matched` (works only) maps a work id to the label of the field that
- *     matched ("provenance") when the match was not in the title, maker or
- *     stock number. A label only, never index text; show it only for a row
- *     that loaded.
+ *   - `matched` (works only, and only for a size of MATCHED_MAX_SIZE or
+ *     less, as the palette asks) maps a work id to the label of the field
+ *     that matched ("provenance") when the match was not in the title, maker
+ *     or stock number. A label only, never index text; show it only for a
+ *     row that loaded.
  *   - Roles are passed in (read once by the route or page): getSession()
  *     is never called here.
  * Timeouts: 600 ms in the palette, 1,500 ms on pages (the caller passes them).
@@ -98,10 +99,18 @@ async function run<PgRow>(
 }
 
 /**
+ * Highlights (which name the field behind `matched`) only for a search this
+ * small: the palette's 12. At the inventory's 10,000 they multiplied the
+ * engine's time five- to eightfold (72-94 ms against 459-739 ms for "Japan"
+ * over 5,000 works), and no page that size shows the label.
+ */
+export const MATCHED_MAX_SIZE = 50;
+
+/**
  * Every work matching `q`, both registers, best first. Every match, not a
  * page: the inventory counts and exports them. `size` bounds OpenSearch's
  * share only (the palette asks for 12; the default is the engine's window,
- * 10,000).
+ * 10,000). `matched` comes only with a size of MATCHED_MAX_SIZE or less.
  */
 export async function searchWorkIds(
   supabase: Db,
@@ -110,7 +119,9 @@ export async function searchWorkIds(
 ): Promise<SearchResult> {
   const query = q.trim();
   if (!query) return { ...EMPTY };
-  const pass = mayUseIndex(opts.roles) ? passFor("works", query, opts.size ?? MAX_HITS, true) : null;
+  const size = opts.size ?? MAX_HITS;
+  const highlight = size <= MATCHED_MAX_SIZE;
+  const pass = mayUseIndex(opts.roles) ? passFor("works", query, size, highlight) : null;
   const out = await run<StockRow>(
     supabase.rpc("pieces_search", { q: query }).select("id, stock_number, legacy_stock_number") as unknown as PromiseLike<{
       data: StockRow[] | null;
@@ -121,7 +132,7 @@ export async function searchWorkIds(
     opts,
   );
   const result: SearchResult = { ids: out.ids, error: out.error, similar: out.similar };
-  if (out.hits) {
+  if (out.hits && highlight) {
     const matched: Record<string, string> = {};
     for (const h of out.hits) {
       const label = matchedLabel(h.fields);

@@ -87,12 +87,13 @@ export type CategoryRow = { id: string; name: string };
 export const LOCATION_COLUMNS = ["id", "code", "name"] as const;
 export type LocationRow = { id: string; code: string; name: string | null };
 
-export const PROVENANCE_COLUMNS = ["piece_id", "sort_order", "date_text", "party", "details"] as const;
-export type ProvenanceRow = { piece_id: string; sort_order: number | null; date_text: string | null; party: string | null; details: string | null };
+/** `id` is read only to page by (load.ts); it never reaches a document. */
+export const PROVENANCE_COLUMNS = ["id", "piece_id", "sort_order", "date_text", "party", "details"] as const;
+export type ProvenanceRow = { id: string; piece_id: string; sort_order: number | null; date_text: string | null; party: string | null; details: string | null };
 
-/** A work's earlier stock numbers, from register moves. */
-export const LEDGER_MOVE_COLUMNS = ["piece_id", "from_stock_number"] as const;
-export type LedgerMoveRow = { piece_id: string; from_stock_number: string | null };
+/** A work's earlier stock numbers, from register moves (`id` only to page by). */
+export const LEDGER_MOVE_COLUMNS = ["id", "piece_id", "from_stock_number"] as const;
+export type LedgerMoveRow = { id: string; piece_id: string; from_stock_number: string | null };
 
 /** One work and the rows its document is built from. */
 export type WorkSource = {
