@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { bounceResetFor } from "@/lib/email-bounce";
 import { getSupabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -34,7 +35,7 @@ export async function PATCH(
 
   const { data: current } = await supabase
     .from("crm_contacts")
-    .select("custom_fields, marketing_consent, consent_date, consent_source, email")
+    .select("custom_fields, marketing_consent, consent_date, consent_source")
     .eq("id", id)
     .maybeSingle();
   const prev = (current ?? {}) as {
@@ -42,14 +43,7 @@ export async function PATCH(
     marketing_consent: boolean | null;
     consent_date: string | null;
     consent_source: string | null;
-    email?: string | null;
   };
-  // A bounce belongs to the address that bounced (the Resend webhook sets
-  // email_bounced_at, and offers skip such a contact): a new address clears
-  // it. Only when the stored address was read and really differs.
-  const newEmail = s("email");
-  const emailChanged =
-    current != null && (newEmail ?? "").toLowerCase() !== String(prev.email ?? "").trim().toLowerCase();
   const existing = (prev.custom_fields as Record<string, unknown>) ?? {};
 
   const interests = parseInterests();
@@ -85,8 +79,10 @@ export async function PATCH(
       last_name: s("last_name"),
       salutation: s("salutation"),
       contact_type: raw("contact_type") || "collector",
-      email: newEmail,
-      ...(emailChanged ? { email_bounced_at: null } : {}),
+      email: s("email"),
+      // A corrected address clears the hard-bounce stamp offers skip on
+      // (lib/email-bounce.ts); the same address keeps it.
+      ...(await bounceResetFor(supabase, id, s("email"))),
       phone: s("phone"),
       address_line1: s("address_line1"),
       address_line2: s("address_line2"),
