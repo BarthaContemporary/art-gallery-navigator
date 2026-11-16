@@ -4,7 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { parseAmount } from "@/lib/amount";
 import { AmountInput } from "@/components/amount-input";
 import { useEditFinancials } from "@/components/edit-financials-context";
-import { consignmentSplit } from "@/lib/consignment";
+import { consignmentSplit, round2, saleVat } from "@/lib/consignment";
+import {
+  canConvertSale,
+  currencyCode,
+  currencyOptions,
+  londonToday,
+  samePence,
+  shouldConvertSale,
+  type StoredSale,
+} from "@/lib/fx";
 import { Field } from "@/components/ui/field";
 import { Panel } from "@/components/ui/section";
 
@@ -27,23 +36,40 @@ const readonly = "field bg-transparent text-body hover:bg-transparent";
 const figure = "tabular mt-1 text-[14.5px] leading-[1.45] text-ink";
 const note = "mt-0.5 text-[12px] leading-[1.4] text-meta";
 
-const CURRENCIES = ["GBP", "EUR", "USD", "CHF", "JPY"];
-const round2 = (n: number) => Math.round(n * 100) / 100;
 const gbp = (n: number) =>
   `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/** Spot rate → GBP for a currency on a date (ECB via Frankfurter). */
+const isGbp = (cur: string) => currencyCode(cur) === "GBP";
+
+/** A stored currency as the select holds it: the ISO code, or the stored text as it is. */
+const selectValue = (stored: string) => currencyCode(stored) ?? (stored.trim() || "GBP");
+
+/**
+ * Spot rate → GBP for a currency on a date, from the studio's own route: the
+ * same cache and rules as the save, so the Sold £ shown is the one stored.
+ */
 async function spotToGbp(cur: string, date: string | null): Promise<number | null> {
-  if (cur === "GBP") return 1;
+  const code = currencyCode(cur);
+  if (!code) return null;
+  if (code === "GBP") return 1;
   if (!date) return null;
   try {
-    const r = await fetch(`https://api.frankfurter.dev/v1/${date}?from=${cur}&to=GBP`);
+    const r = await fetch(
+      `/api/inventory/spot-rate?currency=${encodeURIComponent(code)}&date=${encodeURIComponent(date)}`,
+      { cache: "no-store" },
+    );
     if (!r.ok) return null;
-    const j = (await r.json()) as { rates?: { GBP?: number } };
-    return typeof j?.rates?.GBP === "number" ? j.rates.GBP : null;
+    const j = (await r.json()) as { rate?: number | null };
+    return typeof j?.rate === "number" ? j.rate : null;
   } catch {
     return null;
   }
+}
+
+function noRateNote(cur: string, date: string): string {
+  if (!currencyCode(cur)) return `No spot rate for ${cur}. Type the Sold £ in by hand.`;
+  if (!date) return "Enter a sold date to convert, or type the Sold £ in by hand.";
+  return `No spot rate available for ${date}. Type the Sold £ in by hand.`;
 }
 
 const VAT_LABELS: Record<string, string> = {
@@ -78,68 +104,128 @@ export function FinancialsFields({
   const importType = ctx?.importType ?? "";
   const importVatGbp = ctx?.importVatGbp ?? 0;
   const numOf = (s: string) => parseAmount(s) ?? 0;
+  const today = useMemo(() => londonToday(), []);
 
   // Purchase side — the £ figure is entered by hand, except when the purchase
-  // was made in GBP: then Cost £ just mirrors the purchase cost.
+  // was made in GBP: then Cost £ mirrors the purchase cost. The mirror runs
+  // from the edits (cost typed, currency chosen), never on load over a figure
+  // on record: a GBP row whose £ differs from its cost keeps both, and its
+  // Cost £ stays editable.
+  const loadedPurchaseCur = selectValue(d("purchase_currency"));
   const [purchaseDate, setPurchaseDate] = useState(d("purchase_date"));
   const [purchaseCost, setPurchaseCost] = useState(d("purchase_cost"));
-  const [purchaseCur, setPurchaseCur] = useState(d("purchase_currency") || "GBP");
-  const [costGbp, setCostGbp] = useState(d("purchase_cost_gbp"));
-  const purchaseIsGbp = purchaseCur === "GBP";
+  const [purchaseCur, setPurchaseCur] = useState(loadedPurchaseCur);
+  const loadedGbpDiffers =
+    d("purchase_cost") !== "" &&
+    d("purchase_cost_gbp") !== "" &&
+    !samePence(parseAmount(d("purchase_cost")), parseAmount(d("purchase_cost_gbp")));
+  const [mirror, setMirror] = useState(isGbp(loadedPurchaseCur) && !loadedGbpDiffers);
+  // A GBP purchase with no £ yet (a GBP invoice pushed from the capture app)
+  // shows its cost as the £, which the next save stores.
+  const [costGbp, setCostGbp] = useState(() =>
+    isGbp(loadedPurchaseCur) && d("purchase_cost_gbp") === "" ? d("purchase_cost") : d("purchase_cost_gbp"),
+  );
+  const purchaseIsGbp = isGbp(purchaseCur);
   const [restorationGbp, setRestorationGbp] = useState(d("restoration_cost_gbp") || "0");
   const [otherGbp, setOtherGbp] = useState(d("other_costs_gbp") || "0");
 
-  // Sale side — £ auto-converts from the spot rate on the sale date.
+  const onPurchaseCost = (v: string) => {
+    setPurchaseCost(v);
+    if (mirror) setCostGbp(v);
+  };
+  const onPurchaseCurrency = (next: string) => {
+    const wasGbp = isGbp(purchaseCur);
+    const nowGbp = isGbp(next);
+    setPurchaseCur(next);
+    if (nowGbp && !wasGbp) {
+      setMirror(true);
+      setCostGbp(purchaseCost);
+    } else if (!nowGbp && mirror) {
+      // The £ was only the mirrored foreign amount: clear it, so the real £
+      // has to be typed rather than ¥500,000 being kept as £500,000.
+      setMirror(false);
+      setCostGbp("");
+    }
+  };
+
+  // Sale side — £ converts from the spot rate on the sale date when the
+  // price, currency or date change (or nothing is on record). A recorded
+  // sale's £ is shown as stored: the save keeps it too (lib/fx).
+  const loadedSellCur = selectValue(d("sell_currency"));
+  const loadedSale: StoredSale = useMemo(
+    () => ({
+      price: parseAmount(d("sold_price")),
+      currency: loadedSellCur,
+      date: d("sold_date") || null,
+      gbp: parseAmount(d("sold_price_gbp")),
+    }),
+    // The loaded figures never change while the form is open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
   const [soldDate, setSoldDate] = useState(d("sold_date"));
   const [soldPrice, setSoldPrice] = useState(d("sold_price"));
-  const [sellCur, setSellCur] = useState(d("sell_currency") || "GBP");
+  const [sellCur, setSellCur] = useState(loadedSellCur);
   const [soldGbp, setSoldGbp] = useState(d("sold_price_gbp"));
   const [soldNote, setSoldNote] = useState<string | null>(null);
-  // True while the £ figure is coming from the spot conversion; false when no
-  // rate was available and the user should type the £ in by hand.
+  // True while the £ figure comes from the spot conversion (or the record);
+  // false when no rate is available and the user should type the £ by hand.
   const [autoConverted, setAutoConverted] = useState(true);
 
   const [vatTreatment, setVatTreatment] = useState(d("vat_treatment") || "margin_scheme");
 
-  // When purchased in GBP, Cost £ mirrors the purchase cost automatically;
-  // manual entry is only needed for a foreign-currency purchase.
-  useEffect(() => {
-    if (purchaseIsGbp) setCostGbp(purchaseCost);
-  }, [purchaseIsGbp, purchaseCost]);
+  const purchaseOptions = useMemo(() => currencyOptions(loadedPurchaseCur), [loadedPurchaseCur]);
+  const sellOptions = useMemo(() => currencyOptions(loadedSellCur), [loadedSellCur]);
 
   useEffect(() => {
     let cancelled = false;
     const amount = parseAmount(soldPrice);
     if (!soldPrice || amount === null) {
-      setSoldGbp("");
+      // No price, no £; a £ on record without a price (legacy) is left as
+      // it is, as the save leaves it.
+      setSoldGbp(loadedSale.price == null ? d("sold_price_gbp") : "");
       setSoldNote(null);
       setAutoConverted(true);
+      return;
+    }
+    const now = { price: amount, currency: sellCur, date: soldDate || null };
+    if (!shouldConvertSale(now, loadedSale, today)) {
+      // A recorded sale with its inputs unchanged: its £ stands. It can be
+      // typed only where no rate exists for these inputs.
+      const typeable = !canConvertSale(now, today);
+      setSoldGbp(d("sold_price_gbp"));
+      setAutoConverted(!typeable);
+      setSoldNote(
+        typeable
+          ? noRateNote(sellCur, soldDate)
+          : isGbp(sellCur) && samePence(loadedSale.gbp, amount)
+            ? null
+            : "As recorded. Changing the price, currency or date converts it again.",
+      );
       return;
     }
     const t = setTimeout(async () => {
       const rate = await spotToGbp(sellCur, soldDate || null);
       if (cancelled) return;
       if (rate == null) {
-        // No spot rate (no date, a future date, or the service is down). Don't
-        // clobber any £ already entered — let the user type it in by hand
-        // instead of blocking the sale.
+        // No spot rate (no date, a future date, an unknown currency, or the
+        // service is down). Don't clobber any £ already entered — let the
+        // user type it in by hand instead of blocking the sale.
         setAutoConverted(false);
-        setSoldNote(
-          !soldDate
-            ? "Enter a sold date to convert, or type the Sold £ in by hand."
-            : `No spot rate available for ${soldDate}. Type the Sold £ in by hand.`,
-        );
+        setSoldNote(noRateNote(sellCur, soldDate));
         return;
       }
       setAutoConverted(true);
       setSoldGbp(String(round2(amount * rate)));
-      setSoldNote(sellCur === "GBP" ? null : `spot ${rate.toFixed(4)} on ${soldDate}`);
+      setSoldNote(isGbp(sellCur) ? null : `spot ${rate.toFixed(4)} on ${soldDate}`);
     }, 400);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [soldPrice, sellCur, soldDate]);
+    // d() reads the loaded defaults, which never change while the form is open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [soldPrice, sellCur, soldDate, loadedSale, today]);
 
   // VAT + net worked out from the VAT treatment. Margin scheme charges 1/6 of
   // the margin (sale − total cost); standard-rated charges 1/6 of the sale;
@@ -154,14 +240,14 @@ export function FinancialsFields({
     const base = round2(numOf(costGbp) + numOf(restorationGbp) + numOf(otherGbp));
     const total = round2(base + importVatCost);
     const sold = numOf(soldGbp);
-    let vat = 0;
     // Third-party sale (sold by someone else): no VAT for us; price is net.
-    if (sold > 0 && !thirdParty) {
-      if (vatTreatment === "margin_scheme") vat = Math.max(0, sold - total) / 6;
-      else if (vatTreatment === "standard") vat = sold / 6;
-    }
-    vat = round2(vat);
+    // In whole pence, as the stock book works it (lib/consignment).
+    const vat =
+      sold > 0
+        ? saleVat({ amount: sold, vatTreatment, saleHandledByJvb: thirdParty ? false : null, costBaseGbp: total })
+        : 0;
     return { totalBase: base, totalCost: total, vatDue: vat, netAmount: round2(sold - vat) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [costGbp, restorationGbp, otherGbp, soldGbp, vatTreatment, thirdParty, importVatCost]);
 
   // Publish the values other panels need (sold £, purchase £, base cost, treatment).
@@ -190,11 +276,12 @@ export function FinancialsFields({
       })
     : null;
 
-  const curOptions = CURRENCIES.map((c) => (
-    <option key={c} value={c}>
-      {c}
-    </option>
-  ));
+  const options = (list: string[]) =>
+    list.map((c) => (
+      <option key={c} value={c}>
+        {c}
+      </option>
+    ));
 
   return (
     <div>
@@ -204,26 +291,32 @@ export function FinancialsFields({
           <input id="fin-purchase-date" type="date" name="purchase_date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={field} />
         </Field>
         <Field label="Purchase cost" id="fin-purchase-cost">
-          <AmountInput id="fin-purchase-cost" name="purchase_cost" value={purchaseCost} onChange={(e) => setPurchaseCost(e.target.value)} className={`${field} tabular`} />
+          <AmountInput id="fin-purchase-cost" name="purchase_cost" value={purchaseCost} onChange={(e) => onPurchaseCost(e.target.value)} className={`${field} tabular`} />
         </Field>
         <Field label="Currency" id="fin-purchase-currency">
-          <select id="fin-purchase-currency" name="purchase_currency" value={purchaseCur} onChange={(e) => setPurchaseCur(e.target.value)} className={field}>
-            {curOptions}
+          <select id="fin-purchase-currency" name="purchase_currency" value={purchaseCur} onChange={(e) => onPurchaseCurrency(e.target.value)} className={field}>
+            {options(purchaseOptions)}
           </select>
         </Field>
         <Field
           label="Cost £"
           id="fin-cost-gbp"
-          hint={purchaseIsGbp ? "Same as purchase cost (GBP)." : "Entered manually."}
+          hint={
+            mirror
+              ? "Same as purchase cost (GBP)."
+              : purchaseIsGbp
+                ? "Differs from the purchase cost. Check which figure is right."
+                : "Entered manually."
+          }
         >
           <AmountInput
             id="fin-cost-gbp"
             name="purchase_cost_gbp"
             value={costGbp}
-            readOnly={purchaseIsGbp}
-            onChange={purchaseIsGbp ? undefined : (e) => setCostGbp(e.target.value)}
+            readOnly={mirror}
+            onChange={mirror ? undefined : (e) => setCostGbp(e.target.value)}
             aria-describedby="fin-cost-gbp-hint"
-            className={`${purchaseIsGbp ? readonly : field} tabular`}
+            className={`${mirror ? readonly : field} tabular`}
           />
         </Field>
 
@@ -262,7 +355,7 @@ export function FinancialsFields({
         </Field>
         <Field label="Sell currency" id="fin-sell-currency">
           <select id="fin-sell-currency" name="sell_currency" value={sellCur} onChange={(e) => setSellCur(e.target.value)} className={field}>
-            {curOptions}
+            {options(sellOptions)}
           </select>
         </Field>
         <Field label={thirdParty ? "Net sold £" : "Sold £"} id="fin-sold-gbp" hint={soldNote ?? undefined}>
@@ -322,8 +415,14 @@ export function FinancialsFields({
               <p className="label">J.v.d.B. share £</p>
               <p className={figure}>{soldNum > 0 ? gbp(jvbSplit?.jvbReceived ?? 0) : "—"}</p>
               <p className={note}>
-                net profit {gbp(jvbSplit?.jvbNetProfit ?? 0)}
-                {jvbSplit && jvbSplit.jvbBorne > 0 ? ` + ${gbp(jvbSplit.jvbBorne)} costs reimbursed` : ""} · on consignment
+                {/* Nothing to split until there is a sale £. */}
+                {soldNum > 0 ? (
+                  <>
+                    net profit {gbp(jvbSplit?.jvbNetProfit ?? 0)}
+                    {jvbSplit && jvbSplit.jvbBorne > 0 ? ` + ${gbp(jvbSplit.jvbBorne)} costs reimbursed` : ""} ·{" "}
+                  </>
+                ) : null}
+                on consignment
               </p>
             </div>
           ) : null}
@@ -332,8 +431,9 @@ export function FinancialsFields({
 
       <p className="mt-3 max-w-[var(--jvb-measure)] text-[12px] leading-[1.4] text-meta">
         The sale £ is worked out automatically from the spot rate on the sale date (or typed
-        in by hand if no rate is available); the purchase £ is entered by hand. VAT and net
-        update from the VAT treatment above and are shown for reference; they aren’t stored.
+        in by hand if no rate is available), and kept as recorded until the price, currency or
+        date change; the purchase £ is entered by hand. VAT and net update from the VAT
+        treatment above and are shown for reference; they aren’t stored.
       </p>
     </div>
   );

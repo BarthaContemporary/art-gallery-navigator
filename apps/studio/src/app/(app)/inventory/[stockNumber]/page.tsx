@@ -9,6 +9,8 @@ import {
   getSupabase,
   requireSession,
   canSeeFinancials,
+  canEditRecords,
+  canWriteFinancials,
   hasRole,
 } from "@/lib/supabase";
 import { PieceGallery, type GalleryImage } from "@/components/piece-gallery";
@@ -22,7 +24,7 @@ import { FilePreviewLink } from "@/components/file-preview";
 import { cmToInchesFraction } from "@/lib/measure";
 import { titleWithYear } from "@jvb/db";
 import { formatDimensionsCm } from "@jvb/db";
-import { consignmentSplit, round2 } from "@/lib/consignment";
+import { consignmentSplit, round2, saleVat } from "@/lib/consignment";
 import { ACTIVITY_ACTION_LABELS, DOC_TYPE_LABELS, VAT_TREATMENT_LABELS, labelOf } from "@/lib/labels";
 // London time and the shared money format; this page renders on the server,
 // where a bare toLocaleString prints UTC.
@@ -70,6 +72,18 @@ const ROLE_CAPTIONS: Record<string, string> = {
 // accountant's figures to the penny live in the editor and the stock book.
 const gbp = gbpDisplay;
 
+/**
+ * A weight entered in grams, as people read it: grams under a kilogram (a
+ * 42 g netsuke read "0.0 kg"), kilograms to two decimals above, trailing
+ * zeros dropped.
+ */
+function formatWeight(grams: unknown): string | null {
+  const g = Number(grams);
+  if (grams == null || grams === "" || !Number.isFinite(g) || g <= 0) return null;
+  if (g < 1000) return `${g.toLocaleString("en-GB", { maximumFractionDigits: 1 })} g`;
+  return `${(g / 1000).toLocaleString("en-GB", { maximumFractionDigits: 2 })} kg`;
+}
+
 export default async function PieceDetail({
   params,
   searchParams,
@@ -84,6 +98,9 @@ export default async function PieceDetail({
   const { user, roles } = await requireSession();
   const showFinancials = canSeeFinancials(roles);
   const isAdmin = hasRole(roles, "admin");
+  // The accountant reads the record and its figures here; the editor is for
+  // the roles that can change it.
+  const canEdit = canEditRecords(roles);
 
   const ref = await resolvePiece(supabase, stockNumber);
   if (!ref) notFound();
@@ -418,11 +435,22 @@ export default async function PieceDetail({
     }));
   }
 
-  const daysInStock = fin?.purchase_date
-    ? Math.floor(
-        (Date.now() - new Date(fin.purchase_date).getTime()) / 86_400_000,
-      )
-    : null;
+  // Purchase to sale, or to today while unsold: the database's own
+  // days_in_stock. Both are date-only and parse as UTC midnight, so the
+  // difference is whole days. A work that has left the stock with no sale
+  // date on record (a legacy sale, a gift, a write-off) has no count rather
+  // than one that keeps growing.
+  const leftStock = ["sold", "gifted", "returned", "written_off"].includes(String(piece.status ?? ""));
+  const stockEnd = fin?.sold_date
+    ? Date.parse(fin.sold_date)
+    : leftStock || fin?.sold_price_gbp != null
+      ? null
+      : Date.now();
+  const daysInStock =
+    fin?.purchase_date && stockEnd != null
+      ? Math.max(0, Math.floor((stockEnd - Date.parse(fin.purchase_date)) / 86_400_000))
+      : null;
+  const soldAfterDays = Boolean(fin?.sold_date);
   const marginPct =
     fin?.marked_price_gbp && fin?.total_cost_gbp != null && fin.marked_price_gbp > 0
       ? (((fin.marked_price_gbp - fin.total_cost_gbp) / fin.marked_price_gbp) * 100).toFixed(1)
@@ -485,17 +513,17 @@ export default async function PieceDetail({
   const saleCostBase =
     num0(fin?.total_cost_gbp) +
     (saleTreatment === "margin_scheme" && fin?.import_type === "import_vat_paid" ? num0(fin?.import_vat_gbp) : 0);
-  const saleVat =
-    soldGbp != null && soldGbp > 0 && !saleThirdParty
-      ? round2(
-          saleTreatment === "margin_scheme"
-            ? Math.max(0, soldGbp - saleCostBase) / 6
-            : saleTreatment === "standard"
-              ? soldGbp / 6
-              : 0,
-        )
+  // In whole pence, as the stock book works it (lib/consignment).
+  const saleVatDue =
+    soldGbp != null && soldGbp > 0
+      ? saleVat({
+          amount: soldGbp,
+          vatTreatment: saleTreatment,
+          saleHandledByJvb: saleThirdParty ? false : null,
+          costBaseGbp: saleCostBase,
+        })
       : 0;
-  const saleNet = soldGbp != null ? round2(soldGbp - saleVat) : null;
+  const saleNet = soldGbp != null ? round2(soldGbp - saleVatDue) : null;
   const saleVatBasis = saleThirdParty
     ? "No VAT: sold by a third party"
     : saleTreatment === "margin_scheme"
@@ -610,10 +638,15 @@ export default async function PieceDetail({
       .order("sort_order", { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle();
-    await db.from("piece_list_items").upsert(
+    const { error } = await db.from("piece_list_items").upsert(
       { list_id: listId, piece_id: pieceRow.id, sort_order: (mx?.sort_order ?? -1) + 1 },
       { onConflict: "list_id,piece_id", ignoreDuplicates: true },
     );
+    if (error) {
+      redirect(
+        `/inventory/${encodeURIComponent(stockNumber)}?error=${encodeURIComponent(`Could not add the work to the list: ${error.message}`)}`,
+      );
+    }
     revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}`);
   }
 
@@ -636,10 +669,15 @@ export default async function PieceDetail({
       .maybeSingle();
     if (!entry || entry.action !== "UPDATE" || !entry.changes) return;
 
+    const back = `/inventory/${encodeURIComponent(stockNumber)}`;
+    const fail = (why: string) => redirect(`${back}?error=${encodeURIComponent(why)}`);
+    // Generated, bookkeeping and identity columns, and the register (a check
+    // constraint pins each stock table to its own; a register move is undone
+    // with Move register, which also restores the old stock number).
     const IMMUTABLE = new Set([
       "id", "piece_id", "created_at", "updated_at", "created_by", "updated_by",
       "search_vector", "total_cost_gbp", "margin_gbp", "margin_pct",
-      "stock_number", "deleted_at",
+      "stock_number", "deleted_at", "ledger",
     ]);
     const changes = entry.changes as Record<string, { old?: unknown; new?: unknown }>;
     const patch: Record<string, unknown> = {};
@@ -647,20 +685,27 @@ export default async function PieceDetail({
       if (k === "old" || k === "new" || IMMUTABLE.has(k)) continue;
       if (v && typeof v === "object" && "old" in v) patch[k] = v.old ?? null;
     }
-    if (Object.keys(patch).length === 0) return;
+    if (Object.keys(patch).length === 0) {
+      fail(
+        "Nothing in this change can be reinstated here. A move between registers is undone with Move register.",
+      );
+    }
 
+    let result: { data: unknown[] | null; error: { message: string } | null };
     if (entry.entity_type === "pieces" || entry.entity_type === "external_pieces") {
       patch.updated_by = user.id;
       // Write through the table that holds it now, not the one the entry was
       // logged against — a register move does not invalidate older history.
-      await db.from(store.table).update(patch).eq("id", store.id);
+      result = await db.from(store.table).update(patch).eq("id", store.id).select("id");
     } else if (entry.entity_type === "piece_financials") {
-      if (!canSeeFinancials(roles)) return;
-      await db.from("piece_financials").update(patch).eq("piece_id", piece.id);
+      if (!canWriteFinancials(r)) return;
+      result = await db.from("piece_financials").update(patch).eq("piece_id", piece.id).select("piece_id");
     } else {
       return;
     }
-    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}`);
+    if (result.error) fail(`Could not reinstate the previous values: ${result.error.message}`);
+    if (!result.data || result.data.length === 0) fail("Could not reinstate the previous values. Reload the page and try again.");
+    revalidatePath(back);
   }
 
   /**
@@ -751,14 +796,28 @@ export default async function PieceDetail({
               };
               // Framed but the work itself not yet measured: an explicit
               // reminder rather than a dash that reads like "does not apply".
-              return formatDimensionsCm(unframed)
-                ? renderDimensions(unframed)
-                : "Not measured";
+              // The weight follows when there is one; it alone does not
+              // count as measured.
+              const weight = formatWeight(piece.unframed_weight_g);
+              return formatDimensionsCm(unframed) ? (
+                <>
+                  {renderDimensions(unframed)}
+                  {weight ? <span className="block">{weight}</span> : null}
+                </>
+              ) : weight ? (
+                <>
+                  Not measured
+                  <span className="block">{weight}</span>
+                </>
+              ) : (
+                "Not measured"
+              );
             })(),
           ],
         ] as [string, React.ReactNode][])
       : []),
-    ["Weight", piece.weight_g ? `${(piece.weight_g / 1000).toFixed(1)} kg` : "—"],
+    // For a framed work weight_g is the framed weight ("F. Weight" in the form).
+    [piece.framed ? "Weight (framed)" : "Weight", formatWeight(piece.weight_g) ?? "—"],
     ["Location", piece.location?.code ?? "—"],
     ["Acquired", formatDate(fin?.purchase_date, "short")],
     ["Reference", piece.legacy_stock_number ? `Legacy ${piece.legacy_stock_number}` : piece.stock_number],
@@ -913,14 +972,16 @@ export default async function PieceDetail({
               </Link>
             </div>
           </RecordMenu>
-          <ButtonLink
-            href={`/inventory/${sn}/edit`}
-            variant="primary"
-            icon={<EditIcon size={15} />}
-            className="ml-auto md:ml-0"
-          >
-            Edit record
-          </ButtonLink>
+          {canEdit ? (
+            <ButtonLink
+              href={`/inventory/${sn}/edit`}
+              variant="primary"
+              icon={<EditIcon size={15} />}
+              className="ml-auto md:ml-0"
+            >
+              Edit record
+            </ButtonLink>
+          ) : null}
         </div>
       </div>
 
@@ -946,9 +1007,17 @@ export default async function PieceDetail({
           <p className="mt-2 flex flex-wrap items-center gap-x-3 text-[12px] leading-[1.4] text-meta">
             <span className="tabular">Stock {piece.stock_number}</span>
             {daysInStock != null ? (
-              <span>
-                <span className="tabular">{formatCount(daysInStock)}</span> days in stock
-              </span>
+              soldAfterDays ? (
+                <span>
+                  Sold after <span className="tabular">{formatCount(daysInStock)}</span>{" "}
+                  {daysInStock === 1 ? "day" : "days"} in stock
+                </span>
+              ) : (
+                <span>
+                  <span className="tabular">{formatCount(daysInStock)}</span> {daysInStock === 1 ? "day" : "days"} in
+                  stock
+                </span>
+              )
             ) : null}
           </p>
 
@@ -1130,7 +1199,7 @@ export default async function PieceDetail({
             <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
               <Stat label={saleThirdParty ? "Net sold £" : "Sold £"}>{soldGbp != null ? gbpExact(soldGbp) : "—"}</Stat>
               <Stat label="VAT due £" sub={soldGbp != null ? saleVatBasis : null}>
-                {soldGbp != null ? gbpExact(saleVat) : "—"}
+                {soldGbp != null ? gbpExact(saleVatDue) : "—"}
               </Stat>
               <Stat label="Net of VAT £">{saleNet != null ? gbpExact(saleNet) : "—"}</Stat>
               <div className="min-w-0">

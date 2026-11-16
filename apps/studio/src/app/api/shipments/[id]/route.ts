@@ -46,8 +46,14 @@ export async function PATCH(
   };
   if (isExport) update.destination_country = str("destination_country");
 
-  const { error } = await supabase.from("shipments").update(update).eq("id", id);
+  const { data: changed, error } = await supabase.from("shipments").update(update).eq("id", id).select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Row security filters a refused update to no rows and no error (the
+  // accountant reads shipments but cannot change them): say so rather than
+  // let the editor show the change as saved.
+  if (!changed || changed.length === 0) {
+    return NextResponse.json({ error: "This shipment could not be saved: your role may not change it." }, { status: 403 });
+  }
 
   return NextResponse.json({ ok: true });
 }

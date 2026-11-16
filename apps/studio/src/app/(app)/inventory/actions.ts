@@ -2,103 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { getSupabase, requireSession, canSeeFinancials, hasRole } from "@/lib/supabase";
-import { resolvePiece, LEDGER_TABLE, type Ledger } from "@/lib/piece-store";
-import { parseAmount } from "@/lib/amount";
+import { getSupabase, requireSession, hasRole } from "@/lib/supabase";
+import { LEDGER_TABLE, resolvePiece, type Ledger } from "@/lib/piece-store";
 
-// Accepts "1,200" and "£1,200.50" as well as plain numbers (see lib/amount).
-const num = z.preprocess((v) => parseAmount(v), z.number().nullable());
-
-const jsonStringArray = z.preprocess(
-  (v) => {
-    if (Array.isArray(v)) return v;
-    if (typeof v === "string") {
-      try {
-        const parsed = JSON.parse(v || "[]");
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  },
-  z.array(z.string().transform((s) => s.trim())).transform((a) => a.filter(Boolean)),
-);
-
-// Ids: z.guid() takes any 8-4-4-4-12 hex id, as Zod 3's uuid() did (Zod 4's
-// z.uuid() also checks the RFC 9562 version and variant digits).
-const pieceSchema = z.object({
-  title: z.string().trim().max(500).transform((v) => v || null),
-  year: z.string().trim().max(50).transform((v) => v || null),
-  maker_id: z.guid().nullable().or(z.literal("").transform(() => null)),
-  category_id: z.guid().nullable().or(z.literal("").transform(() => null)),
-  location_id: z.guid().nullable().or(z.literal("").transform(() => null)),
-  status: z.enum([
-    "in_stock",
-    "reserved",
-    "consigned_in",
-    "consigned_out",
-    "sold",
-    "gifted",
-    "returned",
-    "written_off",
-  ]),
-  medium: z.string().trim().max(300).transform((v) => v || null),
-  period: z.string().trim().max(200).transform((v) => v || null),
-  origin_region: z.string().trim().max(200).transform((v) => v || null),
-  description: z.string().trim().transform((v) => v || null),
-  condition_report: z.string().trim().transform((v) => v || null),
-  signature_inscription: z.string().trim().transform((v) => v || null),
-  box_type: z.string().trim().max(200).transform((v) => v || null),
-  box_notes: z.string().trim().transform((v) => v || null),
-  height_cm: num,
-  width_cm: num,
-  depth_cm: num,
-  length_cm: num,
-  diameter_cm: num,
-  weight_g: num,
-  framed: z.preprocess((v) => v === "on" || v === true, z.boolean()),
-  unframed_height_cm: num,
-  unframed_width_cm: num,
-  unframed_depth_cm: num,
-  unframed_length_cm: num,
-  unframed_diameter_cm: num,
-  unframed_weight_g: num,
-  // dimensions_display is retired — see packages/db/src/dimensions.ts. The
-  // column still holds legacy text but nothing reads or writes it.
-  comments: z.string().trim().transform((v) => v || null),
-  // Promoted legacy FileMaker fields
-  source_note: z.string().trim().transform((v) => v || null),
-  publications: jsonStringArray,
-  exhibitions: jsonStringArray,
-  purchased_from: z.string().trim().max(300).transform((v) => v || null),
-  sold_to: z.string().trim().max(300).transform((v) => v || null),
-  web_visible: z.preprocess((v) => v === "on" || v === true, z.boolean()),
-  // Website square: anything but an explicit choice means "decide from the photograph".
-  presentation: z.preprocess((v) => (v === "flat" || v === "object" || v === "photo" ? v : "auto"), z.enum(["auto", "flat", "object", "photo"])),
-});
-
-const financialsSchema = z.object({
-  purchase_date: z.string().transform((v) => v || null),
-  purchase_cost: num,
-  purchase_currency: z.string().trim().max(3).transform((v) => v || "GBP"),
-  purchase_fx: z.preprocess((v) => (v === "" || v == null ? 1 : Number(v)), z.number()),
-  purchase_cost_gbp: num,
-  restoration_cost_gbp: z.preprocess((v) => (v === "" || v == null ? 0 : Number(v)), z.number()),
-  other_costs_gbp: z.preprocess((v) => (v === "" || v == null ? 0 : Number(v)), z.number()),
-  marked_price_gbp: num,
-  sold_date: z.string().transform((v) => v || null),
-  sold_price: num,
-  sell_currency: z.string().trim().max(3).transform((v) => v || "GBP"),
-  sell_fx: z.preprocess((v) => (v === "" || v == null ? 1 : Number(v)), z.number()),
-  sold_price_gbp: num,
-  vat_treatment: z.enum(["margin_scheme", "standard", "zero_rated", "outside_scope"]),
-});
-
-function formToObject(formData: FormData, keys: string[]) {
-  return Object.fromEntries(keys.map((k) => [k, formData.get(k) ?? ""]));
-}
+// The editor saves through its autosave route,
+// /api/inventory/[stockNumber] (PATCH), which parses every field the form
+// posts. There is no second save path to keep in step with it.
 
 /**
  * Start a new record as a draft and open it in the editor. Creating the piece
@@ -122,82 +31,6 @@ export async function createDraftPiece(formData?: FormData) {
   if (error || !data)
     redirect(`/inventory?error=${encodeURIComponent(error?.message ?? "Could not start a new record")}`);
   redirect(`/inventory/${encodeURIComponent(data.stock_number)}/edit`);
-}
-
-export async function savePiece(
-  stockNumber: string | null,
-  formData: FormData,
-) {
-  const { user, roles } = await requireSession();
-  const supabase = await getSupabase();
-
-  const parsed = pieceSchema.safeParse(
-    formToObject(formData, Object.keys(pieceSchema.shape)),
-  );
-  if (!parsed.success) {
-    redirect(
-      `${stockNumber ? `/inventory/${encodeURIComponent(stockNumber)}/edit` : "/inventory/new"}?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Invalid input")}`,
-    );
-  }
-  // An unframed work keeps no unframed-row measurements (its default columns
-  // are simply the work's own size). Mirrors the autosave route.
-  if (!parsed.data.framed) {
-    parsed.data.unframed_height_cm = null;
-    parsed.data.unframed_width_cm = null;
-    parsed.data.unframed_depth_cm = null;
-    parsed.data.unframed_length_cm = null;
-    parsed.data.unframed_diameter_cm = null;
-    parsed.data.unframed_weight_g = null;
-  }
-
-  // "Mark catalogued" (EditHeader). Posted only for a record that arrived
-  // flagged, so absence leaves the column alone; mirrors the autosave route.
-  const completion = formData.has("needs_completion")
-    ? { needs_completion: formData.get("needs_completion") === "on" }
-    : {};
-
-  let targetStockNumber = stockNumber;
-  let targetId: string | null = null;
-
-  if (stockNumber) {
-    const ref = await resolvePiece(supabase, stockNumber);
-    if (!ref) redirect(`/inventory?error=${encodeURIComponent("Record not found")}`);
-    const { error } = await supabase
-      .from(ref.table)
-      .update({ ...parsed.data, ...completion, updated_by: user.id })
-      .eq("id", ref.id);
-    if (error) redirect(`/inventory/${encodeURIComponent(stockNumber)}/edit?error=${encodeURIComponent(error.message)}`);
-    targetStockNumber = ref.stockNumber;
-    targetId = ref.id;
-  } else {
-    // stock_number omitted — the DB trigger assigns the next number from
-    // whichever register's series this table belongs to.
-    const { data, error } = await supabase
-      .from("pieces")
-      .insert({ ...parsed.data, ...completion, created_by: user.id, updated_by: user.id })
-      .select("id, stock_number")
-      .single();
-    if (error || !data) redirect(`/inventory/new?error=${encodeURIComponent(error?.message ?? "Insert failed")}`);
-    targetStockNumber = data.stock_number;
-    targetId = data.id;
-  }
-
-  // financials — only admin/accountant may write them
-  if (canSeeFinancials(roles)) {
-    const finParsed = financialsSchema.safeParse(
-      formToObject(formData, Object.keys(financialsSchema.shape)),
-    );
-    if (finParsed.success && targetId) {
-      // Financials key on the identity, so this is register-agnostic.
-      await supabase
-        .from("piece_financials")
-        .update(finParsed.data)
-        .eq("piece_id", targetId);
-    }
-  }
-
-  revalidatePath("/inventory");
-  redirect(`/inventory/${encodeURIComponent(targetStockNumber!)}`);
 }
 
 /**

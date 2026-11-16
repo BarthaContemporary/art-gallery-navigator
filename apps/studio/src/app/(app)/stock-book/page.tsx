@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
+import { getSession, getSupabase, canSeeFinancials, canWriteFinancials } from "@/lib/supabase";
 import { StockBookTable, type StockBookRow } from "@/components/stock-book-table";
 import { londonDay } from "@/lib/caldav";
 import { formatCount, formatDate } from "@/lib/format";
@@ -42,6 +42,8 @@ function quarterRange(y: number, q: number): { from: string; to: string } {
 function attentionReasons(
   r: StockBookRow,
   work: { status: string | null; missing_purchase_gbp: boolean | null } | undefined,
+  /** Where the work came from is on record some other way (see the page). */
+  sourced: boolean,
 ): string[] {
   const out: string[] = [];
   if (r.sold_date && r.sold_price_gbp == null) out.push("Sold with no sale £");
@@ -52,10 +54,53 @@ function attentionReasons(
   // their figure was cleared on import. One phrase, one set of rows.
   if (work?.missing_purchase_gbp || (r.sold_price_gbp != null && r.purchase_cost_gbp == null))
     out.push("Needs purchase £");
-  // Either one is a record of where the work came from; with neither, the
+  // Any of these is a record of where the work came from; with none, the
   // margin-scheme entry has nothing behind it.
-  if (!r.seller_name?.trim() && !r.purchase_invoice_document_id) out.push("No seller or purchase invoice");
+  if (!sourced && !r.seller_name?.trim() && !r.purchase_invoice_document_id) out.push("No seller or purchase invoice");
   return out;
+}
+
+type Db = Awaited<ReturnType<typeof getSupabase>>;
+
+/**
+ * Of the works whose row names no seller and links no invoice, those whose
+ * source is on record all the same: a seller contact (the views' seller name
+ * is empty for the accountant, who reads no contacts, and for a contact with
+ * no first or last name), a "Purchased from" or source note, or a purchase
+ * invoice filed in the studio's Documents panel (linked through
+ * document_pieces, never to the financials row). Read in id chunks, the
+ * cheapest check first, each on the works the one before left.
+ */
+async function sourcedWorks(supabase: Db, ids: string[]): Promise<Set<string>> {
+  const found = new Set<string>();
+  const left = () => ids.filter((id) => !found.has(id));
+
+  const notes = await selectInChunks<{ id: string; purchased_from: string | null; source_note: string | null }>(
+    ids,
+    (chunk) =>
+      supabase
+        .from("vw_pieces_all")
+        .select("id, purchased_from, source_note")
+        .in("id", chunk)
+        .or("purchased_from.not.is.null,source_note.not.is.null"),
+  );
+  for (const w of notes) if (w.purchased_from?.trim() || w.source_note?.trim()) found.add(w.id);
+
+  const rest = left();
+  const [invoices, sellers] = await Promise.all([
+    selectInChunks<{ piece_id: string }>(rest, (chunk) =>
+      supabase
+        .from("document_pieces")
+        .select("piece_id, doc:piece_documents!inner ( doc_type )")
+        .in("piece_id", chunk)
+        .eq("doc.doc_type", "purchase_invoice"),
+    ),
+    selectInChunks<{ piece_id: string }>(rest, (chunk) =>
+      supabase.from("piece_financials").select("piece_id").in("piece_id", chunk).not("seller_contact_id", "is", null),
+    ),
+  ]);
+  for (const r of [...invoices, ...sellers]) found.add(r.piece_id);
+  return found;
 }
 
 export default async function StockBookPage({
@@ -65,6 +110,8 @@ export default async function StockBookPage({
 }) {
   const session = await getSession();
   if (!session || !canSeeFinancials(session.roles)) redirect("/");
+  // The accountant reads the book; only an admin can enter a figure.
+  const canEdit = canWriteFinancials(session.roles);
   const sp = await searchParams;
   // Default to "all" so every item is in the stock book; the per-scheme views
   // remain available for the formal HMRC reports.
@@ -101,18 +148,29 @@ export default async function StockBookPage({
     .map((r) => r.piece_id as string);
   let works: WorkFlags[] = [];
   let worksError: string | null = null;
+  // Rows that name no seller and link no invoice: is the source on record
+  // some other way? (A failed check leaves the reason on them, and says so.)
+  const sourceIds = ((rows ?? []) as unknown as StockBookRow[])
+    .filter((r) => r.piece_id && !r.seller_name?.trim() && !r.purchase_invoice_document_id)
+    .map((r) => r.piece_id as string);
+  let sourced = new Set<string>();
+  let sourceError: string | null = null;
   if (!error) {
-    try {
-      works = await selectInChunks<WorkFlags>(lookupIds, (chunk) =>
+    const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+    const [worksRes, sourcedRes] = await Promise.allSettled([
+      selectInChunks<WorkFlags>(lookupIds, (chunk) =>
         supabase
           .from("vw_pieces_list")
           .select("id, status, missing_purchase_gbp")
           .in("id", chunk)
           .or("status.eq.sold,missing_purchase_gbp.is.true"),
-      );
-    } catch (e) {
-      worksError = e instanceof Error ? e.message : String(e);
-    }
+      ),
+      sourcedWorks(supabase, sourceIds),
+    ]);
+    if (worksRes.status === "fulfilled") works = worksRes.value;
+    else worksError = message(worksRes.reason);
+    if (sourcedRes.status === "fulfilled") sourced = sourcedRes.value;
+    else sourceError = message(sourcedRes.reason);
   }
   const workById = new Map(works.map((w) => [w.id, w]));
 
@@ -124,7 +182,14 @@ export default async function StockBookPage({
   const implied = scheme === "all" ? null : scheme === "margin" ? "margin_scheme" : scheme;
   const allRows = ((rows ?? []) as unknown as StockBookRow[]).map((r) => {
     const withTreatment = implied && r.vat_treatment == null ? { ...r, vat_treatment: implied } : r;
-    return { ...withTreatment, attention: attentionReasons(r, r.piece_id ? workById.get(r.piece_id) : undefined) };
+    return {
+      ...withTreatment,
+      attention: attentionReasons(
+        r,
+        r.piece_id ? workById.get(r.piece_id) : undefined,
+        Boolean(r.piece_id && sourced.has(r.piece_id)),
+      ),
+    };
   });
   const attentionCount = allRows.filter((r) => r.attention.length > 0).length;
   const tableRows = attentionOnly ? allRows.filter((r) => r.attention.length > 0) : allRows;
@@ -278,7 +343,7 @@ export default async function StockBookPage({
             href={hrefWith({ attention: attentionOnly ? undefined : "1" })}
             aria-current={attentionOnly ? "true" : undefined}
             className={chipClass()}
-            title="Sold with no sale £ or date, marked sold with no sale date, needs purchase £, or no seller or purchase invoice"
+            title="Sold with no sale £ or date, marked sold with no sale date, needs purchase £, or no seller, purchase invoice or note of where it was bought"
           >
             Needs attention
             <span className="chip-count">{formatCount(attentionCount)}</span>
@@ -297,6 +362,13 @@ export default async function StockBookPage({
           £. Reload the page to try again.
         </Notice>
       ) : null}
+      {sourceError ? (
+        <Notice tone="danger" className="mt-5">
+          Could not check where the works came from ({sourceError}), so &ldquo;No seller or purchase
+          invoice&rdquo; may list works whose seller, purchase invoice or source note is on record. Reload
+          the page to try again.
+        </Notice>
+      ) : null}
 
       {error ? (
         <Notice tone="danger" className="mt-5">
@@ -308,6 +380,7 @@ export default async function StockBookPage({
             rows={tableRows}
             showTreatment={showTreatment}
             showReasons={attentionOnly}
+            canEditFinancials={canEdit}
             emptyText={
               attentionOnly
                 ? "Nothing in this period needs attention."
