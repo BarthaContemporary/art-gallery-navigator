@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { highlightParts } from "@/lib/fold";
 import { ratioUrl, type SanityImage } from "@/lib/sanity";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
-import { openWork } from "@/lib/work-open";
+import { openWork, workOnThisPage } from "@/lib/work-open";
 
 /**
  * Search — the only overlay on the site (handoff 2h). Opens from the header
@@ -274,11 +274,14 @@ export function SearchOverlay() {
                             // a result on the page already shown (its event, or a
                             // work hanging in it) changes only the query string.
                             // A Cmd/Ctrl-click into a new tab leaves search open.
+                            // A work on this page: when its grid takes it (opens
+                            // the panel, scrolls it into view, writes ?work=), no
+                            // navigation, or Next's scroll to the top after it
+                            // would undo the centring.
                             onClick={(e) => {
                               if (!plainActivation(e)) return;
-                              const url = new URL(h.href, window.location.href);
-                              const work = url.searchParams.get("work");
-                              if (work && url.pathname === window.location.pathname) openWork(work);
+                              const work = workOnThisPage(h.href, window.location.href);
+                              if (work && openWork(work)) e.preventDefault();
                               close();
                             }}
                             className="flex min-h-[56px] items-center gap-4 py-2 hover:text-accent"
