@@ -68,8 +68,17 @@ export async function detectPortraitFocus(input: Buffer): Promise<PortraitFocus>
 /**
  * The Sanity image fields that make the CDN frame a crop on the face:
  * `crop=focalpoint&fp-x&fp-y` reads the hotspot, and the Studio's hotspot
- * tool shows the same box. Returns nothing for a fallback so the CDN's own
- * centre crop applies.
+ * tool shows the same box. Returns nothing only when there is no focus at
+ * all, so the CDN's own centre crop applies.
+ *
+ * A fallback focus (no face found) is sent like a detected one, as the
+ * upper-centre box FALLBACK describes. The website's faceCrop
+ * (apps/web/src/components/artist-portrait.tsx) takes any hotspot as the
+ * face box; for the fallback's half-frame box that comes out as the largest
+ * square the portrait allows, centred as near 42% of its height as the
+ * frame lets it, which suits most portraits better than a centre crop. The hotspot cannot say whether
+ * a face was found (Sanity's hotspot has no `method`): a site that ever
+ * needs to tell a guess from a face must be sent that in a field of its own.
  */
 export function sanityFraming(focus: PortraitFocus | null | undefined) {
   if (!focus) return {};
