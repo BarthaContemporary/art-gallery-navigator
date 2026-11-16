@@ -10,10 +10,11 @@
 #   - supavisor/pgbouncer                              — app connects via PostgREST;
 #                                                       the worker holds few connections
 #
-# Exposure model: NOTHING is published on a public interface. Kong (8000) and
-# Studio (3000) bind to 127.0.0.1 only; Caddy on the HOST terminates TLS and
-# proxies to them (see ./Caddyfile). Postgres (5432) also binds to 127.0.0.1
-# purely so admin work / migrations can be done over an SSH tunnel.
+# Exposure model: NOTHING is published on a public interface. Kong (8000),
+# Studio (3000) and OpenSearch (9200) bind to 127.0.0.1 only; Caddy on the
+# HOST terminates TLS and proxies to them (see ./Caddyfile). Postgres (5432)
+# also binds to 127.0.0.1 purely so admin work / migrations can be done over
+# an SSH tunnel.
 #
 # Usage:
 #   cp .env.example .env   # then fill in real secrets (never commit .env)
@@ -539,12 +540,141 @@ services:
     # The image ships its own HEALTHCHECK against the GUI; overriding it here
     # only risks getting it wrong.
 
+  # -------------------------------------------------------------------------
+  # OpenSearch — the studio's search index (docs/ops/opensearch-runbook.md).
+  # Holds a COPY of what the studio searches; Postgres stays the record, and
+  # the nightly reconcile (or Admin → Search → "Reconcile now") makes every
+  # index again from it, so this is not backed up and its volume may be
+  # deleted at any time. One node, no replicas. Built from
+  # ./opensearch/Dockerfile: the official image with its bundled plugins
+  # removed (memory, background jobs, a stored log of every search, unused
+  # APIs). That folder must be on the server before this block is: a missing
+  # build folder makes a bare `docker compose up -d` start nothing at all.
+  #
+  # Exposure: loopback only. The security plugin is not in the image, so
+  # anything that reaches port 9200 is the administrator; Caddy on the host
+  # is the only way in from outside (search.<domain>: two logins, an exact
+  # list of request shapes, size limits; ./Caddyfile). It sits on its own
+  # network, not `supabase`: no other container needs it, so none of them
+  # can reach it (Postgres can make HTTP calls, imgproxy fetches URLs, the
+  # image worker decodes untrusted files).
+  #
+  # Memory: with the default 512 MB heap, about 0.8 GB in all during a full
+  # reconcile with searches running (measured); the 1 GB limit keeps a
+  # runaway inside this container. oom_score_adj makes the kernel pick this
+  # container first if the whole server runs out of memory: losing it costs
+  # nothing but search quality (the studio falls back to Postgres), unlike
+  # Postgres or the drive's gocryptfs mount.
+  #
+  # Disk: the flood-stage watermark makes every index read-only when the
+  # disk is nearly full. The defaults are percentages (85/90/95%) that this
+  # 240 GB server has already passed once (94% in Sept 2026), and at 90%
+  # OpenSearch already refuses to create an index, which breaks every
+  # reconcile. Free space in GB instead: writes stop only with under 2 GB
+  # free.
+  # -------------------------------------------------------------------------
+  opensearch:
+    container_name: jvb-opensearch
+    # No `image:` name, like image-worker: `docker compose pull` then skips
+    # it instead of failing; upgrades change ./opensearch/Dockerfile.
+    build:
+      context: ./opensearch
+    restart: unless-stopped
+    networks:
+      - search
+    ports:
+      # Loopback only: Caddy on the host proxies search.<domain> to it.
+      # Never publish 9200 on a public interface, and never 9300 or 9600.
+      - "127.0.0.1:9200:9200"
+    environment:
+      discovery.type: single-node
+      cluster.name: jvb-search
+      node.name: jvb-search-1
+      # Heap (min = max), from .env (default 512m; 256m on a tight server,
+      # runbook step 1). The two -Xlog options replace the image's GC log
+      # (up to 32 x 64 MB inside the container, which nothing cleans up) with
+      # warnings on stderr, which the logging limits below cap.
+      OPENSEARCH_JAVA_OPTS: "-Xms${OPENSEARCH_HEAP:-512m} -Xmx${OPENSEARCH_HEAP:-512m} -Xlog:disable -Xlog:all=warning:stderr:utctime,level,tags"
+      # No security plugin in the image; these keep the entrypoint quiet and
+      # stop it trying to install the demo users if one ever came back.
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      DISABLE_PERFORMANCE_ANALYZER_AGENT_CLI: "true"
+      # One node: no replicas anywhere, so health is green, not yellow.
+      cluster.default_number_of_replicas: "0"
+      # Free-space watermarks (see above). All three must be sizes, or the
+      # node refuses them.
+      cluster.routing.allocation.disk.watermark.low: 4gb
+      cluster.routing.allocation.disk.watermark.high: 3gb
+      cluster.routing.allocation.disk.watermark.flood_stage: 2gb
+      # The edge (./Caddyfile) checks the index named in the address; these
+      # make the engine hold to it too, since Caddy cannot read bodies.
+      # A bulk or multi-search body may not name an index of its own.
+      rest.action.multi.allow_explicit_index: "false"
+      # The studio creates its indices itself, with their mappings: a write
+      # to a jvb- name that does not exist fails instead of inventing an
+      # index with guessed mappings. Other names are left alone.
+      action.auto_create_index: "-jvb-*,+*"
+      # Deleting needs exact index names: no "_all", no wildcards.
+      action.destructive_requires_name: "true"
+      # No scripts of any kind; the studio's queries use none.
+      script.allowed_types: none
+      # Largest request the engine reads (Caddy allows at most 16 MB).
+      http.max_content_length: 20mb
+      # Do not add search.insights.* here: that plugin is removed, and an
+      # unknown setting stops the node. Never switch on the search or
+      # indexing slow logs either: the indexing slow log writes the first
+      # 1000 characters of each document.
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    # memswap_limit equal to mem_limit: this container never swaps, which is
+    # what bootstrap.memory_lock would otherwise be for. Do NOT follow the
+    # OpenSearch guide's `swapoff -a`: it would take swap from every service.
+    mem_limit: ${OPENSEARCH_MEM_LIMIT:-1g}
+    memswap_limit: ${OPENSEARCH_MEM_LIMIT:-1g}
+    oom_score_adj: 500
+    # A full reconcile is a few seconds of CPU; leave the rest for Postgres.
+    cpus: 1.5
+    volumes:
+      # Named volume: Docker gives it to the image's opensearch user (uid
+      # 1000) on first use. A bind-mounted host folder would need
+      # `chown 1000:1000` first. backup.sh never reads Docker volumes, so it
+      # stays out of the backups.
+      - opensearch-data:/usr/share/opensearch/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      # 200 while the cluster is green or yellow; 408 (unhealthy) when red
+      # or not answering. curl is in the image (wget is not). Docker only
+      # reports "unhealthy" (docker compose ps); it restarts the container
+      # only if the process itself stops.
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=5s"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    stop_grace_period: 30s
+    # Docker keeps container output forever unless told otherwise.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   db-data:
   db-config:
   syncthing-config:
+  opensearch-data:
 
 networks:
   supabase:
     # Internal bridge network; only the 127.0.0.1 port bindings above leave it.
+    driver: bridge
+  search:
+    # OpenSearch only; its 127.0.0.1 port binding is the one way out.
     driver: bridge
