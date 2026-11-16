@@ -1,10 +1,24 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { changedFlags, consentStamp, mergeInterests, parseNames } from "@/lib/contact-save";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Autosave endpoint for a contact — accepts the full editor form (FormData). */
+/**
+ * Autosave endpoint for a contact — accepts the full editor form (FormData).
+ *
+ * Runs on the caller's own connection, so the row policies decide who may
+ * write (admin and staff; the accountant has no contact policy at all). The
+ * answers the editor acts on (lib/save-outcome.ts): 500 when the current row
+ * could not be read (tried again), 404 when there is no row to write or the
+ * write changed none (final), 410 for an erased contact (final: nothing is
+ * ever written back into an anonymised row).
+ *
+ * The consent, do-not-mail and AML fields, and the interests, have other
+ * writers (opt-in confirmation, unsubscribe, bounces, sales), so they are
+ * written only as far as the user changed them here (lib/contact-save.ts).
+ */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -23,55 +37,42 @@ export async function PATCH(
     return t || null;
   };
   const raw = (k: string) => String(fd.get(k) ?? "").trim();
-  const parseInterests = (): string[] => {
-    try {
-      const arr = JSON.parse(String(fd.get("interests") ?? "[]"));
-      return Array.isArray(arr) ? arr.map((x) => String(x)).filter(Boolean) : [];
-    } catch {
-      return [];
-    }
-  };
 
-  const { data: current } = await supabase
+  // The row as it is now. Everything below builds on it (the custom fields
+  // not in the form, the consent evidence), so a failed read is an error,
+  // never an empty row: that would drop those fields and re-date consent.
+  const { data: current, error: readErr } = await supabase
     .from("crm_contacts")
-    .select("custom_fields, marketing_consent, consent_date, consent_source")
+    .select("custom_fields, marketing_consent, consent_date, consent_source, erased_at")
     .eq("id", id)
     .maybeSingle();
-  const prev = (current ?? {}) as {
+  if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
+  if (!current)
+    return NextResponse.json({ error: "Contact not found, or not yours to edit" }, { status: 404 });
+  const prev = current as {
     custom_fields: Record<string, unknown> | null;
     marketing_consent: boolean | null;
     consent_date: string | null;
     consent_source: string | null;
+    erased_at: string | null;
   };
+  if (prev.erased_at)
+    return NextResponse.json(
+      { error: "This contact has been erased, so nothing more is saved to it. Reload the page" },
+      { status: 410 },
+    );
   const existing = (prev.custom_fields as Record<string, unknown>) ?? {};
 
-  const interests = parseInterests();
+  const interests = mergeInterests(
+    existing.interests,
+    parseNames(fd.get("interests")) ?? [],
+    parseNames(fd.get("interests_was")),
+  );
 
-  /*
-   * Consent needs provenance, not just a tick.
-   *
-   * UK GDPR Art. 7(1) puts the burden on the controller to demonstrate that
-   * consent was given; a boolean with no date or source demonstrates nothing.
-   * So the first time consent is granted, stamp when and by whom. An existing
-   * date is never overwritten — the original record is the evidence, and a
-   * later save must not quietly re-date it.
-   *
-   * Withdrawal keeps the date and source too: the audit question is often "when
-   * did they consent, and when did that change", and erasing the history to
-   * answer only the second is a poorer record.
-   */
-  const consent = fd.get("marketing_consent") === "on";
-  const granting = consent && !prev.marketing_consent;
-  const consentFields = granting
-    ? {
-        consent_date: prev.consent_date ?? new Date().toISOString(),
-        consent_source:
-          prev.consent_source ??
-          `Recorded in the studio by ${user.email ?? user.id}`,
-      }
-    : {};
+  const flags = changedFlags(fd);
+  const consentFields = consentStamp(prev, flags.marketing_consent, user.email ?? user.id, new Date().toISOString());
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("crm_contacts")
     .update({
       first_name: s("first_name"),
@@ -89,11 +90,9 @@ export async function PATCH(
       whatsapp_number: s("whatsapp_number"),
       line_id: s("line_id"),
       wechat_id: s("wechat_id"),
-      marketing_consent: consent,
+      ...flags,
       ...consentFields,
-      do_not_mail: fd.get("do_not_mail") === "on",
       notes: s("notes"),
-      kyc_status: raw("kyc_status") || "not_started",
       custom_fields: {
         ...existing,
         linkedin: raw("linkedin"),
@@ -115,9 +114,14 @@ export async function PATCH(
         aml_notes: raw("aml_notes"),
       },
     })
-    .eq("id", id);
+    .eq("id", id)
+    // An update the row policies filter out changes nothing and raises no
+    // error; ask for the row back so that is not answered as a save.
+    .select("id");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!updated?.length)
+    return NextResponse.json({ error: "Contact not found, or not yours to edit" }, { status: 404 });
 
   // The interest lists derive their membership from custom_fields.interests
   // (migration 0060), so writing it above is the whole job. This used to also

@@ -57,17 +57,22 @@ export async function PATCH(
   // reached the others, and each email's idempotency key is derived from it.
   // The designer locks these fields; this is the server-side guard.
   let locked = false;
-  if (Object.keys(patch).some((k) => k !== "name")) {
+  const contentKeys = () => Object.keys(patch).some((k) => k !== "name");
+  const nameOnly = () => {
+    for (const k of Object.keys(patch)) if (k !== "name") delete patch[k];
+  };
+  const notFound = () => NextResponse.json({ error: "Newsletter not found, or not yours to edit" }, { status: 404 });
+  if (contentKeys()) {
     const { data: current, error: readErr } = await supabase
       .from("crm_campaigns")
       .select("status")
       .eq("id", id)
       .maybeSingle();
     if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
-    if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!current) return notFound();
     if (current.status !== "draft") {
       locked = true;
-      for (const k of Object.keys(patch)) if (k !== "name") delete patch[k];
+      nameOnly();
     }
   }
 
@@ -75,9 +80,38 @@ export async function PATCH(
     return NextResponse.json({ ok: true, unchanged: true, locked });
   }
 
-  const { error } = await supabase.from("crm_campaigns").update(patch).eq("id", id);
+  // The content is written only while the row is still a draft, in the same
+  // statement: a send that claims the newsletter between the read above and
+  // this write must not have its design changed under it. Each write asks
+  // for its row back, so one that matched nothing is not answered as saved.
+  if (contentKeys()) {
+    const { data, error } = await supabase
+      .from("crm_campaigns")
+      .update(patch)
+      .eq("id", id)
+      .eq("status", "draft")
+      .select("id");
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (data?.length) return NextResponse.json({ ok: true, locked, savedAt: new Date().toISOString() });
+    // No draft matched: a send claimed it meanwhile (keep only the name, as
+    // above), or it is gone or not this user's to edit.
+    const { data: now, error: rereadErr } = await supabase
+      .from("crm_campaigns")
+      .select("status")
+      .eq("id", id)
+      .maybeSingle();
+    if (rereadErr) return NextResponse.json({ error: rereadErr.message }, { status: 500 });
+    if (!now || now.status === "draft") return notFound();
+    locked = true;
+    nameOnly();
+    if (Object.keys(patch).length === 0) return NextResponse.json({ ok: true, unchanged: true, locked });
+  }
+
+  // Name only (allowed at any status).
+  const { data, error } = await supabase.from("crm_campaigns").update(patch).eq("id", id).select("id");
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  if (!data?.length) return notFound();
   return NextResponse.json({ ok: true, locked, savedAt: new Date().toISOString() });
 }

@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AddressFields } from "./address-fields";
 import { InterestSelect } from "./interest-select";
 import { Field } from "./ui/field";
 import { Section } from "./ui/section";
 import { SaveStatus } from "./ui/save-status";
+import { useRefreshAfterSave } from "./editor-save";
 import { CONTACT_TYPE_LABELS, KYC_STATUS_LABELS, labelOf } from "@/lib/labels";
 import { formatDate, gbpDisplay } from "@/lib/format";
+import { NO_ANSWER, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
 
 export type Purchase = {
   stock_number: string | null;
@@ -52,12 +54,60 @@ type Contact = {
   do_not_mail: boolean;
   kyc_status: string;
   notes: string | null;
+  /** Set once the contact has been erased (anonymised under a hold). */
+  erased_at?: string | null;
 };
 
 /** Ids for the native fields: one editor per page, so fixed ids are unique. */
 const fid = (name: string) => `contact-${name}`;
 
 type Status = "idle" | "saving" | "saved" | "error";
+
+/**
+ * The form's posted contents as one comparable string, as AutosaveForm's
+ * serialise. The `_was` bookkeeping fields are left out: they change after a
+ * save without the user editing anything.
+ */
+function serialise(form: HTMLFormElement): string {
+  const entries: [string, string][] = [];
+  new FormData(form).forEach((value, key) => {
+    if (key.endsWith("_was")) return;
+    entries.push([key, typeof value === "string" ? value : `file:${value.name}:${value.size}`]);
+  });
+  return JSON.stringify(entries);
+}
+
+const interestsOf = (contact: Contact): string[] =>
+  Array.isArray(contact.custom_fields?.interests) ? (contact.custom_fields?.interests as unknown[]).map(String) : [];
+
+type Known = { consent: boolean; doNotMail: boolean; kyc: string; interests: string[] };
+
+/** The `_was` values after a save: read back from the entries that were sent. */
+function knownFrom(sent: string, prev: Known): Known {
+  const entries = new Map(JSON.parse(sent) as [string, string][]);
+  let interests = prev.interests;
+  try {
+    const parsed = JSON.parse(entries.get("interests") ?? "[]");
+    if (Array.isArray(parsed)) interests = parsed.map(String);
+  } catch {
+    /* keep the last known list */
+  }
+  return {
+    consent: entries.get("marketing_consent") === "on",
+    doNotMail: entries.get("do_not_mail") === "on",
+    kyc: entries.get("kyc_status") ?? prev.kyc,
+    interests,
+  };
+}
+
+type Props = {
+  id: string;
+  contact: Contact;
+  purchases: Purchase[];
+  consignments: Consignment[];
+  interestOptions: InterestArea[];
+  showPrices: boolean;
+};
 
 /**
  * The contact's autosaving editor. It PATCHes `new FormData(form)` to
@@ -67,33 +117,75 @@ type Status = "idle" | "saving" | "saved" | "error";
  * directly, which AutosaveForm has no way to receive, and AutosaveForm's
  * leave-page confirm would be a new dialog here. The status line is the
  * shared SaveStatus, so both read the same.
+ *
+ * The loop has AutosaveForm's protections: saves run one after another (an
+ * older PATCH never lands after a newer one), a form that equals what the
+ * server holds is not sent, an edit made while a save is on the wire stays
+ * unsaved until its own save, and an edit still waiting for the debounce or
+ * a retry is sent when the editor is left. A refusal for good (404, 410:
+ * lib/save-outcome.ts) is shown with its reason and not retried.
+ *
+ * Beside the consent, do-not-mail, AML status and interests it posts what
+ * it last knew the server to hold (`<field>_was`), so the route writes only
+ * what was changed here and a tab left open cannot put back flags the
+ * website has changed since (lib/contact-save.ts).
+ *
+ * Keyed on erased_at: erasing the contact re-renders this page in place,
+ * and the editor must start again from the anonymised row rather than keep
+ * the old values in its fields.
  */
-export function ContactEditor({
-  id,
-  contact,
-  purchases,
-  consignments,
-  interestOptions,
-  showPrices,
-}: {
-  id: string;
-  contact: Contact;
-  purchases: Purchase[];
-  consignments: Consignment[];
-  interestOptions: InterestArea[];
-  showPrices: boolean;
-}) {
-  const selectedInterests = Array.isArray(contact.custom_fields?.interests)
-    ? (contact.custom_fields?.interests as unknown[]).map(String)
-    : [];
-  const formRef = useRef<HTMLFormElement>(null);
+export function ContactEditor(props: Props) {
+  return <ContactEditorForm key={props.contact.erased_at ?? "live"} {...props} />;
+}
+
+function ContactEditorForm({ id, contact, purchases, consignments, interestOptions, showPrices }: Props) {
+  const selectedInterests = interestsOf(contact);
+  // The form element, kept after React detaches it on unmount so the leave
+  // send can still read an edit that never reached the server.
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const setFormRef = useCallback((el: HTMLFormElement | null) => {
+    if (el) formRef.current = el;
+  }, []);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attempt = useRef(0);
   const dirty = useRef(false);
+  // What the server holds: the form as first rendered, then as last saved.
+  const lastSaved = useRef<string | null>(null);
+  // The save on the wire, if any: saves run one after another.
+  const inFlight = useRef<Promise<boolean> | null>(null);
+  const mounted = useRef(true);
+  // The last save was refused for good; nothing resends it until an edit.
+  const refused = useRef(false);
   const [status, setStatus] = useState<Status>("idle");
   // The last failure was a 401: the session lapsed and only signing in helps.
   const [signedOut, setSignedOut] = useState(false);
+  // A refusal for good: the server's reason, for the line.
+  const [refusal, setRefusal] = useState<string | undefined>(undefined);
+  const { markSaved, refreshAfterLeave } = useRefreshAfterSave();
+
+  // What this editor last knew the server to hold for the fields other
+  // writers also change, posted as `<field>_was`. Hidden inputs with no
+  // React value, written here only (React leaves their value alone), and
+  // found through the form, which outlives an unmount.
+  const known = useRef<Known>({
+    consent: contact.marketing_consent,
+    doNotMail: contact.do_not_mail,
+    kyc: contact.kyc_status,
+    interests: selectedInterests,
+  });
+  const writeKnown = useCallback(() => {
+    const k = known.current;
+    const put = (name: string, value: string) => {
+      const el = formRef.current?.elements.namedItem(name);
+      if (el instanceof HTMLInputElement) el.value = value;
+    };
+    put("marketing_consent_was", k.consent ? "on" : "");
+    put("do_not_mail_was", k.doNotMail ? "on" : "");
+    put("kyc_status_was", k.kyc);
+    put("interests_was", JSON.stringify(k.interests));
+  }, []);
+  useLayoutEffect(() => writeKnown(), [writeKnown]);
 
   const cf = (k: string) => {
     const v = contact.custom_fields?.[k];
@@ -101,42 +193,132 @@ export function ContactEditor({
   };
   const addr2 = (contact.custom_fields?.address2 as Record<string, string>) ?? {};
 
-  const save = useCallback(async () => {
-    if (!formRef.current) return;
-    if (retryTimer.current) {
-      clearTimeout(retryTimer.current);
-      retryTimer.current = null;
-    }
-    setStatus("saving");
-    let lapsed = false;
-    try {
-      const res = await fetch(`/api/crm/contacts/${id}`, {
-        method: "PATCH",
-        body: new FormData(formRef.current),
-      });
-      // A lapsed session answers 401 (middleware), not a save.
-      if (res.status === 401) {
-        lapsed = true;
-        throw new Error("signed out");
+  useEffect(() => {
+    mounted.current = true;
+    if (formRef.current && lastSaved.current === null) lastSaved.current = serialise(formRef.current);
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  // A last-ditch send that must outlive the page (tab hidden or closed, or
+  // the editor left while a save was failing): keepalive, best-effort.
+  // `afterInFlight`: the page lives on (left inside the app), so wait for a
+  // save on the wire, which could otherwise land after this newer one.
+  const sendOnLeave = useCallback(
+    (afterInFlight?: unknown): Promise<unknown> | null => {
+      if (!dirty.current || refused.current || !formRef.current) return null;
+      // The form is read when the request goes: after a save on the wire,
+      // that is the newest form with its `_was` values brought up to date.
+      const send = (): Promise<unknown> => {
+        // An edit undone before it was sent leaves nothing to send.
+        if (!formRef.current || serialise(formRef.current) === lastSaved.current) return Promise.resolve();
+        try {
+          return fetch(`/api/crm/contacts/${id}`, {
+            method: "PATCH",
+            body: new FormData(formRef.current),
+            keepalive: true,
+          }).then(
+            (res) => {
+              if (res.ok) markSaved();
+            },
+            () => undefined,
+          );
+        } catch {
+          /* best-effort */
+          return Promise.resolve();
+        }
+      };
+      if (afterInFlight === true && inFlight.current) return inFlight.current.then(send, send);
+      return send();
+    },
+    [id, markSaved],
+  );
+
+  /** Save the form, queued behind any save on the wire; true once the server holds it. */
+  const save = useCallback((): Promise<boolean> => {
+    const attemptSave = async (): Promise<boolean> => {
+      if (!formRef.current) return false;
+      if (retryTimer.current) {
+        clearTimeout(retryTimer.current);
+        retryTimer.current = null;
       }
-      if (!res.ok) throw new Error(String(res.status));
-      attempt.current = 0;
-      dirty.current = false;
-      setSignedOut(false);
-      setStatus("saved");
-    } catch {
-      // Keep the edit and retry with a capped backoff (2s → … → 30s).
+      // Read when the attempt runs, not when it was queued: the latest form.
+      const sent = serialise(formRef.current);
+      if (sent === lastSaved.current) {
+        attempt.current = 0;
+        dirty.current = false;
+        refused.current = false;
+        setSignedOut(false);
+        setRefusal(undefined);
+        setStatus("saved");
+        return true;
+      }
+      setStatus("saving");
+      let outcome: SaveOutcome;
+      try {
+        const res = await fetch(`/api/crm/contacts/${id}`, {
+          method: "PATCH",
+          body: new FormData(formRef.current),
+        });
+        outcome = await readSaveOutcome(res);
+      } catch {
+        outcome = NO_ANSWER;
+      }
+      if (outcome.ok) {
+        attempt.current = 0;
+        lastSaved.current = sent;
+        refused.current = false;
+        markSaved();
+        // The server now holds what was sent (`sent` is that form, as
+        // entries): that is what `_was` says from here.
+        known.current = knownFrom(sent, known.current);
+        writeKnown();
+        // An edit made while this was on the wire is still unsaved; its own
+        // save follows (and the leave send covers it until then).
+        dirty.current = formRef.current ? serialise(formRef.current) !== sent : false;
+        setSignedOut(false);
+        setRefusal(undefined);
+        setStatus("saved");
+        return true;
+      }
       setStatus("error");
-      setSignedOut(lapsed);
+      setSignedOut(Boolean(outcome.signedOut));
+      if (outcome.final) {
+        // Refused for good (gone, erased, not yours): say why and stop.
+        refused.current = true;
+        attempt.current = 0;
+        setRefusal(outcome.message);
+        return false;
+      }
+      setRefusal(undefined);
+      if (!mounted.current) {
+        // Left while this save was on the wire: one keepalive attempt, no
+        // backoff loop for a page that is gone.
+        sendOnLeave();
+        return false;
+      }
+      // Keep the edit and retry with a capped backoff (2s → … → 30s).
       attempt.current += 1;
       const delay = Math.min(2000 * 2 ** (attempt.current - 1), 30000);
       if (retryTimer.current) clearTimeout(retryTimer.current);
-      retryTimer.current = setTimeout(() => void save(), delay);
-    }
-  }, [id]);
+      retryTimer.current = setTimeout(() => {
+        retryTimer.current = null;
+        void save();
+      }, delay);
+      return false;
+    };
+    const run = (inFlight.current ?? Promise.resolve(true)).then(attemptSave, attemptSave);
+    inFlight.current = run;
+    void run.finally(() => {
+      if (inFlight.current === run) inFlight.current = null;
+    });
+    return run;
+  }, [id, markSaved, sendOnLeave, writeKnown]);
 
   const scheduleSave = useCallback(() => {
     dirty.current = true;
+    refused.current = false;
     setStatus("saving");
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
@@ -161,23 +343,13 @@ export function ContactEditor({
     void save();
   }, [save]);
 
-  // Retry as soon as the network returns; flush on unload with keepalive.
+  // Retry as soon as the network returns; send with keepalive when the tab
+  // is hidden or closed. A refused save is not resent.
   useEffect(() => {
     const onOnline = () => {
-      if (dirty.current) void save();
+      if (dirty.current && !refused.current) void save();
     };
-    const onLeave = () => {
-      if (!dirty.current || !formRef.current) return;
-      try {
-        void fetch(`/api/crm/contacts/${id}`, {
-          method: "PATCH",
-          body: new FormData(formRef.current),
-          keepalive: true,
-        });
-      } catch {
-        /* best-effort */
-      }
-    };
+    const onLeave = () => void sendOnLeave();
     const onVisibility = () => {
       if (document.visibilityState === "hidden") onLeave();
     };
@@ -189,14 +361,28 @@ export function ContactEditor({
       window.removeEventListener("pagehide", onLeave);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [id, save]);
+  }, [save, sendOnLeave]);
 
+  // Leaving inside the app (a link, Back, a swipe) unmounts the editor and
+  // fires no pagehide, and a click on a checkbox or chip may move no focus
+  // (Safari), so no blur flush either. Send what a debounce or retry was
+  // holding, after any save on the wire; then, if anything was saved,
+  // refresh the router so Back cannot reopen a stale cached copy.
+  const sendOnLeaveRef = useRef(sendOnLeave);
+  useEffect(() => {
+    sendOnLeaveRef.current = sendOnLeave;
+  }, [sendOnLeave]);
   useEffect(
     () => () => {
+      const waiting = timer.current !== null || retryTimer.current !== null;
       if (timer.current) clearTimeout(timer.current);
       if (retryTimer.current) clearTimeout(retryTimer.current);
+      timer.current = null;
+      retryTimer.current = null;
+      const sent = waiting ? sendOnLeaveRef.current(true) : null;
+      refreshAfterLeave(sent ?? inFlight.current);
     },
-    [],
+    [refreshAfterLeave],
   );
 
   // A stored type the list does not know (an imported "other") stays an
@@ -208,7 +394,7 @@ export function ContactEditor({
 
   return (
     <form
-      ref={formRef}
+      ref={setFormRef}
       onInput={scheduleSave}
       onChange={scheduleSave}
       onBlur={flush}
@@ -221,15 +407,24 @@ export function ContactEditor({
       className="space-y-6"
     >
       {/* The shared status line, pinned under the header's measured height
-          (var(--app-header-h)) so it and its Retry stay in view. */}
+          (var(--app-header-h)) so it and its Retry stay in view. A refusal
+          for good shows its reason and offers no Retry. */}
       <SaveStatus
         state={status}
         what="the contact"
+        detail={refusal}
         signedOut={signedOut}
-        onRetry={status === "error" ? retryNow : undefined}
+        onRetry={status === "error" && !refusal ? retryNow : undefined}
         idleText="Changes save automatically"
         className="-mt-3"
       />
+      {/* What this editor last knew the server to hold, so the route writes
+          these only when they were changed here (lib/contact-save.ts).
+          Written by writeKnown(), never by React: no value prop. */}
+      <input type="hidden" name="marketing_consent_was" />
+      <input type="hidden" name="do_not_mail_was" />
+      <input type="hidden" name="kyc_status_was" />
+      <input type="hidden" name="interests_was" />
 
       <Section title="Details">
         <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">

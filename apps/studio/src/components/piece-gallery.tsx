@@ -79,20 +79,24 @@ export function PieceGallery({
         className="group relative aspect-square w-full overflow-hidden bg-band"
       >
         {hero?.url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            // The preview at rest; the master only when zoomed, where its
-            // detail shows (the preview stays on screen while it loads).
-            src={zoomed ? hero.url : hero.preview ?? hero.url}
-            alt={hero.caption}
+          // A button, so the zoom answers the keyboard too: Enter or Space
+          // zooms in at the centre (a click zooms in where it lands), and
+          // again zooms out. The pinch and pan handlers stay as they were.
+          <button
+            type="button"
+            aria-pressed={zoomed}
+            aria-label={`Zoom image${hero.caption ? `: ${hero.caption}` : ""}`}
             onClick={(e) => {
-              originFromEvent(e.clientX, e.clientY);
+              // detail 0: Enter, Space or an assistive technology's click.
+              if (e.detail === 0) setOrigin({ x: 50, y: 50 });
+              else originFromEvent(e.clientX, e.clientY);
               setScale((s) => (s > 1.02 ? 1 : ZOOM));
             }}
             onMouseMove={(e) => {
               if (zoomed) originFromEvent(e.clientX, e.clientY);
             }}
             onMouseLeave={() => setScale(1)}
+            onBlur={() => setScale(1)}
             onTouchStart={(e) => {
               if (e.touches.length === 2) {
                 // Begin a pinch; anchor the zoom at the fingers' midpoint.
@@ -116,15 +120,23 @@ export function PieceGallery({
               // Snap back to fit if the user pinched almost all the way out.
               setScale((s) => (s < 1.1 ? 1 : s));
             }}
-            style={{
-              transform: `scale(${zoomed ? scale : 1})`,
-              transformOrigin: `${origin.x}% ${origin.y}%`,
-              touchAction: zoomed ? "none" : "pan-y",
-            }}
-            className={`h-full w-full object-contain transition-transform duration-200 ease-out ${
-              zoomed ? "cursor-zoom-out" : "cursor-zoom-in"
-            }`}
-          />
+            style={{ touchAction: zoomed ? "none" : "pan-y" }}
+            className={`block h-full w-full ${zoomed ? "cursor-zoom-out" : "cursor-zoom-in"}`}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              // The preview at rest; the master only when zoomed, where its
+              // detail shows (the preview stays on screen while it loads).
+              src={zoomed ? hero.url : hero.preview ?? hero.url}
+              alt={hero.caption}
+              draggable={false}
+              style={{
+                transform: `scale(${zoomed ? scale : 1})`,
+                transformOrigin: `${origin.x}% ${origin.y}%`,
+              }}
+              className="h-full w-full object-contain transition-transform duration-200 ease-out"
+            />
+          </button>
         ) : (
           <div role="img" className="jvb-hatch h-full w-full" aria-label="No image" />
         )}

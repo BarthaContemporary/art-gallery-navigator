@@ -24,6 +24,12 @@ type Doc = {
   title: string;
   storage_path: string;
   created_at: string;
+  /**
+   * How many works the document was attached to when the page was drawn
+   * (document_pieces), for the button's word only: Remove decides again at
+   * the click, from the links as they are then.
+   */
+  links?: number;
 };
 
 // Piece-specific document types only. Documents that can span several works
@@ -32,6 +38,10 @@ type Doc = {
 const DOC_TYPES = ["certificate", "condition_report", "export_licence", "other"];
 
 const docLabel = (t: string) => labelOf(DOC_TYPE_LABELS, t);
+
+/** The Remove button's word: detaching from this work, or deleting the last copy. */
+const removeWord = (d: Doc) =>
+  d.links === undefined ? "Remove" : d.links > 1 ? "Remove from this work" : "Delete";
 
 /**
  * Documents attached to a piece: list and upload, self-contained so uploading
@@ -81,7 +91,14 @@ export function DocumentsPanel({
           title: staged.length === 1 && title.trim() ? title.trim() : undefined,
         });
         setDocs((d) => [
-          { id: doc.id, doc_type: docType, title: doc.title, storage_path: doc.storage_path, created_at: new Date().toISOString() },
+          {
+            id: doc.id,
+            doc_type: docType,
+            title: doc.title,
+            storage_path: doc.storage_path,
+            created_at: new Date().toISOString(),
+            links: 1,
+          },
           ...d,
         ]);
         remaining.shift();
@@ -114,23 +131,74 @@ export function DocumentsPanel({
     }
   }
 
+  /*
+   * Documents are shared: one invoice or provenance letter can be attached
+   * to several works (the Documents area links it), and this list shows
+   * every document linked to this work. So Remove looks at the links at the
+   * moment of the click:
+   *
+   *   - attached to other works too: only this work's link goes (the record
+   *     and its file stay for the others), as Documents' own "Remove" does;
+   *   - this is its last work: removing the link would leave a record
+   *     attached to nothing, so it is deleted with its file, after a
+   *     confirm (as the Documents page's delete asks first).
+   *
+   * Every delete asks for its rows back: one the session may not make is
+   * filtered out by RLS rather than refused, no error and nothing removed.
+   */
   async function remove(doc: Doc) {
-    const supabase = await browserClient();
     setError(null);
-    // Drop the row first. A delete the session isn't permitted to make is
-    // filtered out by RLS rather than rejected — no error, no rows removed —
-    // so ask for the row back and only then bin the file and the list entry.
-    // Doing it the other way round could destroy the file while the record
-    // stayed behind, pointing at nothing.
+    const supabase = await browserClient();
+    const [{ data: links, error: linkErr }, { data: rec, error: recErr }] = await Promise.all([
+      supabase.from("document_pieces").select("piece_id").eq("document_id", doc.id),
+      supabase.from("piece_documents").select("piece_id").eq("id", doc.id).maybeSingle(),
+    ]);
+    if (linkErr || recErr) return setError((linkErr ?? recErr)!.message);
+    if (!rec) {
+      // Gone already (deleted elsewhere): drop it from the list.
+      setDocs((d) => d.filter((x) => x.id !== doc.id));
+      router.refresh();
+      return;
+    }
+    const others = (links ?? []).filter((l) => l.piece_id !== pieceId).length;
+
+    if (others > 0) {
+      const { data, error: delErr } = await supabase
+        .from("document_pieces")
+        .delete()
+        .eq("document_id", doc.id)
+        .eq("piece_id", pieceId)
+        .select("document_id");
+      if (delErr) return setError(delErr.message);
+      if (!data?.length) return setError("That document wasn’t removed from this work. You may not have permission.");
+      // Filed on this work in the first place: clear that legacy pointer too,
+      // or deleting this work later would take the document from the others
+      // (piece_documents.piece_id cascades from pieces).
+      if (rec.piece_id === pieceId) {
+        const { error: updErr } = await supabase.from("piece_documents").update({ piece_id: null }).eq("id", doc.id);
+        if (updErr) setError(`Removed from this work, but: ${updErr.message}`);
+      }
+      setDocs((d) => d.filter((x) => x.id !== doc.id));
+      router.refresh();
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Delete “${doc.title}”? It is attached to no other work, so the record and its file are deleted. This cannot be undone.`,
+      )
+    )
+      return;
+    // Drop the row first, then the file: the other way round could destroy
+    // the file while the record stayed behind, pointing at nothing.
     const { data, error: delErr } = await supabase
       .from("piece_documents")
       .delete()
       .eq("id", doc.id)
       .select("id");
     if (delErr) return setError(delErr.message);
-    if (!data?.length)
-      return setError("That document wasn’t removed. You may not have permission.");
-    // document_pieces cascades from piece_documents, so the link goes with it.
+    if (!data?.length) return setError("That document wasn’t deleted. You may not have permission.");
+    // document_pieces cascades from piece_documents, so this work's link goes with it.
     await supabase.storage.from(DOCUMENTS_BUCKET).remove([doc.storage_path]);
     setDocs((d) => d.filter((x) => x.id !== doc.id));
     router.refresh();
@@ -164,9 +232,17 @@ export function DocumentsPanel({
             <Button variant="quiet" size="sm" icon={<DownloadIcon size={14} />} onClick={() => download(d)}>
               Download
             </Button>
-            {/* A row's destructive action, as on the shipment page: quiet, in the danger colour. */}
-            <Button variant="quiet" size="sm" onClick={() => remove(d)} className="text-danger">
-              Remove
+            {/* A row's destructive action, as on the shipment page: quiet, in the
+                danger colour. Its word follows the links when the page was
+                drawn; the click decides from the links as they are then. */}
+            <Button
+              variant="quiet"
+              size="sm"
+              onClick={() => remove(d)}
+              className="text-danger"
+              aria-label={`${removeWord(d)}: ${d.title}`}
+            >
+              {removeWord(d)}
             </Button>
           </li>
         ))}

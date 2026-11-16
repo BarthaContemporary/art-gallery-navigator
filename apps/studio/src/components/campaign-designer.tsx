@@ -9,6 +9,8 @@ import { Field, Input, Select, Textarea } from "./ui/field";
 import { Notice } from "./ui/notice";
 import { SaveStatus } from "./ui/save-status";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, MailIcon, PlusIcon } from "./ui/icons";
+import { useRefreshAfterSave } from "./editor-save";
+import { NO_ANSWER, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
 import {
   compileNewsletter,
   type Block,
@@ -110,6 +112,9 @@ export function CampaignDesigner(props: Props) {
   const [listId, setListId] = useState(props.initialListId);
   const [blocks, setBlocks] = useState<Block[]>(props.initialDesign.blocks ?? []);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // The last save was refused for good (lib/save-outcome.ts): its reason.
+  const [refusal, setRefusal] = useState<string | undefined>(undefined);
+  const [signedOut, setSignedOut] = useState(false);
   const [actionNote, setActionNote] = useState<string | null>(null);
   const firstRun = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,6 +124,11 @@ export function CampaignDesigner(props: Props) {
   const dirty = useRef(false);
   /** The save in flight, so saves run one at a time and a send can wait for it. */
   const inflight = useRef<Promise<boolean> | null>(null);
+  /** False once the designer has unmounted: a failure then re-arms no retry. */
+  const alive = useRef(true);
+  /** The last save was refused for good; nothing resends it until an edit. */
+  const refused = useRef(false);
+  const { markSaved, refreshAfterLeave } = useRefreshAfterSave();
   // The current values, for saves started by a timer or a button.
   const latest = useRef({ name, subject, preview, from, listId, blocks });
   latest.current = { name, subject, preview, from, listId, blocks };
@@ -138,10 +148,38 @@ export function CampaignDesigner(props: Props) {
   );
 
   /*
+   * The one request: the current values (latest.current) as JSON. keepalive
+   * only for the best-effort send as the tab is hidden or closed: a closing
+   * page cannot wait, and a keepalive body is capped at 64 KiB, which a long
+   * design can pass (the fetch then rejects; the queued save still follows
+   * if the page survives).
+   */
+  const post = useCallback(
+    (keepalive: boolean) => {
+      const s = latest.current;
+      return fetch(`/api/crm/campaigns/${props.campaignId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        keepalive,
+        body: JSON.stringify({
+          name: s.name,
+          subject: s.subject,
+          preview_text: s.preview,
+          from_address: s.from,
+          list_id: s.listId || null,
+          design: { blocks: s.blocks },
+        }),
+      });
+    },
+    [props.campaignId],
+  );
+
+  /*
    * Save the current values now. Saves are chained, so an older request can
    * never land after a newer one. A failed save keeps the edits and retries
    * with the same capped backoff as AutosaveForm (2 s, 4 s, 8 s … 30 s);
-   * it used to wait for the next edit.
+   * it used to wait for the next edit. A refusal for good (403, 404: lib/
+   * save-outcome.ts) shows the server's reason and is not retried.
    */
   const save = useCallback((): Promise<boolean> => {
     if (retryTimer.current) {
@@ -153,38 +191,43 @@ export function CampaignDesigner(props: Props) {
     const run = (async () => {
       if (prev) await prev;
       dirty.current = false;
-      const s = latest.current;
+      let outcome: SaveOutcome;
       try {
-        const res = await fetch(`/api/crm/campaigns/${props.campaignId}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            name: s.name,
-            subject: s.subject,
-            preview_text: s.preview,
-            from_address: s.from,
-            list_id: s.listId || null,
-            design: { blocks: s.blocks },
-          }),
-        });
-        if (!res.ok) throw new Error(String(res.status));
+        outcome = await readSaveOutcome(await post(false));
+      } catch {
+        outcome = NO_ANSWER;
+      }
+      if (outcome.ok) {
         attempt.current = 0;
+        refused.current = false;
+        markSaved();
+        setRefusal(undefined);
+        setSignedOut(false);
         // An edit made while this was in flight has its own save coming.
         if (!dirty.current) setStatus("saved");
         return true;
-      } catch {
-        dirty.current = true;
-        setStatus("error");
-        attempt.current += 1;
-        const delay = Math.min(2000 * 2 ** (attempt.current - 1), 30000);
-        if (retryTimer.current) clearTimeout(retryTimer.current);
-        retryTimer.current = setTimeout(() => void save(), delay);
+      }
+      dirty.current = true;
+      setStatus("error");
+      setSignedOut(Boolean(outcome.signedOut));
+      if (outcome.final) {
+        refused.current = true;
+        attempt.current = 0;
+        setRefusal(outcome.message);
         return false;
       }
+      setRefusal(undefined);
+      // Left while this was on the wire: no backoff loop for a page that is gone.
+      if (!alive.current) return false;
+      attempt.current += 1;
+      const delay = Math.min(2000 * 2 ** (attempt.current - 1), 30000);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = setTimeout(() => void save(), delay);
+      return false;
     })();
     inflight.current = run;
     return run;
-  }, [props.campaignId]);
+  }, [post, markSaved]);
 
   // Debounced autosave.
   const serialized = JSON.stringify({ name, subject, preview, from, listId, blocks });
@@ -194,6 +237,7 @@ export function CampaignDesigner(props: Props) {
       return;
     }
     dirty.current = true;
+    refused.current = false;
     setStatus("saving");
     const t = setTimeout(() => {
       timer.current = null;
@@ -204,13 +248,51 @@ export function CampaignDesigner(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serialized]);
 
-  useEffect(
-    () => () => {
+  // The tab is hidden or closing with an edit not yet saved: a best-effort
+  // keepalive send of the current values. It neither waits for the queue
+  // nor clears `dirty` or the debounce: if the page survives, the queued
+  // save still runs and puts the order right. (The server ignores all but
+  // the name once a send has started, so a late flush is harmless.)
+  useEffect(() => {
+    const flushNow = () => {
+      if (!dirty.current || refused.current) return;
+      try {
+        void post(true).catch(() => undefined);
+      } catch {
+        /* best-effort */
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushNow();
+    };
+    window.addEventListener("pagehide", flushNow);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flushNow);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [post]);
+
+  // Left inside the app ("All newsletters", a header link, Back): the page
+  // lives on, so an edit the debounce or a retry was holding is saved now,
+  // through the queue (no keepalive: a long design can pass its cap). After
+  // that, or a save on the wire, settles, the router is refreshed if
+  // anything was saved, so Back cannot reopen a stale cached design.
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      const waiting = timer.current !== null || retryTimer.current !== null;
       if (timer.current) clearTimeout(timer.current);
       if (retryTimer.current) clearTimeout(retryTimer.current);
-    },
-    [],
-  );
+      timer.current = null;
+      retryTimer.current = null;
+      const pending = waiting && dirty.current && !refused.current ? saveRef.current() : inflight.current;
+      refreshAfterLeave(pending);
+    };
+  }, [refreshAfterLeave]);
 
   /**
    * Make sure the database holds what is on screen: skip the debounce, wait
@@ -335,8 +417,10 @@ export function CampaignDesigner(props: Props) {
         sticky={false}
         state={status}
         what="the newsletter"
+        detail={refusal}
+        signedOut={signedOut}
         onRetry={
-          status === "error"
+          status === "error" && !refusal
             ? () => {
                 attempt.current = 0;
                 void save();

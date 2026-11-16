@@ -1,13 +1,19 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CloseIcon, PlusIcon } from "@/components/ui/icons";
+import { serialiseLines } from "@/lib/lines";
 
 /**
  * A small editable list of free-text lines that serialises to a single hidden
  * input (JSON array of strings), so it round-trips through the autosave form
  * exactly like an ordinary field. Empty lines are dropped on serialise.
+ *
+ * The hidden input is controlled by the rows (value={json}). It used to carry
+ * defaultValue and have its value written by hand; for a hidden input the
+ * value IS the default value, so every re-render put the initial list back
+ * and the form never posted an added, changed or removed line.
  */
 export function RepeatableList({
   name,
@@ -25,36 +31,34 @@ export function RepeatableList({
   itemLabel?: string;
   onChange?: () => void;
 }) {
-  const [rows, setRows] = useState<string[]>(initial.length ? initial : []);
+  // Seeded once: a re-render of the page mid-edit must not reset the rows.
+  const [rows, setRows] = useState<string[]>(() => (initial.length ? initial : []));
   const hidden = useRef<HTMLInputElement>(null);
+  const json = serialiseLines(rows);
 
-  const commit = useCallback(
-    (next: string[]) => {
-      setRows(next);
-      if (hidden.current) {
-        hidden.current.value = JSON.stringify(next.map((r) => r.trim()).filter(Boolean));
-        // Notify any wrapping autosave form (covers add/remove clicks, which
-        // don't otherwise fire an input event on the form).
-        hidden.current.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-      onChange?.();
-    },
-    [onChange],
-  );
+  // Tell a wrapping autosave form once the posted value has changed. Add and
+  // Remove clicks fire no input event of their own, and a controlled hidden
+  // input's new value fires none either. Keyed on the JSON itself (not a
+  // skip-the-first-run flag), so StrictMode's double effect sends nothing.
+  const lastJson = useRef(json);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+  useEffect(() => {
+    if (lastJson.current === json) return;
+    lastJson.current = json;
+    hidden.current?.dispatchEvent(new Event("input", { bubbles: true }));
+    onChangeRef.current?.();
+  }, [json]);
 
-  const update = (i: number, val: string) =>
-    commit(rows.map((r, idx) => (idx === i ? val : r)));
-  const remove = (i: number) => commit(rows.filter((_, idx) => idx !== i));
-  const add = () => commit([...rows, ""]);
+  const update = (i: number, val: string) => setRows((cur) => cur.map((r, idx) => (idx === i ? val : r)));
+  const remove = (i: number) => setRows((cur) => cur.filter((_, idx) => idx !== i));
+  const add = () => setRows((cur) => [...cur, ""]);
 
   return (
     <div>
-      <input
-        ref={hidden}
-        type="hidden"
-        name={name}
-        defaultValue={JSON.stringify(initial)}
-      />
+      <input ref={hidden} type="hidden" name={name} value={json} readOnly />
       {rows.length ? (
         <ul className="mt-1.5 space-y-2">
           {rows.map((row, i) => (

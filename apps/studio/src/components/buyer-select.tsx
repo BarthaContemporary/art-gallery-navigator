@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { STATUS_LABELS } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { CloseIcon } from "@/components/ui/icons";
+import { useContactSearch, type ContactHit } from "@/components/use-contact-search";
+import { useModalFocus } from "@/components/use-modal-focus";
 
-type Result = { id: string; name: string; email: string | null };
+type Result = ContactHit;
 
 // Mirrors the status options in piece-form.tsx.
 const STATUSES = Object.keys(STATUS_LABELS);
@@ -25,46 +27,21 @@ export function BuyerSelect({
   const [name, setName] = useState(initialName ?? "");
   const [searching, setSearching] = useState(!(initialId ?? ""));
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<Result[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Debounced search against the CRM contacts endpoint, only while searching.
+  // A failed search says so (`searchError`) instead of "No matches.".
+  const { results, setResults, loading, error: searchError } = useContactSearch(q, searching);
 
   // Status-change prompt shown after a buyer is picked on a not-yet-sold work.
   const rootRef = useRef<HTMLDivElement>(null);
   const hiddenRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const statusRef = useRef<HTMLSelectElement>(null);
+  const changeRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const promptTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mounted = useRef(false);
   const [prompt, setPrompt] = useState<{ current: string } | null>(null);
   const [chosen, setChosen] = useState("sold");
-
-  // Debounced search against the CRM contacts endpoint.
-  useEffect(() => {
-    if (!searching) return;
-    const query = q.trim();
-    if (query.length < 2) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    let cancelled = false;
-    const t = setTimeout(() => {
-      fetch(`/api/crm/contacts/search?q=${encodeURIComponent(query)}`)
-        .then((r) => (r.ok ? r.json() : { results: [] }))
-        .then((json: { results?: Result[] }) => {
-          if (!cancelled) setResults(json.results ?? []);
-        })
-        .catch(() => {
-          if (!cancelled) setResults([]);
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false);
-        });
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [q, searching]);
 
   // A hidden input's React value change does not emit a DOM event, so nudge the
   // autosave form whenever the buyer changes (also covers the pick below).
@@ -75,6 +52,13 @@ export function BuyerSelect({
     }
     hiddenRef.current?.dispatchEvent(new Event("input", { bubbles: true }));
   }, [id]);
+
+  useEffect(
+    () => () => {
+      if (promptTimer.current) clearTimeout(promptTimer.current);
+    },
+    [],
+  );
 
   function statusSelect() {
     return rootRef.current
@@ -95,16 +79,15 @@ export function BuyerSelect({
     }, 1500);
   }
 
-  // Escape closes the status prompt (Apple + Impeccable both flagged the
-  // missing dismiss affordances).
-  useEffect(() => {
-    if (!prompt) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPrompt(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [prompt]);
+  // The prompt is a modal layer: focus moves to its status select (the
+  // result that was clicked no longer exists), Tab stays inside, Escape
+  // closes it, and focus goes back to the buyer's "Change" button (or the
+  // search box) after.
+  useModalFocus(Boolean(prompt), dialogRef, {
+    initial: () => statusRef.current,
+    returnTo: () => changeRef.current ?? searchRef.current,
+    onEscape: () => setPrompt(null),
+  });
 
   function applyStatus() {
     const sel = statusSelect();
@@ -146,13 +129,14 @@ export function BuyerSelect({
               <CloseIcon size={14} />
             </Button>
           </span>
-          <button type="button" onClick={() => setSearching(true)} className="link text-[12px]">
+          <button ref={changeRef} type="button" onClick={() => setSearching(true)} className="link text-[12px]">
             Change
           </button>
         </div>
       ) : (
         <div>
           <input
+            ref={searchRef}
             id={inputId}
             type="search"
             value={q}
@@ -178,7 +162,11 @@ export function BuyerSelect({
               ))}
             </ul>
           ) : q.trim().length >= 2 ? (
-            <p className="mt-1 text-[12px] text-meta">No matches.</p>
+            // A failed search says so: "No matches." would read as "not in the
+            // CRM" and lead to a duplicate contact.
+            <p role={searchError ? "alert" : undefined} className={`mt-1 text-[12px] ${searchError ? "text-danger" : "text-meta"}`}>
+              {searchError ?? "No matches."}
+            </p>
           ) : null}
           {id ? (
             <Button variant="quiet" size="sm" onClick={() => setSearching(false)} className="mt-1 -ml-1.5">
@@ -192,18 +180,23 @@ export function BuyerSelect({
         <div
           className="jvb-scrim-enter fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: "var(--jvb-scrim)" }}
-          role="dialog"
-          aria-modal="true"
           onClick={(e) => {
             if (e.target === e.currentTarget) setPrompt(null);
           }}
         >
           <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="buyer-status-title"
+            aria-describedby="buyer-status-text"
             className="jvb-pop-enter w-full max-w-sm border border-rule-strong bg-page p-5"
             style={{ boxShadow: "var(--jvb-shadow-pop)" }}
           >
-            <h2 className="text-[14.5px] font-semibold leading-[1.45] text-ink">Update the status?</h2>
-            <p className="mt-1.5 text-[13px] leading-[1.45] text-body">
+            <h2 id="buyer-status-title" className="text-[14.5px] font-semibold leading-[1.45] text-ink">
+              Update the status?
+            </h2>
+            <p id="buyer-status-text" className="mt-1.5 text-[13px] leading-[1.45] text-body">
               This work has a buyer but its status is “{label(prompt.current)}”. Would you like to
               change it?
             </p>
@@ -211,7 +204,9 @@ export function BuyerSelect({
               <label htmlFor="buyer-new-status" className="label">
                 New status
               </label>
+              {/* No name: this select must not join the autosave form's posted keys. */}
               <select
+                ref={statusRef}
                 id="buyer-new-status"
                 value={chosen}
                 onChange={(e) => setChosen(e.target.value)}

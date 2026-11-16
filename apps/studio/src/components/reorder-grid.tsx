@@ -1,7 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { GripIcon } from "@/components/ui/icons";
+import { arrowDelta, moveBy, moveOver, sameOrder } from "@/lib/order-move";
 
 /*
  * Drag-to-reorder, shared by every surface that has a hand-set order: piece
@@ -19,7 +21,14 @@ import { GripIcon } from "@/components/ui/icons";
  * Items are rendered on the server and handed over as nodes keyed by id. This
  * component owns nothing but their order, so every control inside keeps working
  * exactly as it did.
+ *
+ * Keyboard: a focused grip moves its item with the arrow keys (Left/Up back,
+ * Right/Down forward) in every layout. The key stops there: a page's own
+ * arrow-key shortcuts (RecordKeyNav's previous/next work on the images page)
+ * must not also act on it. A save that fails puts the order back and says so
+ * in the status line (the table layout shows it in a notice of its own).
  */
+const ORDER_SAVE_FAILED = "Couldn’t save the order, so it has been put back. Try again.";
 
 type Ctx = {
   startDrag: (id: string) => void;
@@ -62,9 +71,11 @@ export function ReorderHandle({ id, className = "" }: { id: string; className?: 
       title="Drag to reorder, or focus it and use the arrow keys"
       onPointerDown={() => ctx.startDrag(id)}
       onKeyDown={(e) => {
-        const d = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : 0;
+        const d = arrowDelta(e.key);
         if (d === 0) return;
+        // Handled here: no scroll, and no page shortcut on the same key.
         e.preventDefault();
+        e.stopPropagation();
         ctx.nudge(id, d);
       }}
       // touch-none is what stops a touch-drag scrolling the page instead of
@@ -105,9 +116,17 @@ export function ReorderGrid({
    */
   variant?: "grid" | "rows";
 }) {
-  const [order, setOrder] = useState(serverOrder);
+  const [order, setOrder] = useState<readonly string[]>(serverOrder);
+  // The order as it is now, for handlers whose closure is older (a drag's
+  // release, a nudge right after another): kept in step with every change.
+  const orderRef = useRef<readonly string[]>(serverOrder);
+  const apply = useCallback((next: readonly string[]) => {
+    orderRef.current = next;
+    setOrder(next);
+  }, []);
   const [dragId, setDragId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // The server's order wins whenever it changes underneath us — an upload, a
   // delete, a revalidate. Without this a stale local order would resurrect
@@ -117,12 +136,12 @@ export function ReorderGrid({
   useEffect(() => {
     if (serverKey !== lastServerKey.current) {
       lastServerKey.current = serverKey;
-      setOrder(serverOrder);
+      apply(serverOrder);
     }
-  }, [serverKey, serverOrder]);
+  }, [serverKey, serverOrder, apply]);
 
   const cellRefs = useRef(new Map<string, HTMLElement>());
-  const orderAtDragStart = useRef<string[]>([]);
+  const orderAtDragStart = useRef<readonly string[]>([]);
 
   /** Which tile is under the pointer right now. */
   const idAtPoint = useCallback((x: number, y: number): string | null => {
@@ -134,22 +153,31 @@ export function ReorderGrid({
   }, []);
 
   function startDrag(id: string) {
-    orderAtDragStart.current = order;
+    orderAtDragStart.current = orderRef.current;
     setDragId(id);
   }
 
+  // Each save is numbered: quick nudges put several on the wire, and a late
+  // failure of an early one must not put back an order older than what a
+  // newer save has since stored. Only the newest save reverts or reports.
+  const saves = useRef(0);
   const persist = useCallback(
-    async (next: string[], revertTo: string[]) => {
+    async (next: readonly string[], revertTo: readonly string[]) => {
+      const mine = ++saves.current;
       setSaving(true);
+      setSaveError(null);
       try {
-        await onReorder(next);
+        await onReorder([...next]);
       } catch {
-        setOrder(revertTo); // put it back rather than show an order that did not save
+        if (mine === saves.current) {
+          apply(revertTo); // put it back rather than show an order that did not save
+          setSaveError(ORDER_SAVE_FAILED);
+        }
       } finally {
-        setSaving(false);
+        if (mine === saves.current) setSaving(false);
       }
     },
-    [onReorder],
+    [onReorder, apply],
   );
 
   /*
@@ -171,23 +199,17 @@ export function ReorderGrid({
     const onMove = (e: PointerEvent) => {
       const overId = idAtPoint(e.clientX, e.clientY);
       if (!overId || overId === dragId) return;
-      setOrder((prev) => {
-        const from = prev.indexOf(dragId);
-        const to = prev.indexOf(overId);
-        if (from < 0 || to < 0) return prev;
-        const next = [...prev];
-        next.splice(to, 0, ...next.splice(from, 1));
-        return next;
-      });
+      const next = moveOver(orderRef.current, dragId, overId);
+      if (next !== orderRef.current) apply(next);
     };
 
+    // The order is worked out here, outside any state updater (which React
+    // may run twice), so a drop saves once.
     const onUp = () => {
       setDragId(null);
-      setOrder((finalOrder) => {
-        const before = orderAtDragStart.current;
-        if (finalOrder.join(",") !== before.join(",")) void persist(finalOrder, before);
-        return finalOrder;
-      });
+      const finalOrder = orderRef.current;
+      const before = orderAtDragStart.current;
+      if (!sameOrder(finalOrder, before)) void persist(finalOrder, before);
     };
 
     window.addEventListener("pointermove", onMove);
@@ -198,27 +220,29 @@ export function ReorderGrid({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [dragId, idAtPoint, persist]);
+  }, [dragId, idAtPoint, persist, apply]);
 
   /**
    * Keyboard equivalent. A drag has none, and the arrow buttons this replaces
    * were tab-reachable — losing that to gain a nicer gesture would be a poor
-   * trade.
+   * trade. The next order is computed from the current one before the state
+   * changes, so each press saves exactly once.
    */
   const nudge = useCallback(
     (id: string, delta: number) => {
-      setOrder((cur) => {
-        const from = cur.indexOf(id);
-        const to = from + delta;
-        if (from < 0 || to < 0 || to >= cur.length) return cur;
-        const next = [...cur];
-        next.splice(to, 0, ...next.splice(from, 1));
-        void persist(next, cur);
-        return next;
-      });
+      const cur = orderRef.current;
+      const next = moveBy(cur, id, delta);
+      if (next === cur) return;
+      apply(next);
+      void persist(next, cur);
     },
-    [persist],
+    [persist, apply],
   );
+
+  // The table layout renders only a <tbody>, with no room for a status line,
+  // so its "saving" and "couldn't save" go to a small notice of their own.
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => setPortalReady(true), []);
 
   const ctx: Ctx = {
     startDrag,
@@ -237,6 +261,20 @@ export function ReorderGrid({
       <ReorderCtx.Provider value={ctx}>
         {/* Each item already is a <tr>, so it goes straight in. */}
         <tbody>{order.map((id) => tiles[id])}</tbody>
+        {portalReady
+          ? createPortal(
+              <div aria-live="polite" className="pointer-events-none fixed bottom-4 left-4 z-40 max-w-[min(92vw,420px)]">
+                {saveError ? (
+                  <p role="alert" className="notice pointer-events-auto" data-tone="danger">
+                    {saveError}
+                  </p>
+                ) : saving ? (
+                  <p className="sr-only">Saving order…</p>
+                ) : null}
+              </div>,
+              document.body,
+            )
+          : null}
       </ReorderCtx.Provider>
     );
   }
@@ -245,8 +283,11 @@ export function ReorderGrid({
     <ReorderCtx.Provider value={ctx}>
       <p className="mt-4 flex flex-wrap items-center gap-2 text-[12px] text-ink-soft">
         <span>{hint}</span>
-        <span aria-live="polite" className={saving ? "text-ink-muted" : "sr-only"}>
-          {saving ? "Saving order…" : ""}
+        <span
+          aria-live="polite"
+          className={saveError ? "text-danger" : saving ? "text-ink-muted" : "sr-only"}
+        >
+          {saveError ?? (saving ? "Saving order…" : "")}
         </span>
       </p>
 
@@ -267,9 +308,14 @@ export function ReorderGrid({
                 title="Drag to reorder, or focus it and use the arrow keys"
                 onPointerDown={() => startDrag(id)}
                 onKeyDown={(e) => {
-                  const d = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+                  // All four arrows: the card layout also serves single
+                  // columns (the offer items), where Up and Down are natural.
+                  const d = arrowDelta(e.key);
                   if (d === 0) return;
+                  // Handled here: no scroll, and no page shortcut on the same
+                  // key (RecordKeyNav would otherwise open the next work).
                   e.preventDefault();
+                  e.stopPropagation();
                   nudge(id, d);
                 }}
                 // touch-none is what stops a touch-drag scrolling the page

@@ -2,6 +2,10 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Field } from "./ui/field";
+import { addressFromPlace, mapQuery } from "@/lib/address-pick";
+
+/** How long typing must pause before the map preview asks for the new address. */
+const MAP_DEBOUNCE_MS = 600;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -108,6 +112,10 @@ export function AddressFields({
   const acHostRef = useRef<HTMLDivElement>(null);
   const [mapBroken, setMapBroken] = useState(false);
   const [mapsMsg, setMapsMsg] = useState<string | null>(null);
+  // The address the map preview shows: the stored one at once, then each
+  // lookup pick at once, and typed changes once typing pauses (each new src
+  // is a billed Static Maps request, so not one per character).
+  const [shownQuery, setShownQuery] = useState(() => mapQuery(v));
 
   // Google Places Autocomplete (new PlaceAutocompleteElement — the only variant
   // available to keys created after March 2025). Everything is wrapped so a
@@ -149,28 +157,25 @@ export function AddressFields({
           try {
             const place = e.placePrediction.toPlace();
             await place.fetchFields({
-              fields: ["addressComponents", "displayName", "types"],
+              fields: ["addressComponents", "displayName", "types", "formattedAddress"],
             });
             const parts: Record<string, string> = {};
             for (const c of place.addressComponents ?? []) {
               for (const t of c.types) parts[t] = c.longText ?? c.shortText ?? "";
             }
-            // If the picked place is a business/establishment, use its name to
-            // auto-fill the company field.
-            const isEstablishment = (place.types ?? []).includes("establishment");
-            const businessName =
-              isEstablishment && typeof place.displayName === "string"
-                ? place.displayName
-                : "";
-            setV((prev) => ({
-              ...prev,
-              company: businessName || prev.company,
-              line1: [parts.street_number, parts.route].filter(Boolean).join(" ") || prev.line1,
-              line2: parts.subpremise || parts.premise || prev.line2,
-              city: parts.postal_town || parts.locality || parts.sublocality || prev.city,
-              postcode: parts.postal_code || prev.postcode,
-              country: parts.country || prev.country,
-            }));
+            // A pick replaces the address line by line; a part the place
+            // lacks is left empty, never kept from the old address. A
+            // business picked fills the company (lib/address-pick.ts).
+            const establishment = (place.types ?? []).includes("establishment");
+            const pickPlace = {
+              establishment,
+              name: typeof place.displayName === "string" ? place.displayName : null,
+              formattedAddress: typeof place.formattedAddress === "string" ? place.formattedAddress : null,
+            };
+            // One state change, so one pick schedules one save.
+            setV((prev) => ({ ...prev, ...addressFromPlace(parts, pickPlace, prev.company) }));
+            // The map follows a pick at once (it is one request, not typing).
+            setShownQuery(mapQuery(addressFromPlace(parts, pickPlace, "")));
           } catch {
             /* ignore selection errors */
           }
@@ -194,9 +199,13 @@ export function AddressFields({
   const set = (k: keyof Values) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setV((prev) => ({ ...prev, [k]: e.target.value }));
 
-  const query = [v.line1, v.line2, v.city, v.postcode, v.country]
-    .filter(Boolean)
-    .join(", ");
+  const typedQuery = mapQuery(v);
+  useEffect(() => {
+    if (typedQuery === shownQuery) return;
+    const t = setTimeout(() => setShownQuery(typedQuery), MAP_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [typedQuery, shownQuery]);
+  const query = shownQuery;
   const mapSrc =
     MAPS_KEY && query
       ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(query)}&zoom=15&size=640x260&scale=2&markers=color:0x555555%7C${encodeURIComponent(query)}&style=saturation:-100&style=feature:poi%7Cvisibility:off&key=${MAPS_KEY}`

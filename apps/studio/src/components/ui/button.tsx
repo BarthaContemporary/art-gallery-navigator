@@ -31,9 +31,6 @@
  * rows is not a column of red boxes. Either way the confirm step that
  * follows keeps its own "Yes, delete" in danger.
  *
- *   SubmitButton (components/submit-button.tsx) is now a thin wrapper of
- *   Button; new code uses <Button type="submit"> directly.
- *
  * The look is the Moon Gate language in globals.css (.btn): secondary is
  * outlined in ink and fills with an ink wash rising on hover; primary is an
  * ink block with the mark's two square notches, and a seal dot stamps in

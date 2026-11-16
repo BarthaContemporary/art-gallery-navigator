@@ -69,7 +69,9 @@ export default async function EditPiecePage({
         .maybeSingle(),
       supabase
         .from("document_pieces")
-        .select("doc:piece_documents ( id, doc_type, title, storage_path, created_at )")
+        // links: every work the document is attached to, so the panel's
+        // Remove can say whether it detaches or deletes.
+        .select("doc:piece_documents ( id, doc_type, title, storage_path, created_at, links:document_pieces ( piece_id ) )")
         .eq("piece_id", piece.id),
       supabase
         .from("piece_images")
@@ -99,9 +101,16 @@ export default async function EditPiecePage({
 
   // Documents linked to this piece (via the shared document_pieces link table).
   const pieceDocs = ((documents.data ?? []) as unknown as {
-    doc: { id: string; doc_type: string; title: string; storage_path: string; created_at: string } | null;
+    doc: {
+      id: string;
+      doc_type: string;
+      title: string;
+      storage_path: string;
+      created_at: string;
+      links?: { piece_id: string }[] | null;
+    } | null;
   }[])
-    .map((r) => r.doc)
+    .map((r) => (r.doc ? { ...r.doc, links: Array.isArray(r.doc.links) ? r.doc.links.length : undefined } : null))
     .filter((d): d is NonNullable<typeof d> => Boolean(d))
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 

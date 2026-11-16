@@ -51,8 +51,9 @@ import { Kbd } from "@/components/ui/kbd";
 import { MenuButton } from "@/components/ui/menu";
 import { cx } from "@/components/ui/cx";
 
-export const DENSITY_KEY = "jvb:inventory:density:v1";
-export const WEB_COL_KEY = "jvb:inventory:webcol:v1";
+// Saved per browser: keep the strings, or everyone loses their setting.
+const DENSITY_KEY = "jvb:inventory:density:v1";
+const WEB_COL_KEY = "jvb:inventory:webcol:v1";
 
 /** The id of the Filters panel, which the header's Filters button controls. */
 export const FILTERS_PANEL_ID = "inventory-filters";

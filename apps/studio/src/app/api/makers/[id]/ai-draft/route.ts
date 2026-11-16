@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { rateLimit } from "@jvb/db/rate-limit";
 import { getSupabase, getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { sanitizeHtml } from "@/lib/sanitize-html";
+import { answerText, draftHtml, draftSources, draftStopProblem, type DraftBlock } from "@/lib/ai-draft";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,20 @@ export const maxDuration = 300;
 
 const DRAFTS_PER_HOUR = 10;
 
+/**
+ * A research turn the server's tool loop paused (stop_reason "pause_turn":
+ * it reached its iteration limit mid-research) is resumed by sending the
+ * same request with the paused answer appended. At most once: the search
+ * tool's max_uses counts per request, and it must stay as it was (changing a
+ * tool definition mid-turn is an edit to `tools`, which newer models refuse
+ * once thinking blocks are in the history), so each resume can spend up to
+ * MAX_SEARCHES more searches. And not once the time budget is nearly spent
+ * (maxDuration is 300 s).
+ */
+const MAX_SEARCHES = 8;
+const MAX_RESUMES = 1;
+const RESUME_BEFORE_MS = 150_000;
+
 const WRITING_SYSTEM = `You are writing maker biographies for Joost van den Bergh, a London dealer in Japanese and Indian works of art. Your drafts appear on the gallery's website and in printed profiles, so they must read as if written by a knowledgeable human specialist, not by an AI.
 
 RESEARCH RULES
@@ -53,10 +68,6 @@ WRITING RULES (make it sound human)
 
 OUTPUT FORMAT
 Return ONLY an HTML fragment — no markdown, no code fences, no commentary before or after. Allowed tags: <p>, <b>, <i>. Each paragraph in its own <p>. Use <i> for work titles and non-English terms on first use. Do not include the maker's name as a heading (the page already shows it). Do not include citations, footnote markers or URLs in the text.`;
-
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -122,54 +133,46 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const anthropic = new Anthropic({ apiKey });
   const model = process.env.AI_BIOGRAPHY_MODEL ?? "claude-opus-4-8";
 
-  let html = "";
-  const sources: { url: string; title: string }[] = [];
+  // The whole turn, across a resume: every block the model wrote, in order.
+  const content: Anthropic.ContentBlock[] = [];
+  const user: Anthropic.MessageParam = {
+    role: "user",
+    content: `Research this maker and write the biography draft.\n\n${facts.join("\n")}`,
+  };
+  const started = Date.now();
+  let stopReason: Anthropic.StopReason | null = null;
   try {
-    const stream = anthropic.messages.stream({
-      model,
-      max_tokens: 16000,
-      thinking: { type: "adaptive" },
-      system: WRITING_SYSTEM,
-      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
-      messages: [
-        {
-          role: "user",
-          content: `Research this maker and write the biography draft.\n\n${facts.join("\n")}`,
-        },
-      ],
-    });
-    const msg = await stream.finalMessage();
-
-    for (const block of msg.content) {
-      if (block.type === "text") {
-        html += block.text;
-        for (const c of block.citations ?? []) {
-          // Shown as links beside the draft: web addresses only.
-          if (
-            c.type === "web_search_result_location" &&
-            /^https?:\/\//i.test(c.url) &&
-            !sources.some((s) => s.url === c.url)
-          )
-            sources.push({ url: c.url, title: c.title ?? c.url });
-        }
-      }
+    for (let pass = 0; ; pass++) {
+      const stream = anthropic.messages.stream({
+        model,
+        max_tokens: 16000,
+        thinking: { type: "adaptive" },
+        system: WRITING_SYSTEM,
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: MAX_SEARCHES }],
+        // A resume sends the paused answer back unchanged (thinking blocks
+        // included) and no new user message: the server picks up the turn.
+        messages: pass === 0 ? [user] : [user, { role: "assistant", content }],
+      });
+      const msg = await stream.finalMessage();
+      content.push(...msg.content);
+      stopReason = msg.stop_reason;
+      if (stopReason !== "pause_turn" || pass >= MAX_RESUMES || Date.now() - started > RESUME_BEFORE_MS) break;
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : "AI request failed";
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
-  html = html
-    .replace(/^```(?:html)?/i, "")
-    .replace(/```$/i, "")
-    .trim();
+  // Cut off, refused or still paused: no partial draft, a plain reason.
+  const problem = draftStopProblem(stopReason);
+  if (problem) return NextResponse.json({ error: problem }, { status: 502 });
+
+  const blocks = content as unknown as DraftBlock[];
+  // Shown as links beside the draft: web addresses only.
+  const sources = draftSources(blocks);
+  // The answer after the research (any preamble dropped), as a fragment.
+  let html = draftHtml(answerText(blocks));
   if (!html) return NextResponse.json({ error: "The model returned no draft" }, { status: 502 });
-  // Plain-text fallback: wrap loose prose in paragraphs.
-  if (!/^</.test(html))
-    html = html
-      .split(/\n{2,}/)
-      .map((p) => `<p>${esc(p.trim())}</p>`)
-      .join("");
 
   // Defence in depth: the model read arbitrary web pages, and the editor
   // shows this as HTML (the draft preview, then the profile once kept) —

@@ -30,6 +30,8 @@ const HOLD_MS = 500;
  * disabled until the action finishes. Every draft takes a stock number.
  */
 const REPEAT_MS = 600;
+/** How long after a pointer release its own click may still arrive. */
+const CLICK_AFTER_POINTER_MS = 1000;
 
 export function NewRecordButton({
   action,
@@ -62,6 +64,12 @@ function HoldButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const lastSubmit = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A pointer press is under way, or ended this recently (ms timestamp): the
+  // click the browser fires after it belongs to the gesture, which already
+  // acted (or, slid away, chose not to). Any other click (Enter or Space,
+  // a screen reader's activation, element.click()) is the plain action.
+  const pointerDown = useRef(false);
+  const pointerEnded = useRef(0);
 
   // `armed` is what the release acts on; `holding` only drives the fill.
   const [holding, setHolding] = useState(false);
@@ -90,6 +98,7 @@ function HoldButton({
 
   function onPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
     if (e.button !== 0 && e.pointerType === "mouse") return; // left button only
+    pointerDown.current = true;
     // Capture so the release is still delivered here if the pointer has moved
     // off the button. Moving off cancels the hold (see onPointerMove), so the
     // captured release lands on holding === false and submits nothing — which
@@ -113,11 +122,28 @@ function HoldButton({
     if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) reset();
   }
 
+  function endPointer() {
+    if (!pointerDown.current) return;
+    pointerDown.current = false;
+    pointerEnded.current = Date.now();
+  }
+
   function onPointerUp() {
+    endPointer();
     if (!holding) return;
     const external = armed;
     reset();
     submit(external ? "external" : "jvb");
+  }
+
+  // Keyboard (the native button turns Enter and Space into a click), a
+  // screen reader's activation and element.click() all arrive here with no
+  // pointer gesture around them: they get the plain action, as there is no
+  // held-key equivalent. The click that follows a pointer release is the
+  // gesture's own and is ignored (CLICK_AFTER_POINTER_MS covers the gap).
+  function onClick() {
+    if (pointerDown.current || Date.now() - pointerEnded.current < CLICK_AFTER_POINTER_MS) return;
+    submit("jvb");
   }
 
   return (
@@ -129,17 +155,14 @@ function HoldButton({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={reset}
+        onPointerCancel={() => {
+          endPointer();
+          reset();
+        }}
         onPointerLeave={reset}
+        onClick={onClick}
         // A long press on touch otherwise raises the selection callout.
         onContextMenu={(e) => e.preventDefault()}
-        onKeyDown={(e) => {
-          // Keyboard gets the plain action; there is no held-key equivalent.
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            submit("jvb");
-          }
-        }}
         aria-describedby="new-record-hold-hint"
         className={`relative isolate overflow-hidden touch-none select-none disabled:opacity-60 ${
           className ??

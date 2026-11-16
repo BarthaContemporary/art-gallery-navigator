@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { nativeFieldLang } from "@/lib/script-lang";
+import { NO_ANSWER, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { chipClass } from "@/components/ui/chips";
 import { Notice } from "@/components/ui/notice";
-import { SaveStatus } from "@/components/ui/save-status";
+import { SaveStatus, type SaveState } from "@/components/ui/save-status";
 import { WebsiteSwitch } from "@/components/ui/website-switch";
+import { useRefreshAfterSave } from "@/components/editor-save";
 import {
   BoldIcon,
   HeadingIcon,
@@ -55,6 +57,45 @@ const TOOLS: Tool[] = [
   { key: "ul", Icon: ListIcon, label: "Bulleted list", run: ["insertUnorderedList"] },
   { key: "ol", Icon: NumberedListIcon, label: "Numbered list", run: ["insertOrderedList"] },
 ];
+
+/*
+ * The editor saves through three channels, each a PATCH of its own to
+ * /api/makers/[id]/profile: the detail fields, the profile text and the
+ * website switch. Each keeps its own state, and the one line says what is
+ * true of all three (an error anywhere wins, then a save in progress), so a
+ * later success in one never hides a failure in another. Nothing retries by
+ * itself: a failed channel says "Press Retry", and Retry resends exactly the
+ * channels that failed. A refusal for good (a 400 such as "Name is
+ * required", a 403, a 404: lib/save-outcome.ts) shows the route's reason and
+ * offers no Retry for that channel; the next edit sends again.
+ */
+type Channel = "fields" | "profile" | "web";
+type ChannelState = { state: SaveState; detail?: string; final?: boolean; signedOut?: boolean };
+const IDLE_CHANNEL: ChannelState = { state: "idle" };
+const RETRY_DETAIL = "Press Retry to try again.";
+
+/** Error wins (its reason shown), then saving, then saved; otherwise idle. */
+function combineChannels(channels: Record<Channel, ChannelState>): ChannelState & { retryable: boolean } {
+  const all = Object.values(channels);
+  const errors = all.filter((c) => c.state === "error");
+  const retryable = errors.some((c) => !c.final);
+  if (errors.length) {
+    // A reason the user can act on (a refusal) before the generic retry line.
+    const shown = errors.find((c) => c.final) ?? errors[0]!;
+    return { state: "error", detail: shown.detail, signedOut: errors.some((c) => c.signedOut), retryable };
+  }
+  if (all.some((c) => c.state === "saving")) return { state: "saving", retryable };
+  if (all.some((c) => c.state === "saved")) return { state: "saved", retryable };
+  return { state: "idle", retryable };
+}
+
+/** A channel's state after its request answered. */
+function afterSave(outcome: SaveOutcome): ChannelState {
+  if (outcome.ok) return { state: "saved" };
+  if (outcome.signedOut) return { state: "error", signedOut: true };
+  if (outcome.final) return { state: "error", detail: outcome.message, final: true };
+  return { state: "error", detail: RETRY_DETAIL };
+}
 
 /** Which tools apply at the caret, read from the browser's editing state. */
 function toolStates(): Record<string, boolean> {
@@ -112,20 +153,44 @@ export function MakerProfileEditor({
 }) {
   const [fields, setFields] = useState<MakerFields>(initialFields);
   const [webVisible, setWebVisible] = useState(initialWebVisible);
+  const [channels, setChannels] = useState<Record<Channel, ChannelState>>({
+    fields: IDLE_CHANNEL,
+    profile: IDLE_CHANNEL,
+    web: IDLE_CHANNEL,
+  });
+  const setChannel = useCallback(
+    (c: Channel, s: ChannelState) => setChannels((prev) => ({ ...prev, [c]: s })),
+    [],
+  );
+  const status = combineChannels(channels);
+  const { markSaved, refreshAfterLeave } = useRefreshAfterSave();
 
+  // The website switch: shown at once, put back if the request fails (as the
+  // maker list's switch does), one request at a time.
+  const [webBusy, setWebBusy] = useState(false);
+  const webWanted = useRef(initialWebVisible);
   async function toggleWebVisible(next: boolean) {
+    if (webBusy) return;
+    const before = webVisible;
+    webWanted.current = next;
+    setWebBusy(true);
     setWebVisible(next);
-    setStatus("saving");
+    setChannel("web", { state: "saving" });
+    let outcome: SaveOutcome;
     try {
       const res = await fetch(`/api/makers/${makerId}/profile`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ webVisible: next }),
       });
-      setStatus(res.ok ? "saved" : "error");
+      outcome = await readSaveOutcome(res);
     } catch {
-      setStatus("error");
+      outcome = NO_ANSWER;
     }
+    if (outcome.ok) markSaved();
+    else setWebVisible(before);
+    setChannel("web", afterSave(outcome));
+    setWebBusy(false);
   }
   const fieldsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<MakerFields>(initialFields);
@@ -134,7 +199,6 @@ export function MakerProfileEditor({
   const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSources, setAiSources] = useState<{ url: string; title: string }[]>([]);
@@ -144,8 +208,18 @@ export function MakerProfileEditor({
     null,
   );
   const fileRef = useRef<HTMLInputElement>(null);
-  const editorRef = useRef<HTMLDivElement>(null);
+  // The profile text element, kept after React detaches it on unmount so a
+  // save still waiting for the debounce can read it as the editor is left.
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const setEditorRef = useCallback((el: HTMLDivElement | null) => {
+    if (el) editorRef.current = el;
+  }, []);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The profile text holds an edit not yet sent: typing, a toolbar command
+  // or a kept AI draft (never the draft arriving). A blur saves only then,
+  // so clicking into the text and away again sends nothing (no PATCH, no
+  // website sync).
+  const profileDirty = useRef(false);
 
   const [pressed, setPressed] = useState<Record<string, boolean>>({});
 
@@ -174,47 +248,80 @@ export function MakerProfileEditor({
   function save() {
     const run = async () => {
       if (!editorRef.current) return;
-      setStatus("saving");
+      // Read now, so an edit typed while this is on the wire marks the text
+      // unsaved again and its own save follows.
+      const html = editorRef.current.innerHTML;
+      profileDirty.current = false;
+      setChannel("profile", { state: "saving" });
+      let outcome: SaveOutcome;
       try {
         const res = await fetch(`/api/makers/${makerId}/profile`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ html: editorRef.current.innerHTML }),
+          body: JSON.stringify({ html }),
         });
-        setStatus(res.ok ? "saved" : "error");
+        outcome = await readSaveOutcome(res);
       } catch {
-        setStatus("error");
+        outcome = NO_ANSWER;
       }
+      if (outcome.ok) markSaved();
+      // Not saved: the text is still unsaved, for the next blur or Retry.
+      else profileDirty.current = true;
+      setChannel("profile", afterSave(outcome));
     };
     saveQueue.current = saveQueue.current.then(run);
     return saveQueue.current;
   }
   function scheduleSave() {
-    setStatus("saving");
+    profileDirty.current = true;
+    setChannel("profile", { state: "saving" });
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(save, 800);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      void save();
+    }, 800);
   }
 
-  async function saveFields(next: MakerFields) {
-    setStatus("saving");
-    try {
-      const res = await fetch(`/api/makers/${makerId}/profile`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fields: next }),
-      });
-      setStatus(res.ok ? "saved" : "error");
-    } catch {
-      setStatus("error");
-    }
+  // Detail-field saves are queued too (one after another, so an older
+  // request never lands last and wins), and each reads the newest values
+  // when it runs: saves queued behind one on the wire coalesce to one.
+  const fieldsQueue = useRef<Promise<void>>(Promise.resolve());
+  const fieldsLatest = useRef(0);
+  function saveFields() {
+    const mine = ++fieldsLatest.current;
+    const run = async () => {
+      // A newer save was asked for while this one queued: it sends the newer values.
+      if (mine !== fieldsLatest.current) return;
+      setChannel("fields", { state: "saving" });
+      let outcome: SaveOutcome;
+      try {
+        const res = await fetch(`/api/makers/${makerId}/profile`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fields: pending.current }),
+        });
+        outcome = await readSaveOutcome(res);
+      } catch {
+        outcome = NO_ANSWER;
+      }
+      if (outcome.ok) markSaved();
+      // Edited again while this was on the wire: the newer save reports.
+      if (mine !== fieldsLatest.current) return;
+      setChannel("fields", afterSave(outcome));
+    };
+    fieldsQueue.current = fieldsQueue.current.then(run);
+    return fieldsQueue.current;
   }
   function setField(key: keyof MakerFields, value: string) {
     const next = { ...fields, [key]: value };
     setFields(next);
     pending.current = next;
-    setStatus("saving");
+    setChannel("fields", { state: "saving" });
     if (fieldsTimer.current) clearTimeout(fieldsTimer.current);
-    fieldsTimer.current = setTimeout(() => void saveFields(next), 800);
+    fieldsTimer.current = setTimeout(() => {
+      fieldsTimer.current = null;
+      void saveFields();
+    }, 800);
   }
 
   // Leaving a detail field commits it straight away. Without this, typing a
@@ -224,8 +331,40 @@ export function MakerProfileEditor({
     if (!fieldsTimer.current) return;
     clearTimeout(fieldsTimer.current);
     fieldsTimer.current = null;
-    void saveFields(pending.current);
+    void saveFields();
   }
+
+  // Retry resends exactly the channels whose last save failed and could
+  // still succeed (not a refusal for good).
+  function retryFailed() {
+    if (channels.fields.state === "error" && !channels.fields.final) void saveFields();
+    if (channels.profile.state === "error" && !channels.profile.final) void save();
+    if (channels.web.state === "error" && !channels.web.final) void toggleWebVisible(webWanted.current);
+  }
+
+  // Left inside the app (Back, a link) with a debounce still holding an
+  // edit: send it, then refresh the router if anything was saved, so Back
+  // cannot reopen this editor from a stale cached copy.
+  const leaveRef = useRef({ saveFields, save });
+  leaveRef.current = { saveFields, save };
+  useEffect(
+    () => () => {
+      const sends: Promise<unknown>[] = [];
+      if (fieldsTimer.current) {
+        clearTimeout(fieldsTimer.current);
+        fieldsTimer.current = null;
+        sends.push(leaveRef.current.saveFields());
+      }
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+        if (profileDirty.current) sends.push(leaveRef.current.save());
+      }
+      sends.push(fieldsQueue.current, saveQueue.current);
+      refreshAfterLeave(Promise.all(sends));
+    },
+    [refreshAfterLeave],
+  );
 
   function cmd(command: string, value?: string) {
     editorRef.current?.focus();
@@ -274,10 +413,13 @@ export function MakerProfileEditor({
   function keepDraft() {
     if (!aiDraft || !editorRef.current) return;
     if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
     editorRef.current.innerHTML = aiDraft.html;
     // The sources stay in view under the profile, for checking while editing.
     setAiSources(aiDraft.sources);
     setAiDraft(null);
+    // A person chose to keep it: only now is it an edit to save.
+    profileDirty.current = true;
     void save();
   }
 
@@ -360,16 +502,16 @@ export function MakerProfileEditor({
 
   return (
     <div className="space-y-6">
-      {/* Retry sends the details and the profile again, as the next edit
-          would. */}
+      {/* One line for the three channels: an error anywhere wins, with its
+          reason. Nothing retries by itself, so the line says to press
+          Retry, which resends just the channels that failed. */}
       <SaveStatus
-        state={status}
+        state={status.state}
         what="the maker"
+        detail={status.detail}
+        signedOut={status.signedOut}
         idleText="Changes save automatically"
-        onRetry={() => {
-          void saveFields(pending.current);
-          void save();
-        }}
+        onRetry={status.state === "error" && status.retryable ? retryFailed : undefined}
       />
 
       <Section title="Details">
@@ -539,7 +681,7 @@ export function MakerProfileEditor({
             </div>
 
             <div
-              ref={editorRef}
+              ref={setEditorRef}
               contentEditable
               suppressContentEditableWarning
               role="textbox"
@@ -547,7 +689,10 @@ export function MakerProfileEditor({
               aria-label="Profile"
               onInput={scheduleSave}
               onBlur={() => {
+                // Only an edit not yet sent: a click in and out sends nothing.
+                if (!profileDirty.current) return;
                 if (timer.current) clearTimeout(timer.current);
+                timer.current = null;
                 void save();
               }}
               className="field-box prose-maker min-h-[280px] w-full px-4 py-3 text-[14.5px] leading-[1.6] text-ink [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"

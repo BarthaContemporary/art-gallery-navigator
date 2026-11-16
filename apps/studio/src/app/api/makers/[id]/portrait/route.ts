@@ -34,10 +34,17 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const paths = [maker.portrait_path, maker.portrait_original_path]
     .map((p) => makerPortraitPath(p, maker.id))
     .filter((p): p is string => !!p);
-  if (paths.length) await svc.storage.from("maker-portraits").remove(paths);
-  await svc
+  // The row first, checked: the files go only once nothing names them. The
+  // other way round, a failed update left the row naming two deleted files
+  // (no portrait in the studio, nothing for the website sync). The update
+  // also raises the maker's website sync, which needs only the row.
+  const { data: updated, error: updErr } = await svc
     .from("makers")
     .update({ portrait_path: null, portrait_original_path: null, portrait_focus: null })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
+  if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
+  if (!updated?.length) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (paths.length) await svc.storage.from("maker-portraits").remove(paths);
   return NextResponse.json({ ok: true });
 }
