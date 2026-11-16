@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { applyFacet, facetMatches } from "@/lib/facet";
 import { selectInChunks } from "@/lib/chunk";
+import { formatCount } from "@/lib/format";
 
 /**
  * Resolving a piece list's membership, in one place.
@@ -81,6 +82,47 @@ export function ledgerRuleLabel(raw: string | null | undefined): string | null {
 export const LIVE_LIMIT = 500;
 
 /**
+ * Which works the LIVE_LIMIT cap keeps, which follows the live list's order:
+ * a text rule keeps pieces_search's relevance order, so the cap drops the
+ * weakest matches; facets alone run newest stock number first, so it drops
+ * the oldest stock numbers. The surfaces that say a list was cut word it from
+ * this, so nobody looks for the missing works in the wrong place.
+ */
+export function liveListOrder(rules: ListRules | null | undefined): "relevance" | "stock" {
+  return (rules?.q ?? "").trim() ? "relevance" : "stock";
+}
+
+/**
+ * The size of a live list cut at the cap, for a header or a card:
+ * "Newest 500 of 812 works", or "The 500 best matches of 812" for a search.
+ */
+export function liveCapHeadline(rules: ListRules | null | undefined, shown: number, total: number): string {
+  return liveListOrder(rules) === "relevance"
+    ? `The ${formatCount(shown)} best matches of ${formatCount(total)}`
+    : `Newest ${formatCount(shown)} of ${formatCount(total)} works`;
+}
+
+/** The list page's warning when a live list was cut at the cap. */
+export function liveCapNotice(rules: ListRules | null | undefined, shown: number, total: number): string {
+  const where =
+    "are left out here and in everything made from this list: exports, labels, offers, a copy and the website buttons.";
+  return liveListOrder(rules) === "relevance"
+    ? `A live list with a search holds the ${formatCount(shown)} works that match it best, and this ` +
+        `search and its filters match ${formatCount(total)}. The ${formatCount(total - shown)} weakest ` +
+        `matches ${where} Narrow the search or the filters to include them.`
+    : `A live list holds the newest ${formatCount(shown)} works its filters match, and these filters ` +
+        `match ${formatCount(total)}. The ${formatCount(total - shown)} with the oldest stock numbers ` +
+        `${where} Narrow the filters to include them.`;
+}
+
+/** The overview's "Save as list" hint: what a live list saved from this view will hold. */
+export function liveCapSaveHint(rules: ListRules | null | undefined): string {
+  return liveListOrder(rules) === "relevance"
+    ? `holds the ${formatCount(LIVE_LIMIT)} best matches for the search`
+    : `holds the newest ${formatCount(LIVE_LIMIT)} works they match`;
+}
+
+/**
  * Works pinned OUT of a live list — piece_list_items rows with excluded=true.
  * A static list never has such rows (removal deletes the row outright).
  * Throws on a failed read: an empty set would quietly bring pinned-out works
@@ -111,7 +153,8 @@ export type ListMembership = {
 
 /**
  * Piece ids belonging to a list, in display order: sort_order for a static
- * list, newest stock number first for a live one. Works in the trash are left
+ * list; for a live one, best match first when it has a text rule, newest
+ * stock number first otherwise (liveListOrder). Works in the trash are left
  * out. Throws on a failed read.
  */
 export async function resolveListPieceIds(

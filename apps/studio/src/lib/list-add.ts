@@ -35,6 +35,12 @@ export type AddToListResult =
  * rather than failing the whole batch, and the caller can tell the user how
  * many were left out.
  *
+ * OPEN, for the owner: the record page's "Add to list" files a work from
+ * either register, and a live list can be saved over the other register, so
+ * this rule is not the studio's everywhere. Whether lists may hold non-JvdB
+ * works is a product decision; once made, either this filter goes or the
+ * record page refuses an external work too.
+ *
  * Nothing is written until the request is known to be good: a live list is
  * refused (its works are its saved filters, so rows filed into it would
  * change nothing), and a new list is created only once there is a work to

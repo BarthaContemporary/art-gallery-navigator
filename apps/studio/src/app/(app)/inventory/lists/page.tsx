@@ -4,7 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { ReorderGrid } from "@/components/reorder-grid";
 import { persistOrder } from "@/lib/reorder";
 import { loadThumbnails } from "@/lib/thumbnails";
-import { resolveListMembership, type ListLike } from "@/lib/list-members";
+import { liveCapHeadline, resolveListMembership, type ListLike } from "@/lib/list-members";
 import { formatCount } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -169,8 +169,10 @@ export default async function InventoryListsPage() {
                             </span>
                           ) : size.total > size.shown ? (
                             // A live list stops at LIVE_LIMIT works; say so
-                            // rather than pass the cut for the whole list.
-                            `Newest ${formatCount(n)} of ${formatCount(size.total)} works`
+                            // rather than pass the cut for the whole list,
+                            // in the list's own order (best matches for a
+                            // search, newest stock numbers otherwise).
+                            liveCapHeadline((l as unknown as ListLike).filter_rules, n, size.total)
                           ) : (
                             `${formatCount(n)} work${n === 1 ? "" : "s"}`
                           )}

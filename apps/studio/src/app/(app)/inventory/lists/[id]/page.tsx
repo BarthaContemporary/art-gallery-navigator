@@ -12,6 +12,8 @@ import { chunkIds, selectInChunks } from "@/lib/chunk";
 import {
   ledgerRuleLabel,
   listExcludedIds,
+  liveCapHeadline,
+  liveCapNotice,
   resolveListMembership,
   resolveListPieceIds,
   type ListLike,
@@ -625,7 +627,7 @@ export default async function InventoryListDetail({
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
             <Badge tone={isDynamic ? "info" : "neutral"}>{isDynamic ? "Live" : "Static"}</Badge>
             <span className="tabular">
-              {truncated ? `Newest ${formatCount(n)} of ${formatCount(liveTotal)} works` : `${formatCount(n)} work${n === 1 ? "" : "s"}`}
+              {truncated ? liveCapHeadline(rules, n, liveTotal) : `${formatCount(n)} work${n === 1 ? "" : "s"}`}
               {n > 0 ? `, ${formatCount(onWebsite)} on the website` : ""}
             </span>
           </span>
@@ -643,12 +645,11 @@ export default async function InventoryListDetail({
 
       {truncated ? (
         // Everything in the studio that reads the list (the exports, labels,
-        // offers, the publish buttons, a copy) stops at the same works.
+        // offers, the publish buttons, a copy) stops at the same works. Which
+        // works the cut drops follows the list's order: the weakest matches
+        // for a search, the oldest stock numbers otherwise.
         <Notice tone="warn" className="mb-4">
-          A live list holds the newest {formatCount(n)} works its filters match, and these filters
-          match {formatCount(liveTotal)}. The {formatCount(liveTotal - n)} with the oldest stock
-          numbers are left out here and in everything made from this list: exports, labels, offers,
-          a copy and the website buttons. Narrow the filters to include them.
+          {liveCapNotice(rules, n, liveTotal)}
         </Notice>
       ) : null}
 

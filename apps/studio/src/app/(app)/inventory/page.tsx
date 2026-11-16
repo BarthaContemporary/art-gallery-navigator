@@ -15,7 +15,7 @@ import { FlashNotice, Notice } from "@/components/ui/notice";
 import { formatCount } from "@/lib/format";
 import { createDraftPiece } from "./actions";
 import { parseFacet } from "@/lib/facet";
-import { LIVE_LIMIT } from "@/lib/list-members";
+import { liveCapSaveHint } from "@/lib/list-members";
 import {
   FLAG_FILTERS,
   SCREEN_ORDER,
@@ -279,8 +279,10 @@ export default async function InventoryPage({
           </Button>
         </div>
         <p className="mt-2 text-[12px] leading-[1.4] text-meta">
-          Membership stays live: the list re-runs these filters each time you open it, and holds the
-          newest {formatCount(LIVE_LIMIT)} works they match.
+          {/* A search keeps its relevance order, so the cap keeps the best
+              matches rather than the newest works (lib/list-members). */}
+          Membership stays live: the list re-runs these filters each time you open it, and{" "}
+          {liveCapSaveHint({ q })}.
         </p>
         {/* A live list keeps the search, register and facets only, so say
             which of the screen's filters it will not carry rather than

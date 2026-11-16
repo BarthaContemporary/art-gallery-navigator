@@ -503,7 +503,7 @@ export function InventoryTable({
             ? `; ${filed.already} ${filed.already === 1 ? "was" : "were"} in it already`
             : ""}
           {filed.skipped > 0
-            ? `. ${filed.skipped} non-JvdB work${filed.skipped === 1 ? " was" : "s were"} left out (lists hold JvdB stock only)${
+            ? `. ${filed.skipped} non-JvdB work${filed.skipped === 1 ? " was" : "s were"} left out (only JvdB stock is filed from here)${
                 filed.skippedStayFlagged ? ` and ${filed.skipped === 1 ? "keeps its flag" : "keep their flags"}` : ""
               }.`
             : "."}

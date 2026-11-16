@@ -10,7 +10,19 @@ import { fakeSupabase, type Row } from "./test-support/fake-supabase.ts";
 
 // @ts-ignore TS5097
 const lm = await import("./list-members.ts");
-const { countListMembers, ledgerFilterOf, ledgerRuleLabel, listSize, LIVE_LIMIT, resolveListMembership, resolveListPieceIds } = lm;
+const {
+  countListMembers,
+  ledgerFilterOf,
+  ledgerRuleLabel,
+  listSize,
+  LIVE_LIMIT,
+  liveCapHeadline,
+  liveCapNotice,
+  liveCapSaveHint,
+  liveListOrder,
+  resolveListMembership,
+  resolveListPieceIds,
+} = lm;
 
 /** A work as vw_pieces_list shows it (a trashed work is simply not there). */
 function work(n: number, over: Row = {}): Row {
@@ -153,4 +165,35 @@ test("a text rule asks the search for the columns it filters on, framed and web_
     assert.ok(cols.includes(c), `${c} selected`);
   }
   assert.ok(!cols.includes("*") && !cols.includes("description"));
+});
+
+test("a search list cut at the cap keeps its best matches and says so; a facet list says oldest", async () => {
+  // pieces_search answers in relevance order, which here runs OLDEST stock
+  // number first: the cap must keep the best matches, not the newest works.
+  const hits = Array.from({ length: 520 }, (_, i) => work(i + 1, { title: "vase" }));
+  const { client } = fakeSupabase({ tables: { piece_list_items: [] }, rpc: { pieces_search: () => hits } });
+  const search = { id: "L9", is_dynamic: true, filter_rules: { q: "vase" } };
+  const m = await resolveListMembership(client, search);
+  assert.equal(m.total, 520);
+  assert.equal(m.ids.length, LIVE_LIMIT);
+  assert.equal(m.ids[0], "w0001");
+  assert.ok(!m.ids.includes("w0520"), "the weakest match is the one cut");
+
+  assert.equal(liveListOrder(search.filter_rules), "relevance");
+  assert.equal(liveListOrder({ q: "   ", status: "!sold" }), "stock");
+  assert.equal(liveListOrder(null), "stock");
+
+  assert.equal(liveCapHeadline(search.filter_rules, 500, 812), "The 500 best matches of 812");
+  assert.equal(liveCapHeadline({ status: "!sold" }, 500, 1203), "Newest 500 of 1,203 works");
+
+  const searchNotice = liveCapNotice(search.filter_rules, 500, 800);
+  assert.match(searchNotice, /The 300 weakest matches are left out/);
+  assert.doesNotMatch(searchNotice, /oldest|newest/);
+  const facetNotice = liveCapNotice({ category: "c1" }, 500, 800);
+  assert.match(facetNotice, /The 300 with the oldest stock numbers are left out/);
+  assert.doesNotMatch(facetNotice, /weakest|best/);
+
+  assert.equal(liveCapSaveHint({ q: "Japan" }), "holds the 500 best matches for the search");
+  assert.equal(liveCapSaveHint({ q: undefined }), "holds the newest 500 works they match");
+  assert.equal(liveCapSaveHint({ q: "" }), "holds the newest 500 works they match");
 });
