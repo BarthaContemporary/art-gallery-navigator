@@ -14,7 +14,8 @@
  *               Sending the same thing again gets the same answer, so the
  *               editor stops retrying, shows `message` on its save line and
  *               does not ask before the page is left (nothing a retry could
- *               save would be lost). The next edit is sent as usual.
+ *               save would be lost). A blur, Enter or Done does not send it
+ *               again either (planFlush); the next edit is sent as usual.
  *   otherwise   a failure that may pass (a dropped connection, a 5xx, a
  *               timeout): kept and tried again with the editor's backoff.
  *
@@ -76,6 +77,36 @@ export async function readSaveOutcome(res: Response): Promise<SaveOutcome> {
 
 /** The outcome of a request that never got an answer (offline, aborted, a body over the keepalive cap). */
 export const NO_ANSWER: SaveOutcome = { ok: false };
+
+/**
+ * After a failed save: is what was sent still worth sending again (a blur,
+ * Retry, leaving the page)? Not after a refusal for good: the same content
+ * gets the same answer, so only a new edit sends again.
+ */
+export function stillToSend(outcome: SaveOutcome): boolean {
+  return !outcome.ok && !outcome.final;
+}
+
+/**
+ * What a flush (a field losing focus, Enter, Done, Send) does:
+ *
+ *   send     an edit is waiting for its debounce, or the editor holds
+ *            unsaved changes the server has not refused: save now.
+ *   refused  the server refused exactly what the editor shows, for good,
+ *            and nothing has been edited since: send nothing, and answer
+ *            "not saved" so Done stays with the reason on the line.
+ *   clean    the server holds what the editor shows: nothing to send.
+ *
+ * `waiting`: a debounce timer holds an edit. `unsaved`: the editor differs
+ * from what the server holds. `refused`: the last answer was a refusal for
+ * good of the content the editor still shows (an edit clears it).
+ */
+export type FlushPlan = "send" | "refused" | "clean";
+export function planFlush(state: { waiting: boolean; unsaved: boolean; refused: boolean }): FlushPlan {
+  if (state.waiting) return "send";
+  if (state.refused) return "refused";
+  return state.unsaved ? "send" : "clean";
+}
 
 /** `send` functions may still answer a plain boolean; this reads either. */
 export function asOutcome(value: boolean | SaveOutcome | null | undefined): SaveOutcome {

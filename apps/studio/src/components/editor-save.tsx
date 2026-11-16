@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { SaveStatus, SaveStatusProvider, useSaveReporter, useSaveStatus } from "@/components/ui/save-status";
 import { Button } from "@/components/ui/button";
 import { EditSectionRail } from "@/components/edit-section-rail";
-import { asOutcome, NO_ANSWER, type SaveOutcome } from "@/lib/save-outcome";
+import { asOutcome, NO_ANSWER, planFlush, type SaveOutcome } from "@/lib/save-outcome";
 
 /*
  * The record editor's one save line (W14). The main form, the consignment
@@ -439,11 +439,20 @@ export function useStateAutosave(send: PartSend) {
     [],
   );
 
-  /** For Done: save if anything is not on the server yet. */
-  const flush = useCallback(
-    () => (edits.current !== held.current || attempt.current > 0 ? save() : Promise.resolve(true)),
-    [save],
-  );
+  /**
+   * For Done: save if anything is not on the server yet. What the server
+   * refused for good is not sent again (Done stays, the reason showing)
+   * until an edit.
+   */
+  const flush = useCallback((): Promise<boolean> => {
+    const plan = planFlush({
+      waiting: timer.current !== null,
+      unsaved: edits.current !== held.current || attempt.current > 0,
+      refused: refused.current,
+    });
+    if (plan === "refused") return Promise.resolve(false);
+    return plan === "send" ? save() : Promise.resolve(true);
+  }, [save]);
 
   // The tab is hidden or closing: send what is waiting now, with keepalive.
   // Hidden goes through the queue (so the debounce is not sent twice); a

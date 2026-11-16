@@ -10,7 +10,7 @@ import { Notice } from "./ui/notice";
 import { SaveStatus } from "./ui/save-status";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, MailIcon, PlusIcon } from "./ui/icons";
 import { useRefreshAfterSave } from "./editor-save";
-import { NO_ANSWER, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
+import { NO_ANSWER, planFlush, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
 import {
   compileNewsletter,
   type Block,
@@ -207,11 +207,16 @@ export function CampaignDesigner(props: Props) {
         if (!dirty.current) setStatus("saved");
         return true;
       }
+      // An edit made while this was in flight has marked it dirty again.
+      const editedSince = dirty.current;
       dirty.current = true;
       setStatus("error");
       setSignedOut(Boolean(outcome.signedOut));
       if (outcome.final) {
-        refused.current = true;
+        // What was refused is what the designer still shows, unless it was
+        // edited since: that edit keeps its own save (its debounce, the
+        // leave send).
+        refused.current = !editedSince;
         attempt.current = 0;
         setRefusal(outcome.message);
         return false;
@@ -302,12 +307,17 @@ export function CampaignDesigner(props: Props) {
    * last edit.
    */
   const flushSave = useCallback(async (): Promise<boolean> => {
+    const waiting = timer.current !== null;
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
     }
     if (inflight.current) await inflight.current;
-    return dirty.current ? save() : true;
+    // What the server refused for good is not sent again (the line keeps
+    // its reason) until an edit.
+    const plan = planFlush({ waiting, unsaved: dirty.current, refused: refused.current });
+    if (plan === "refused") return false;
+    return plan === "send" ? save() : true;
   }, [save]);
 
   async function afterSave(action: () => Promise<void>) {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { nativeFieldLang } from "@/lib/script-lang";
-import { NO_ANSWER, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
+import { NO_ANSWER, readSaveOutcome, stillToSend, type SaveOutcome } from "@/lib/save-outcome";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { chipClass } from "@/components/ui/chips";
@@ -265,8 +265,11 @@ export function MakerProfileEditor({
         outcome = NO_ANSWER;
       }
       if (outcome.ok) markSaved();
-      // Not saved: the text is still unsaved, for the next blur or Retry.
-      else profileDirty.current = true;
+      // Not saved, but a later send could be: the text is still unsaved, for
+      // the next blur or Retry. A refusal for good (400, 403, 404) is not: a
+      // blur sends nothing until the text is edited again. (An edit typed
+      // while this was on the wire has already marked the text unsaved.)
+      else if (stillToSend(outcome)) profileDirty.current = true;
       setChannel("profile", afterSave(outcome));
     };
     saveQueue.current = saveQueue.current.then(run);

@@ -11,7 +11,7 @@ import {
   useLeaveGuard,
   useRefreshAfterSave,
 } from "@/components/editor-save";
-import { NO_ANSWER, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
+import { NO_ANSWER, planFlush, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
 
 type Status = "idle" | "saving" | "saved" | "error";
 
@@ -90,7 +90,9 @@ export function AutosaveForm({
   const [signedOut, setSignedOut] = useState(false);
   // The server refused the last save for good: its reason, for the line.
   const [refusal, setRefusal] = useState<string | undefined>(undefined);
-  // The same, for the event handlers: nothing resends it until an edit.
+  // The same, for the event handlers: the form still shows exactly what was
+  // refused, so nothing resends it (no blur, Enter, Done, focus or leave)
+  // until an edit, which clears it.
   const refused = useRef(false);
   const [leaving, setLeaving] = useState(false);
   const { markSaved, refreshAfterLeave } = useRefreshAfterSave();
@@ -161,6 +163,9 @@ export function AutosaveForm({
         setStatus("saved");
         return true;
       }
+      // Queued behind the save the server has just refused, with no edit
+      // since: it would send the same form for the same answer.
+      if (refused.current) return false;
       setStatus("saving");
       // A lapsed session answers 401 (middleware); should a redirect to the
       // sign-in page ever be followed instead, its 200 is not a save either.
@@ -195,8 +200,10 @@ export function AutosaveForm({
         // Refused for good (the role may not write, the record is gone, a
         // value was not accepted): sending it again gets the same answer.
         // Say why, stop, and do not ask before leaving. The edit stays in
-        // the form; the next edit is sent as usual.
-        refused.current = true;
+        // the form; the next edit is sent as usual. An edit typed while this
+        // was on the wire is not what was refused: it keeps its own save
+        // (its debounce, or the leave send).
+        refused.current = formRef.current ? serialise(formRef.current) === sent : true;
         attempt.current = 0;
         setRefusal(outcome.message);
         setFailing(false);
@@ -303,14 +310,18 @@ export function AutosaveForm({
   // Flush immediately when focus leaves a field — so stepping out to "Manage
   // shipments" / "Manage temporary exports" (links outside this form) never
   // loses the in-progress entry to a pending debounce. Only when something
-  // changed: tabbing through the editor sends nothing.
+  // changed: tabbing through the editor sends nothing. A form the server
+  // refused for good is not sent again either: the flush answers false, so
+  // Done stays with the reason on the line, until an edit sends it again.
   const flush = useCallback((): Promise<boolean> => {
+    const waiting = timer.current !== null;
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
-    } else if (!dirty.current) {
-      return inFlight.current ?? Promise.resolve(true);
     }
+    const plan = planFlush({ waiting, unsaved: dirty.current, refused: refused.current });
+    if (plan === "refused") return Promise.resolve(false);
+    if (plan === "clean") return inFlight.current ?? Promise.resolve(true);
     return save();
   }, [save]);
 

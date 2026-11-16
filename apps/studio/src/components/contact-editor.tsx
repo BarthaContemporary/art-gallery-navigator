@@ -10,7 +10,7 @@ import { SaveStatus } from "./ui/save-status";
 import { useRefreshAfterSave } from "./editor-save";
 import { CONTACT_TYPE_LABELS, KYC_STATUS_LABELS, labelOf } from "@/lib/labels";
 import { formatDate, gbpDisplay } from "@/lib/format";
-import { NO_ANSWER, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
+import { NO_ANSWER, planFlush, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
 
 export type Purchase = {
   stock_number: string | null;
@@ -254,6 +254,9 @@ function ContactEditorForm({ id, contact, purchases, consignments, interestOptio
         setStatus("saved");
         return true;
       }
+      // Queued behind the save the server has just refused, with no edit
+      // since: it would send the same form for the same answer.
+      if (refused.current) return false;
       setStatus("saving");
       let outcome: SaveOutcome;
       try {
@@ -285,8 +288,10 @@ function ContactEditorForm({ id, contact, purchases, consignments, interestOptio
       setStatus("error");
       setSignedOut(Boolean(outcome.signedOut));
       if (outcome.final) {
-        // Refused for good (gone, erased, not yours): say why and stop.
-        refused.current = true;
+        // Refused for good (gone, erased, not yours): say why and stop. An
+        // edit typed while this was on the wire is not what was refused: it
+        // keeps its own save (its debounce, or the leave send).
+        refused.current = formRef.current ? serialise(formRef.current) === sent : true;
         attempt.current = 0;
         setRefusal(outcome.message);
         return false;
@@ -400,9 +405,11 @@ function ContactEditorForm({ id, contact, purchases, consignments, interestOptio
       onBlur={flush}
       onSubmit={(e) => {
         e.preventDefault();
+        const waiting = timer.current !== null;
         if (timer.current) clearTimeout(timer.current);
         timer.current = null;
-        void save();
+        // Enter sends what is waiting, but not a form refused for good again.
+        if (planFlush({ waiting, unsaved: dirty.current, refused: refused.current }) === "send") void save();
       }}
       className="space-y-6"
     >
