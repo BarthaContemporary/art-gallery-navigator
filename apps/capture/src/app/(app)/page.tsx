@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { WAITING_WORKS_SELECT, waitingWorks } from "@/lib/push";
 import { PasskeyManager } from "@/components/passkey-manager";
 import { IconArtwork, IconReceipt, IconPush, IconUser, type IconProps } from "@/components/icons";
 
@@ -39,15 +40,13 @@ const OPTIONS: {
 
 export default async function Home() {
   const supabase = await getSupabase();
-  // "What's waiting" hint for the review tile — count only draft purchases that
-  // actually have works, matching what the review list shows.
+  // "What's waiting" hint for the review tile — count only draft purchases with
+  // a work that holds something, matching what the review list shows.
   const { data: draftRows } = await supabase
     .from("capture_batches")
-    .select("id, capture_works(count)")
+    .select(`id, ${WAITING_WORKS_SELECT}`)
     .eq("status", "draft");
-  const draftBatches = (draftRows ?? []).filter(
-    (b) => ((b.capture_works as { count: number }[] | null)?.[0]?.count ?? 0) > 0,
-  ).length;
+  const draftBatches = (draftRows ?? []).filter((b) => waitingWorks(b.capture_works) > 0).length;
 
   return (
     <div className="pt-2">

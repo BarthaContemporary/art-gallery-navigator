@@ -8,12 +8,20 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const gate = await requireCapture();
   if ("error" in gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
-  const { batchId } = (await req.json().catch(() => ({}))) as { batchId?: string };
+  const { batchId } = (await req.json().catch(() => ({}))) as { batchId?: unknown };
 
   const supabase = await getSupabase();
+  // The purchase the screen was opened for may have gone since (a capture
+  // screen left with nothing in it tidies its purchase away): file the
+  // invoice without one rather than fail.
+  let batch: string | null = null;
+  if (typeof batchId === "string" && batchId) {
+    const { data: found } = await supabase.from("capture_batches").select("id").eq("id", batchId).maybeSingle();
+    batch = found?.id ?? null;
+  }
   const { data, error } = await supabase
     .from("capture_invoices")
-    .insert({ created_by: gate.session.user.id, batch_id: batchId ?? null })
+    .insert({ created_by: gate.session.user.id, batch_id: batch })
     .select("id")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

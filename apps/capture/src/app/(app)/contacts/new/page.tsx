@@ -1,16 +1,20 @@
 import { ContactCapture } from "@/components/contact-capture";
 import { getSupabase } from "@/lib/supabase";
+import { CAPTURE_CONTACT_UNDO_HOURS } from "@/lib/contact-rules";
 
 export const metadata = { title: "New contact" };
 export const dynamic = "force-dynamic";
 
 export default async function NewContactPage() {
   const supabase = await getSupabase();
-  // Contacts added via this app (tagged 'capture') — deletable here.
+  // Contacts added via this app (tagged 'capture') recently enough to undo
+  // here (lib/contact-rules.ts); older ones are the studio's to remove.
+  const since = new Date(Date.now() - CAPTURE_CONTACT_UNDO_HOURS * 3_600_000).toISOString();
   const { data } = await supabase
     .from("crm_contacts")
     .select("id, first_name, last_name, custom_fields, created_at")
     .contains("tags", ["capture"])
+    .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(20);
 

@@ -4,7 +4,11 @@ import { getSupabase, requireCapture } from "@/lib/supabase";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Record a photo that the browser has just uploaded, return a preview URL. */
+/**
+ * Record a photo that the browser has just uploaded. The screen draws its
+ * own small preview from the photo it has, so no signed URL of the full-size
+ * original is sent back to be downloaded again.
+ */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const gate = await requireCapture();
   if ("error" in gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
@@ -34,9 +38,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { data: signed } = await supabase.storage
-    .from("captures")
-    .createSignedUrl(body.path, 60 * 60);
-
-  return NextResponse.json({ photo: data, url: signed?.signedUrl ?? null });
+  return NextResponse.json({ photo: data });
 }

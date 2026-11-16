@@ -108,8 +108,10 @@ export default async function PrivacyPage() {
           Service providers who process data on our instructions under written contracts: Vercel
           (hosting of this website and our internal system, USA); Vultr (our database and image storage,
           London, UK); Resend (email delivery, USA); Sanity (website content, EU and USA); Cloudflare
-          (protection of our forms against automated abuse, global); and Meta, only if you accept
-          marketing cookies. Our accountants, solicitors and insurers where needed. Shippers and
+          (protection of our forms against automated abuse, global); Anthropic (an AI service that
+          reads photographs for our staff, such as a business card you hand us, which is deleted once
+          read, or a purchase invoice, USA); Google Maps Platform (completing a postal address as our
+          staff type it, USA); and Meta, only if you accept marketing cookies. Our accountants, solicitors and insurers where needed. Shippers and
           insurers when a work is delivered to you. Identity-verification providers where we use one
           for anti-money-laundering checks.
         </p>

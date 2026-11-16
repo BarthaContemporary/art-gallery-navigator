@@ -35,8 +35,11 @@ export function PasskeySignIn() {
       }
       window.location.href = "/";
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Passkey sign-in failed";
-      setErr(/notallowed|cancel|abort|timed/i.test(msg) ? null : msg);
+      // Dismissing the sheet (or letting it time out) is not an error. The
+      // browser's message for it differs by browser, its name does not.
+      const name = (e as { name?: string })?.name;
+      const cancelled = name === "NotAllowedError" || name === "AbortError";
+      setErr(cancelled ? null : e instanceof Error ? e.message : "Passkey sign-in failed");
     } finally {
       setBusy(false);
     }

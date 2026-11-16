@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
-import { uploadToCaptures } from "@/lib/browser";
+import { useEffect, useRef, useState } from "react";
+import { makeThumbnail, uploadToCaptures } from "@/lib/browser";
+import { jsonBody, messageOf, requestJson } from "@/lib/request";
+import { CAPTURE_CONTACT_UNDO_HOURS } from "@/lib/contact-rules";
 import { AddressLookup } from "@/components/address-lookup";
 import { SwipeToDelete } from "@/components/swipe-to-delete";
 import { IconIdCard, IconCheck } from "@/components/icons";
@@ -62,9 +64,26 @@ export function ContactCapture({ recentContacts = [] }: { recentContacts?: Recen
   const [recent, setRecent] = useState<RecentContact[]>(recentContacts);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // The card preview is a small copy made on the phone; revoke it when replaced.
+  useEffect(() => {
+    return () => {
+      if (cardUrl) URL.revokeObjectURL(cardUrl);
+    };
+  }, [cardUrl]);
+
+  /**
+   * Only an undo for a contact just added here: the server refuses older
+   * ones and any with records the law keeps, and says why. The row goes
+   * only once the server has deleted it.
+   */
   async function deleteRecent(id: string) {
-    setRecent((r) => r.filter((c) => c.id !== id));
-    await fetch(`/api/capture/contact/${id}`, { method: "DELETE" });
+    setError(null);
+    try {
+      await requestJson(`/api/capture/contact/${id}`, { method: "DELETE" });
+      setRecent((r) => r.filter((c) => c.id !== id));
+    } catch (e) {
+      setError(messageOf(e, "The contact could not be deleted."));
+    }
   }
 
   function set<K extends keyof Fields>(k: K, v: Fields[K]) {
@@ -81,27 +100,26 @@ export function ContactCapture({ recentContacts = [] }: { recentContacts?: Recen
     if (!file) return;
     setError(null);
     setScanning(true);
-    setCardUrl(URL.createObjectURL(file));
+    setCardUrl(await makeThumbnail(file, 640));
     try {
       const { path } = await uploadToCaptures(file, "card");
-      const res = await fetch("/api/capture/contact/scan", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ path }),
-      });
-      const data = (await res.json()) as { configured?: boolean; fields?: Partial<Fields> | null; error?: string };
+      const data = await requestJson<{ configured?: boolean; fields?: Record<string, unknown> | null }>(
+        "/api/capture/contact/scan",
+        jsonBody("POST", { path }),
+      );
       if (data.configured === false) setError("Card scanning is not configured — enter details manually.");
-      else if (data.fields) {
+      else if (data.fields && typeof data.fields === "object") {
+        const fields = data.fields;
         setF((s) => {
           const next = { ...s };
-          for (const [k, v] of Object.entries(data.fields as Record<string, string>)) {
-            if (v && v.trim() && k in next) (next as Record<string, string>)[k] = v.trim();
+          for (const [k, v] of Object.entries(fields)) {
+            if (typeof v === "string" && v.trim() && k in next) (next as Record<string, string>)[k] = v.trim();
           }
           return next;
         });
-      }
-    } catch {
-      setError("Could not scan card — enter details manually.");
+      } else setError("No details could be read from the card — enter them below, or rescan.");
+    } catch (e) {
+      setError(`Could not scan the card: ${messageOf(e, "enter the details manually.")}`);
     } finally {
       setScanning(false);
     }
@@ -111,22 +129,15 @@ export function ContactCapture({ recentContacts = [] }: { recentContacts?: Recen
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/capture/contact", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(f),
-      });
-      if (!res.ok) {
-        const { error: e } = (await res.json()) as { error?: string };
-        setError(e ?? "Could not save contact");
-        return;
-      }
-      const { contact } = (await res.json()) as {
+      const { contact } = await requestJson<{
         contact?: { id: string; first_name: string | null; last_name: string | null };
-      };
-      const name = [contact?.first_name, contact?.last_name].filter(Boolean).join(" ") || f.organization || "Contact";
-      if (contact?.id) setRecent((r) => [{ id: contact.id, name, sub: f.organization }, ...r]);
+      }>("/api/capture/contact", jsonBody("POST", f));
+      if (!contact?.id) throw new Error("Could not save contact");
+      const name = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || f.organization || "Contact";
+      setRecent((r) => [{ id: contact.id, name, sub: f.organization }, ...r]);
       setSavedName(name);
+    } catch (e) {
+      setError(messageOf(e, "Could not save contact"));
     } finally {
       setSaving(false);
     }
@@ -267,7 +278,9 @@ export function ContactCapture({ recentContacts = [] }: { recentContacts?: Recen
         {recent.length ? (
           <div className="mt-6">
             <h2 className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-faint">Recently added</h2>
-            <p className="mt-1 text-[11.5px] text-ink-soft">Swipe a row left to delete.</p>
+            <p className="mt-1 text-[11.5px] text-ink-soft">
+              Swipe a row left to delete a mistaken entry (for {CAPTURE_CONTACT_UNDO_HOURS} hours after adding it).
+            </p>
             <div className="mt-2 space-y-2">
               {recent.map((c) => (
                 <SwipeToDelete key={c.id} confirmText={`Delete ${c.name} from contacts?`} onDelete={() => deleteRecent(c.id)}>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { messageOf, requestJson } from "@/lib/request";
 import { SwipeToDelete } from "@/components/swipe-to-delete";
 import { IconChevron } from "@/components/icons";
 
@@ -13,9 +14,18 @@ export function ReviewList({ batches }: { batches: BatchRow[] }) {
   const [rows, setRows] = useState<BatchRow[]>(batches);
   const router = useRouter();
 
+  const [error, setError] = useState<string | null>(null);
+
   async function remove(id: string) {
+    const before = rows;
     setRows((r) => r.filter((b) => b.id !== id));
-    await fetch(`/api/capture/batch/${id}`, { method: "DELETE" });
+    setError(null);
+    try {
+      await requestJson(`/api/capture/batch/${id}`, { method: "DELETE" });
+    } catch (e) {
+      setRows(before);
+      setError(messageOf(e, "The purchase could not be deleted. Try again."));
+    }
     router.refresh();
   }
 
@@ -29,6 +39,7 @@ export function ReviewList({ batches }: { batches: BatchRow[] }) {
 
   return (
     <div className="mt-4">
+      {error ? <p className="mb-2 text-[12.5px] text-danger">{error}</p> : null}
       <p className="mb-2 text-[11.5px] text-ink-soft">Swipe a purchase left to delete it.</p>
       <div className="space-y-2">
         {rows.map((b) => (
