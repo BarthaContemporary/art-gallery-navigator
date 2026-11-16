@@ -12,6 +12,7 @@ import {
   spotRateToGbp,
   type StoredSale,
 } from "@/lib/fx";
+import { FINANCIAL_KEYS, onlyChanged, readChangedKeys, touches } from "@/lib/record-changes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -142,12 +143,26 @@ export async function PATCH(
   const ref = await resolvePiece(supabase, stockNumber);
   if (!ref) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // What this save changed (lib/record-changes): the editor names the fields
+  // that differ from the form as last saved, so a tab left open writes back
+  // only what was edited in it, not its old status, location or website
+  // switch over a change made elsewhere since. Without the list (a keepalive
+  // flush from an old tab, any other client) every field is written, as
+  // before. A posted name is never used as a column name.
+  const changed = readChangedKeys(fd);
+  if (changed && changed.size === 0) return NextResponse.json({ ok: true });
+  const has = (...keys: string[]) => touches(changed, keys);
+
   // The financial block is written only by a role that may write it, and
   // only when the form carried it: FinancialsFields always posts
   // vat_treatment, and a form rendered without the section (a role granted
-  // while the editor was open) must not read as every figure cleared.
-  const writeFinancials = canWriteFinancials(session.roles) && fd.has("vat_treatment");
+  // while the editor was open) must not read as every figure cleared. It is
+  // written whole when any of it changed (the rates follow the amounts).
+  const mayWriteFinancials = canWriteFinancials(session.roles) && fd.has("vat_treatment");
+  const writeFinancials = mayWriteFinancials && touches(changed, FINANCIAL_KEYS);
   const buyerId = writeFinancials ? str("buyer_contact_id") : null;
+  // The work's category and origin pick the buyer's interests.
+  const placeWritten = has("category_id", "origin_region");
 
   // What is stored before this save: whether the sale's inputs changed, and
   // whether the buyer (or the work's category or origin, which pick the
@@ -163,16 +178,14 @@ export async function PATCH(
   type Before = { category_id: string | null; origin_region: string | null };
   let storedFin: StoredFin | null = null;
   let before: Before | null = null;
-  if (writeFinancials) {
+  if (mayWriteFinancials && (writeFinancials || placeWritten)) {
     const [finRes, pieceRes] = await Promise.all([
       supabase
         .from("piece_financials")
         .select("sold_price, sell_currency, sold_date, sold_price_gbp, purchase_currency, buyer_contact_id")
         .eq("piece_id", ref.id)
         .maybeSingle(),
-      buyerId
-        ? supabase.from(ref.table).select("category_id, origin_region").eq("id", ref.id).maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
+      supabase.from(ref.table).select("category_id, origin_region").eq("id", ref.id).maybeSingle(),
     ]);
     if (finRes.error) return NextResponse.json({ error: finRes.error.message }, { status: 500 });
     storedFin = (finRes.data as StoredFin | null) ?? null;
@@ -182,7 +195,7 @@ export async function PATCH(
   const { data: pieceRows, error: pieceErr } = await supabase
     .from(ref.table)
     .update(
-      withoutInvalid({
+      withoutInvalid(onlyChanged({
         title: str("title"),
         year: str("year"),
         maker_id: str("maker_id"),
@@ -231,8 +244,9 @@ export async function PATCH(
         ...(fd.has("needs_completion")
           ? { needs_completion: fd.get("needs_completion") === "on" }
           : {}),
+        // Not a form field: written on every save.
         updated_by: session.user.id,
-      }),
+      }, changed)),
     )
     .eq("id", ref.id)
     .select("id");
@@ -360,18 +374,24 @@ export async function PATCH(
       );
     }
 
-    // Sold to a contact → auto-tag their related area(s) of interest. Only
-    // when the buyer changed, or the category or origin that pick the
-    // interests did: not on every save of a sold work, which also put back
-    // an interest removed from the contact on purpose.
-    if (buyerId) {
-      const buyerChanged = buyerId !== (storedFin?.buyer_contact_id ?? null);
-      const placeChanged =
-        before != null &&
-        ((before.category_id ?? null) !== str("category_id") || (before.origin_region ?? null) !== str("origin_region"));
-      if (buyerChanged || placeChanged) {
-        await autoAddInterestForPurchase(supabase, buyerId, str("category_id"), str("origin_region"));
-      }
+  }
+
+  // Sold to a contact → auto-tag their related area(s) of interest. Only
+  // when the buyer changed, or the category or origin that pick the
+  // interests did: not on every save of a sold work, which also put back an
+  // interest removed from the contact on purpose. A save that left the
+  // financial block alone keeps the stored buyer; one that left the category
+  // or origin alone keeps the stored ones (the form's may be stale).
+  const buyer = writeFinancials ? buyerId : (storedFin?.buyer_contact_id ?? null);
+  if (mayWriteFinancials && buyer) {
+    const categoryNow = has("category_id") || !before ? str("category_id") : (before.category_id ?? null);
+    const originNow = has("origin_region") || !before ? str("origin_region") : (before.origin_region ?? null);
+    const buyerChanged = writeFinancials && buyer !== (storedFin?.buyer_contact_id ?? null);
+    const placeChanged =
+      before != null &&
+      ((before.category_id ?? null) !== categoryNow || (before.origin_region ?? null) !== originNow);
+    if (buyerChanged || placeChanged) {
+      await autoAddInterestForPurchase(supabase, buyer, categoryNow, originNow);
     }
   }
 

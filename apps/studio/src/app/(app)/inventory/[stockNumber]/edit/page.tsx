@@ -302,6 +302,13 @@ export default async function EditPiecePage({
     if (cur) categoryOptions.push({ id: cur.id, label: cur.name });
   }
   const originOptions = (originRegions.data ?? []).map((o) => o.name as string);
+  // The work's own location is always an option: a select without it shows
+  // "—", and the next save of the form would clear the stored location.
+  const locationOptions = (locations.data ?? []).map((l) => ({ id: l.id as string, label: l.code as string }));
+  const currentLocId = piece.location_id as string | null;
+  if (currentLocId && !locationOptions.some((l) => l.id === currentLocId)) {
+    locationOptions.push({ id: currentLocId, label: "Current location (not in the list)" });
+  }
 
   async function deletePiece() {
     "use server";
@@ -393,7 +400,7 @@ export default async function EditPiecePage({
                 label: m.life_dates ? `${m.display_name} (${m.life_dates})` : m.display_name,
               }))}
               categories={categoryOptions}
-              locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
+              locations={locationOptions}
               originRegions={originOptions}
               showFinancials={showFinancials}
               buyerName={buyerName}

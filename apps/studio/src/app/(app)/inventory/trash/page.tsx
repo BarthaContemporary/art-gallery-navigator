@@ -73,11 +73,20 @@ export default async function TrashPage({
     const table = String(formData.get("table") ?? "");
     if (!id || (table !== "pieces" && table !== "external_pieces")) return;
     const db = await getSupabase();
-    const { data, error } = await db.from(table).update({ deleted_at: null }).eq("id", id).select("id");
-    if (error) back(`Could not reinstate the record: ${error.message}`);
-    if (!data || data.length === 0) back("The record could not be reinstated. Reload the page and try again.");
+    // Only a record that is still in the trash, and say when nothing changed
+    // (reinstated in another tab, purged, or refused by row security).
+    const { data, error } = await db
+      .from(table)
+      .update({ deleted_at: null })
+      .eq("id", id)
+      .not("deleted_at", "is", null)
+      .select("id");
     revalidatePath("/inventory/trash");
     revalidatePath("/inventory");
+    if (error) back(`Could not reinstate the record: ${error.message}`);
+    if (!data || data.length === 0) {
+      back("Nothing was reinstated: the record is no longer in the trash, or your role may not change it. Reload the page.");
+    }
   }
 
   async function purge(formData: FormData) {
@@ -101,11 +110,23 @@ export default async function TrashPage({
       }
     }
     // Permanent delete. Removing the last stock row drops the identity too,
-    // which cascades to images, financials, provenance and the rest.
-    const { data, error } = await db.from(table).delete().eq("id", id).select("id");
-    if (error) back(`Could not delete the record: ${error.message}`);
-    if (!data || data.length === 0) back("The record could not be deleted. Reload the page and try again.");
+    // which cascades to images, financials, provenance and the rest. Only
+    // while the record is still in the trash: a page left open while someone
+    // else reinstated it must not delete the live record for good.
+    const { data, error } = await db
+      .from(table)
+      .delete()
+      .eq("id", id)
+      .not("deleted_at", "is", null)
+      .select("id");
     revalidatePath("/inventory/trash");
+    revalidatePath("/inventory");
+    if (error) back(`Could not delete the record: ${error.message}`);
+    if (!data || data.length === 0) {
+      back(
+        "Nothing was deleted: the record is no longer in the trash (it may have been reinstated), or your role may not delete it. Reload the page.",
+      );
+    }
   }
 
   const daysLeft = (deletedAt: string) => {
