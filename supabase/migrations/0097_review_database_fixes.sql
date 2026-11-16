@@ -23,7 +23,8 @@
 --  10. Files of deleted photographs, documents, shipment papers and maker
 --      portraits are queued for removal from storage, and removed by
 --      /api/cron/storage-sweep once the database backups that could bring
---      their rows back have rotated out (database-9,
+--      their rows back have rotated out; files already orphaned before
+--      this migration are queued once as it runs (database-9,
 --      studio-pages-inventory-8, studio-pages-ops-6).
 --
 -- Not here, on purpose: trashed works stay in the stock-book views until the
@@ -691,7 +692,9 @@ grant select on public.vw_pieces_all to authenticated, service_role;
 -- Also queued: the display master a deleted photograph would have had (the
 -- image worker can upload it after the row has gone), and every expired or
 -- used upload slip (an upload begun and never recorded). Removing a file
--- that does not exist is a no-op.
+-- that does not exist is a no-op. Files orphaned before this migration are
+-- found in storage.objects and queued once, at the end of this section
+-- (queue_storage_orphans), and again by each daily sweep.
 --
 -- Only object keys (ids), no personal data. Service role only.
 create table if not exists public.storage_removals (
@@ -877,5 +880,66 @@ end;
 $$;
 revoke execute on function public.storage_removals_forget(text, text[]) from public, anon, authenticated;
 grant execute on function public.storage_removals_forget(text, text[]) to service_role;
+
+-- Files that were orphaned before this migration, which the triggers above
+-- never saw: every photograph deleted and every work purged so far left its
+-- original, display master, squares and documents behind. Queued here like
+-- any other key: every object in the four buckets that no row points at and
+-- that has not been written for a day (an upload lands before the row that
+-- records it). Each then waits the full backup window from the day it is
+-- found and passes the sweep's shape check before anything is removed; a
+-- key already queued keeps its place in the queue. Reads storage.objects
+-- only; removal still goes through the Storage API.
+--
+-- Run once below. The daily sweep calls it again (service role), so a file
+-- a race leaves behind is caught as well: a square rendered while its
+-- photograph was being deleted, an upload whose row was never written.
+-- _dry counts what it would queue and queues nothing.
+create or replace function public.queue_storage_orphans(
+  _grace interval default '1 day',
+  _dry   boolean default false)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  _cutoff timestamptz := now() - greatest(coalesce(_grace, interval '1 day'), interval '1 day');
+  _n      integer;
+begin
+  if to_regclass('storage.objects') is null then
+    return 0;
+  end if;
+
+  if coalesce(_dry, false) then
+    with used as materialized (select u.bucket, u.path from public.storage_paths_in_use() u)
+    select count(*) into _n
+      from storage.objects o
+     where o.bucket_id in ('piece-originals', 'piece-derivatives', 'piece-documents', 'maker-portraits')
+       and nullif(o.name, '') is not null
+       and greatest(o.created_at, o.updated_at) < _cutoff
+       and not exists (select 1 from used u where u.bucket = o.bucket_id and u.path = o.name)
+       and not exists (select 1 from public.storage_removals r
+                        where r.bucket = o.bucket_id and r.path = o.name);
+  else
+    with used as materialized (select u.bucket, u.path from public.storage_paths_in_use() u)
+    insert into public.storage_removals (bucket, path)
+    select o.bucket_id, o.name
+      from storage.objects o
+     where o.bucket_id in ('piece-originals', 'piece-derivatives', 'piece-documents', 'maker-portraits')
+       and nullif(o.name, '') is not null
+       and greatest(o.created_at, o.updated_at) < _cutoff
+       and not exists (select 1 from used u where u.bucket = o.bucket_id and u.path = o.name)
+    on conflict (bucket, path) do nothing;
+    get diagnostics _n = row_count;
+  end if;
+
+  return _n;
+end;
+$$;
+revoke execute on function public.queue_storage_orphans(interval, boolean) from public, anon, authenticated;
+grant execute on function public.queue_storage_orphans(interval, boolean) to service_role;
+
+select public.queue_storage_orphans();
 
 notify pgrst, 'reload schema';

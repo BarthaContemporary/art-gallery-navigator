@@ -31,10 +31,13 @@ const CHUNK = 100;
  * no row points at again. Each key is checked against its bucket's own path
  * rule before the service role removes it through the Storage API; a key
  * that fails the check is dropped from the queue and its object left alone.
+ * Each run first queues the files no row points at that the triggers never
+ * saw (orphaned before 0097, or left by a race), which then wait KEEP_FOR
+ * from the day they are found like any other key.
  *
  * Until migration 0097 is applied there is no queue: the run does nothing,
- * as before. GET ?dry=1 removes nothing and reports what a run would do.
- * Auth: CRON_SECRET bearer header only, as the other crons.
+ * as before. GET ?dry=1 removes and queues nothing and reports what a run
+ * would do. Auth: CRON_SECRET bearer header only, as the other crons.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -46,10 +49,16 @@ export async function GET(request: Request) {
 
   const dry = new URL(request.url).searchParams.get("dry") === "1";
   const supabase = createServiceClient();
+  const skipped = { ok: true, skipped: "storage sweep functions missing (migration 0097 not applied)" };
+
+  const { data: orphans, error: orphanErr } = await supabase.rpc("queue_storage_orphans", { _dry: dry });
+  if (isMissingFunction(orphanErr)) return NextResponse.json(skipped);
+  // A failed scan only delays finding orphans; the queue is still worked.
+  const scanFailure = orphanErr ? `orphan scan: ${orphanErr.message}` : null;
+  const found = typeof orphans === "number" ? orphans : 0;
+
   const { data, error } = await supabase.rpc("storage_removals_due", { _after: KEEP_FOR, _limit: BATCH, _dry: dry });
-  if (isMissingFunction(error)) {
-    return NextResponse.json({ ok: true, skipped: "storage_removals_due missing (migration 0097 not applied)" });
-  }
+  if (isMissingFunction(error)) return NextResponse.json(skipped);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const rows = ((data ?? []) as { bucket: string; path: string }[]).filter(
@@ -60,16 +69,18 @@ export async function GET(request: Request) {
 
   if (dry) {
     return NextResponse.json({
-      ok: true,
+      ok: !scanFailure,
       dry,
+      wouldQueue: found,
       due: rows.length,
       wouldRemove: Object.fromEntries([...remove].map(([b, l]) => [b, l.length])),
       refused: count(refused),
       sample: rows.slice(0, 20).map((r) => `${r.bucket}/${r.path}`),
+      ...(scanFailure ? { failures: [scanFailure] } : {}),
     });
   }
 
-  const failures: string[] = [];
+  const failures: string[] = scanFailure ? [scanFailure] : [];
   let removed = 0;
   for (const [bucket, paths] of remove) {
     for (let i = 0; i < paths.length; i += CHUNK) {
@@ -93,7 +104,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json(
-    { ok: failures.length === 0, removed, refused: count(refused), ...(failures.length ? { failures } : {}) },
+    { ok: failures.length === 0, queued: found, removed, refused: count(refused), ...(failures.length ? { failures } : {}) },
     { status: failures.length ? 500 : 200 },
   );
 }

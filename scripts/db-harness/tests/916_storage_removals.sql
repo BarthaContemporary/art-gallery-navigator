@@ -28,12 +28,14 @@ begin
        or has_function_privilege(_r, 'public.storage_removals_forget(text, text[])', 'execute')
        or has_function_privilege(_r, 'public.queue_storage_removal(text, text)', 'execute')
        or has_function_privilege(_r, 'public.storage_paths_in_use()', 'execute')
+       or has_function_privilege(_r, 'public.queue_storage_orphans(interval, boolean)', 'execute')
        or has_function_privilege(_r, 'public.queue_storage_removals()', 'execute') then
       raise exception '% can call the storage-removal functions', _r;
     end if;
   end loop;
   if not has_function_privilege('service_role', 'public.storage_removals_due(interval, integer, boolean)', 'execute')
      or not has_function_privilege('service_role', 'public.storage_removals_forget(text, text[])', 'execute')
+     or not has_function_privilege('service_role', 'public.queue_storage_orphans(interval, boolean)', 'execute')
      or not has_table_privilege('service_role', 'public.storage_removals', 'select') then
     raise exception 'the service role lost the queue';
   end if;
@@ -204,6 +206,109 @@ do $$ begin
     raise exception 'queueing a key again did not restart its wait';
   end if;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- Files orphaned before 0097 (the triggers never saw their rows go) are
+-- found in storage.objects: an object no row points at, written more than a
+-- day ago, in one of the four buckets. Referenced objects, fresh uploads,
+-- other buckets and keys already queued are left as they are.
+-- ---------------------------------------------------------------------------
+delete from public.storage_removals;
+insert into public.pieces (title) values ('Kept') returning id as k_id \gset
+insert into public.piece_images (id, piece_id, role, storage_path_original, storage_path_display, processing_status)
+  values ('00000000-0000-4000-8000-0000000000a1', :'k_id', 'front',
+          :'k_id' || '/00000000-0000-4000-8000-0000000000b1.jpg',
+          :'k_id' || '/00000000-0000-4000-8000-0000000000a1.jpg', 'done');
+select set_config('t.k_id', :'k_id', true);
+
+insert into storage.buckets (id, name, public)
+select b, b, false
+  from unnest(array['piece-originals', 'piece-derivatives', 'piece-documents', 'maker-portraits',
+                    'captures', 'kyc-documents']) b
+on conflict (id) do nothing;
+insert into storage.objects (bucket_id, name, created_at, updated_at) values
+  -- referenced by the photograph above
+  ('piece-originals',   :'k_id' || '/00000000-0000-4000-8000-0000000000b1.jpg', now() - interval '200 days', now() - interval '200 days'),
+  ('piece-derivatives', :'k_id' || '/00000000-0000-4000-8000-0000000000a1.jpg', now() - interval '200 days', now() - interval '3 days'),
+  -- orphans: a photograph deleted long ago, its master and square, a purged
+  -- work's invoice, a replaced portrait
+  ('piece-originals',   :'p_id' || '/00000000-0000-4000-8000-0000000000b2.jpg', now() - interval '400 days', now() - interval '400 days'),
+  ('piece-derivatives', :'p_id' || '/00000000-0000-4000-8000-0000000000a2.jpg', now() - interval '400 days', now() - interval '400 days'),
+  ('piece-derivatives', :'p_id' || '/00000000-0000-4000-8000-0000000000a2.sq-4000x3000.jpg', now() - interval '30 days', now() - interval '30 days'),
+  ('piece-documents',   :'p_id' || '/00000000-0000-4000-8000-0000000000d7.pdf', now() - interval '60 days', now() - interval '60 days'),
+  ('maker-portraits',   :'m_id' || '/display-0.jpg', now() - interval '90 days', now() - interval '90 days'),
+  -- already queued: keeps its place
+  ('piece-documents',   :'p_id' || '/00000000-0000-4000-8000-0000000000d8.pdf', now() - interval '90 days', now() - interval '90 days'),
+  -- written within the day: its row may be on the way
+  ('piece-originals',   :'k_id' || '/00000000-0000-4000-8000-0000000000b3.jpg', now() - interval '2 hours', now() - interval '2 hours'),
+  ('piece-derivatives', :'p_id' || '/00000000-0000-4000-8000-0000000000a3.jpg', now() - interval '30 days', now() - interval '1 hour'),
+  -- not a bucket the sweep looks after
+  ('captures',          'works/00000000-0000-4000-8000-000000000001/x.jpg', now() - interval '400 days', now() - interval '400 days'),
+  ('kyc-documents',     '00000000-0000-4000-8000-000000000002/passport.pdf', now() - interval '400 days', now() - interval '400 days');
+insert into public.storage_removals (bucket, path, queued_at)
+  values ('piece-documents', :'p_id' || '/00000000-0000-4000-8000-0000000000d8.pdf', now() - interval '50 days');
+
+-- Signed-in users cannot run the scan.
+select t.claims(:'staff_id');
+set local role authenticated;
+do $$ begin
+  perform public.queue_storage_orphans();
+  raise exception 'a staff session could call queue_storage_orphans';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+
+set local role service_role;
+do $$
+declare
+  _p text := current_setting('t.p_id');
+  _m text := current_setting('t.m_id');
+  _n integer;
+  _expected text[];
+  _got text[];
+begin
+  -- A dry run counts and queues nothing.
+  select public.queue_storage_orphans('1 day', true) into _n;
+  if _n <> 5 then raise exception 'dry orphan scan counted %, expected 5', _n; end if;
+  if (select count(*) from public.storage_removals) <> 1 then
+    raise exception 'a dry orphan scan changed the queue';
+  end if;
+
+  -- A grace under a day is raised to a day: the fresh uploads stay out.
+  select public.queue_storage_orphans('0 seconds') into _n;
+  if _n <> 5 then raise exception 'orphan scan queued %, expected 5', _n; end if;
+  _expected := array[
+    'maker-portraits|' || _m || '/display-0.jpg',
+    'piece-derivatives|' || _p || '/00000000-0000-4000-8000-0000000000a2.jpg',
+    'piece-derivatives|' || _p || '/00000000-0000-4000-8000-0000000000a2.sq-4000x3000.jpg',
+    'piece-documents|' || _p || '/00000000-0000-4000-8000-0000000000d7.pdf',
+    'piece-documents|' || _p || '/00000000-0000-4000-8000-0000000000d8.pdf',
+    'piece-originals|' || _p || '/00000000-0000-4000-8000-0000000000b2.jpg'];
+  select array_agg(bucket || '|' || path order by bucket || '|' || path) into _got from public.storage_removals;
+  select array_agg(x order by x) into _expected from unnest(_expected) x;
+  if _got is distinct from _expected then
+    raise exception 'orphan scan queued %, expected %', _got, _expected;
+  end if;
+
+  -- Found today, so nothing is due yet; the key queued earlier keeps its wait.
+  if exists (select 1 from public.storage_removals
+              where queued_at < now() - interval '1 minute'
+                and path <> _p || '/00000000-0000-4000-8000-0000000000d8.pdf') then
+    raise exception 'an orphan was queued with an old date';
+  end if;
+  if (select queued_at from public.storage_removals where path = _p || '/00000000-0000-4000-8000-0000000000d8.pdf')
+     > now() - interval '49 days' then
+    raise exception 'the orphan scan restarted the wait of a key already queued';
+  end if;
+  if (select count(*) from public.storage_removals_due('35 days', 100, true)) <> 1 then
+    raise exception 'orphans found today were handed to the sweep';
+  end if;
+
+  -- Run again: nothing new.
+  select public.queue_storage_orphans() into _n;
+  if _n <> 0 then raise exception 'a second orphan scan queued % again', _n; end if;
+end $$;
+reset role;
 
 -- Signed-in users cannot read or empty the queue.
 select t.claims(:'admin_id');

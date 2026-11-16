@@ -25,7 +25,7 @@ export default async function PrivacyPage() {
   const email = s?.dpContactEmail ?? s?.email ?? null;
 
   return (
-    <LegalDoc title="Privacy Notice" updated="October 2026">
+    <LegalDoc title="Privacy Notice" updated="November 2026">
       <p>
         This notice explains how {galleryName} collects and uses personal data, who we share it with,
         how long we keep it, and your rights under the UK General Data Protection Regulation (UK GDPR)
@@ -132,7 +132,7 @@ export default async function PrivacyPage() {
 
       <LegalSection heading="How long we keep it">
         <p><strong>Enquiries:</strong> three years. <strong>Appointment bookings:</strong> two years.</p>
-        <p><strong>Newsletter subscription:</strong> until you unsubscribe; we then keep a record that you opted out so that we do not email you again. A sign-up that is never confirmed is deleted after 30 days, and its confirmation link stops working then. If you asked from an enquiry, or were already in our records, the unconfirmed request is kept with your record as a note of it until its link stops working, and then removed.</p>
+        <p><strong>Newsletter subscription:</strong> until you unsubscribe; we then keep a record that you opted out so that we do not email you again. A sign-up that is never confirmed is deleted after 30 days, and its confirmation link stops working then. If we have started working with you in the meantime (for example sent you a private offer, or added your phone number or notes to your record), your details stay in our client records instead, without a newsletter subscription. If you asked from an enquiry, or were already in our records, the unconfirmed request is kept with your record as a note of it until its link stops working, and then removed.</p>
         <p><strong>Email delivery records and private-offer page views:</strong> two years.</p>
         <p><strong>The hashed IP and email addresses used to limit form use:</strong> one day.</p>
         <p><strong>Purchase, sale and consignment records:</strong> six years after the end of the tax year, as tax law requires.</p>

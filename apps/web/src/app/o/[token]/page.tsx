@@ -153,13 +153,10 @@ export default async function OfferPage({
     const pieceIds = lines.map((i) => i.piece_id).filter(Boolean);
     if (pieceIds.length > 0) {
       const [{ data: works }, { data: fins }, { data: imgs }] = await Promise.all([
-        // A work moved to Trash leaves the client's page at once, as it does
-        // the website; its line is dropped below like any work not found.
         supabase
           .from("vw_pieces_all")
           .select(`id, stock_number, title, medium, period, origin_region, ${DIMENSION_COLUMNS}`)
-          .in("id", pieceIds)
-          .is("deleted_at", null),
+          .in("id", pieceIds),
         supabase.from("piece_financials").select("piece_id, marked_price_gbp").in("piece_id", pieceIds),
         supabase
           .from("piece_images")

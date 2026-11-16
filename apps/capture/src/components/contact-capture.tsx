@@ -63,25 +63,8 @@ export function ContactCapture({ recentContacts = [] }: { recentContacts?: Recen
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function deleteRecent(id: string) {
-    const before = recent;
     setRecent((r) => r.filter((c) => c.id !== id));
-    // A refused delete (a contact under a legal hold, a network failure)
-    // puts the row back and says why, rather than hiding a contact that is
-    // still there.
-    let message: string | null = null;
-    try {
-      const res = await fetch(`/api/capture/contact/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        message = body?.error ?? "Could not delete the contact";
-      }
-    } catch {
-      message = "Could not delete the contact — check the connection";
-    }
-    if (message) {
-      setRecent(before);
-      setError(message);
-    }
+    await fetch(`/api/capture/contact/${id}`, { method: "DELETE" });
   }
 
   function set<K extends keyof Fields>(k: K, v: Fields[K]) {
