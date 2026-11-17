@@ -14,11 +14,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      # node:test over the *.test.ts files (Node 22 strips the types): the
-      # security-rule helpers, and the checks that keep the files the studio,
-      # capture and image worker hold in copies identical. Needs no build.
-      - name: Unit tests
-        run: pnpm test:unit
+      # The unit tests run in the test job below, beside a search node.
       # Form-key guard: fails when a field name, type, hidden input or request
       # body key in the studio changes without scripts/ui-guard's baseline
       # being updated in the same change (autosave contract in CLAUDE.md).
@@ -27,6 +23,90 @@ jobs:
         run: pnpm ui:guard
       # Builds and typechecks every workspace, the studio and the website included.
       - run: pnpm turbo build typecheck
+  # The tests CLAUDE.md requires: pnpm test:unit, with a real OpenSearch
+  # beside it so the search integration tests (*.int.test.ts, which skip
+  # themselves unless OPENSEARCH_TEST_URL is set) run too, then pnpm test:db.
+  test:
+    # Pinned, not -latest: the database tests use this image's PostgreSQL 16.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      opensearch:
+        # The same release and fingerprint as infra/compose/opensearch/Dockerfile's
+        # FROM line (change both together; search-ci-config.test.ts checks).
+        # A service cannot be built, so this is the stock image with its
+        # bundled plugins, where the server's image has them removed.
+        image: opensearchproject/opensearch:3.9.0@sha256:3bf4fe26aeb9f7b03c0ebcb1302bb24e855ee6b89fd926d26a71a83ef6f7e076
+        # The engine settings of the server's service (infra/compose/
+        # docker-compose.yml), so the tests meet the server's behaviour, not
+        # the defaults. The image's entrypoint turns each dotted name into
+        # `-E name=value`. Two differences: auto-creation is refused for the
+        # tests' own index names (oslib-*) as well as jvb-*, so the drain's
+        # self-heal test runs instead of skipping; and Query Insights, which
+        # the server's image does not have (setting search.insights.* there
+        # stops the node), is switched off here.
+        env:
+          discovery.type: single-node
+          OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+          DISABLE_SECURITY_PLUGIN: "true"
+          DISABLE_INSTALL_DEMO_CONFIG: "true"
+          DISABLE_PERFORMANCE_ANALYZER_AGENT_CLI: "true"
+          cluster.default_number_of_replicas: "0"
+          cluster.routing.allocation.disk.watermark.low: 4gb
+          cluster.routing.allocation.disk.watermark.high: 3gb
+          cluster.routing.allocation.disk.watermark.flood_stage: 2gb
+          rest.action.multi.allow_explicit_index: "false"
+          action.auto_create_index: "-jvb-*,-oslib-*,+*"
+          action.destructive_requires_name: "true"
+          script.allowed_types: none
+          http.max_content_length: 20mb
+          search.insights.top_queries.latency.enabled: "false"
+          search.insights.top_queries.cpu.enabled: "false"
+          search.insights.top_queries.memory.enabled: "false"
+        ports:
+          - 9200:9200
+        # GitHub waits for "healthy" before the first step. curl is in the image.
+        options: >-
+          --ulimit nofile=65536:65536
+          --health-cmd "curl -fsS -o /dev/null 'http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=5s'"
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 40
+          --health-start-period 20s
+    steps:
+      - uses: actions/checkout@v4
+      # No version here: the action reads it from package.json's
+      # packageManager, and naming both fails the job.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # A setting that did not reach the node would not fail a test: the
+      # self-heal test would skip and the others would pass against the
+      # defaults. So check them first.
+      - name: Search node settings
+        run: |
+          curl -fsS 'http://127.0.0.1:9200/_nodes/_local/settings?flat_settings=true&filter_path=nodes.*.settings' \
+            | jq -e '[.nodes[].settings] | length == 1 and (.[0] | ."discovery.type" == "single-node"
+                and ."action.auto_create_index" == "-jvb-*,-oslib-*,+*"
+                and ."rest.action.multi.allow_explicit_index" == "false"
+                and ."action.destructive_requires_name" == "true")'
+      # node:test over the *.test.ts files (Node 22 strips the types): the
+      # security-rule helpers, the checks that keep the files the studio,
+      # capture and image worker hold in copies identical, and the search
+      # library against the node above. Needs no build.
+      - name: Unit tests, and the search tests against the OpenSearch service
+        run: pnpm test:unit
+        env:
+          OPENSEARCH_TEST_URL: http://127.0.0.1:9200
+      # scripts/db-harness/run.sh: a throwaway PostgreSQL 16 with every
+      # migration in the live order, then scripts/db-harness/tests. The image
+      # has PostgreSQL 16 installed with its service off; the script runs its
+      # own initdb and pg_ctl as the runner user (not root).
+      - name: Database tests (every migration, then scripts/db-harness/tests)
+        run: pnpm test:db
+        env:
+          PG_BIN: /usr/lib/postgresql/16/bin
   # Fails on any published advisory for a package in the lockfile, so a new
   # one shows up on the next push. Fixes and the forced versions in
   # package.json's pnpm.overrides: docs/ops/dependency-overrides.md.

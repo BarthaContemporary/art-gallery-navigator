@@ -20,6 +20,7 @@ person to decide. The Privacy Notice quotes these periods: change both together.
 | Purchase, sale, consignment and order records | 6 years after the tax year | never purged by the system | Companies Act / VAT law |
 | Suppression record (unsubscribed, bounced, erased) | Indefinite, minimal | kept | Needed to honour the opt-out |
 | Backups | 30 daily, 12 monthly | rotated by `backup.sh` | Business continuity |
+| Studio search index (OpenSearch: a copy of contacts' names and contact details, makers, works' catalogue text) | As long as the record it copies: updated within seconds of a save, removed when the record is deleted or a work goes to the trash, at once when a contact is erased | follows the record; the nightly reconcile (02:17 UTC) removes anything the database no longer has; never backed up | Search for staff; nothing in it that the database does not hold |
 
 Erasure requests override the schedule: `erase_contact()` deletes everything not
 under a legal hold immediately and pseudonymises what must stay.

@@ -26,6 +26,23 @@ Tick "People affected notified".
 **Afterwards.** Record the actions taken and what changed to stop a repeat.
 Keep the register entry permanently.
 
+**If a search password leaks** (`jvb-search` or `jvb-index`, the two logins
+the studio uses for its search index): treat it as disclosure of everything
+in the index, since one crafted search reads it back: every contact's name,
+organisation, email, phone and WhatsApp numbers, city and country, and the
+works' catalogue text with provenance, which can name private owners.
+Change both passwords at once (`docs/ops/opensearch-runbook.md`, "Changing a
+search password"), then read who used the search site in
+`/var/log/caddy/search-access.log` on the server: the runbook's two `grep`
+lines list the calling addresses, and each request by login and answer (the
+studio's own calls come from Vercel; the older files beside it are read with
+`zgrep`). The log keeps no search words, so it cannot narrow down what was
+read: assess the breach as the contact details of the whole CRM. With
+`jvb-index` someone could also change or delete the index; Admin → Search →
+"Reconcile now" rebuilds it from the database.
+
 Useful facts: the database and images are on the Vultr VPS in London
-(encrypted backups in Vultr Object Storage); the website and studio run on
-Vercel; newsletters go through Resend. The infra README has the restore steps.
+(encrypted backups in Vultr Object Storage); the studio's search index
+(OpenSearch) is on the same server, a copy of the database that is never
+backed up; the website and studio run on Vercel; newsletters go through
+Resend. The infra README has the restore steps.

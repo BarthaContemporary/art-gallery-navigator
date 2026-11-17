@@ -19,14 +19,17 @@ phone numbers, streets that do not exist with `ZZ` postcodes). The makers are
 real artists from the gallery's published catalogues, with no invented
 biography.
 
-Nothing here needs installing into the repo: plain Node 22 ESM, the studio's
-own `node_modules`, and a `playwright-core` from anywhere on disk.
+Nothing here needs installing into the repo: plain Node 22 ESM (22.18 or
+newer, as for `pnpm test:unit`: the mock imports the studio's
+`src/lib/consignment.ts` and Node strips its types), the studio's own
+`node_modules`, and a `playwright-core` from anywhere on disk.
 
 ## Start, shoot, stop
 
 ```sh
 node scripts/studio-preview/start.mjs     # idempotent; waits until both answer
 node scripts/studio-preview/shoot.mjs --out /tmp/shots/before --full
+node scripts/studio-preview/palette.mjs   # what the ⌘K palette offers for a few searches
 node scripts/studio-preview/stop.mjs      # stops only what start.mjs started
 ```
 
@@ -83,6 +86,39 @@ node scripts/studio-preview/shoot.mjs --role staff --widths 1440 --schemes light
   --areas inventory,record --match '^/stock-book' --full --out /tmp/shots/staff
 # One page, both schemes, phone width
 node scripts/studio-preview/shoot.mjs --routes /offers --widths 375
+```
+
+### palette.mjs
+
+Opens the command palette (⌘K / Ctrl-K) on a signed-in page and records, for
+each query, the groups in order, each row's label and detail line, any status
+line ("No matches.", a failed search) and what `/api/search` answered. The
+page is read through its ARIA roles (the dialog's combobox and listbox,
+`role="option"` rows, group headings), so a palette that changes its styling
+reads the same.
+
+| Option | Default | |
+|---|---|---|
+| `--queries "a\|b"` | `2024-0003`, `0003`, `yosai`, `lucy.quennell@example.com` | queries separated by `\|`. The defaults are a full stock number (one work), a number part found across years and registers, a maker whose name has a macron (Yokota Yōsai), and a contact's email |
+| `--role admin,staff` | both | who is signed in; one pass per role |
+| `--path <page>` | `/` | the page the palette is opened on |
+| `--out <dir>` | `.run/palette/<time>` | where `palette.json` goes |
+| `--shots` | off | also a JPEG of the open palette per role and query |
+| `--compare <file>` | | an earlier `palette.json`: lists per query what was added, dropped or reordered |
+| `--width <px>` | `1280` | viewport width |
+
+It prints each query's groups and rows, and exits 1 when a query could not be
+read (no palette, a failed search, sign-in lost, an uncaught error). Like
+`shoot.mjs` it talks to localhost only. The preview has no OpenSearch
+(`start.mjs` sets no `OPENSEARCH_*` variable, and the studio then searches
+Postgres alone, here the mock's `pieces_search` and `crm_contacts_search`),
+so this shows the Postgres side of search; to see a palette change, run it
+before and after with `--compare`:
+
+```sh
+node scripts/studio-preview/palette.mjs --out /tmp/palette/before
+# … change the palette, let next dev recompile …
+node scripts/studio-preview/palette.mjs --out /tmp/palette/after --compare /tmp/palette/before/palette.json
 ```
 
 ## Routes
@@ -145,6 +181,14 @@ kept in memory too.
   stock-book views, `vw_contacts_for_review`, `piece_ref`) are computed from
   the tables on every read. Staff get the coarse RLS of `lib/schema.mjs`
   (no financials, change history or data-protection registers).
+- **Money**: `piece_financials`' generated columns hold their expressions
+  (total cost never null, margin null only without a sale £), on load and
+  on every write; `net_profit_gbp` is FileMaker's figure and is never
+  recomputed, as in the database. The five stock-book views have migration
+  0098's columns in its order, and take VAT due and J.v.d.B.'s share from
+  the studio's own `lib/consignment.ts` (each sixth in whole pence, half up;
+  no share before there is a sale £). Checked row for row against Postgres's
+  views over the fixtures and some seven thousand edge cases.
 - **RPC** (`lib/rpc.mjs`): every function the studio calls.
 - **Storage**: signing (single, batch, upload) returns URLs served by the
   mock; images are drawn per path (`lib/images.mjs`) in the object's recorded
