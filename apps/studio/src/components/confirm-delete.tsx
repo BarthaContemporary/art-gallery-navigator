@@ -5,12 +5,12 @@ import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 
 /**
- * The list page's Delete button, with the same inline confirm step the lists
- * index already asks for. It renders only buttons and sits inside the page's
- * own <form action={deleteList}>, so the form and what it posts are unchanged;
- * a single click no longer deletes the list.
+ * A list page's Delete button (the CRM list and the inventory list), with an
+ * inline confirm step. It renders only buttons and sits inside the page's
+ * own <form action={deleteList}>, so the form and what it posts are
+ * unchanged; a single click no longer deletes the list.
  */
-export function ConfirmDelete({ name }: { name: string }) {
+export function ConfirmDelete({ name, note }: { name: string; note?: string }) {
   const [confirming, setConfirming] = useState(false);
   const { pending } = useFormStatus();
 
@@ -25,7 +25,7 @@ export function ConfirmDelete({ name }: { name: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-[13px] leading-[1.45] text-body">
-        Delete “{name}”? This can’t be undone.
+        Delete “{name}”? This can’t be undone.{note ? ` ${note}` : ""}
       </span>
       <Button type="submit" variant="danger" size="sm" pendingLabel="Deleting…">
         Yes, delete

@@ -21,26 +21,35 @@ export async function GET(request: Request) {
   const listId = new URL(request.url).searchParams.get("list");
   if (!listId) return new Response("Missing list", { status: 400 });
 
-  const { data: list } = await supabase
+  const { data: list, error: listErr } = await supabase
     .from("piece_lists")
     .select("id, name, description, is_dynamic, filter_rules")
     .eq("id", listId)
     .maybeSingle();
+  if (listErr) return new Response(`Could not read the list: ${listErr.message}`, { status: 500 });
   if (!list) return new Response("List not found", { status: 404 });
 
-  const ids = await resolveListPieceIds(supabase, list);
+  // A failed read answers 500 with the reason, never an empty checklist.
+  let ordered: (ListWork & { id: string })[] = [];
+  try {
+    const ids = await resolveListPieceIds(supabase, list);
+    if (ids.length > 0) {
+      const data = await selectInChunks<ListWork & { id: string }>(ids, (chunk) =>
+        supabase
+          .from("vw_pieces_list")
+          .select("id, stock_number, title, maker_name, medium, period, status, location_code")
+          .in("id", chunk),
+      );
+      // .in() does not preserve the list's order; restore it.
+      const byId = new Map(data.map((r) => [r.id, r]));
+      ordered = ids.map((pid) => byId.get(pid)).filter(Boolean) as (ListWork & { id: string })[];
+    }
+  } catch (e) {
+    return new Response(`Could not read the list: ${e instanceof Error ? e.message : "unknown error"}`, { status: 500 });
+  }
 
   let works: ListWork[] = [];
-  if (ids.length > 0) {
-    const data = await selectInChunks<ListWork & { id: string }>(ids, (chunk) =>
-      supabase
-        .from("vw_pieces_list")
-        .select("id, stock_number, title, maker_name, medium, period, status, location_code")
-        .in("id", chunk),
-    );
-    // .in() does not preserve the list's order; restore it.
-    const byId = new Map(data.map((r) => [r.id, r]));
-    const ordered = ids.map((pid) => byId.get(pid)).filter(Boolean) as (ListWork & { id: string })[];
+  if (ordered.length > 0) {
     const { images } = await fetchExportThumbnails(ordered.map((p) => p.id));
     works = ordered.map((p) => ({ ...p, image: images.get(p.id) ?? null }));
   }

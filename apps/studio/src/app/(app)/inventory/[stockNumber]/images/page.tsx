@@ -8,6 +8,7 @@ import { RotateImageButton } from "@/components/rotate-image-button";
 import { ReorderGrid } from "@/components/reorder-grid";
 import { persistOrder } from "@/lib/reorder";
 import { RecordKeyNav } from "@/components/record-key-nav";
+import { DeleteListButton } from "@/components/delete-list-button";
 import { titleWithYear } from "@jvb/db";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -253,12 +254,15 @@ export default async function ManageImagesPage({
                 </Button>
               </div>
             </form>
-            <form action={deleteImage} className="mt-1">
-              <input type="hidden" name="id" value={img.id} />
-              <Button type="submit" variant="quiet" size="sm" pendingLabel="Deleting…" className="-ml-1.5 text-danger">
-                Delete
-              </Button>
-            </form>
+            {/* Two steps, like every other delete: a mis-tap here took the
+                photograph off the record and the website at once. */}
+            <div className="-ml-1.5 mt-1">
+              <DeleteListButton
+                action={deleteImage}
+                id={img.id}
+                name={`${ROLE_WORDS[img.role] ?? img.role} photograph${img.caption ? ` (${img.caption})` : ""}`}
+              />
+            </div>
               </div>,
             ]),
           )}

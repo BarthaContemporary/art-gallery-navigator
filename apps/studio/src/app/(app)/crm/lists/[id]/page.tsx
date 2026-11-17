@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { LabelPdfButton } from "@/components/label-pdf-button";
 import { loadListContacts, isDynamic, describeRules } from "@/lib/crm-list-members";
-import { ConfirmDelete } from "./confirm-delete";
+import { ConfirmDelete } from "@/components/confirm-delete";
 import { formatCount } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";

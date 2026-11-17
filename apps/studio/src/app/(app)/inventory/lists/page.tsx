@@ -4,7 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { ReorderGrid } from "@/components/reorder-grid";
 import { persistOrder } from "@/lib/reorder";
 import { loadThumbnails } from "@/lib/thumbnails";
-import { countListMembers, resolveListPieceIds, type ListLike } from "@/lib/list-members";
+import { liveCapHeadline, resolveListMembership, type ListLike } from "@/lib/list-members";
 import { formatCount } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ export default async function InventoryListsPage() {
   const supabase = await getSupabase();
   const { data: lists } = await supabase
     .from("piece_lists")
-    .select("id, name, description, is_dynamic, filter_rules, web_visible, piece_list_items(count)")
+    .select("id, name, description, is_dynamic, filter_rules, web_visible")
     // Hand-set order first; name only to break ties, so rows sharing a
     // sort_order (a new list defaults to 0) stay put between requests.
     .order("sort_order")
@@ -36,38 +36,28 @@ export default async function InventoryListsPage() {
     revalidatePath("/inventory/lists");
   }
 
-  // One count shared with the list page itself and the offers picker
-  // (lib/list-members), so "not Sold" exclusions, the register, framed and
-  // pinned-out works count here exactly as they do there. This page used to
-  // re-implement it with plain equality, which read "!sold" as a status.
-  const counts = new Map<string, number>();
-  await Promise.all(
-    ((lists ?? []) as unknown as (ListLike & { piece_list_items?: { count: number }[] })[]).map(
-      async (l) => {
-        counts.set(l.id, await countListMembers(supabase, l));
-      },
-    ),
-  );
-
-  // A strip of the first few works in each list — the picture is how a
-  // dealer recognises a list, more than its name. Static lists in their
-  // hand-set order; live lists as their filters resolve today.
+  // One resolver shared with the list page itself, the exports and the offers
+  // picker (lib/list-members), so "not Sold" exclusions, the register,
+  // framed, pinned-out works and works in the trash count here exactly as
+  // they do there. This page used to re-implement it with plain equality,
+  // which read "!sold" as a status. The same answer gives each card its
+  // strip of the first few works (the picture is how a dealer recognises a
+  // list, more than its name): static lists in their hand-set order, live
+  // lists as their filters resolve today. A list that could not be read
+  // shows a dash rather than taking the page down or passing for empty.
   const PREVIEW = 4;
+  const sizes = new Map<string, { shown: number; total: number } | null>();
   const previewIds = new Map<string, string[]>();
   await Promise.all(
-    ((lists ?? []) as unknown as (ListLike & { is_dynamic: boolean | null })[]).map(async (l) => {
-      if (l.is_dynamic) {
-        previewIds.set(l.id, (await resolveListPieceIds(supabase, l)).slice(0, PREVIEW));
-        return;
+    ((lists ?? []) as unknown as ListLike[]).map(async (l) => {
+      try {
+        const m = await resolveListMembership(supabase, l);
+        sizes.set(l.id, { shown: m.ids.length, total: m.total });
+        previewIds.set(l.id, m.ids.slice(0, PREVIEW));
+      } catch (e) {
+        console.error(`[lists] could not resolve list ${l.id}:`, e instanceof Error ? e.message : e);
+        sizes.set(l.id, null);
       }
-      const { data } = await supabase
-        .from("piece_list_items")
-        .select("piece_id")
-        .eq("list_id", l.id)
-        .eq("excluded", false)
-        .order("sort_order", { nullsFirst: true })
-        .limit(PREVIEW);
-      previewIds.set(l.id, ((data ?? []) as { piece_id: string }[]).map((r) => r.piece_id));
     }),
   );
   const previewThumbs = await loadThumbnails(supabase, [...previewIds.values()].flat());
@@ -131,7 +121,8 @@ export default async function InventoryListsPage() {
             showPosition={false}
             tiles={Object.fromEntries(
               (lists ?? []).map((l) => {
-                const n = counts.get(l.id) ?? 0;
+                const size = sizes.get(l.id) ?? null;
+                const n = size?.shown ?? 0;
                 const preview = previewIds.get(l.id as string) ?? [];
                 return [
                   l.id as string,
@@ -172,7 +163,19 @@ export default async function InventoryListsPage() {
                       ) : null}
                       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] leading-[1.4] text-meta">
                         <span className="tabular">
-                          {formatCount(n)} work{n === 1 ? "" : "s"}
+                          {size === null ? (
+                            <span title="The list's works could not be read just now. Reload to try again.">
+                              — works
+                            </span>
+                          ) : size.total > size.shown ? (
+                            // A live list stops at LIVE_LIMIT works; say so
+                            // rather than pass the cut for the whole list,
+                            // in the list's own order (best matches for a
+                            // search, newest stock numbers otherwise).
+                            liveCapHeadline((l as unknown as ListLike).filter_rules, n, size.total)
+                          ) : (
+                            `${formatCount(n)} work${n === 1 ? "" : "s"}`
+                          )}
                           {l.is_dynamic ? ", membership is live" : ""}
                         </span>
                         <WebsiteDot on={Boolean(l.web_visible)} />

@@ -17,6 +17,7 @@ import { ColumnResizer, SortMark, TableFrame, Td, rowClass, thClass } from "@/co
 import { WebsiteDot } from "@/components/ui/website-switch";
 import { cx } from "@/components/ui/cx";
 import { useResizableColumns } from "@/hooks/use-resizable-columns";
+import { enterBelongsToTarget } from "@/lib/row-keys";
 import { titleWithYear } from "@jvb/db";
 
 export type InventoryRow = {
@@ -77,8 +78,30 @@ const STORAGE_KEY = "jvb:inventory:colwidths:v2";
 /** Parameters that only order or page the list; any other one is a filter. */
 const NOT_FILTERS = new Set(["sort", "dir", "page", "error", "notice"]);
 
-/** What the selection bar just filed, for the notice that outlives the bar. */
-type Filed = { listId: string; name: string; added: number; skipped: number };
+/**
+ * What the selection bar or the flag bar just filed, for the notice that
+ * outlives both bars (each can close as it files: the selection clears, and
+ * clearing the flags takes the flag bar away).
+ */
+type Filed = {
+  listId: string;
+  name: string;
+  added: number;
+  /** Works that were in the list already. */
+  already: number;
+  skipped: number;
+  /** Filed from the flags with "clear the flags": the skipped works keep theirs. */
+  skippedStayFlagged?: boolean;
+};
+
+/** A route's JSON answer, or an empty object when the body is not JSON (a bare 500). */
+async function readJson<T>(res: Response): Promise<Partial<T>> {
+  try {
+    return (await res.json()) as Partial<T>;
+  } catch {
+    return {};
+  }
+}
 
 export function InventoryTable({
   rows,
@@ -171,8 +194,15 @@ export function InventoryTable({
   useEffect(() => setFlagCount(flagTotal), [flagTotal]);
   const [flagError, setFlagError] = useState<string | null>(null);
 
-  async function setFlagged(ids: string[], flagged: boolean) {
-    const changing = ids.filter((id) => flags.has(id) !== flagged);
+  /**
+   * Set or clear flags. One row (a click, the f key) changes optimistically:
+   * its state is on screen, so the total moves by the change. The selection
+   * bar passes `selection`, which may hold works on other pages, whose flag
+   * state this page cannot see: every selected id is sent (the route is
+   * idempotent both ways) and the total comes from the route's answer.
+   */
+  async function setFlagged(ids: string[], flagged: boolean, opts: { selection?: boolean } = {}) {
+    const changing = opts.selection ? ids : ids.filter((id) => flags.has(id) !== flagged);
     if (changing.length === 0) return;
     const before = new Set(flags);
     const beforeCount = flagCount;
@@ -181,9 +211,7 @@ export function InventoryTable({
       changing.forEach((id) => (flagged ? n.add(id) : n.delete(id)));
       return n;
     });
-    // Off-page flags can't change here, so the total moves by exactly the
-    // on-page delta.
-    setFlagCount((c) => Math.max(0, c + (flagged ? changing.length : -changing.length)));
+    if (!opts.selection) setFlagCount((c) => Math.max(0, c + (flagged ? changing.length : -changing.length)));
     setFlagError(null);
     try {
       const res = await fetch("/api/inventory/flags", {
@@ -191,7 +219,12 @@ export function InventoryTable({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pieceIds: changing, flagged }),
       });
-      if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Could not save flag");
+      const json = await readJson<{ error: string; flagCount: number | null }>(res);
+      if (!res.ok) throw new Error(json.error ?? "Could not save flag");
+      if (opts.selection) {
+        if (typeof json.flagCount === "number") setFlagCount(json.flagCount);
+        else router.refresh();
+      }
       // When viewing "flagged only", an unflagged row should drop out.
       if (showingFlagged && !flagged) router.refresh();
     } catch (e) {
@@ -268,11 +301,17 @@ export function InventoryTable({
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // A menu or dialog that handled the key first wins.
+      if (e.defaultPrevented) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const el = e.target as HTMLElement | null;
       const tag = el?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
       if (rows.length === 0) return;
+      // Enter on a focused link or button is that control's (lib/row-keys).
+      // j/k/x/f still work there: focus often rests on a button after a
+      // click (a sort header, a row's flag, the View menu).
+      if (e.key === "Enter" && enterBelongsToTarget(el)) return;
       if (e.key === "j") {
         e.preventDefault();
         setActiveRow((a) => Math.min(a < 0 ? 0 : a + 1, rows.length - 1));
@@ -460,8 +499,13 @@ export function InventoryTable({
             {filed.name}
             <ArrowRightIcon size={14} />
           </Link>
+          {filed.already > 0
+            ? `; ${filed.already} ${filed.already === 1 ? "was" : "were"} in it already`
+            : ""}
           {filed.skipped > 0
-            ? `. ${filed.skipped} non-JvdB work${filed.skipped === 1 ? " was" : "s were"} left out (lists hold JvdB stock only).`
+            ? `. ${filed.skipped} non-JvdB work${filed.skipped === 1 ? " was" : "s were"} left out (only JvdB stock is filed from here)${
+                filed.skippedStayFlagged ? ` and ${filed.skipped === 1 ? "keeps its flag" : "keep their flags"}` : ""
+              }.`
             : "."}
         </Notice>
       ) : null}
@@ -481,9 +525,11 @@ export function InventoryTable({
               return n;
             })
           }
-          onCleared={() => {
-            setFlags(new Set());
-            setFlagCount(0);
+          onFiled={setFiled}
+          onCleared={(remaining = 0) => {
+            // Flags left over (works not filed) come back with the refresh.
+            setFlags(remaining === 0 ? new Set() : flags);
+            setFlagCount(remaining);
             router.refresh();
           }}
         />
@@ -501,7 +547,9 @@ export function InventoryTable({
           lists={lists}
           locations={locations}
           flaggedCount={[...selected].filter((id) => flags.has(id)).length}
-          onFlag={(flagged) => void setFlagged([...selected], flagged)}
+          // The bar cannot see the flags of works selected on other pages.
+          offPage={[...selected].some((id) => !pageIds.includes(id))}
+          onFlag={(flagged) => void setFlagged([...selected], flagged, { selection: true })}
           onClear={() => setSelected(new Set())}
           onAdded={setFiled}
           onDone={() => {
@@ -749,6 +797,7 @@ function AddToListBar({
   lists,
   locations,
   flaggedCount,
+  offPage,
   onFlag,
   onClear,
   onAdded,
@@ -758,8 +807,10 @@ function AddToListBar({
   startedAt: number | null;
   lists: { id: string; name: string }[];
   locations: { id: string; name: string }[];
-  /** How many of the selected works are currently flagged. */
+  /** How many of the selected works on this page are currently flagged. */
   flaggedCount: number;
+  /** Whether any selected work is on another page, where its flag is unknown here. */
+  offPage: boolean;
   onFlag: (flagged: boolean) => void;
   onClear: () => void;
   /** The list the selection went into, for the notice left behind. */
@@ -807,16 +858,19 @@ function AddToListBar({
           pieceIds: selectedIds,
         }),
       });
-      const json = (await res.json()) as { error?: string; listId?: string; added?: number; skipped?: number };
+      const json = await readJson<{ error: string; listId: string; added: number; skipped: number }>(res);
       if (!res.ok) throw new Error(json.error ?? "Could not add to list");
       // Say where the works went: the bar closes with the selection, so the
       // confirmation has to live in the table above it.
       if (json.listId) {
+        const added = json.added ?? selectedIds.length;
+        const skipped = json.skipped ?? 0;
         onAdded({
           listId: json.listId,
           name: listId ? lists.find((l) => l.id === listId)?.name ?? "the list" : newName.trim(),
-          added: json.added ?? selectedIds.length,
-          skipped: json.skipped ?? 0,
+          added,
+          already: Math.max(0, selectedIds.length - added - skipped),
+          skipped,
         });
       }
       onDone();
@@ -937,17 +991,18 @@ function AddToListBar({
           </Button>
         </div>
 
-        {/* Flag / unflag the whole selection — the group form of the row flag. */}
+        {/* Flag / unflag the whole selection — the group form of the row
+            flag. With works selected on other pages either may apply. */}
         <div className="flex items-end gap-2">
           <Button
             size="sm"
             icon={<FlagIcon size={14} />}
-            disabled={busy || flaggedCount === n}
+            disabled={busy || (!offPage && flaggedCount === n)}
             onClick={() => onFlag(true)}
           >
             Flag
           </Button>
-          <Button size="sm" disabled={busy || flaggedCount === 0} onClick={() => onFlag(false)}>
+          <Button size="sm" disabled={busy || (!offPage && flaggedCount === 0)} onClick={() => onFlag(false)}>
             Unflag
           </Button>
         </div>
@@ -1116,6 +1171,7 @@ function FlagBar({
   showingFlagged,
   flaggedOnPage,
   onSelectFlaggedOnPage,
+  onFiled,
   onCleared,
 }: {
   count: number;
@@ -1123,7 +1179,13 @@ function FlagBar({
   showingFlagged: boolean;
   flaggedOnPage: number;
   onSelectFlaggedOnPage: () => void;
-  onCleared: () => void;
+  /**
+   * The list the flagged works went into, for the table's notice: clearing
+   * the flags usually takes this bar away, and its own notice with it.
+   */
+  onFiled: (filed: Filed) => void;
+  /** Flags were cleared; `remaining` is how many are left (works not filed keep theirs). */
+  onCleared: (remaining?: number) => void;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -1133,7 +1195,6 @@ function FlagBar({
   const [clearAfter, setClearAfter] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ listId: string; added: number; skipped: number; name: string } | null>(null);
   const [filing, setFiling] = useState(false);
 
   function toggleShowFlagged() {
@@ -1163,18 +1224,32 @@ function FlagBar({
           clear: clearAfter,
         }),
       });
-      const json = (await res.json()) as { error?: string; listId?: string; added?: number; skipped?: number };
+      const json = await readJson<{
+        error: string;
+        listId: string;
+        added: number;
+        already: number;
+        skipped: number;
+        flagCount: number | null;
+      }>(res);
+      // The works can be filed even when clearing the flags then failed: say
+      // where they went either way.
+      if (json.listId) {
+        const skipped = json.skipped ?? 0;
+        onFiled({
+          listId: json.listId,
+          name: listId ? lists.find((l) => l.id === listId)?.name ?? "the list" : newName.trim(),
+          added: json.added ?? 0,
+          already: json.already ?? 0,
+          skipped,
+          skippedStayFlagged: clearAfter && skipped > 0,
+        });
+      }
       if (!res.ok || !json.listId) throw new Error(json.error ?? "Could not add to list");
-      setDone({
-        listId: json.listId,
-        added: json.added ?? 0,
-        skipped: json.skipped ?? 0,
-        name: listId ? lists.find((l) => l.id === listId)?.name ?? "the list" : newName.trim(),
-      });
       setListId("");
       setNewName("");
       setFiling(false);
-      if (clearAfter) onCleared();
+      if (clearAfter) onCleared(typeof json.flagCount === "number" ? json.flagCount : undefined);
       else router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not add to list");
@@ -1193,9 +1268,8 @@ function FlagBar({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "clear" }),
       });
-      if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Could not clear flags");
-      setDone(null);
-      onCleared();
+      if (!res.ok) throw new Error((await readJson<{ error: string }>(res)).error ?? "Could not clear flags");
+      onCleared(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not clear flags");
     } finally {
@@ -1298,19 +1372,6 @@ function FlagBar({
         </Collapse>
       ) : null}
 
-      {done ? (
-        <Notice tone="ok" inline className="jvb-slide-enter mt-2">
-          <span>
-            Added {done.added} work{done.added === 1 ? "" : "s"} to{" "}
-            <Link href={`/inventory/lists/${done.listId}`} className="link">
-              {done.name}
-            </Link>
-            {done.skipped > 0
-              ? `. ${done.skipped} non-JvdB work${done.skipped === 1 ? " was" : "s were"} skipped (lists hold JvdB stock only).`
-              : "."}
-          </span>
-        </Notice>
-      ) : null}
       {error ? (
         <Notice tone="danger" inline className="mt-2">
           {error}

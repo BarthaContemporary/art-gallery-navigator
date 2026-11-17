@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { applyFacet, facetMatches } from "@/lib/facet";
 import { selectInChunks } from "@/lib/chunk";
-import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
+import { ledgerFilterOf, resolveListPieceIds, type ListLike } from "@/lib/list-members";
 /*
  * The inventory list's filters, applied identically wherever they are honoured.
  *
@@ -108,8 +108,8 @@ export function applyInventoryFilters<
   });
   q = applyWebFilter(q, params.get("web"));
 
-  const ledger = params.get("ledger");
-  if (ledger !== "all") q = q.eq("ledger", ledger === "external" ? "external" : "jvb");
+  const ledger = ledgerFilterOf(params.get("ledger"));
+  if (ledger) q = q.eq("ledger", ledger);
 
   return q;
 }
@@ -166,18 +166,85 @@ export function inventoryOrder(
  */
 const textOrder = new Intl.Collator("en-GB", { sensitivity: "base", numeric: true });
 
-/** The SQL ordering, in memory: chosen column, chosen direction, nulls last. */
-function sortRows<R extends Record<string, unknown>>(rows: R[], order: InventoryOrder): R[] {
+/**
+ * pieces.status in the order the piece_status enum declares its values
+ * (supabase/migrations/20260713000003_inventory_core.sql), which is how SQL
+ * sorts the column. Kept here rather than read from STATUS_LABELS, whose key
+ * order is the order of a select's options and may be changed for that.
+ */
+export const PIECE_STATUS_ORDER = [
+  "in_stock",
+  "reserved",
+  "consigned_in",
+  "consigned_out",
+  "sold",
+  "gifted",
+  "returned",
+  "written_off",
+] as const;
+const STATUS_RANK = new Map<string, number>(PIECE_STATUS_ORDER.map((s, i) => [s, i]));
+
+/**
+ * One sort key, ascending before `dir`: nulls last either way, as the SQL
+ * order asks (nullsFirst: false), and unknown statuses after known ones.
+ */
+function compareKey(column: string, a: unknown, b: unknown, dir: number): number {
+  const av = (a ?? null) as string | number | null;
+  const bv = (b ?? null) as string | number | null;
+  if (av === null && bv === null) return 0;
+  if (av === null) return 1;
+  if (bv === null) return -1;
+  if (column === "status") {
+    const ra = STATUS_RANK.get(String(av));
+    const rb = STATUS_RANK.get(String(bv));
+    if (ra !== undefined && rb !== undefined) return dir * (ra - rb);
+    if (ra !== undefined) return -1;
+    if (rb !== undefined) return 1;
+  }
+  if (typeof av === "string" && typeof bv === "string") return dir * textOrder.compare(av, bv);
+  return av < bv ? -dir : av > bv ? dir : 0;
+}
+
+/**
+ * The SQL ordering (applyInventoryOrder), in memory: the chosen column in the
+ * chosen direction with nulls last, then the stock number in the same
+ * direction, then the id, so equal keys always come out the same way.
+ * Status follows the enum's order, as SQL sorts it, not the words'.
+ */
+export function sortInventoryRows<R extends Record<string, unknown>>(rows: R[], order: InventoryOrder): R[] {
   const dir = order.ascending ? 1 : -1;
-  return rows.sort((a, b) => {
-    const av = (a[order.column] ?? null) as string | number | null;
-    const bv = (b[order.column] ?? null) as string | number | null;
-    if (av === null && bv === null) return 0;
-    if (av === null) return 1;
-    if (bv === null) return -1;
-    if (typeof av === "string" && typeof bv === "string") return dir * textOrder.compare(av, bv);
-    return av < bv ? -dir : av > bv ? dir : 0;
-  });
+  return rows.sort(
+    (a, b) =>
+      compareKey(order.column, a[order.column], b[order.column], dir) ||
+      (order.column === "stock_number" ? 0 : compareKey("stock_number", a.stock_number, b.stock_number, dir)) ||
+      compareIds(a.id, b.id),
+  );
+}
+
+/** Ids byte for byte, ascending, as SQL orders a uuid. */
+function compareIds(a: unknown, b: unknown): number {
+  const as = String(a ?? "");
+  const bs = String(b ?? "");
+  return as < bs ? -1 : as > bs ? 1 : 0;
+}
+
+/** The slice of a PostgREST builder an order needs. */
+type OrderQuery<T> = {
+  order: (column: string, options?: { ascending?: boolean; nullsFirst?: boolean }) => T;
+};
+
+/**
+ * Order a vw_pieces_list query the way the screen and the exports do: the
+ * chosen column, then the stock number in the same direction, then the id.
+ * Most sortable columns repeat (eight statuses over the whole stock), and
+ * offset paging over equal keys repeats and skips works between pages
+ * unless the order is total; stock_number is unique within a register only,
+ * so the id settles "both registers".
+ */
+export function applyInventoryOrder<T extends OrderQuery<T>>(query: T, by: InventoryOrder): T {
+  let q = query.order(by.column, { ascending: by.ascending, nullsFirst: false });
+  if (by.column !== "stock_number") q = q.order("stock_number", { ascending: by.ascending });
+  return q.order("id");
 }
 
 // ------------------------------------------------------------- membership
@@ -199,6 +266,8 @@ type SearchHit = {
   location_id: string | null;
   ledger: string;
 };
+/** The pieces_search columns SearchHit reads. */
+const HIT_COLUMNS = "id, status, category_id, location_id, ledger";
 
 /**
  * The works an inventory URL selects, in the screen's order, when a plain
@@ -208,7 +277,7 @@ type SearchHit = {
  * facets, the three flag pills, the website facet) is applied on top.
  *
  * Returns null when the URL has none of the three, so the caller can count,
- * sort and page in SQL with applyInventoryFilters. The inventory page and all
+ * sort and page in SQL (selectInventoryPage). The inventory page and all
  * three exports call this, which is what makes an export the screen's rows in
  * the screen's order.
  *
@@ -229,11 +298,14 @@ export async function resolveInventoryIds(
   // always has; a list with no members is a real answer (no rows).
   let members: Set<string> | null = null;
   if (listId) {
-    const { data: listRow } = await supabase
+    const { data: listRow, error } = await supabase
       .from("piece_lists")
       .select("id, is_dynamic, filter_rules")
       .eq("id", listId)
       .maybeSingle();
+    // A failed read is not "no such list": that would show the whole stock
+    // under the list's chip.
+    if (error) throw new Error(error.message);
     if (listRow) members = new Set(await resolveListPieceIds(supabase, listRow as ListLike));
   }
   // "Flagged only" narrows to the user's flags, on top of a list if one is
@@ -254,12 +326,12 @@ export async function resolveInventoryIds(
 
   if (q) {
     // The RPC has no facet parameters, so the register and facets are applied
-    // to the ranked hits here, which keeps the relevance order.
-    const { data: hits, error } = await supabase.rpc("pieces_search", { q });
+    // to the ranked hits here, which keeps the relevance order. Only the
+    // columns read here: the RPC returns whole stock rows otherwise.
+    const { data: hits, error } = await supabase.rpc("pieces_search", { q }).select(HIT_COLUMNS);
     if (error) throw new Error(error.message);
-    const ledger = params.get("ledger");
-    const wantLedger = ledger === "all" ? null : ledger === "external" ? "external" : "jvb";
-    let filtered = (hits ?? []) as SearchHit[];
+    const wantLedger = ledgerFilterOf(params.get("ledger"));
+    let filtered = (hits ?? []) as unknown as SearchHit[];
     if (wantLedger) filtered = filtered.filter((h) => h.ledger === wantLedger);
     for (const [param, key] of [
       ["status", "status"],
@@ -279,15 +351,16 @@ export async function resolveInventoryIds(
 
     // The flag and website columns, and most sort columns, live on the view
     // rather than on the hits, so resolve them through the view for the
-    // matching ids only.
-    const columns: string = order ? `id, ${order.column}` : "id";
+    // matching ids only. Without a chosen column the relevance order stands
+    // and no tie-break is added.
+    const columns: string = order ? sortColumns(order) : "id";
     const rows = await selectInChunks<ViewRow>(ids, (chunk) =>
       applyWebFilter(
         applyFlagFilters(supabase.from("vw_pieces_list").select(columns).in("id", chunk), flags),
         web,
       ) as unknown as PromiseLike<ViewResult>,
     );
-    if (order) return sortRows(rows, order).map((r) => r.id);
+    if (order) return sortInventoryRows(rows, order).map((r) => r.id);
     const keep = new Set(rows.map((r) => r.id));
     return ids.filter((id) => keep.has(id));
   }
@@ -297,14 +370,20 @@ export async function resolveInventoryIds(
   // filters applied, then sort here: a list is capped at 500 live (and is
   // rarely more static), so the ids fit comfortably in one pass.
   const by = order ?? SCREEN_ORDER;
-  const columns: string = `id, ${by.column}`;
   const rows = await selectInChunks<ViewRow>([...(members ?? [])], (chunk) =>
     applyInventoryFilters(
-      supabase.from("vw_pieces_list").select(columns).in("id", chunk),
+      supabase.from("vw_pieces_list").select(sortColumns(by)).in("id", chunk),
       params,
     ) as unknown as PromiseLike<ViewResult>,
   );
-  return sortRows(rows, by).map((r) => r.id);
+  return sortInventoryRows(rows, by).map((r) => r.id);
+}
+
+/** The view columns sortInventoryRows reads for an order: the id, the stock number and the chosen column. */
+function sortColumns(order: InventoryOrder): string {
+  return order.column === "stock_number" || order.column === "id"
+    ? "id, stock_number"
+    : `id, stock_number, ${order.column}`;
 }
 
 /**
@@ -337,13 +416,54 @@ export async function loadInventoryExportRows(
   if (ids) return selectInventoryRows<{ id: string } & Record<string, unknown>>(supabase, ids);
 
   const by = order ?? EXPORT_ORDER;
-  const { data, error } = await applyInventoryFilters(
-    supabase
-      .from("vw_pieces_list")
-      .select("*")
-      .order(by.column, { ascending: by.ascending, nullsFirst: false }),
-    params,
-  );
+  const base = supabase.from("vw_pieces_list").select("*") as unknown as ViewQuery;
+  const { data, error } = await applyInventoryOrder(applyInventoryFilters(base, params), by);
   if (error) throw new Error(error.message);
-  return (data ?? []) as Record<string, unknown>[];
+  return data ?? [];
+}
+
+/**
+ * One page of the inventory when no search, list or flag filter is on: the
+ * URL's filters and order in SQL, with the total. Throws on a failed query.
+ *
+ * A page past the end (an old link, or a queue that shrank while it was
+ * being worked down) is not an error: PostgREST refuses a counted request
+ * whose offset is beyond the total (416, PGRST103), so the total is counted
+ * on its own and the page comes back empty, which the screen shows as the
+ * total alone with the pager to go back by.
+ */
+export async function selectInventoryPage<Row>(
+  supabase: SupabaseClient,
+  params: URLSearchParams,
+  order: InventoryOrder,
+  from: number,
+  to: number,
+): Promise<{ rows: Row[]; total: number }> {
+  const counted = supabase.from("vw_pieces_list").select("*", { count: "exact" }) as unknown as ViewQuery;
+  const res = await applyInventoryOrder(applyInventoryFilters(counted, params), order).range(from, to);
+  if (!res.error) return { rows: (res.data ?? []) as Row[], total: res.count ?? 0 };
+  if (res.status !== 416 && res.error.code !== "PGRST103") throw new Error(res.error.message);
+  const head = supabase.from("vw_pieces_list").select("id", { count: "exact", head: true }) as unknown as ViewQuery;
+  const { count, error } = await applyInventoryFilters(head, params);
+  if (error) throw new Error(error.message);
+  return { rows: [], total: count ?? 0 };
+}
+
+/**
+ * A vw_pieces_list query, typed by hand for the shared filter and order
+ * helpers: checking them against the supabase-js builder's own generics
+ * sends TypeScript into "type instantiation is excessively deep".
+ */
+interface ViewQuery
+  extends PromiseLike<{
+    data: Record<string, unknown>[] | null;
+    error: { message: string; code?: string } | null;
+    count: number | null;
+    status: number;
+  }> {
+  eq(column: string, value: unknown): ViewQuery;
+  neq(column: string, value: string): ViewQuery;
+  or(filters: string): ViewQuery;
+  order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }): ViewQuery;
+  range(from: number, to: number): ViewQuery;
 }
