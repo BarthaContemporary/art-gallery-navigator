@@ -1664,6 +1664,13 @@
           "in": "form onSubmit"
         },
         {
+          "name": "do_not_mail_was",
+          "tag": "input",
+          "type": "hidden",
+          "hidden": true,
+          "in": "form onSubmit"
+        },
+        {
           "name": "email",
           "tag": "input",
           "type": "text",
@@ -1685,10 +1692,24 @@
           "in": "form onSubmit"
         },
         {
+          "name": "interests_was",
+          "tag": "input",
+          "type": "hidden",
+          "hidden": true,
+          "in": "form onSubmit"
+        },
+        {
           "name": "kyc_status",
           "tag": "select",
           "type": "select",
           "hidden": false,
+          "in": "form onSubmit"
+        },
+        {
+          "name": "kyc_status_was",
+          "tag": "input",
+          "type": "hidden",
+          "hidden": true,
           "in": "form onSubmit"
         },
         {
@@ -1717,6 +1738,13 @@
           "tag": "input",
           "type": "checkbox",
           "hidden": false,
+          "in": "form onSubmit"
+        },
+        {
+          "name": "marketing_consent_was",
+          "tag": "input",
+          "type": "hidden",
+          "hidden": true,
           "in": "form onSubmit"
         },
         {

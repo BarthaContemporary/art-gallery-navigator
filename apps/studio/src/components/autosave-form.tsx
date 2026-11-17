@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation";
 import { SaveStatus, useSaveReporter } from "@/components/ui/save-status";
 import { Button } from "@/components/ui/button";
-import { useFlushForDone, useInEditorRoot } from "@/components/editor-save";
+import {
+  useFlushForDone,
+  useHideOnScrollDown,
+  useInEditorRoot,
+  useLeaveGuard,
+  useRefreshAfterSave,
+} from "@/components/editor-save";
+import { NO_ANSWER, planFlush, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
 
 type Status = "idle" | "saving" | "saved" | "error";
 
@@ -33,6 +40,11 @@ function serialise(form: HTMLFormElement): string {
  * Inside an EditorSaveRoot (the record editor) the form draws no line of its
  * own: it reports into the root's one line, and the root's Done flushes it
  * along with the page's other autosaving parts.
+ *
+ * Answers are read with readSaveOutcome (lib/save-outcome.ts): a 401 says
+ * signed out and keeps retrying; a refusal for good (403, 404, a validation
+ * error) shows the server's reason, is not retried and does not ask before
+ * the page is left; anything else is retried with a capped backoff.
  */
 export function AutosaveForm({
   endpoint,
@@ -76,7 +88,14 @@ export function AutosaveForm({
   const [failing, setFailing] = useState(false);
   // The last failure was a 401: the session lapsed and only signing in helps.
   const [signedOut, setSignedOut] = useState(false);
+  // The server refused the last save for good: its reason, for the line.
+  const [refusal, setRefusal] = useState<string | undefined>(undefined);
+  // The same, for the event handlers: the form still shows exactly what was
+  // refused, so nothing resends it (no blur, Enter, Done, focus or leave)
+  // until an edit, which clears it.
+  const refused = useRef(false);
   const [leaving, setLeaving] = useState(false);
+  const { markSaved, refreshAfterLeave } = useRefreshAfterSave();
 
   useEffect(() => {
     mounted.current = true;
@@ -88,46 +107,37 @@ export function AutosaveForm({
 
   // On small screens the sticky autosave line eats scarce vertical space, so
   // slide it away when the user scrolls down and bring it back on scroll up.
-  const [hidden, setHidden] = useState(false);
-  useEffect(() => {
-    let lastY = window.scrollY;
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const y = window.scrollY;
-        if (y > lastY + 4 && y > 80) setHidden(true);
-        else if (y < lastY - 4) setHidden(false);
-        lastY = y;
-        ticking = false;
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const hidden = useHideOnScrollDown();
 
   // Last-ditch flush if the tab is hidden or unloaded with changes still
   // pending — keepalive lets the PATCH outlive the page. Called with `true`
   // when the editor is left inside the app: the page lives on, so it waits
   // for a save already on the wire, which could otherwise land after this
   // newer one and undo it. A closing tab cannot wait and sends at once. (As
-  // an event listener it receives the Event, hence the strict check.)
+  // an event listener it receives the Event, hence the strict check.) A save
+  // the server refused for good is not resent; the next edit is. Returns the
+  // send, so leaving can refresh the router once it settles.
   const flushOnLeave = useCallback(
-    (afterInFlight?: unknown) => {
-      if (!dirty.current || !formRef.current) return;
+    (afterInFlight?: unknown): Promise<unknown> | null => {
+      if (!dirty.current || refused.current || !formRef.current) return null;
       const body = new FormData(formRef.current);
-      const send = () => {
+      const send = (): Promise<unknown> => {
         try {
-          void fetch(endpoint, { method: "PATCH", body, keepalive: true });
+          return fetch(endpoint, { method: "PATCH", body, keepalive: true }).then(
+            (res) => {
+              if (res.ok) markSaved();
+            },
+            () => undefined,
+          );
         } catch {
           /* best-effort */
+          return Promise.resolve();
         }
       };
-      if (afterInFlight === true && inFlight.current) void inFlight.current.finally(send);
-      else send();
+      if (afterInFlight === true && inFlight.current) return inFlight.current.then(send, send);
+      return send();
     },
-    [endpoint],
+    [endpoint, markSaved],
   );
 
   /**
@@ -146,58 +156,78 @@ export function AutosaveForm({
         // Nothing differs from what the server holds: no PATCH.
         attempt.current = 0;
         dirty.current = false;
+        refused.current = false;
         setFailing(false);
         setSignedOut(false);
+        setRefusal(undefined);
         setStatus("saved");
         return true;
       }
+      // Queued behind the save the server has just refused, with no edit
+      // since: it would send the same form for the same answer.
+      if (refused.current) return false;
       setStatus("saving");
-      let lapsed = false;
+      // A lapsed session answers 401 (middleware); should a redirect to the
+      // sign-in page ever be followed instead, its 200 is not a save either.
+      let outcome: SaveOutcome;
       try {
         const res = await fetch(endpoint, {
           method: "PATCH",
           body: new FormData(formRef.current),
         });
-        // A lapsed session answers 401 (middleware). Should a redirect to the
-        // sign-in page ever be followed instead, its 200 is not a save either.
-        const toLogin = res.redirected && new URL(res.url).pathname.startsWith("/login");
-        if (res.status === 401 || toLogin) {
-          lapsed = true;
-          throw new Error("signed out");
-        }
-        if (!res.ok) throw new Error(String(res.status));
+        outcome = await readSaveOutcome(res);
+      } catch {
+        outcome = NO_ANSWER;
+      }
+      if (outcome.ok) {
         // Success — clear the failure streak and mark everything persisted.
         attempt.current = 0;
         lastSaved.current = sent;
+        refused.current = false;
+        markSaved();
         // Edits typed while this PATCH was on the wire are still unsaved;
         // their own debounced save follows.
         dirty.current = formRef.current ? serialise(formRef.current) !== sent : false;
         setFailing(false);
         setSignedOut(false);
+        setRefusal(undefined);
         setStatus("saved");
         return true;
-      } catch {
-        // Keep the unsaved changes in the (still-mounted) form and retry with a
-        // capped exponential backoff, so a dropped connection self-heals without
-        // the dealer re-typing. 2s → 4s → 8s → 16s → 30s.
-        setStatus("error");
-        setFailing(true);
-        setSignedOut(lapsed);
-        if (!mounted.current) {
-          // The editor was left while this save was on the wire: one
-          // keepalive attempt, no backoff loop for a page that is gone.
-          flushOnLeave();
-          return false;
-        }
-        attempt.current += 1;
-        const delay = Math.min(2000 * 2 ** (attempt.current - 1), 30000);
-        if (retryTimer.current) clearTimeout(retryTimer.current);
-        retryTimer.current = setTimeout(() => {
-          retryTimer.current = null;
-          void save();
-        }, delay);
+      }
+      setStatus("error");
+      setSignedOut(Boolean(outcome.signedOut));
+      if (outcome.final) {
+        // Refused for good (the role may not write, the record is gone, a
+        // value was not accepted): sending it again gets the same answer.
+        // Say why, stop, and do not ask before leaving. The edit stays in
+        // the form; the next edit is sent as usual. An edit typed while this
+        // was on the wire is not what was refused: it keeps its own save
+        // (its debounce, or the leave send).
+        refused.current = formRef.current ? serialise(formRef.current) === sent : true;
+        attempt.current = 0;
+        setRefusal(outcome.message);
+        setFailing(false);
         return false;
       }
+      // Keep the unsaved changes in the (still-mounted) form and retry with a
+      // capped exponential backoff, so a dropped connection self-heals without
+      // the dealer re-typing. 2s → 4s → 8s → 16s → 30s.
+      setRefusal(undefined);
+      setFailing(true);
+      if (!mounted.current) {
+        // The editor was left while this save was on the wire: one
+        // keepalive attempt, no backoff loop for a page that is gone.
+        flushOnLeave();
+        return false;
+      }
+      attempt.current += 1;
+      const delay = Math.min(2000 * 2 ** (attempt.current - 1), 30000);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = setTimeout(() => {
+        retryTimer.current = null;
+        void save();
+      }, delay);
+      return false;
     };
     const run = (inFlight.current ?? Promise.resolve(true)).then(attemptSave, attemptSave);
     inFlight.current = run;
@@ -205,10 +235,11 @@ export function AutosaveForm({
       if (inFlight.current === run) inFlight.current = null;
     });
     return run;
-  }, [endpoint, flushOnLeave]);
+  }, [endpoint, flushOnLeave, markSaved]);
 
   const scheduleSave = useCallback(() => {
     dirty.current = true;
+    refused.current = false;
     setStatus("saving");
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
@@ -220,13 +251,13 @@ export function AutosaveForm({
   // When the network comes back, retry straight away instead of waiting out the
   // backoff; a beat later a successful save clears the warning. Coming back to
   // this tab while a save is failing (say after signing in again in another
-  // tab) does the same.
+  // tab) does the same. A refused save is not resent.
   useEffect(() => {
     const onOnline = () => {
-      if (dirty.current) void save();
+      if (dirty.current && !refused.current) void save();
     };
     const onFocus = () => {
-      if (dirty.current && attempt.current > 0) void save();
+      if (dirty.current && attempt.current > 0 && !refused.current) void save();
     };
     window.addEventListener("online", onOnline);
     window.addEventListener("focus", onFocus);
@@ -250,7 +281,10 @@ export function AutosaveForm({
 
   // Leaving inside the app (a link, the back button) unmounts the form and
   // never fires pagehide. Clear the timers, but send the edits they were
-  // holding (a pending debounce or retry) instead of dropping them.
+  // holding (a pending debounce or retry) instead of dropping them. Once
+  // that and any save on the wire settle, refresh the router if anything was
+  // saved, so Back cannot reopen this editor from a stale cached copy whose
+  // first edit would save the old values back (useRefreshAfterSave).
   const flushOnLeaveRef = useRef(flushOnLeave);
   useEffect(() => {
     flushOnLeaveRef.current = flushOnLeave;
@@ -262,58 +296,32 @@ export function AutosaveForm({
       if (retryTimer.current) clearTimeout(retryTimer.current);
       timer.current = null;
       retryTimer.current = null;
-      if (waiting) flushOnLeaveRef.current(true);
+      const sent = waiting ? flushOnLeaveRef.current(true) : null;
+      refreshAfterLeave(sent ?? inFlight.current);
     },
-    [],
+    [refreshAfterLeave],
   );
 
-  // While a save is failing, leaving would lose the edits: ask first, for
-  // links (in-app navigation never reaches beforeunload) and for closing or
-  // reloading the tab.
-  useEffect(() => {
-    if (!failing) return;
-    let confirmed = false;
-    const onClick = (e: MouseEvent) => {
-      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
-      if (!(link instanceof HTMLAnchorElement)) return;
-      if (link.target === "_blank" || link.hasAttribute("download")) return;
-      const to = new URL(link.href, window.location.href);
-      // Another site is a full page load, which beforeunload covers.
-      if (to.origin !== window.location.origin) return;
-      // A jump within this page (the section rail) leaves nothing.
-      if (to.pathname === window.location.pathname && to.search === window.location.search && to.hash) return;
-      if (window.confirm("Your latest changes have not been saved. Leave this page anyway?")) {
-        confirmed = true;
-      } else {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (confirmed) return;
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    document.addEventListener("click", onClick, true);
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => {
-      document.removeEventListener("click", onClick, true);
-      window.removeEventListener("beforeunload", onBeforeUnload);
-    };
-  }, [failing]);
+  // While a save is failing (a retry is pending), leaving would lose the
+  // edits: ask first. Inside an EditorSaveRoot the root asks, once for all of
+  // its parts (useFlushForDone below reports `failing` to it).
+  useLeaveGuard(failing && !inRoot);
 
   // Flush immediately when focus leaves a field — so stepping out to "Manage
   // shipments" / "Manage temporary exports" (links outside this form) never
   // loses the in-progress entry to a pending debounce. Only when something
-  // changed: tabbing through the editor sends nothing.
+  // changed: tabbing through the editor sends nothing. A form the server
+  // refused for good is not sent again either: the flush answers false, so
+  // Done stays with the reason on the line, until an edit sends it again.
   const flush = useCallback((): Promise<boolean> => {
+    const waiting = timer.current !== null;
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
-    } else if (!dirty.current) {
-      return inFlight.current ?? Promise.resolve(true);
     }
+    const plan = planFlush({ waiting, unsaved: dirty.current, refused: refused.current });
+    if (plan === "refused") return Promise.resolve(false);
+    if (plan === "clean") return inFlight.current ?? Promise.resolve(true);
     return save();
   }, [save]);
 
@@ -323,11 +331,13 @@ export function AutosaveForm({
   }, [save]);
 
   // Into the editor's one line (a no-op without a SaveStatusProvider), and
-  // into Done's list of parts to save before leaving.
+  // into Done's list of parts to save before leaving. A refusal for good
+  // offers no Retry: it would get the same answer.
+  const onRetry = status === "error" && !refusal ? retryNow : undefined;
   useEffect(() => {
-    report({ state: status, what, onRetry: status === "error" ? retryNow : undefined, signedOut });
-  }, [report, status, what, retryNow, signedOut]);
-  useFlushForDone(endpoint, flush);
+    report({ state: status, what, detail: refusal, onRetry, signedOut });
+  }, [report, status, what, refusal, onRetry, signedOut]);
+  useFlushForDone(endpoint, flush, failing);
 
   return (
     <form
@@ -345,8 +355,9 @@ export function AutosaveForm({
         <SaveStatus
           state={status}
           what={what}
+          detail={refusal}
           signedOut={signedOut}
-          onRetry={status === "error" ? retryNow : undefined}
+          onRetry={onRetry}
           idleText="Changes save automatically"
           className={`mb-3 transition-[transform,opacity] duration-200 md:translate-y-0 md:opacity-100 ${
             hidden ? "-translate-y-3 opacity-0" : "translate-y-0 opacity-100"
@@ -360,7 +371,8 @@ export function AutosaveForm({
               pendingLabel="Saving…"
               onClick={async () => {
                 // Leave only once the save has landed; on failure stay here
-                // with the error and the kept edits.
+                // with the error and the kept edits. Leaving unmounts the
+                // form, which refreshes the router (see above).
                 setLeaving(true);
                 const ok = await flush();
                 if (ok) router.push(doneHref);

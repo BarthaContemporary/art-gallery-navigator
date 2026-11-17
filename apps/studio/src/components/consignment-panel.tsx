@@ -9,7 +9,9 @@ import { Field } from "@/components/ui/field";
 import { Panel, Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { CloseIcon } from "@/components/ui/icons";
-import { useFlushForDone, useStateAutosave } from "@/components/editor-save";
+import { useFlushForDone, useStateAutosave, type PartSend } from "@/components/editor-save";
+import { useContactSearch, type ContactHit } from "@/components/use-contact-search";
+import { NO_ANSWER, readSaveOutcome } from "@/lib/save-outcome";
 
 const figure = "tabular mt-1 text-[14.5px] leading-[1.45] text-ink";
 const note = "mt-0.5 text-[12px] leading-[1.4] text-meta";
@@ -34,8 +36,6 @@ type Settlement = {
  *  - Sold by a third party → no VAT for us; the sold price is NET, and
  *    J.v.d.B. receives the Share/Commission % of that net sold price.
  */
-type ContactHit = { id: string; name: string; email: string | null };
-
 export function ConsignmentPanel({
   stockNumber,
   initial,
@@ -60,35 +60,12 @@ export function ConsignmentPanel({
   // CRM contact search for the co-owner / consignee (optional — a free-text
   // name still works for consignees not in the CRM).
   const [contactQuery, setContactQuery] = useState("");
-  const [contactHits, setContactHits] = useState<ContactHit[]>([]);
-  const [contactSearching, setContactSearching] = useState(false);
-  useEffect(() => {
-    const query = contactQuery.trim();
-    if (query.length < 2) {
-      setContactHits([]);
-      setContactSearching(false);
-      return;
-    }
-    setContactSearching(true);
-    let cancelled = false;
-    const t = setTimeout(() => {
-      fetch(`/api/crm/contacts/search?q=${encodeURIComponent(query)}`)
-        .then((r) => (r.ok ? r.json() : { results: [] }))
-        .then((json: { results?: ContactHit[] }) => {
-          if (!cancelled) setContactHits(json.results ?? []);
-        })
-        .catch(() => {
-          if (!cancelled) setContactHits([]);
-        })
-        .finally(() => {
-          if (!cancelled) setContactSearching(false);
-        });
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [contactQuery]);
+  const {
+    results: contactHits,
+    setResults: setContactHits,
+    loading: contactSearching,
+    error: contactSearchError,
+  } = useContactSearch(contactQuery);
 
   const pickContact = (c: ContactHit) => {
     setCoOwnerContactId(c.id);
@@ -113,8 +90,10 @@ export function ConsignmentPanel({
 
   // The request for what the panel shows now; the autosave calls it through a
   // ref, so a retry sends the latest values. Nothing is sent until the share
-  // is fixed (null); the field says why.
-  const send = (): Promise<boolean> | null => {
+  // is fixed (null); the field says why. keepalive only for the send as the
+  // tab is hidden or closed (the notes are free text; keepalive caps a body
+  // at 64 KiB).
+  const send: PartSend = ({ keepalive }) => {
     if (pctInvalid) return null;
     const body = new FormData();
     body.set("co_owner_consignee", coOwner);
@@ -125,12 +104,10 @@ export function ConsignmentPanel({
     return fetch(`/api/inventory/${encodeURIComponent(stockNumber)}/consignment`, {
       method: "PATCH",
       body,
-    }).then(
-      (res) => res.ok,
-      () => false,
-    );
+      keepalive,
+    }).then(readSaveOutcome, () => NO_ANSWER);
   };
-  const { status, save, schedule, flush } = useStateAutosave(send);
+  const { status, detail, signedOut, failing, save, schedule, flush } = useStateAutosave(send);
 
   // Debounced autosave on any change (skip the initial mount).
   useEffect(() => {
@@ -143,14 +120,17 @@ export function ConsignmentPanel({
 
   // Into the editor's one status line, and Done's list of parts to save.
   const report = useSaveReporter("consignment");
+  // A refusal for good (detail set) offers no Retry: it would get the same answer.
   useEffect(() => {
     report({
       state: status,
       what: pctInvalid ? "the consignment: the share must be more than 0 and less than 100" : "the consignment",
-      onRetry: status === "error" && !pctInvalid ? () => void save() : undefined,
+      detail: pctInvalid ? undefined : detail,
+      signedOut,
+      onRetry: status === "error" && !pctInvalid && !detail ? () => void save() : undefined,
     });
-  }, [report, status, pctInvalid, save]);
-  useFlushForDone("consignment", flush);
+  }, [report, status, pctInvalid, detail, signedOut, save]);
+  useFlushForDone("consignment", flush, failing);
 
   // Live settlement (admin/accountant only — settlement is null otherwise).
   // Sold price / costs / treatment come live from the Financials + Import
@@ -226,7 +206,10 @@ export function ConsignmentPanel({
                   ))}
                 </ul>
               ) : contactQuery.trim().length >= 2 ? (
-                <p className="mt-1 text-[12px] text-meta">No matches.</p>
+                // A failed search says so: "No matches." would read as "not in the CRM".
+                <p role={contactSearchError ? "alert" : undefined} className={`mt-1 text-[12px] ${contactSearchError ? "text-danger" : "text-meta"}`}>
+                  {contactSearchError ?? "No matches."}
+                </p>
               ) : null}
             </Field>
           )}

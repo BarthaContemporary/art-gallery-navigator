@@ -37,11 +37,19 @@ const W = 720;
 const H = 180;
 const PAD = { t: 6, b: 2 };
 
+/**
+ * Which figures came back. A failed query is "Not available", never a row of
+ * zeros drawn as if they were the figures (as StatPanel beside it does).
+ * failed: the request itself failed, so nothing is known.
+ */
+type Availability = { failed: boolean; visitors: boolean; enquiries: boolean };
+
 /** Website traffic: visitors + pages viewed + enquiries over time. */
 export function WebsitePanel() {
   const [period, setPeriod] = useState("month");
   const [data, setData] = useState<Point[]>([]);
   const [plausible, setPlausible] = useState(true);
+  const [avail, setAvail] = useState<Availability>({ failed: false, visitors: true, enquiries: true });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,14 +57,25 @@ export function WebsitePanel() {
     setLoading(true);
     fetch(`/api/dashboard/website?period=${period}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j: { series: Point[]; plausible: boolean }) => {
-        if (!cancelled) {
-          setData(j.series ?? []);
-          setPlausible(j.plausible);
-        }
-      })
+      .then(
+        (j: { series: Point[]; plausible: boolean; visitorsAvailable?: boolean; enquiriesAvailable?: boolean }) => {
+          if (!cancelled) {
+            setData(j.series ?? []);
+            setPlausible(j.plausible);
+            setAvail({
+              failed: false,
+              // Without Plausible configured the note below explains the empty line.
+              visitors: !j.plausible || j.visitorsAvailable !== false,
+              enquiries: j.enquiriesAvailable !== false,
+            });
+          }
+        },
+      )
       .catch(() => {
-        if (!cancelled) setData([]);
+        if (!cancelled) {
+          setData([]);
+          setAvail({ failed: true, visitors: false, enquiries: false });
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -66,13 +85,17 @@ export function WebsitePanel() {
     };
   }, [period]);
 
+  const available = (s: Series) => (s.key === "enquiries" ? avail.enquiries : avail.visitors);
+
   const { paths, maxLeft, maxRight } = useMemo(() => {
     const n = data.length;
     const maxLeft = Math.max(1, ...data.flatMap((d) => [d.visitors, d.pageviews]));
     const maxRight = Math.max(1, ...data.map((d) => d.enquiries));
     const innerH = H - PAD.t - PAD.b;
     const x = (i: number) => (n <= 1 ? 0 : (i / (n - 1)) * W);
-    const paths = SERIES.map((s) => {
+    // A series whose figures did not come back is not drawn at all.
+    const shown = SERIES.filter((s) => (s.key === "enquiries" ? avail.enquiries : avail.visitors));
+    const paths = shown.map((s) => {
       const max = s.scale === "left" ? maxLeft : maxRight;
       const y = (v: number) => PAD.t + innerH - (v / max) * innerH;
       return {
@@ -83,12 +106,14 @@ export function WebsitePanel() {
       };
     });
     return { paths, maxLeft, maxRight };
-  }, [data]);
+  }, [data, avail.enquiries, avail.visitors]);
 
   const totals = SERIES.map((s) => ({
     ...s,
+    available: available(s),
     total: data.reduce((sum, d) => sum + (d[s.key] as number), 0),
   }));
+  const say = (t: (typeof totals)[number]) => (t.available ? formatCount(t.total) : "not available");
 
   return (
     <Section
@@ -129,7 +154,15 @@ export function WebsitePanel() {
               {t.label}
               {t.scale === "right" ? <span className="text-meta"> (right scale)</span> : null}
             </span>
-            {loading ? null : <span className="tabular font-medium text-ink">{formatCount(t.total)}</span>}
+            {loading ? null : t.available ? (
+              <span className="tabular font-medium text-ink">{formatCount(t.total)}</span>
+            ) : (
+              // No figure (its query failed): the empty mark, with words for
+              // a screen reader, as StatPanel shows it.
+              <span title="Not available" className="tabular font-medium text-meta">
+                —<span className="sr-only">Not available</span>
+              </span>
+            )}
           </li>
         ))}
       </ul>
@@ -140,8 +173,8 @@ export function WebsitePanel() {
         ) : (
           <div className="relative">
             <div aria-hidden className="pointer-events-none flex justify-between text-[11px] leading-none text-meta">
-              <span className="tabular">{formatCount(maxLeft)}</span>
-              <span className="tabular">{formatCount(maxRight)}</span>
+              <span className="tabular">{avail.visitors ? formatCount(maxLeft) : ""}</span>
+              <span className="tabular">{avail.enquiries ? formatCount(maxRight) : ""}</span>
             </div>
             <svg
               viewBox={`0 0 ${W} ${H}`}
@@ -149,7 +182,7 @@ export function WebsitePanel() {
               className="mt-1 block w-full"
               style={{ height: H }}
               role="img"
-              aria-label={`Website traffic: ${totals.map((t) => `${t.label.toLowerCase()} ${formatCount(t.total)}`).join(", ")}`}
+              aria-label={`Website traffic: ${totals.map((t) => `${t.label.toLowerCase()} ${say(t)}`).join(", ")}`}
             >
               {/* top of each scale and the baseline */}
               <line x1={0} y1={PAD.t} x2={W} y2={PAD.t} stroke="var(--jvb-rule)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
@@ -171,10 +204,20 @@ export function WebsitePanel() {
         )}
       </div>
 
-      {!plausible ? (
+      {loading ? null : avail.failed ? (
+        <p className="mt-2 text-[12px] leading-[1.4] text-meta">
+          The website figures are not available just now. Reload the page to try again.
+        </p>
+      ) : !plausible ? (
         <p className="mt-2 text-[12px] leading-[1.4] text-meta">
           Visitors and pages viewed appear once Plausible analytics is connected. Enquiries come from
           the website&rsquo;s contact and booking forms.
+        </p>
+      ) : !avail.visitors || !avail.enquiries ? (
+        <p className="mt-2 text-[12px] leading-[1.4] text-meta">
+          {!avail.visitors
+            ? "Visitors and pages viewed are not available just now: the analytics service did not answer."
+            : "Enquiries are not available just now."}
         </p>
       ) : null}
     </Section>

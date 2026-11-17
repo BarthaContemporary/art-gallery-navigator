@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { previewKind, signDocumentUrl, type PreviewKind } from "@/lib/document-files";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CloseIcon, ExternalIcon } from "@/components/ui/icons";
+import { useModalFocus } from "@/components/use-modal-focus";
 
 /**
  * In-place preview for uploaded files. Click signs a short-lived URL and
@@ -20,28 +21,50 @@ const URL_TTL_SECONDS = 1800;
 
 type Signed = { url: string; previewUrl: string; kind: PreviewKind };
 
-function Overlay({ title, file, onClose }: { title: string; file: Signed; onClose: () => void }) {
+function Overlay({
+  title,
+  file,
+  onClose,
+  opener,
+}: {
+  title: string;
+  file: Signed;
+  onClose: () => void;
+  /** The link that opened it: focus goes back there on close. */
+  opener: RefObject<HTMLButtonElement | null>;
+}) {
   // Some formats still fail in <img> (e.g. an odd TIFF); fall back gracefully.
   const [imgFailed, setImgFailed] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // A modal layer: focus starts on Close, Tab stays inside, Escape closes
+  // it, and focus goes back to the link that opened it. Esc reaches this
+  // while focus is on our own chrome; once the user clicks into a
+  // cross-origin PDF iframe, key events stay inside it, and the Close button
+  // and the scrim remain as the ways out.
+  useModalFocus(true, dialogRef, {
+    initial: () => closeRef.current,
+    returnTo: () => opener.current,
+    onEscape: onClose,
+  });
 
   useEffect(() => {
-    // Esc reaches this listener while focus is on our own chrome. Once the
-    // user clicks into a cross-origin PDF iframe, key events stay inside it;
-    // the Close button and the scrim remain as the ways out.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose]);
+  }, []);
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={`Preview: ${title}`}>
+    <div
+      ref={dialogRef}
+      className="fixed inset-0 z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Preview: ${title}`}
+    >
       <div
         className="jvb-scrim-enter absolute inset-0"
         style={{ background: "var(--jvb-scrim)" }}
@@ -63,7 +86,7 @@ function Overlay({ title, file, onClose }: { title: string; file: Signed; onClos
           >
             Open in new tab
           </ButtonLink>
-          <Button iconOnly label="Close preview" size="sm" onClick={onClose} autoFocus>
+          <Button ref={closeRef} iconOnly label="Close preview" size="sm" onClick={onClose}>
             <CloseIcon size={14} />
           </Button>
         </div>
@@ -106,6 +129,7 @@ export function FilePreviewLink({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const close = useCallback(() => setFile(null), []);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   async function open() {
     setBusy(true);
@@ -128,6 +152,7 @@ export function FilePreviewLink({
   return (
     <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={open}
         disabled={busy}
@@ -137,7 +162,7 @@ export function FilePreviewLink({
         {children}
         {error ? <span className="block text-[12px] font-normal leading-[1.4] text-danger">{error}</span> : null}
       </button>
-      {file ? <Overlay title={title} file={file} onClose={close} /> : null}
+      {file ? <Overlay title={title} file={file} onClose={close} opener={buttonRef} /> : null}
     </>
   );
 }

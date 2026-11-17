@@ -28,11 +28,16 @@ export async function GET(req: Request) {
   }
 
   // Plausible visitors + pageviews (optional).
+  // A query that failed (Plausible down or slow, the enquiries read
+  // refused) is reported as such, so the panel says "Not available" rather
+  // than drawing zeros as if they were the figures.
   const cfg = plausibleConfig();
   const visitorsByDay = new Map<string, number>();
   const pageviewsByDay = new Map<string, number>();
+  let visitorsAvailable = false;
   if (cfg) {
     const ts = await fetchTimeseries(cfg, RANGE[period] ?? "30d");
+    visitorsAvailable = ts !== null;
     for (const p of ts ?? []) {
       visitorsByDay.set(p.date, p.visitors);
       pageviewsByDay.set(p.date, p.pageviews);
@@ -41,10 +46,11 @@ export async function GET(req: Request) {
 
   // Enquiries per day from the DB.
   const supabase = await getSupabase();
-  const { data: enq } = await supabase
+  const { data: enq, error: enqErr } = await supabase
     .from("enquiries")
     .select("created_at")
     .gte("created_at", start.toISOString());
+  const enquiriesAvailable = !enqErr;
   const enquiriesByDay = new Map<string, number>();
   for (const e of enq ?? []) {
     const k = String((e as { created_at: string }).created_at).slice(0, 10);
@@ -58,5 +64,5 @@ export async function GET(req: Request) {
     enquiries: enquiriesByDay.get(date) ?? 0,
   }));
 
-  return NextResponse.json({ series, plausible: Boolean(cfg) });
+  return NextResponse.json({ series, plausible: Boolean(cfg), visitorsAvailable, enquiriesAvailable });
 }

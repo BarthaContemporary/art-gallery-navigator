@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { rateLimit } from "@jvb/db/rate-limit";
 import { getSupabase, getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
+import { modelImageType, parseSuggestions, stopProblem, type ModelImageType, type Suggestions } from "@/lib/ai-suggestions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,32 +24,25 @@ Return ONLY a JSON object (no prose, no code fences) with exactly these keys:
 }
 Be specific but conservative — these are review-and-accept proposals, never final. Prefer "" or [] over guessing wildly.`;
 
-type Suggestions = {
-  hashtags: string[];
-  object_type: string;
-  materials: string[];
-  techniques: string[];
-  motifs: string[];
-  suggested_category: string;
-  suggested_medium: string;
-  suggested_period: string;
-  description_draft: string;
-};
+/*
+ * The answer's room. The default model runs adaptive thinking when the
+ * request sets no `thinking`, and max_tokens caps thinking and answer
+ * together, so 1,024 cut the JSON off on a detailed work. `thinking` stays
+ * unset: "disabled" is refused (400) by the newer models AI_CATALOGUE_MODEL
+ * may name. A non-streaming request of this size is well inside the SDK's
+ * time limits.
+ */
+const MAX_TOKENS = 8000;
 
-function parseJson(text: string): Suggestions | null {
-  const cleaned = text
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/i, "")
-    .trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1) return null;
-  try {
-    return JSON.parse(cleaned.slice(start, end + 1)) as Suggestions;
-  } catch {
-    return null;
-  }
-}
+/*
+ * The photograph sent: a rendition of the display master, not the master
+ * itself (up to 4096 px, and several MB as a JPEG, where the API caps an
+ * image at 5 MB and the model reads at most about 2,576 px on the long
+ * side). Width only, so the proportions are kept; 2,560 keeps the detail of
+ * signatures and box inscriptions.
+ */
+const IMAGE_WIDTH = 2560;
+const IMAGE_QUALITY = 85;
 
 /**
  * Per-person limit on analyses. One runs each time someone presses Analyse
@@ -131,24 +125,27 @@ export async function POST(req: Request) {
       { status: 429 },
     );
 
-  const { data: signed } = await supabase.storage
-    .from("piece-derivatives")
-    .createSignedUrl(path, 60 * 5);
-  const url = signed?.signedUrl;
-  if (!url)
-    return NextResponse.json({ error: "Could not read image" }, { status: 500 });
-
-  let base64: string;
-  let mediaType = "image/jpeg";
-  try {
-    const res = await fetch(url);
-    const buf = Buffer.from(await res.arrayBuffer());
-    base64 = buf.toString("base64");
-    const ct = res.headers.get("content-type");
-    if (ct?.startsWith("image/")) mediaType = ct.split(";")[0] ?? mediaType;
-  } catch {
-    return NextResponse.json({ error: "Could not fetch image" }, { status: 502 });
-  }
+  const derivatives = supabase.storage.from("piece-derivatives");
+  // The rendition first; the master itself only if the rendition cannot be
+  // had (a storage without transforms), as before.
+  const fetchImage = async (
+    transform?: { width: number; quality: number },
+  ): Promise<{ data: string; type: ModelImageType } | null> => {
+    const { data: signed } = await derivatives.createSignedUrl(path, 60 * 5, transform ? { transform } : undefined);
+    if (!signed?.signedUrl) return null;
+    try {
+      const res = await fetch(signed.signedUrl);
+      // An error page (or anything the model cannot read) is not an image.
+      const type = modelImageType(res.headers.get("content-type"));
+      if (!res.ok || !type) return null;
+      return { data: Buffer.from(await res.arrayBuffer()).toString("base64"), type };
+    } catch {
+      return null;
+    }
+  };
+  const image =
+    (await fetchImage({ width: IMAGE_WIDTH, quality: IMAGE_QUALITY })) ?? (await fetchImage());
+  if (!image) return NextResponse.json({ error: "Could not fetch image" }, { status: 502 });
 
   const context = [
     piece.title ? `Title: ${piece.title}` : null,
@@ -164,7 +161,7 @@ export async function POST(req: Request) {
   try {
     const msg = await anthropic.messages.create({
       model: process.env.AI_CATALOGUE_MODEL ?? "claude-sonnet-5",
-      max_tokens: 1024,
+      max_tokens: MAX_TOKENS,
       system: SYSTEM,
       messages: [
         {
@@ -174,12 +171,8 @@ export async function POST(req: Request) {
               type: "image",
               source: {
                 type: "base64",
-                media_type: mediaType as
-                  | "image/jpeg"
-                  | "image/png"
-                  | "image/gif"
-                  | "image/webp",
-                data: base64,
+                media_type: image.type,
+                data: image.data,
               },
             },
             {
@@ -190,11 +183,15 @@ export async function POST(req: Request) {
         },
       ],
     });
+    // A cut-off or refused turn is said as such, not as "could not parse".
+    const problem = stopProblem(msg.stop_reason);
+    if (problem) return NextResponse.json({ configured: true, error: problem }, { status: 502 });
     const text = msg.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
       .join("");
-    suggestions = parseJson(text);
+    // Checked, not cast: lists of strings and strings, anything else dropped.
+    suggestions = parseSuggestions(text);
   } catch (e) {
     const message = e instanceof Error ? e.message : "AI request failed";
     return NextResponse.json({ configured: true, error: message }, { status: 502 });

@@ -6,7 +6,8 @@ import { AmountInput } from "@/components/amount-input";
 import { useEditFinancials } from "@/components/edit-financials-context";
 import { useSaveReporter } from "@/components/ui/save-status";
 import { Field } from "@/components/ui/field";
-import { useFlushForDone, useStateAutosave } from "@/components/editor-save";
+import { useFlushForDone, useStateAutosave, type PartSend } from "@/components/editor-save";
+import { NO_ANSWER, readSaveOutcome } from "@/lib/save-outcome";
 
 const TYPES: [string, string][] = [
   ["", "—"],
@@ -43,20 +44,19 @@ export function ImportVatFields({
   }, [importType, importVat]);
 
   // The request for what the fields show now; the autosave calls it through
-  // a ref, so a retry sends the latest values.
-  const send = (): Promise<boolean> => {
+  // a ref, so a retry sends the latest values. keepalive only for the send as
+  // the tab is hidden or closed.
+  const send: PartSend = ({ keepalive }) => {
     const body = new FormData();
     body.set("import_type", importType);
     body.set("import_vat_gbp", importType === "import_vat_paid" ? importVat : "");
     return fetch(`/api/inventory/${encodeURIComponent(stockNumber)}/import-vat`, {
       method: "PATCH",
       body,
-    }).then(
-      (res) => res.ok,
-      () => false,
-    );
+      keepalive,
+    }).then(readSaveOutcome, () => NO_ANSWER);
   };
-  const { status, save, schedule, flush } = useStateAutosave(send);
+  const { status, detail, signedOut, failing, save, schedule, flush } = useStateAutosave(send);
 
   useEffect(() => {
     if (first.current) {
@@ -68,10 +68,18 @@ export function ImportVatFields({
 
   // Into the editor's one status line, and Done's list of parts to save.
   const report = useSaveReporter("import-vat");
+  // A refusal for good (detail set: a role that may not write, a value the
+  // route rejects) offers no Retry: it would get the same answer.
   useEffect(() => {
-    report({ state: status, what: "the import VAT", onRetry: status === "error" ? () => void save() : undefined });
-  }, [report, status, save]);
-  useFlushForDone("import-vat", flush);
+    report({
+      state: status,
+      what: "the import VAT",
+      detail,
+      signedOut,
+      onRetry: status === "error" && !detail ? () => void save() : undefined,
+    });
+  }, [report, status, detail, signedOut, save]);
+  useFlushForDone("import-vat", flush, failing);
 
   return (
     <div className="mt-4 border-t border-rule pt-3">
