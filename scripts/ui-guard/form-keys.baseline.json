@@ -1844,13 +1844,6 @@
       ],
       "payloads": []
     },
-    "components/delete-contact-button.tsx": {
-      "forms": [
-        "form action={action}"
-      ],
-      "fields": [],
-      "payloads": []
-    },
     "components/delete-list-button.tsx": {
       "forms": [
         "form action={action}"
@@ -2050,8 +2043,8 @@
         },
         {
           "name": "description",
-          "tag": "input",
-          "type": "text",
+          "tag": "textarea",
+          "type": "textarea",
           "hidden": false,
           "in": "form action={mode === \"new\" ? createAction : updateAction}"
         },
@@ -2085,8 +2078,8 @@
         },
         {
           "name": "location",
-          "tag": "input",
-          "type": "text",
+          "tag": "textarea",
+          "type": "textarea",
           "hidden": false,
           "in": "form action={mode === \"new\" ? createAction : updateAction}"
         },

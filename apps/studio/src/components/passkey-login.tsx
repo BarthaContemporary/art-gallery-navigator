@@ -19,6 +19,12 @@ export function PasskeyLogin({ next = null }: { next?: string | null } = {}) {
   const [state, setState] = useState<"idle" | "busy" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const conditionalStarted = useRef(false);
+  // The button's ceremony is under way. Both ceremonies share the one login
+  // challenge, and starting one aborts the other, so the autofill request is
+  // never re-armed while the button's runs.
+  const buttonBusy = useRef(false);
+  // When the armed autofill request got its challenge (valid five minutes).
+  const armedAt = useRef<number | null>(null);
 
   async function completeLogin(assertion: unknown) {
     const res = await fetch("/api/passkeys/login-verify", {
@@ -48,6 +54,9 @@ export function PasskeyLogin({ next = null }: { next?: string | null } = {}) {
     if (state === "busy") return;
     setState("busy");
     setError(null);
+    buttonBusy.current = true;
+    // This ceremony replaces the autofill one (startAuthentication aborts it).
+    armedAt.current = null;
     try {
       const optionsJSON = await getOptions();
       const assertion = await startAuthentication({ optionsJSON });
@@ -61,24 +70,69 @@ export function PasskeyLogin({ next = null }: { next?: string | null } = {}) {
         return;
       }
       setState("idle");
+    } finally {
+      buttonBusy.current = false;
     }
   }
 
-  // Conditional UI: lets Safari/iOS surface the passkey in the email field's
-  // autofill without any click. Runs once; silently unsupported elsewhere.
+  /**
+   * Conditional UI: lets Safari/iOS surface the passkey in the email field's
+   * autofill without any click. Everything before the user picks a passkey
+   * stays silent: an unsupported browser, a refused or rate-limited options
+   * request (login-options answers 503 until its migration is applied, so a
+   * message here would greet every visit to the sign-in page), a dismissal.
+   * Once a passkey was picked, a failure is shown: it used to be swallowed,
+   * so an expired challenge after Face ID simply did nothing. The request is
+   * then armed again, once, with a fresh challenge.
+   */
+  async function runConditional() {
+    if (buttonBusy.current) return;
+    let optionsJSON: Awaited<ReturnType<typeof getOptions>>;
+    try {
+      if (!(await window.PublicKeyCredential?.isConditionalMediationAvailable?.())) return;
+      optionsJSON = await getOptions();
+    } catch {
+      return;
+    }
+    if (buttonBusy.current) return;
+    armedAt.current = Date.now();
+    let assertion: Awaited<ReturnType<typeof startAuthentication>>;
+    try {
+      assertion = await startAuthentication({ optionsJSON, useBrowserAutofill: true });
+    } catch {
+      // Dismissed, aborted by the button or a newer request, or unsupported:
+      // the button and the password form still work.
+      return;
+    }
+    armedAt.current = null;
+    try {
+      await completeLogin(assertion);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Passkey sign-in failed");
+      setState("error");
+      void runConditional();
+    }
+  }
+
   useEffect(() => {
     if (conditionalStarted.current) return;
     conditionalStarted.current = true;
-    (async () => {
-      try {
-        if (!(await window.PublicKeyCredential?.isConditionalMediationAvailable?.())) return;
-        const optionsJSON = await getOptions();
-        const assertion = await startAuthentication({ optionsJSON, useBrowserAutofill: true });
-        await completeLogin(assertion);
-      } catch {
-        /* dismissed / unsupported — the button and password form still work */
-      }
-    })();
+    void runConditional();
+    // Back to a tab left open past about four minutes: the armed challenge
+    // is about to expire (five), so arm a fresh one before it is used.
+    const STALE_MS = 4 * 60 * 1000;
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      const at = armedAt.current;
+      if (at !== null && Date.now() - at > STALE_MS && !buttonBusy.current) void runConditional();
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("pageshow", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("pageshow", refresh);
+    };
+    // Once per mount; the functions read refs, not state.
   }, []);
 
   return (

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getSupabase } from "@/lib/supabase";
+import { getSession, getSupabase, hasRole } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { FilePreviewLink } from "@/components/file-preview";
 import { loadPieceSummaries } from "@/lib/piece-store";
@@ -12,6 +12,7 @@ import { Section } from "@/components/ui/section";
 import { Button, buttonClass } from "@/components/ui/button";
 import { DownloadIcon, EyeIcon } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FlashNotice } from "@/components/ui/notice";
 
 export const metadata = { title: "Document" };
 
@@ -24,6 +25,24 @@ const labelCls = "label mb-1";
 // shared ones, so this select matches the Documents filters.
 const DOC_TYPES = Object.entries(DOC_TYPE_LABELS);
 
+/** The types the row policies keep to admin (write) and the accountant (read). */
+const INVOICE_TYPES = new Set(["purchase_invoice", "sale_invoice"]);
+
+const NOT_YOURS = "Your role can read this document but not change it. Nothing was saved.";
+
+/** A refused write in plain words; 42501 is a row policy saying no. */
+function explainWrite(error: { code?: string; message: string }, invoice: boolean): string {
+  if (error.code === "42501") {
+    return invoice
+      ? "Only an admin can file a document as an invoice. Nothing was saved."
+      : "Your role cannot change this document. Nothing was saved.";
+  }
+  return `Could not save: ${error.message}`;
+}
+
+/** Back to the document with a message for FlashNotice. */
+const errorUrl = (id: string, msg: string) => `/documents/${id}?error=${encodeURIComponent(msg)}`;
+
 type PieceLite = { id: string; stock_number: string | null; title: string | null };
 
 export default async function DocumentDetail({
@@ -31,10 +50,10 @@ export default async function DocumentDetail({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ add?: string }>;
+  searchParams: Promise<{ add?: string; error?: string }>;
 }) {
   const { id } = await params;
-  const { add } = await searchParams;
+  const { add, error: flashError } = await searchParams;
   const supabase = await getSupabase();
 
   const { data: doc } = await supabase
@@ -64,27 +83,37 @@ export default async function DocumentDetail({
     results = ((hits ?? []) as PieceLite[]).filter((h) => !attachedIds.has(h.id)).slice(0, 20);
   }
 
-  let fileUrl: string | null = null;
-  if (doc.storage_path) {
-    const { data } = await supabase.storage.from("piece-documents").createSignedUrl(doc.storage_path, 300);
-    fileUrl = data?.signedUrl ?? null;
-  }
+  // Invoices are filed by admin only (staff may not write them, the
+  // accountant writes nothing), so only an admin is offered those types. The
+  // row policy is the gate; this only spares staff a refused save.
+  const session = await getSession();
+  const roles = session?.roles ?? [];
+  const docTypes =
+    hasRole(roles, "admin") || INVOICE_TYPES.has(doc.doc_type)
+      ? DOC_TYPES
+      : DOC_TYPES.filter(([v]) => !INVOICE_TYPES.has(v));
 
   async function updateDoc(formData: FormData) {
     "use server";
     const db = await getSupabase();
-    const d = String(formData.get("doc_date") ?? "").trim();
-    await db
+    const d = String(formData.get("doc_type") ?? "other");
+    const date = String(formData.get("doc_date") ?? "").trim();
+    const { data, error } = await db
       .from("piece_documents")
       .update({
-        doc_type: String(formData.get("doc_type") ?? "other"),
+        doc_type: d,
         title: String(formData.get("title") ?? "").trim() || null,
         reference: String(formData.get("reference") ?? "").trim() || null,
-        doc_date: d || null,
+        doc_date: date || null,
         notes: String(formData.get("notes") ?? "").trim() || null,
       })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     revalidatePath(`/documents/${id}`);
+    if (error) redirect(errorUrl(id, explainWrite(error, INVOICE_TYPES.has(d))));
+    // No row back: the policies let this account read the document but not
+    // change it (the accountant), so nothing was saved.
+    if (!data?.length) redirect(errorUrl(id, NOT_YOURS));
   }
 
   async function addPiece(formData: FormData) {
@@ -92,29 +121,41 @@ export default async function DocumentDetail({
     const db = await getSupabase();
     const pieceId = String(formData.get("piece_id") ?? "");
     if (!pieceId) return;
-    await db.from("document_pieces").upsert(
+    const { error } = await db.from("document_pieces").upsert(
       { document_id: id, piece_id: pieceId },
       { onConflict: "document_id,piece_id", ignoreDuplicates: true },
     );
     revalidatePath(`/documents/${id}`);
+    if (error) redirect(errorUrl(id, explainWrite(error, false)));
   }
 
   async function removePiece(formData: FormData) {
     "use server";
     const db = await getSupabase();
-    await db
+    const { error } = await db
       .from("document_pieces")
       .delete()
       .eq("document_id", id)
       .eq("piece_id", String(formData.get("piece_id") ?? ""));
     revalidatePath(`/documents/${id}`);
+    if (error) redirect(errorUrl(id, explainWrite(error, false)));
   }
 
   async function deleteDoc() {
     "use server";
     const db = await getSupabase();
-    if (doc!.storage_path) await db.storage.from("piece-documents").remove([doc!.storage_path]);
-    await db.from("piece_documents").delete().eq("id", id);
+    // The row first, and the file only once the row is gone: the other order
+    // destroyed the file before knowing whether the row could be deleted, and
+    // a refused delete (the accountant) still landed on the list as if done.
+    const { data, error } = await db.from("piece_documents").delete().eq("id", id).select("id");
+    if (error) redirect(errorUrl(id, explainWrite(error, false)));
+    if (!data?.length) redirect(errorUrl(id, NOT_YOURS));
+    if (doc!.storage_path) {
+      const { error: fileError } = await db.storage.from("piece-documents").remove([doc!.storage_path]);
+      // The record is gone either way; a file left behind only takes space.
+      if (fileError) console.error(`[documents] ${id}: file not removed: ${fileError.message}`);
+    }
+    revalidatePath("/documents");
     redirect("/documents");
   }
 
@@ -143,8 +184,10 @@ export default async function DocumentDetail({
                 Preview
               </FilePreviewLink>
             ) : null}
-            {fileUrl ? (
-              <a href={fileUrl} target="_blank" className={buttonClass({})}>
+            {doc.storage_path ? (
+              // Signed when clicked (api/documents/[id]/download), so the
+              // link still works after the tab has been open for a while.
+              <a href={`/api/documents/${id}/download`} target="_blank" rel="noopener" className={buttonClass({})}>
                 <DownloadIcon size={14} />
                 Download file
               </a>
@@ -154,6 +197,8 @@ export default async function DocumentDetail({
       />
 
       <div className="space-y-6">
+        <FlashNotice searchParams={{ error: flashError }} />
+
         <Section title="Details">
           <form action={updateDoc} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -161,7 +206,7 @@ export default async function DocumentDetail({
                 Type
               </label>
               <select id="doc-type" name="doc_type" defaultValue={doc.doc_type} className={field}>
-                {DOC_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {docTypes.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
             <div>

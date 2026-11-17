@@ -6,6 +6,7 @@ import { STATUS_LABELS } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { SearchIcon } from "@/components/ui/icons";
 import { cx } from "@/components/ui/cx";
+import { isComposing, isEditableTarget } from "@/lib/ui-events";
 
 type NavItem = { href: string; label: string; group?: string };
 type Piece = {
@@ -52,8 +53,16 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
   const [pieces, setPieces] = useState<Piece[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
+  // The search request failed (a lapsed session, a server error): said as
+  // such, not as "No matches.", which reads as if nothing were there.
+  const [searchFailed, setSearchFailed] = useState(false);
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  // The results scroll inside the palette; the keyboard row is kept in view.
+  const listRef = useRef<HTMLDivElement>(null);
+  // Set by the arrow keys, so only a keyboard move scrolls (a row half under
+  // the pointer must not jump when the mouse highlights it).
+  const keyboardMove = useRef(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Where focus was before the palette opened, to return it on close.
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -68,11 +77,10 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
         setOpen((o) => !o);
         return;
       }
-      // "/" opens search too — but not while typing in a field.
+      // "/" opens search too — but not while typing in a field (the address
+      // finder's field is inside a web component: isEditableTarget).
       if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        const el = e.target as HTMLElement | null;
-        const tag = el?.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+        if (isEditableTarget(e.target)) return;
         e.preventDefault();
         setOpen(true);
       }
@@ -94,12 +102,21 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
     setQ("");
     setPieces([]);
     setContacts([]);
+    setSearchFailed(false);
     setActive(0);
     const t = setTimeout(() => inputRef.current?.focus(), 20);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
+      // Escape during a composition cancels the conversion, not the palette.
+      if (isComposing(e)) return;
       if (e.key === "Escape") setOpen(false);
+      // A modal dialog whose only control is the field: Tab stays in it
+      // rather than moving to a link in the page behind the scrim.
+      if (e.key === "Tab") {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -120,6 +137,7 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
     if (query.length < 2) {
       setPieces([]);
       setContacts([]);
+      setSearchFailed(false);
       setLoading(false);
       return;
     }
@@ -128,16 +146,21 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
     let cancelled = false;
     debounce.current = setTimeout(() => {
       fetch(`/api/search?q=${encodeURIComponent(query)}`)
-        .then((r) => (r.ok ? r.json() : { pieces: [], contacts: [] }))
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
         .then((json: { pieces?: Piece[]; contacts?: Contact[] }) => {
           if (cancelled) return;
           setPieces(json.pieces ?? []);
           setContacts(json.contacts ?? []);
+          setSearchFailed(false);
         })
         .catch(() => {
           if (!cancelled) {
             setPieces([]);
             setContacts([]);
+            setSearchFailed(true);
           }
         })
         .finally(() => {
@@ -177,6 +200,19 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
     setActive((a) => (a >= rows.length ? Math.max(0, rows.length - 1) : a));
   }, [rows.length]);
 
+  // After an arrow key, bring the highlighted row into view inside the
+  // scrolling list (Enter opens it, so it must be visible). The first row
+  // scrolls the list to its top, so its group heading shows too.
+  useEffect(() => {
+    if (!keyboardMove.current) return;
+    keyboardMove.current = false;
+    if (active === 0) {
+      if (listRef.current) listRef.current.scrollTop = 0;
+      return;
+    }
+    document.getElementById(`${listId}-${active}`)?.scrollIntoView({ block: "nearest" });
+  }, [active, listId]);
+
   const go = useCallback(
     (row: Row | undefined) => {
       if (!row) return;
@@ -187,11 +223,17 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
   );
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    // While an input method composes (typing 小林), Enter confirms the
+    // conversion and the arrows move through its candidates: none of them
+    // is the palette's.
+    if (isComposing(e)) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      keyboardMove.current = true;
       setActive((a) => Math.min(a + 1, rows.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      keyboardMove.current = true;
       setActive((a) => Math.max(a - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -239,6 +281,8 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
             onChange={(e) => {
               setQ(e.target.value);
               setActive(0);
+              // New results start at the top, with row 0 highlighted in view.
+              if (listRef.current) listRef.current.scrollTop = 0;
             }}
             onKeyDown={onKeyDown}
             placeholder="Search works and contacts, or go to a page"
@@ -253,13 +297,16 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
             className="block h-12 w-full bg-transparent pl-11 pr-4 text-[14.5px] text-ink placeholder:text-meta"
           />
         </div>
-        <div className="max-h-[52vh] overflow-y-auto py-1.5">
+        {/* tabIndex -1: Chrome and Firefox would otherwise make the scroller a tab stop. */}
+        <div ref={listRef} tabIndex={-1} className="max-h-[52vh] overflow-y-auto py-1.5">
           {rows.length === 0 ? (
             <p role="status" className="px-4 py-6 text-center text-[13px] text-meta">
               {loading
                 ? "Searching…"
                 : q.trim().length >= 2
-                  ? "No matches."
+                  ? searchFailed
+                    ? "Couldn't search works and contacts. Try again in a moment, or reload the page."
+                    : "No matches."
                   : "Type to search, or pick a page."}
             </p>
           ) : (
@@ -285,7 +332,9 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
                       role="option"
                       aria-selected={current}
                       onMouseMove={() => {
-                        if (!current) setActive(i);
+                        if (current) return;
+                        keyboardMove.current = false;
+                        setActive(i);
                       }}
                       onClick={() => go(row)}
                       className={cx(
@@ -312,6 +361,11 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
               })}
             </div>
           )}
+          {rows.length > 0 && searchFailed && !loading ? (
+            <p role="status" className="px-4 pb-1.5 pt-2.5 text-[12px] leading-[1.4] text-meta">
+              Couldn&rsquo;t search works and contacts; only pages are listed.
+            </p>
+          ) : null}
         </div>
         <div
           aria-hidden

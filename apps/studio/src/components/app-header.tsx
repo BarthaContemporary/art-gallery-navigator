@@ -9,6 +9,7 @@ import { CloseIcon, SearchIcon } from "@/components/ui/icons";
 import { Kbd } from "@/components/ui/kbd";
 import { MoonGateMark } from "@/components/ui/moon-gate";
 import { cx } from "@/components/ui/cx";
+import { isModifiedClick } from "@/lib/ui-events";
 
 type NavItem = { href: string; label: string; group?: string };
 
@@ -131,8 +132,11 @@ export function AppHeader({
   // otherwise the active page. aria-current stays with the real page.
   const isShownCurrent = (href: string) => (pending ? href === pending : isActive(href));
 
-  const choose = (href: string) => {
-    setPending(href === activeHref ? null : href);
+  const choose = (href: string, e: React.MouseEvent) => {
+    // Cmd/Ctrl/Shift-click opens the page in a new tab or window: this tab
+    // stays where it is, so it must not mark the other page as current
+    // (nothing would clear it until the next navigation here).
+    if (!isModifiedClick(e)) setPending(href === activeHref ? null : href);
     setOpen(false);
   };
 
@@ -225,7 +229,7 @@ export function AppHeader({
                   {newGroup ? <span aria-hidden className="mx-1 h-3.5 w-px bg-rule-strong xl:mx-1.5" /> : null}
                   <Link
                     href={n.href}
-                    onClick={() => choose(n.href)}
+                    onClick={(e) => choose(n.href, e)}
                     aria-current={isActive(n.href) ? "page" : undefined}
                     className={cx(
                       "relative inline-flex h-9 shrink-0 items-center px-2 text-[13px] font-medium transition-[color] xl:px-2.5",
@@ -287,7 +291,7 @@ export function AppHeader({
                 <Link
                   key={n.href}
                   href={n.href}
-                  onClick={() => choose(n.href)}
+                  onClick={(e) => choose(n.href, e)}
                   aria-current={isActive(n.href) ? "page" : undefined}
                   className={cx(
                     "flex min-h-11 items-center border-l-2 pl-3 text-[18px] font-medium tracking-[-0.01em] transition-[color]",

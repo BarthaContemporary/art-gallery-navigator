@@ -15,6 +15,8 @@ export type LocationRow = {
   name: string | null;
   type: string | null;
   pieces: number;
+  /** Works in the trash still at it: a delete moves them too. */
+  trashed: number;
 };
 
 const TYPES = ["gallery", "storage", "fair", "restorer", "consignee", "auction", "other"];
@@ -46,6 +48,8 @@ export function LocationTableRow({
   const [mergeTo, setMergeTo] = useState("");
   // colSpan follows the admin grip column, which only exists for admins.
   const span = reorderable ? 6 : 5;
+  // Trashed works count: restored, they would come back with no location.
+  const held = loc.pieces + loc.trashed;
 
   if (editing) {
     return (
@@ -110,6 +114,9 @@ export function LocationTableRow({
           >
             {formatCount(loc.pieces)}
           </Link>
+          {loc.trashed > 0 ? (
+            <span className="block text-[12px] leading-[1.4] text-meta">{formatCount(loc.trashed)} in the trash</span>
+          ) : null}
         </Td>
         <Td className="whitespace-nowrap text-right">
           <span className="inline-flex items-center gap-1">
@@ -134,7 +141,7 @@ export function LocationTableRow({
         <tr>
           <td colSpan={span} className="border-b border-rule p-0">
             <Notice tone="danger">
-              {loc.pieces === 0 ? (
+              {held === 0 ? (
                 <form action={deleteAction} className="flex flex-wrap items-center gap-3">
                   <input type="hidden" name="id" value={loc.id} />
                   <span className="text-[13px] text-body">
@@ -154,9 +161,9 @@ export function LocationTableRow({
                   <label htmlFor={`loc-merge-${loc.id}`} className="text-[13px] text-body">
                     <strong className="text-ink">{loc.code}</strong> still holds{" "}
                     <strong className="text-ink">
-                      {loc.pieces} piece{loc.pieces === 1 ? "" : "s"}
+                      {held} piece{held === 1 ? "" : "s"}
                     </strong>
-                    . Move them to:
+                    {loc.trashed > 0 ? ` (${loc.trashed} in the trash)` : ""}. Move {held === 1 ? "it" : "them"} to:
                   </label>
                   <select
                     id={`loc-merge-${loc.id}`}

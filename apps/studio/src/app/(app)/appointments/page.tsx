@@ -28,7 +28,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
-import { Notice } from "@/components/ui/notice";
+import { FlashNotice, Notice } from "@/components/ui/notice";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 
@@ -189,17 +189,46 @@ async function setStatus(formData: FormData) {
   // The appointments table's own policies already allow only admin and
   // staff; the same check as the calendar keeps the page's actions alike.
   await requireCalendarUser();
-  const db = await getSupabase();
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "");
-  if (!id || !status) return;
-  await db.from("appointments").update({ status }).eq("id", id);
+  // The column is free text: only the statuses this page knows are written.
+  if (!id || !Object.hasOwn(STATUS_LABELS, status)) return;
+  const db = await getSupabase();
+  const { error } = await db.from("appointments").update({ status }).eq("id", id);
   revalidatePath("/appointments");
+  if (error) {
+    redirect(`/appointments?error=${encodeURIComponent(`Could not change the appointment: ${error.message}`)}`);
+  }
 }
 
-function StatusActions({ appt, justify = "justify-end" }: { appt: Appointment; justify?: string }) {
+/** Still waiting on the gallery: a request or a confirmed visit with no outcome yet. */
+const isOpen = (a: Appointment) => a.status === "requested" || a.status === "confirmed";
+
+/**
+ * The outcome buttons. Before the visit: Confirm (for a request), Mark
+ * completed, Mark no-show and Cancel, as before. Once it has started (`past`)
+ * the outcome is what is left to record: Mark completed and Mark no-show,
+ * and Cancel for a request nobody answered. Confirm is not offered after the
+ * start time. They used to vanish at the start time, so a visit could never
+ * be marked completed or no-show once it had happened.
+ */
+function StatusActions({
+  appt,
+  past = false,
+  justify = "justify-end",
+}: {
+  appt: Appointment;
+  past?: boolean;
+  justify?: string;
+}) {
   const actions: { status: string; label: string }[] = [];
-  if (appt.status === "requested") {
+  if (past) {
+    if (isOpen(appt)) {
+      actions.push({ status: "completed", label: "Mark completed" });
+      actions.push({ status: "no_show", label: "Mark no-show" });
+      if (appt.status === "requested") actions.push({ status: "cancelled", label: "Cancel" });
+    }
+  } else if (appt.status === "requested") {
     actions.push({ status: "confirmed", label: "Confirm" });
     actions.push({ status: "completed", label: "Mark completed" });
     actions.push({ status: "no_show", label: "Mark no-show" });
@@ -253,7 +282,15 @@ function Person({ appt }: { appt: Appointment }) {
  * wrap below on a phone and sit at the right from md, so status and actions
  * are always on screen (the table puts them past the right edge below xl).
  */
-function AppointmentItem({ appt, withActions }: { appt: Appointment; withActions: boolean }) {
+function AppointmentItem({
+  appt,
+  withActions,
+  past = false,
+}: {
+  appt: Appointment;
+  withActions: boolean;
+  past?: boolean;
+}) {
   return (
     <li className="border-b border-rule py-3 md:flex md:items-start md:justify-between md:gap-6">
       <div className="min-w-0">
@@ -284,14 +321,22 @@ function AppointmentItem({ appt, withActions }: { appt: Appointment; withActions
       </div>
       {withActions ? (
         <div className="mt-2 md:mt-0 md:max-w-[50%] md:shrink-0">
-          <StatusActions appt={appt} justify="justify-start md:justify-end" />
+          <StatusActions appt={appt} past={past} justify="justify-start md:justify-end" />
         </div>
       ) : null}
     </li>
   );
 }
 
-function AppointmentRow({ appt, withActions }: { appt: Appointment; withActions: boolean }) {
+function AppointmentRow({
+  appt,
+  withActions,
+  past = false,
+}: {
+  appt: Appointment;
+  withActions: boolean;
+  past?: boolean;
+}) {
   return (
     <Tr>
       <Td className="whitespace-nowrap align-top">
@@ -325,7 +370,7 @@ function AppointmentRow({ appt, withActions }: { appt: Appointment; withActions:
       </Td>
       {withActions ? (
         <Td className="w-[280px] min-w-[200px] align-top text-right">
-          <StatusActions appt={appt} />
+          <StatusActions appt={appt} past={past} />
         </Td>
       ) : null}
     </Tr>
@@ -335,9 +380,12 @@ function AppointmentRow({ appt, withActions }: { appt: Appointment; withActions:
 function AppointmentsTable({
   rows,
   withActions,
+  past = false,
 }: {
   rows: Appointment[];
   withActions: boolean;
+  /** Rows whose start has passed: the outcome actions only (StatusActions). */
+  past?: boolean;
 }) {
   return (
     <>
@@ -346,7 +394,7 @@ function AppointmentsTable({
           frame's right edge (768 and 1024 alike), so it starts at xl. */}
       <ul className="border-t border-rule xl:hidden">
         {rows.map((appt) => (
-          <AppointmentItem key={appt.id} appt={appt} withActions={withActions} />
+          <AppointmentItem key={appt.id} appt={appt} withActions={withActions} past={past} />
         ))}
       </ul>
       <TableFrame bordered className="hidden xl:block">
@@ -371,7 +419,7 @@ function AppointmentsTable({
           </thead>
           <tbody>
             {rows.map((appt) => (
-              <AppointmentRow key={appt.id} appt={appt} withActions={withActions} />
+              <AppointmentRow key={appt.id} appt={appt} withActions={withActions} past={past} />
             ))}
           </tbody>
         </Table>
@@ -452,6 +500,7 @@ export default async function AppointmentsPage({
     day?: string;
     edit?: string;
     calerr?: string;
+    error?: string;
   }>;
 }) {
   const session = await getSession();
@@ -494,9 +543,13 @@ export default async function AppointmentsPage({
   const upcoming = appointments.filter(
     (a) => a.status !== "cancelled" && new Date(a.starts_at).getTime() >= now,
   );
-  const past = appointments
+  const started = appointments
     .filter((a) => a.status === "cancelled" || new Date(a.starts_at).getTime() < now)
     .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
+  // Started but still requested or confirmed: their outcome is still to be
+  // recorded, so they are listed first, with Mark completed / Mark no-show.
+  const needsOutcome = started.filter((a) => a.status !== "cancelled" && isOpen(a));
+  const past = started.filter((a) => !needsOutcome.includes(a));
   const requested = upcoming.filter((a) => a.status === "requested").length;
 
   const calendarAppointments: CalendarAppointment[] = appointments.map((a) => {
@@ -521,11 +574,15 @@ export default async function AppointmentsPage({
           <span className="tabular">
             {formatCount(upcoming.length)} upcoming
             {requested > 0 ? ` · ${formatCount(requested)} waiting to be confirmed` : ""}
+            {needsOutcome.length > 0
+              ? ` · ${formatCount(needsOutcome.length)} ${needsOutcome.length === 1 ? "needs" : "need"} an outcome`
+              : ""}
           </span>
         }
       />
 
       <div className="space-y-6">
+        <FlashNotice searchParams={{ error: sp.error }} />
         {sp.calerr ? (
           <Notice
             tone="danger"
@@ -563,6 +620,15 @@ export default async function AppointmentsPage({
                 <EmptyState compact>No upcoming appointments.</EmptyState>
               )}
             </Section>
+
+            {needsOutcome.length > 0 ? (
+              <Section
+                title="Needs an outcome"
+                meta="Visits whose time has come, still marked requested or confirmed. Record how each went."
+              >
+                <AppointmentsTable rows={needsOutcome} withActions past />
+              </Section>
+            ) : null}
 
             {past.length > 0 ? (
               <Section title="Past and cancelled">

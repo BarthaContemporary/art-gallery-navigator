@@ -21,6 +21,24 @@ function explain(error: { code?: string; message: string }, code: string): strin
 }
 const fail = (msg: string) => redirect("/categories?error=" + encodeURIComponent(msg));
 
+type Db = Awaited<ReturnType<typeof getSupabase>>;
+
+/**
+ * Works using a category in both registers, the trash included. The list
+ * view leaves trashed works out, but they keep their category for 30 days
+ * and come back with it when restored, and the foreign key would set it to
+ * nothing if the category were deleted under them.
+ */
+async function worksUsing(db: Db, id: string): Promise<{ count: number; error: string | null }> {
+  const [own, external] = await Promise.all(
+    (["pieces", "external_pieces"] as const).map((t) =>
+      db.from(t).select("id", { count: "exact", head: true }).eq("category_id", id),
+    ),
+  );
+  const error = own!.error ?? external!.error;
+  return { count: (own!.count ?? 0) + (external!.count ?? 0), error: error?.message ?? null };
+}
+
 /** Derive a unique-ish code from a name, mirroring the inline add-category API. */
 function codeFromName(name: string): string {
   return (
@@ -69,6 +87,19 @@ export default async function CategoriesPage({
   (counts ?? []).forEach((p) => {
     if (p.category_id) byCategory.set(p.category_id, (byCategory.get(p.category_id) ?? 0) + 1);
   });
+  // Works in the trash (either register) still hold their category, so a
+  // delete must move them too; the list view above leaves them out.
+  const trashed = await Promise.all(
+    (["pieces", "external_pieces"] as const).map((t) =>
+      supabase.from(t).select("category_id").not("deleted_at", "is", null).not("category_id", "is", null),
+    ),
+  );
+  const trashedByCategory = new Map<string, number>();
+  for (const { data } of trashed) {
+    for (const p of (data ?? []) as { category_id: string | null }[]) {
+      if (p.category_id) trashedByCategory.set(p.category_id, (trashedByCategory.get(p.category_id) ?? 0) + 1);
+    }
+  }
 
   async function addCategory(formData: FormData) {
     "use server";
@@ -151,12 +182,11 @@ export default async function CategoriesPage({
     const mergeTo = String(formData.get("merge_to") ?? "").trim();
     if (!id || id === mergeTo) return;
 
-    const { count } = await db
-      .from("vw_pieces_list")
-      .select("id", { count: "exact", head: true })
-      .eq("category_id", id);
+    // Counted on the registers themselves, trashed works included.
+    const using = await worksUsing(db, id);
+    if (using.error) fail(`Could not check which works use it: ${using.error}`);
 
-    if ((count ?? 0) > 0) {
+    if (using.count > 0) {
       if (!mergeTo) fail("Choose where to move the works before deleting.");
       for (const table of (["pieces", "external_pieces"] as const)) {
         const { error: moveError } = await db
@@ -178,6 +208,7 @@ export default async function CategoriesPage({
     name: c.name,
     is_active: Boolean(c.is_active),
     pieces: byCategory.get(c.id) ?? 0,
+    trashed: trashedByCategory.get(c.id) ?? 0,
   }));
 
   const active = rows.filter((r) => r.is_active).length;

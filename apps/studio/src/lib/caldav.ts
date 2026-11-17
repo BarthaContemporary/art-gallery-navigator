@@ -123,6 +123,22 @@ export function zonedToUtc(
   return new Date(guess);
 }
 
+/**
+ * A `<input type="datetime-local">` value ("2026-07-10T14:30") read as London
+ * wall-clock time, as the UTC instant to store; null when it is empty or not
+ * that shape. Posted as it is, Postgres read the zoneless value as UTC, an
+ * hour late all summer.
+ */
+export function londonLocalToUtc(value: unknown): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(String(value ?? "").trim());
+  if (!m) return null;
+  const [y, mo, d, hh, mi] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])];
+  const ss = m[6] ? Number(m[6]) : 0;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || hh > 23 || mi > 59 || ss > 59) return null;
+  const date = zonedToUtc(y, mo, d, hh, mi, ss, LONDON);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 /** YYYY-MM-DD of a UTC instant as seen in Europe/London. */
 export function londonDay(d: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -180,30 +196,130 @@ function unescapeIcsText(v: string): string {
     .replace(/\\\\/g, "\\");
 }
 
-type ParsedWhen = { allDay: boolean; date: Date; day: string };
+type ParsedWhen = {
+  allDay: boolean;
+  date: Date;
+  day: string;
+  /** Where the wall clock below is read: "UTC" for a Z value, else an IANA zone. */
+  zone: string;
+  wall: [number, number, number, number, number, number];
+};
+
+/*
+ * Outlook and Exchange invitations name Windows zones ("GMT Standard Time")
+ * and some clients prefix the IANA name (/mozilla.org/20050126_1/Europe/London).
+ * Intl throws on anything that is not an IANA zone, and one such event used
+ * to fail the whole feed. The common Windows names map to their zone; any
+ * other unknown name is read as London wall-clock time, like a floating time.
+ */
+const WINDOWS_ZONES: Record<string, string> = {
+  "GMT Standard Time": "Europe/London",
+  "Greenwich Standard Time": "Atlantic/Reykjavik",
+  "W. Europe Standard Time": "Europe/Berlin",
+  "Romance Standard Time": "Europe/Paris",
+  "Central Europe Standard Time": "Europe/Budapest",
+  "Central European Standard Time": "Europe/Warsaw",
+  "E. Europe Standard Time": "Europe/Chisinau",
+  "GTB Standard Time": "Europe/Bucharest",
+  "FLE Standard Time": "Europe/Kiev",
+  "Russian Standard Time": "Europe/Moscow",
+  "Eastern Standard Time": "America/New_York",
+  "Central Standard Time": "America/Chicago",
+  "Mountain Standard Time": "America/Denver",
+  "Pacific Standard Time": "America/Los_Angeles",
+  "Arabian Standard Time": "Asia/Dubai",
+  "India Standard Time": "Asia/Kolkata",
+  "China Standard Time": "Asia/Shanghai",
+  "Singapore Standard Time": "Asia/Singapore",
+  "Taipei Standard Time": "Asia/Taipei",
+  "Korea Standard Time": "Asia/Seoul",
+  "Tokyo Standard Time": "Asia/Tokyo",
+  "AUS Eastern Standard Time": "Australia/Sydney",
+  "New Zealand Standard Time": "Pacific/Auckland",
+  UTC: "UTC",
+};
+
+function isIanaZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The IANA zone a TZID parameter names, or London when it names none we know. */
+export function resolveTzid(tzid: string | undefined): string {
+  const raw = (tzid ?? "").trim();
+  if (!raw) return LONDON;
+  // "/mozilla.org/20050126_1/Europe/London" and the like: the IANA tail.
+  const tail = /^\/[^/]+\/[^/]+\/(.+)$/.exec(raw)?.[1];
+  for (const candidate of [raw, WINDOWS_ZONES[raw], tail]) {
+    if (candidate && isIanaZone(candidate)) return candidate;
+  }
+  return LONDON;
+}
 
 function parseIcsDate(prop: IcsProp): ParsedWhen | null {
   const v = prop.value.trim();
   if (prop.params["VALUE"] === "DATE" || /^\d{8}$/.test(v)) {
     const m = /^(\d{4})(\d{2})(\d{2})/.exec(v);
     if (!m) return null;
-    const day = `${m[1]}-${m[2]}-${m[3]}`;
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
     // Midnight London — only used for ordering, the day string places it.
     return {
       allDay: true,
-      date: zonedToUtc(Number(m[1]), Number(m[2]), Number(m[3]), 0, 0, 0, LONDON),
-      day,
+      date: zonedToUtc(y, mo, d, 0, 0, 0, LONDON),
+      day: `${m[1]}-${m[2]}-${m[3]}`,
+      zone: LONDON,
+      wall: [y, mo, d, 0, 0, 0],
     };
   }
   const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?$/.exec(v);
   if (!m) return null;
   const [y, mo, d, hh, mi] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])];
   const ss = m[6] ? Number(m[6]) : 0;
-  const date = m[7]
-    ? new Date(Date.UTC(y, mo - 1, d, hh, mi, ss))
-    : // TZID if given, else floating time — treat as London wall clock.
-      zonedToUtc(y, mo, d, hh, mi, ss, prop.params["TZID"] ?? LONDON);
-  return { allDay: false, date, day: londonDay(date) };
+  // TZID if given, else floating time — treat as London wall clock.
+  const zone = m[7] ? "UTC" : resolveTzid(prop.params["TZID"]);
+  const date =
+    zone === "UTC" ? new Date(Date.UTC(y, mo - 1, d, hh, mi, ss)) : zonedToUtc(y, mo, d, hh, mi, ss, zone);
+  if (Number.isNaN(date.getTime())) return null;
+  return { allDay: false, date, day: londonDay(date), zone, wall: [y, mo, d, hh, mi, ss] };
+}
+
+/**
+ * RFC 5545 §3.3.6 DURATION ("PT3H", "P1D", "P1W", "-PT15M"): whole weeks and
+ * days, which run in calendar days, and an exact time part.
+ */
+export function parseIcsDuration(value: string): { days: number; ms: number } | null {
+  const v = value.trim();
+  const m = /^([+-])?P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(v);
+  if (!m || m.slice(2).every((g) => g === undefined)) return null;
+  const sign = m[1] === "-" ? -1 : 1;
+  const n = (i: number) => Number(m[i] ?? 0);
+  // `|| 0`: no negative zero for a part the value does not have.
+  return {
+    days: sign * (n(2) * 7 + n(3)) || 0,
+    ms: sign * ((n(4) * 60 + n(5)) * 60 + n(6)) * 1000 || 0,
+  };
+}
+
+/** The end an event stored with DTSTART + DURATION implies (exclusive, like DTEND). */
+function endFromDuration(start: ParsedWhen, dur: { days: number; ms: number }): ParsedWhen {
+  const [y, mo, d, hh, mi, ss] = start.wall;
+  if (start.allDay) {
+    // Whole days only: an all-day event has no time of day.
+    const day = addDaysIso(start.day, dur.days);
+    const [ey, em, ed] = isoDayParts(day);
+    return { allDay: true, date: zonedToUtc(ey, em, ed, 0, 0, 0, LONDON), day, zone: LONDON, wall: [ey, em, ed, 0, 0, 0] };
+  }
+  // Days keep the wall-clock time across a change of the clocks; H/M/S are exact.
+  const base =
+    start.zone === "UTC"
+      ? new Date(Date.UTC(y, mo - 1, d + dur.days, hh, mi, ss))
+      : zonedToUtc(y, mo, d + dur.days, hh, mi, ss, start.zone);
+  const date = new Date(base.getTime() + dur.ms);
+  return { allDay: false, date, day: londonDay(date), zone: start.zone, wall: start.wall };
 }
 
 export function isoDayParts(day: string): [number, number, number] {
@@ -216,24 +332,56 @@ function addDaysIso(day: string, delta: number): string {
   return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
 }
 
-type CalResource = { href: string; etag: string | null };
+/**
+ * The days of an inclusive span [startDay, endDay] that fall inside
+ * [first, last], for placing a multi-day event on a month grid. Clamped to
+ * the range rather than counted from the event's start, so an event of any
+ * length reaches every month it runs in. ISO days compare as strings.
+ */
+export function daysWithin(startDay: string, endDay: string, first: string, last: string): string[] {
+  const out: string[] = [];
+  const stop = endDay < last ? endDay : last;
+  // A grid is at most 42 days; the guard only stops a malformed range.
+  for (let day = startDay > first ? startDay : first; day <= stop && out.length < 400; day = addDaysIso(day, 1)) {
+    out.push(day);
+  }
+  return out;
+}
 
-function parseIcsEvents(ics: string, cal: CalDavCalendar, resource: CalResource): CalendarEvent[] {
+export type CalResource = { href: string; etag: string | null };
+
+/** Exported for the unit tests; the feed is the only other caller. */
+export function parseIcsEvents(ics: string, cal: CalDavCalendar, resource: CalResource): CalendarEvent[] {
   const unfolded = ics.replace(/\r?\n[ \t]/g, "");
   const vevents: Record<string, IcsProp>[] = [];
   let cur: Record<string, IcsProp> | null = null;
+  // Sub-components inside the event (VALARM, …) carry properties of their
+  // own: an alarm's DESCRIPTION ("Reminder") or SUMMARY is not the event's.
+  // Only the event's own level is read, as updateCalendarEvent writes it.
+  let depth = 0;
   for (const rawLine of unfolded.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (line === "BEGIN:VEVENT") {
       cur = {};
+      depth = 0;
       continue;
     }
     if (line === "END:VEVENT") {
       if (cur) vevents.push(cur);
       cur = null;
+      depth = 0;
       continue;
     }
     if (!cur) continue;
+    if (/^BEGIN:/i.test(line)) {
+      depth++;
+      continue;
+    }
+    if (/^END:/i.test(line)) {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (depth > 0) continue;
     const prop = parseIcsLine(line);
     if (prop && !(prop.name in cur)) cur[prop.name] = prop;
   }
@@ -244,7 +392,15 @@ function parseIcsEvents(ics: string, cal: CalDavCalendar, resource: CalResource)
     vevents.length > 1 || vevents.some((p) => "RRULE" in p || "RECURRENCE-ID" in p);
   const events: CalendarEvent[] = [];
   for (const props of vevents) {
-    const ev = buildEvent(props, cal, resource, recurring);
+    // One malformed event is left out; it must not fail the whole feed.
+    let ev: CalendarEvent | null = null;
+    try {
+      ev = buildEvent(props, cal, resource, recurring);
+    } catch (err) {
+      console.warn(
+        `[caldav] skipped event ${props["UID"]?.value ?? resource.href}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
     if (ev) events.push(ev);
   }
   return events;
@@ -260,7 +416,15 @@ function buildEvent(
   if (!startProp) return null;
   const start = parseIcsDate(startProp);
   if (!start) return null;
-  const end = props["DTEND"] ? parseIcsDate(props["DTEND"]) : null;
+  // DTEND, or failing that DURATION (RFC 5545 allows either). Reading only
+  // DTEND gave a DURATION event no end, and a save from the studio then
+  // replaced its length with one hour.
+  const duration = props["DTEND"] ? null : props["DURATION"] ? parseIcsDuration(props["DURATION"].value) : null;
+  const end = props["DTEND"]
+    ? parseIcsDate(props["DTEND"])
+    : duration
+      ? endFromDuration(start, duration)
+      : null;
 
   let endDay = end ? end.day : start.day;
   if (end && start.allDay) {
@@ -292,6 +456,18 @@ function buildEvent(
   };
 }
 
+/**
+ * The End date the event editor shows. `endDay` is the grid's inclusive span,
+ * pulled back a day for a timed event that ends at midnight; offered with the
+ * true "00:00" end time it saved 18:00 to 00:00 as 18:00 to 19:00. So a timed
+ * event takes the London day of its end instant (the next day, at 00:00),
+ * which saves back unchanged; an all-day event keeps its inclusive last day.
+ */
+export function formEndDay(ev: Pick<CalendarEvent, "allDay" | "end" | "endDay" | "startDay">): string {
+  if (ev.allDay) return ev.endDay;
+  return ev.end ? londonDay(ev.end) : ev.startDay;
+}
+
 // --- CalDAV requests --------------------------------------------------------
 
 async function davRequest(
@@ -317,6 +493,23 @@ async function davRequest(
 }
 
 /**
+ * True when fetch would request exactly this path: the URL parser rewrites
+ * dot segments, plain ("/cal/.") or percent-encoded ("/%2e%2e/"), so a path
+ * that passed a text check could still reach the collection above it.
+ */
+function isNormalisedPath(href: string): boolean {
+  try {
+    if (new URL(href, "http://caldav.invalid").pathname !== href) return false;
+    return href.split("/").every((seg) => {
+      const s = decodeURIComponent(seg);
+      return s !== "." && s !== ".." && !s.includes("/") && !s.includes("\\");
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Event/calendar hrefs come back from the browser as form fields, so they are
  * untrusted: only paths inside the configured account's collection are allowed.
  */
@@ -326,11 +519,25 @@ function assertSafeHref(href: string): string {
   if (
     !href.startsWith(`/${cfg.user}/`) ||
     href.includes("..") ||
-    !/^[A-Za-z0-9/._~@%-]+$/.test(href)
+    !/^[A-Za-z0-9/._~@%-]+$/.test(href) ||
+    !isNormalisedPath(href)
   ) {
     throw new Error("invalid calendar path");
   }
   return href;
+}
+
+/**
+ * The target of an update or delete: one item inside one of the account's
+ * calendars, `/<user>/<calendar>/<item>`, never a calendar (`/<user>/<cal>/`)
+ * or the account itself, which Radicale would delete whole with every event
+ * in it. No ".ics" is required: other clients name their items as they like.
+ */
+function assertEventHref(href: string): string {
+  const safe = assertSafeHref(href);
+  const segments = safe.split("/");
+  if (segments.length !== 4 || !segments[2] || !segments[3]) throw new Error("invalid calendar path");
+  return safe;
 }
 
 async function listCalendars(): Promise<CalDavCalendar[]> {
@@ -581,7 +788,7 @@ export async function updateCalendarEvent(
   f: EventFields,
 ): Promise<WriteResult> {
   try {
-    const safe = assertSafeHref(href);
+    const safe = assertEventHref(href);
     const got = await davRequest(safe, { method: "GET" });
     if (!got.ok) return { ok: false, message: `event fetch failed (HTTP ${got.status})` };
     const raw = await got.text();
@@ -644,7 +851,7 @@ export async function updateCalendarEvent(
 
 export async function deleteCalendarEvent(href: string, etag: string | null): Promise<WriteResult> {
   try {
-    const safe = assertSafeHref(href);
+    const safe = assertEventHref(href);
     const res = await davRequest(safe, {
       method: "DELETE",
       headers: etag ? { "If-Match": etag } : {},

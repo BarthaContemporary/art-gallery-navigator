@@ -3,14 +3,19 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
 
 /**
- * Admin-only backup health panel for the dashboard. Reads the latest run per
- * kind from backup_runs (written by the VPS backup script) and flags anything
- * older than its expected cadence — the in-app complement to the external
- * healthchecks.io dead-man's-switch.
+ * Admin-only backup health panel for the dashboard. Reads the latest good run
+ * per kind from backup_runs (written by the VPS backup script) and flags
+ * anything older than its expected cadence — the in-app complement to the
+ * external healthchecks.io dead-man's-switch.
+ *
+ * "storage" is the weekly off-site copy of the Supabase storage buckets
+ * (photographs, documents, scans), timer Sunday 03:30 UTC: eight days leaves
+ * a day's margin. Without it "All healthy" said nothing about that copy.
  */
 const KINDS: { kind: string; label: string; maxAgeHours: number; cadence: string }[] = [
   { kind: "db", label: "Database", maxAgeHours: 26, cadence: "nightly" },
   { kind: "webdav", label: "Shared drive", maxAgeHours: 26, cadence: "nightly" },
+  { kind: "storage", label: "Photographs and files", maxAgeHours: 8 * 24, cadence: "weekly" },
 ];
 
 type Run = { kind: string; status: string; created_at: string; size_bytes: number | null };
@@ -25,28 +30,45 @@ function ago(iso: string, now: number): string {
 
 export async function BackupPanel() {
   const supabase = await getSupabase();
-  const { data } = await supabase
-    .from("backup_runs")
-    .select("kind, status, created_at, size_bytes")
-    .order("created_at", { ascending: false })
-    .limit(60);
-
-  const latest = new Map<string, Run>();
-  for (const r of (data ?? []) as Run[]) if (!latest.has(r.kind)) latest.set(r.kind, r);
+  // The latest good run of each kind, asked for one kind at a time
+  // (idx_backup_runs_kind_time). The 60 newest rows of all kinds held about
+  // four weeks, so a weekly job stopped for longer read "No backup recorded
+  // yet" instead of how long ago it last ran. Only 'ok' rows count: a recent
+  // failed run is neither a fresh backup nor a reason to hide the age of the
+  // last good one.
+  const answers = await Promise.all(
+    KINDS.map((k) =>
+      supabase
+        .from("backup_runs")
+        .select("kind, status, created_at, size_bytes")
+        .eq("kind", k.kind)
+        .eq("status", "ok")
+        .order("created_at", { ascending: false })
+        .limit(1),
+    ),
+  );
   const now = Date.now();
 
-  const rows = KINDS.map((k) => {
-    const run = latest.get(k.kind);
+  const rows = KINDS.map((k, i) => {
+    const answer = answers[i]!;
+    const run = ((answer.data ?? []) as Run[])[0];
     const ageMs = run ? now - new Date(run.created_at).getTime() : Infinity;
     const stale = ageMs > k.maxAgeHours * 3600_000;
-    const state: "ok" | "stale" | "missing" = !run ? "missing" : stale ? "stale" : "ok";
+    const state: "ok" | "stale" | "missing" | "unknown" = answer.error
+      ? "unknown"
+      : !run
+        ? "missing"
+        : stale
+          ? "stale"
+          : "ok";
     return { ...k, run, state };
   });
 
   const worst = rows.some((r) => r.state !== "ok");
   // A state colour always comes with its word (spec R4): overdue is warn,
   // never recorded is danger.
-  const tone = (state: string): Tone => (state === "ok" ? "ok" : state === "stale" ? "warn" : "danger");
+  const tone = (state: string): Tone =>
+    state === "ok" ? "ok" : state === "stale" || state === "unknown" ? "warn" : "danger";
 
   return (
     <Section
@@ -69,10 +91,12 @@ export async function BackupPanel() {
             </span>
             <span
               className={`text-[12px] ${
-                r.state === "missing" ? "text-danger" : r.state === "stale" ? "text-warn" : "text-meta"
+                r.state === "missing" ? "text-danger" : r.state === "stale" || r.state === "unknown" ? "text-warn" : "text-meta"
               }`}
             >
-              {r.state === "missing"
+              {r.state === "unknown"
+                ? "Could not read the backup log"
+                : r.state === "missing"
                 ? "No backup recorded yet"
                 : r.state === "stale"
                   ? `Overdue: last run ${ago(r.run!.created_at, now)}`

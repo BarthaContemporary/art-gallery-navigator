@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { londonToday, parseRetentionDays, requestDates, RETENTION_MAX_DAYS } from "@/lib/dp-requests";
+import { londonLocalToUtc } from "@/lib/caldav";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { FlashNotice, Notice } from "@/components/ui/notice";
@@ -95,9 +97,26 @@ export default async function DataProtectionPage({
     "use server";
     await assertAdmin();
     const key = String(formData.get("key") ?? "");
-    const days = Math.max(1, Math.min(7300, Number(formData.get("days") ?? 0) || 0));
-    await createServiceClient().from("retention_policies").update({ days, updated_at: new Date().toISOString() }).eq("key", key);
+    // Strictly whole days: a blank box used to be clamped up to 1 day, and
+    // the nightly run then purged that whole class (studio-pages-ops-1).
+    const days = parseRetentionDays(formData.get("days"));
+    const fail = (msg: string) => `/admin/data-protection?error=${encodeURIComponent(msg)}`;
+    if (!key) redirect(fail("That retention class was not found."));
+    if (days === null) {
+      redirect(fail(`Keep for must be a whole number of days from 1 to ${RETENTION_MAX_DAYS}. Nothing was changed.`));
+    }
+    const { data, error } = await createServiceClient()
+      .from("retention_policies")
+      .update({ days, updated_at: new Date().toISOString() })
+      .eq("key", key)
+      .select("label");
+    if (error) redirect(fail(`Could not save the retention period: ${error.message}`));
     revalidatePath("/admin/data-protection");
+    const label = (data ?? [])[0]?.label as string | undefined;
+    if (!label) redirect(fail("That retention class was not found. Nothing was changed."));
+    redirect(
+      `/admin/data-protection?notice=${encodeURIComponent(`Saved: ${label} kept for ${days} ${days === 1 ? "day" : "days"}.`)}`,
+    );
   }
 
   async function runRetention() {
@@ -181,19 +200,20 @@ export default async function DataProtectionPage({
   async function addRequest(formData: FormData) {
     "use server";
     const s = await assertAdmin();
-    const received = String(formData.get("received_at") ?? "") || new Date().toISOString().slice(0, 10);
-    const due = new Date(received);
-    due.setMonth(due.getMonth() + 1);
-    await createServiceClient().from("dp_requests").insert({
+    // One calendar month, clamped at month ends (31 Jan is due 28 Feb), from
+    // the London day; see lib/dp-requests.ts.
+    const { received_at, due_at } = requestDates(formData.get("received_at"));
+    const { error } = await createServiceClient().from("dp_requests").insert({
       subject_name: String(formData.get("subject_name") ?? "").trim() || null,
       kind: String(formData.get("kind") ?? "other"),
       channel: String(formData.get("channel") ?? "").trim() || null,
-      received_at: received,
-      due_at: due.toISOString().slice(0, 10),
+      received_at,
+      due_at,
       notes: String(formData.get("notes") ?? "").trim() || null,
       created_by: s.user.id,
     });
     revalidatePath("/admin/data-protection");
+    if (error) redirect(`/admin/data-protection?error=${encodeURIComponent(`Could not log the request: ${error.message}`)}`);
   }
 
   async function completeRequest(formData: FormData) {
@@ -210,7 +230,8 @@ export default async function DataProtectionPage({
     "use server";
     const s = await assertAdmin();
     await createServiceClient().from("dp_breach_log").insert({
-      occurred_at: String(formData.get("occurred_at") ?? "") || null,
+      // Typed as London wall-clock time; stored as the instant it names.
+      occurred_at: londonLocalToUtc(formData.get("occurred_at"))?.toISOString() ?? null,
       description: String(formData.get("description") ?? "").trim(),
       data_affected: String(formData.get("data_affected") ?? "").trim() || null,
       people_affected: Number(formData.get("people_affected") ?? 0) || null,
@@ -224,7 +245,8 @@ export default async function DataProtectionPage({
     revalidatePath("/admin/data-protection");
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // The London day: the server's UTC day is yesterday after midnight in summer.
+  const today = londonToday();
   const openRequests = ((requests ?? []) as Record<string, unknown>[]).filter((r) => !r.completed_at);
   const closedRequests = ((requests ?? []) as Record<string, unknown>[]).filter((r) => r.completed_at);
   // London dates: a timestamp late in a summer evening would otherwise print
@@ -309,8 +331,10 @@ export default async function DataProtectionPage({
                         <input
                           name="days"
                           type="number"
+                          required
                           min={1}
-                          max={7300}
+                          max={RETENTION_MAX_DAYS}
+                          step={1}
                           defaultValue={p.days}
                           aria-label={`Days to keep: ${p.label}`}
                           className={`${cellField} tabular w-20`}

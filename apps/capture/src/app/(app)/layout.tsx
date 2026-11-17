@@ -5,7 +5,9 @@ import { getSession, canCapture, getSupabase } from "@/lib/supabase";
 async function signOut() {
   "use server";
   const supabase = await getSupabase();
-  await supabase.auth.signOut();
+  // This device only: the default (global) scope also signed the user out of
+  // the studio on every other device.
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/login");
 }
 

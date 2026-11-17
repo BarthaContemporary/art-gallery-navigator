@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireSession, hasRole, getSupabase } from "@/lib/supabase";
+import { requireSession, hasRole, getSupabase, createServiceClient } from "@/lib/supabase";
+import { selectInChunks } from "@/lib/chunk";
 // London dates: this page renders on the server, where the zone is UTC.
 import { formatDate } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
@@ -64,17 +65,28 @@ export default async function DuplicateContactsPage() {
   }
   const groups = [...byName.values()].filter((g) => g.length > 1);
 
-  // Purchase counts help decide which record to keep.
+  // Purchase counts help decide which record to keep. Read with the service
+  // client, after the admin/staff check above, as the contact page reads a
+  // contact's purchases: piece_financials has no policy for staff, so their
+  // own client saw 0 everywhere. Only the count leaves this query, never a
+  // price. In chunks: every contact in every group is one id in the URL,
+  // and past about 200 the gateway refused the whole request (lib/chunk.ts).
+  // A failed read shows a dash, not a 0 someone would choose by.
   const ids = groups.flat().map((c) => c.id);
-  const purchasesById = new Map<string, number>();
+  let purchasesById: Map<string, number> | null = new Map();
   if (ids.length) {
-    const { data: buys } = await supabase
-      .from("piece_financials")
-      .select("buyer_contact_id")
-      .in("buyer_contact_id", ids);
-    for (const b of buys ?? []) {
-      const id = b.buyer_contact_id as string;
-      purchasesById.set(id, (purchasesById.get(id) ?? 0) + 1);
+    const service = createServiceClient();
+    try {
+      const buys = await selectInChunks<{ buyer_contact_id: string | null }>(ids, (chunk) =>
+        service.from("piece_financials").select("buyer_contact_id").in("buyer_contact_id", chunk),
+      );
+      for (const b of buys) {
+        if (!b.buyer_contact_id) continue;
+        purchasesById.set(b.buyer_contact_id, (purchasesById.get(b.buyer_contact_id) ?? 0) + 1);
+      }
+    } catch (err) {
+      console.error("[duplicates] purchase counts:", err instanceof Error ? err.message : err);
+      purchasesById = null;
     }
   }
 
@@ -148,7 +160,11 @@ export default async function DuplicateContactsPage() {
                           </Td>
                           <Td className="align-top text-[12px] text-body">{(c.tags ?? []).join(", ") || "—"}</Td>
                           <Td numeric className="align-top text-ink">
-                            {purchasesById.get(c.id) ?? 0}
+                            {purchasesById ? (
+                              (purchasesById.get(c.id) ?? 0)
+                            ) : (
+                              <span title="Purchases could not be counted">—</span>
+                            )}
                           </Td>
                           <Td className="break-words align-top text-[12px] text-body">
                             {c.notes ? (c.notes.length > 120 ? `${c.notes.slice(0, 120)}…` : c.notes) : "—"}
