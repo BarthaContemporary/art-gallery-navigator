@@ -1,6 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+/**
+ * A browser opening the URL as a page (a typed address), as opposed to a
+ * script calling it with fetch. GET only, so a PATCH or POST never gets the
+ * sign-in redirect.
+ */
+function isPageLoad(request: NextRequest) {
+  if (request.method !== "GET") return false;
+  const mode = request.headers.get("sec-fetch-mode");
+  if (mode) return mode === "navigate";
+  return (request.headers.get("accept") ?? "").includes("text/html");
+}
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -39,6 +51,15 @@ export async function middleware(request: NextRequest) {
     path === "/favicon.ico" ||
     path.startsWith("/icons/");
   if (!user && !isLogin && !isPublicApi && !isAsset) {
+    // Scripts calling the API get a 401 they can act on (the screens say
+    // "Signed out") instead of following a redirect to the sign-in page's
+    // HTML, which a PATCH could even take as a successful save. Any cookies
+    // the session check just changed go with it, as they would on `response`.
+    if (path.startsWith("/api/") && !isPageLoad(request)) {
+      const denied = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      for (const c of response.cookies.getAll()) denied.cookies.set(c);
+      return denied;
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

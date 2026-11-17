@@ -1,29 +1,95 @@
 import { NextResponse } from "next/server";
-import { getSupabase, requireCapture } from "@/lib/supabase";
+import { UUID_PATTERN } from "@jvb/db/storage-path";
+import { createServiceClient, getSupabase, requireCapture } from "@/lib/supabase";
+import { attachInvoiceToPiece, invoiceItemCount } from "@/lib/push";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Attaching copies the invoice page to each existing stock record.
+export const maxDuration = 60;
 
-/** Replace the set of works / inventory pieces this invoice covers. */
+const ID = new RegExp(`^${UUID_PATTERN}$`);
+const ids = (v: unknown): string[] =>
+  Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && ID.test(x)))] : [];
+
+/**
+ * Set the works / inventory pieces this invoice covers. Only the links that
+ * changed are removed or added, so a failed save never loses the others. A
+ * captured work receives the invoice when it is pushed; an existing stock
+ * record receives it now: the first page as its purchase-invoice document,
+ * and the purchase date and cost only where the record has none.
+ */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const gate = await requireCapture();
   if ("error" in gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
   const { id: invoiceId } = await params;
-  const body = (await req.json().catch(() => ({}))) as { workIds?: string[]; pieceIds?: string[] };
-
-  const workIds = Array.isArray(body.workIds) ? body.workIds.filter(Boolean) : [];
-  const pieceIds = Array.isArray(body.pieceIds) ? body.pieceIds.filter(Boolean) : [];
+  if (!ID.test(invoiceId)) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  const body = (await req.json().catch(() => ({}))) as { workIds?: unknown; pieceIds?: unknown };
+  const workIds = ids(body.workIds);
+  const pieceIds = ids(body.pieceIds);
 
   const supabase = await getSupabase();
-  await supabase.from("capture_invoice_links").delete().eq("invoice_id", invoiceId);
+  const { data: invoice } = await supabase
+    .from("capture_invoices")
+    .select("id, vendor, invoice_date, total, currency")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  if (!invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
 
-  const rows = [
-    ...workIds.map((work_id) => ({ invoice_id: invoiceId, work_id, piece_id: null })),
-    ...pieceIds.map((piece_id) => ({ invoice_id: invoiceId, work_id: null, piece_id })),
+  const { data: current, error: readErr } = await supabase
+    .from("capture_invoice_links")
+    .select("work_id, piece_id")
+    .eq("invoice_id", invoiceId);
+  if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
+  const rows = (current ?? []) as { work_id: string | null; piece_id: string | null }[];
+  const haveWorks = new Set(rows.map((r) => r.work_id).filter((v): v is string => Boolean(v)));
+  const havePieces = new Set(rows.map((r) => r.piece_id).filter((v): v is string => Boolean(v)));
+
+  const add = [
+    ...workIds.filter((w) => !haveWorks.has(w)).map((work_id) => ({ invoice_id: invoiceId, work_id, piece_id: null })),
+    ...pieceIds.filter((p) => !havePieces.has(p)).map((piece_id) => ({ invoice_id: invoiceId, work_id: null, piece_id })),
   ];
-  if (rows.length) {
-    const { error } = await supabase.from("capture_invoice_links").insert(rows);
+  if (add.length) {
+    const { error } = await supabase.from("capture_invoice_links").insert(add);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, links: rows.length });
+  const dropWorks = [...haveWorks].filter((w) => !workIds.includes(w));
+  const dropPieces = [...havePieces].filter((p) => !pieceIds.includes(p));
+  if (dropWorks.length) {
+    const { error } = await supabase
+      .from("capture_invoice_links")
+      .delete()
+      .eq("invoice_id", invoiceId)
+      .in("work_id", dropWorks);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (dropPieces.length) {
+    const { error } = await supabase
+      .from("capture_invoice_links")
+      .delete()
+      .eq("invoice_id", invoiceId)
+      .in("piece_id", dropPieces);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Existing stock records get the invoice now (pushed works got theirs, or
+  // will, through the push). Service role: staff have no policy on
+  // piece_financials or purchase-invoice documents, as in the push.
+  let attached = 0;
+  const notAttached: string[] = [];
+  if (pieceIds.length) {
+    const db = createServiceClient();
+    const items = await invoiceItemCount(db, invoiceId);
+    for (const pieceId of pieceIds) {
+      // Either register: the picker searches both.
+      const { data: ref } = await db.from("piece_ref").select("id").eq("id", pieceId).maybeSingle();
+      const ok =
+        Boolean(ref) &&
+        (await attachInvoiceToPiece(db, invoice, pieceId, { prefill: true, setCost: items !== null && items <= 1 }));
+      if (ok) attached++;
+      else notAttached.push(pieceId);
+    }
+  }
+
+  return NextResponse.json({ ok: true, links: workIds.length + pieceIds.length, attached, notAttached });
 }

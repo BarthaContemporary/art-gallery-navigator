@@ -1,65 +1,41 @@
 "use client";
 
-export type Geo = { rotate_deg: number; crop: { x: number; y: number; w: number; h: number } };
+import { planSquare, type Geo } from "@/lib/capture-values";
+
+export type { Geo };
 
 /**
- * Square up a photographed page: rotate it upright (Claude-supplied angle) and
- * crop to the paper. Runs on a canvas in the browser — no server image lib.
- * Returns a JPEG File, or null if anything goes wrong (caller keeps original).
+ * Square up a photographed page: crop it to the paper (a box the model gave
+ * in fractions of the photo as shown) and turn the crop upright (the model's
+ * clockwise angle). Runs on a canvas in the browser — no server image lib.
+ * Returns a JPEG File, or null when there is nothing to do, the geometry is
+ * unusable or the result would be too small (lib/capture-values.ts
+ * planSquare); the caller then keeps the original.
  */
 export async function squareUp(file: File, geo: Geo): Promise<File | null> {
   try {
     const img = await loadImage(file);
-    const rot = ((geo.rotate_deg % 360) + 360) % 360;
-    const rad = (rot * Math.PI) / 180;
+    const plan = planSquare(geo, img.naturalWidth, img.naturalHeight);
+    if (!plan) return null;
 
-    // 1. Rotate the whole image onto a canvas sized to the rotated bounds.
-    const sw = img.naturalWidth;
-    const sh = img.naturalHeight;
-    const cos = Math.abs(Math.cos(rad));
-    const sin = Math.abs(Math.sin(rad));
-    const rw = Math.round(sw * cos + sh * sin);
-    const rh = Math.round(sw * sin + sh * cos);
+    const canvas = document.createElement("canvas");
+    canvas.width = plan.outW;
+    canvas.height = plan.outH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, plan.outW, plan.outH);
+    ctx.translate(plan.outW / 2, plan.outH / 2);
+    ctx.rotate(plan.rad);
+    ctx.drawImage(img, plan.sx, plan.sy, plan.sw, plan.sh, -plan.sw / 2, -plan.sh / 2, plan.sw, plan.sh);
 
-    const rc = document.createElement("canvas");
-    rc.width = rw;
-    rc.height = rh;
-    const rctx = rc.getContext("2d");
-    if (!rctx) return null;
-    rctx.translate(rw / 2, rh / 2);
-    rctx.rotate(rad);
-    rctx.drawImage(img, -sw / 2, -sh / 2);
-
-    // 2. Crop to the paper box (fractions of the rotated image).
-    const crop = sanitiseCrop(geo.crop);
-    const cx = Math.round(crop.x * rw);
-    const cy = Math.round(crop.y * rh);
-    const cwv = Math.max(1, Math.round(crop.w * rw));
-    const chv = Math.max(1, Math.round(crop.h * rh));
-
-    const oc = document.createElement("canvas");
-    oc.width = cwv;
-    oc.height = chv;
-    const octx = oc.getContext("2d");
-    if (!octx) return null;
-    octx.drawImage(rc, cx, cy, cwv, chv, 0, 0, cwv, chv);
-
-    const blob = await new Promise<Blob | null>((resolve) => oc.toBlob(resolve, "image/jpeg", 0.9));
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
     if (!blob) return null;
     return new File([blob], file.name.replace(/\.\w+$/, "") + "-squared.jpg", { type: "image/jpeg" });
   } catch {
     return null;
   }
 }
-
-function sanitiseCrop(c: Geo["crop"]): Geo["crop"] {
-  const x = clamp(c?.x ?? 0);
-  const y = clamp(c?.y ?? 0);
-  const w = clamp(c?.w ?? 1);
-  const h = clamp(c?.h ?? 1);
-  return { x, y, w: Math.min(w, 1 - x), h: Math.min(h, 1 - y) };
-}
-const clamp = (n: number) => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0);
 
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {

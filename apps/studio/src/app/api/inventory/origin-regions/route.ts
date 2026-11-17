@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { NAME_CANDIDATES, namePattern, pickSameName } from "@/lib/name-match";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,12 +26,12 @@ export async function POST(req: Request) {
   // Same trap as the category picker: a region that already exists but has
   // been hidden would be silently left hidden by an ignore-duplicates upsert,
   // so the region asked for still appears in no dropdown. Reuse un-hides it.
-  const { data: existing } = await supabase
+  const { data: candidates } = await supabase
     .from("origin_regions")
     .select("id, name, is_active")
-    .ilike("name", name)
-    .limit(1)
-    .maybeSingle();
+    .ilike("name", namePattern(name))
+    .limit(NAME_CANDIDATES);
+  const existing = pickSameName(candidates, name, (r) => r.name);
 
   if (existing) {
     if (existing.is_active === false) {

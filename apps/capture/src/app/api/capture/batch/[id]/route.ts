@@ -33,13 +33,28 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   return NextResponse.json({ ok: true });
 }
 
-/** Delete an entire captured purchase: the batch, its works, photos + files. */
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+/**
+ * Delete an entire captured purchase: the batch, its works, photos + files.
+ * With ?ifEmpty=1 (the capture screen tidying up a purchase it started and
+ * left without works) only a draft batch with no works is deleted.
+ */
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const gate = await requireCapture();
   if ("error" in gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
   const { id } = await params;
 
   const supabase = await getSupabase();
+  if (new URL(req.url).searchParams.get("ifEmpty") === "1") {
+    const { count, error: cErr } = await supabase
+      .from("capture_works")
+      .select("id", { count: "exact", head: true })
+      .eq("batch_id", id);
+    if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
+    if (count !== 0) return NextResponse.json({ ok: true, kept: true });
+    const { error } = await supabase.from("capture_batches").delete().eq("id", id).eq("status", "draft");
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
 
   // Remove the stored photo files first (rows cascade from the batch delete).
   const { data: photos } = await supabase

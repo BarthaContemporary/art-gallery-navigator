@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { jsonBody, messageOf, requestJson } from "@/lib/request";
 
 type Source = {
   name: string | null;
@@ -19,36 +20,49 @@ const TYPES = [
   { v: "other", l: "Other" },
 ];
 
-const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-
 /**
  * Shows the auto-captured purchase date + resolved source (gallery / dealer /
  * auction), tap-to-edit. Saves to the batch as the user types.
  */
 export function SourceBar({
   batchId,
+  capturedAt,
   source,
   onChange,
 }: {
   batchId: string;
+  /** When the batch was started: the purchase date, in the phone's own calendar. */
+  capturedAt: string | null;
   source: Source;
   onChange: (s: Source) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Rendered only in the browser (the capture screen draws it once the batch
+  // exists), so the phone's date is used, with no server/client mismatch.
+  const day = (capturedAt ? new Date(capturedAt) : new Date()).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 
   async function save(patch: Partial<Source>) {
     const next = { ...source, ...patch };
     onChange(next);
-    await fetch(`/api/capture/batch/${batchId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        source_name: next.name,
-        source_type: next.type,
-        source_address: next.address,
-        ledger: next.ledger ?? "jvb",
-      }),
-    });
+    try {
+      await requestJson(
+        `/api/capture/batch/${batchId}`,
+        jsonBody("PATCH", {
+          source_name: next.name,
+          source_type: next.type,
+          source_address: next.address,
+          ledger: next.ledger ?? "jvb",
+        }),
+      );
+      setError(null);
+    } catch (e) {
+      setError(messageOf(e, "Not saved. Try again."));
+    }
   }
 
   return (
@@ -56,7 +70,7 @@ export function SourceBar({
       <div className="flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-ink-faint">
-            Purchased · {today}
+            Purchased · {day}
           </p>
           <p className="mt-0.5 truncate text-[14px] text-ink-body">
             {source.name || source.address || "Location not set"}
@@ -66,6 +80,8 @@ export function SourceBar({
           {open ? "Close" : "Edit"}
         </button>
       </div>
+
+      {error ? <p className="mt-2 text-[12px] text-danger">{error}</p> : null}
 
       {open ? (
         <div className="mt-3 space-y-2 border-t border-line-soft pt-3">

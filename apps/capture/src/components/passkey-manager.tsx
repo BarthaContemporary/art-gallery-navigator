@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { startRegistration } from "@simplewebauthn/browser";
 import { IconKey, IconChevron } from "@/components/icons";
 import { createClient } from "@jvb/db/browser";
+import { messageOf, requestJson } from "@/lib/request";
 
 type Passkey = { id: string; device_label: string | null; created_at: string; last_used_at: string | null };
 
@@ -34,10 +35,11 @@ export function PasskeyManager() {
   }, []);
 
   async function load() {
-    const res = await fetch("/api/passkey/list");
-    if (res.ok) {
-      const { passkeys } = (await res.json()) as { passkeys: Passkey[] };
-      setKeys(passkeys);
+    try {
+      const { passkeys } = await requestJson<{ passkeys?: Passkey[] }>("/api/passkey/list");
+      setKeys(passkeys ?? []);
+    } catch (e) {
+      setMsg(messageOf(e, "Could not load the passkeys."));
     }
     setLoaded(true);
   }
@@ -75,8 +77,11 @@ export function PasskeyManager() {
       setMsg("Passkey added — you can now sign in with Face ID.");
       await load();
     } catch (e) {
-      const m = e instanceof Error ? e.message : "Enrolment failed";
-      if (!/notallowed|cancel|abort/i.test(m)) setMsg(m);
+      // Dismissing the sheet (or letting it time out) is not an error. The
+      // browser's message for it differs by browser, its name does not.
+      const name = (e as { name?: string })?.name;
+      if (name !== "NotAllowedError" && name !== "AbortError")
+        setMsg(e instanceof Error ? e.message : "Enrolment failed");
     } finally {
       setBusy(false);
     }
@@ -91,9 +96,22 @@ export function PasskeyManager() {
     window.location.href = "/login";
   }
 
-  async function remove(id: string) {
-    await fetch(`/api/passkey/${encodeURIComponent(id)}`, { method: "DELETE" });
-    setKeys((k) => k.filter((x) => x.id !== id));
+  // The list is read again from the server afterwards, so it shows what is
+  // really stored: a passkey that was not removed stays listed.
+  async function remove(k: Passkey) {
+    if (
+      !window.confirm(
+        `Remove the passkey “${k.device_label ?? "unnamed"}”? Devices using it will need the password (or another passkey) to sign in.`,
+      )
+    )
+      return;
+    setMsg(null);
+    try {
+      await requestJson(`/api/passkey/${encodeURIComponent(k.id)}`, { method: "DELETE" });
+    } catch (e) {
+      setMsg(`Could not remove the passkey: ${messageOf(e, "try again.")}`);
+    }
+    await load();
   }
 
   if (!supported) return null;
@@ -125,7 +143,7 @@ export function PasskeyManager() {
                       {k.last_used_at ? `Last used ${new Date(k.last_used_at).toLocaleDateString("en-GB")}` : "Never used"}
                     </span>
                   </span>
-                  <button onClick={() => remove(k.id)} className="shrink-0 text-[12px] text-accent-deep">Remove</button>
+                  <button onClick={() => void remove(k)} className="shrink-0 text-[12px] text-accent-deep">Remove</button>
                 </li>
               ))}
             </ul>

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { uploadToCaptures } from "@/lib/browser";
+import { makeThumbnail, uploadToCaptures } from "@/lib/browser";
 import { squareUp, type Geo } from "@/lib/square";
+import { jsonBody, messageOf, requestJson } from "@/lib/request";
 import { InventoryLinkPicker, type PieceHit } from "@/components/inventory-link-picker";
 import { SwipeToDelete } from "@/components/swipe-to-delete";
 import { IconCamera, IconCheck } from "@/components/icons";
@@ -25,57 +26,93 @@ export function InvoiceCapture({
   recentInvoices?: RecentInvoice[];
 }) {
   const [recent, setRecent] = useState<RecentInvoice[]>(recentInvoices);
-  async function deleteRecent(id: string) {
-    setRecent((r) => r.filter((x) => x.id !== id));
-    await fetch(`/api/capture/invoice/${id}`, { method: "DELETE" });
-  }
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [pages, setPages] = useState<Page[]>([]);
   const [header, setHeader] = useState<Header>(EMPTY);
   const [processing, setProcessing] = useState(false);
   const [processed, setProcessed] = useState(false);
-  const [selectedWorks, setSelectedWorks] = useState<string[]>(candidateWorks.map((w) => w.id));
+  // Opened for one purchase, its works are ticked; opened from Home, the
+  // list holds recent drafts of every purchase, so none is ticked for you.
+  const [selectedWorks, setSelectedWorks] = useState<string[]>(batchId ? candidateWorks.map((w) => w.id) : []);
   const [selectedPieces, setSelectedPieces] = useState<PieceHit[]>([]);
-  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<{ attached: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [headerError, setHeaderError] = useState<string | null>(null);
 
   // Keep original File objects around so we can square them after processing.
   const files = useRef<Map<string, File>>(new Map());
-  const started = useRef(false);
+  const invoiceRef = useRef<string | null>(null);
+  const creating = useRef<Promise<string> | null>(null);
+  const nextPageNo = useRef(1);
+  const previews = useRef(new Set<string>());
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    (async () => {
-      const res = await fetch("/api/capture/invoice", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ batchId }),
+    const urls = previews.current;
+    return () => {
+      for (const u of urls) URL.revokeObjectURL(u);
+      urls.clear();
+    };
+  }, []);
+
+  async function deleteRecent(id: string) {
+    const before = recent;
+    setRecent((r) => r.filter((x) => x.id !== id));
+    try {
+      await requestJson(`/api/capture/invoice/${id}`, { method: "DELETE" });
+    } catch (e) {
+      setRecent(before);
+      setError(messageOf(e, "The invoice could not be deleted. Try again."));
+    }
+  }
+
+  /**
+   * The invoice row, created on first use (the first page or Save), not on
+   * opening the screen, so a visit that captures nothing leaves nothing.
+   */
+  async function ensureInvoice(): Promise<string> {
+    if (invoiceRef.current) return invoiceRef.current;
+    creating.current ??= requestJson<{ invoice?: { id: string } }>("/api/capture/invoice", jsonBody("POST", { batchId }))
+      .then(({ invoice }) => {
+        if (!invoice?.id) throw new Error("The invoice could not be started. Try again.");
+        invoiceRef.current = invoice.id;
+        setInvoiceId(invoice.id);
+        return invoice.id;
+      })
+      .finally(() => {
+        creating.current = null;
       });
-      const { invoice } = (await res.json()) as { invoice?: { id: string } };
-      if (invoice) setInvoiceId(invoice.id);
-    })();
-  }, [batchId]);
+    return creating.current;
+  }
 
   async function onPickPages(list: FileList | null) {
-    if (!list || !invoiceId) return;
+    if (!list) return;
+    setError(null);
+    let id: string;
+    try {
+      id = await ensureInvoice();
+    } catch (e) {
+      setError(messageOf(e, "The invoice could not be started. Try again."));
+      return;
+    }
     for (const file of Array.from(list)) {
       const tempId = `tmp-${Math.random().toString(36).slice(2)}`;
-      const localUrl = URL.createObjectURL(file);
-      const pageNo = pages.length + 1;
-      setPages((p) => [...p, { id: tempId, url: localUrl, pageNo, uploading: true }]);
+      const pageNo = nextPageNo.current++;
+      const preview = await makeThumbnail(file, 480);
+      previews.current.add(preview);
+      setPages((p) => [...p, { id: tempId, url: preview, pageNo, uploading: true }]);
       try {
-        const { path } = await uploadToCaptures(file, "invoice", { invoiceId });
-        const res = await fetch(`/api/capture/invoice/${invoiceId}/page`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ path, pageNo }),
-        });
-        const { page, url } = (await res.json()) as { page?: { id: string }; url?: string };
-        const realId = page?.id ?? tempId;
-        if (page?.id) files.current.set(page.id, file);
-        setPages((ps) => ps.map((p) => (p.id === tempId ? { id: realId, url: url ?? localUrl, pageNo, uploading: false } : p)));
-      } catch {
+        const { path } = await uploadToCaptures(file, "invoice", { invoiceId: id });
+        const { page } = await requestJson<{ page?: { id: string } }>(
+          `/api/capture/invoice/${id}/page`,
+          jsonBody("POST", { path, pageNo }),
+        );
+        if (!page?.id) throw new Error("The page was not recorded.");
+        files.current.set(page.id, file);
+        setPages((ps) => ps.map((p) => (p.id === tempId ? { ...p, id: page.id, uploading: false } : p)));
+      } catch (e) {
         setPages((ps) => ps.filter((p) => p.id !== tempId));
+        setError(`Page ${pageNo} was not saved (${messageOf(e, "try again")}). Photograph it again.`);
       }
     }
   }
@@ -83,9 +120,9 @@ export function InvoiceCapture({
   async function process() {
     if (!invoiceId || pages.length === 0) return;
     setProcessing(true);
+    setError(null);
     try {
-      const res = await fetch(`/api/capture/invoice/${invoiceId}/process`, { method: "POST" });
-      const data = (await res.json()) as {
+      const data = await requestJson<{
         configured?: boolean;
         geometry?: { pageId: string; geo: Geo | null }[];
         vendor?: string;
@@ -93,59 +130,83 @@ export function InvoiceCapture({
         invoice_date?: string;
         total?: string | number;
         currency?: string;
-      };
-      if (data.configured !== false) {
-        setHeader((h) => ({
-          ...h,
-          vendor: data.vendor ? String(data.vendor) : h.vendor,
-          reference: data.reference ? String(data.reference) : h.reference,
-          invoice_date: data.invoice_date ? String(data.invoice_date) : h.invoice_date,
-          total: data.total ? String(data.total) : h.total,
-          currency: data.currency ? String(data.currency) : h.currency,
-        }));
-        // Square up each page in the browser using the returned geometry.
-        for (const g of data.geometry ?? []) {
-          const original = files.current.get(g.pageId);
-          if (!original || !g.geo) continue;
-          const squared = await squareUp(original, g.geo);
-          if (!squared) continue;
-          try {
-            const { path } = await uploadToCaptures(squared, "invoice", { invoiceId });
-            await fetch(`/api/capture/invoice/${invoiceId}/page`, {
-              method: "PATCH",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ pageId: g.pageId, squaredPath: path }),
-            });
-            setPages((ps) => ps.map((p) => (p.id === g.pageId ? { ...p, squared: true } : p)));
-          } catch {
-            /* keep original if squared upload fails */
-          }
+      }>(`/api/capture/invoice/${invoiceId}/process`, { method: "POST" });
+      if (data.configured === false) {
+        setError("Invoice reading is not set up — enter the details below.");
+        return;
+      }
+      setHeader((h) => ({
+        ...h,
+        vendor: data.vendor ? String(data.vendor) : h.vendor,
+        reference: data.reference ? String(data.reference) : h.reference,
+        invoice_date: data.invoice_date ? String(data.invoice_date) : h.invoice_date,
+        total: data.total ? String(data.total) : h.total,
+        currency: data.currency ? String(data.currency) : h.currency,
+      }));
+      // Square up each page in the browser using the returned geometry; the
+      // page then shows the squared version, so it can be checked.
+      let failed = 0;
+      for (const g of data.geometry ?? []) {
+        const original = files.current.get(g.pageId);
+        if (!original || !g.geo) continue;
+        const squared = await squareUp(original, g.geo);
+        if (!squared) continue;
+        try {
+          const { path } = await uploadToCaptures(squared, "invoice", { invoiceId });
+          await requestJson(`/api/capture/invoice/${invoiceId}/page`, jsonBody("PATCH", { pageId: g.pageId, squaredPath: path }));
+          const preview = await makeThumbnail(squared, 480);
+          previews.current.add(preview);
+          setPages((ps) => ps.map((p) => (p.id === g.pageId ? { ...p, url: preview, squared: true } : p)));
+        } catch {
+          failed++; // the original page stays the one attached
         }
       }
+      if (failed) setError(`${failed} squared page(s) could not be saved; the original photo is kept.`);
       setProcessed(true);
+    } catch (e) {
+      setError(messageOf(e, "The invoice could not be read. Try again."));
     } finally {
       setProcessing(false);
     }
   }
 
-  async function saveHeader(next: Header) {
-    if (!invoiceId) return;
-    await fetch(`/api/capture/invoice/${invoiceId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(next),
-    });
+  async function saveHeader(next: Header): Promise<boolean> {
+    const id = invoiceRef.current;
+    if (!id) return true; // nothing to save to yet: Save creates it
+    try {
+      await requestJson(`/api/capture/invoice/${id}`, jsonBody("PATCH", next));
+      setHeaderError(null);
+      return true;
+    } catch (e) {
+      setHeaderError(messageOf(e, "Not saved. Try again."));
+      return false;
+    }
   }
 
   async function save() {
-    if (!invoiceId) return;
-    await saveHeader(header);
-    await fetch(`/api/capture/invoice/${invoiceId}/link`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ workIds: selectedWorks, pieceIds: selectedPieces.map((p) => p.id) }),
-    });
-    setSaved(true);
+    setSaving(true);
+    setError(null);
+    try {
+      const id = await ensureInvoice();
+      if (!(await saveHeader(header))) return;
+      const res = await requestJson<{ attached?: number; notAttached?: string[] }>(
+        `/api/capture/invoice/${id}/link`,
+        jsonBody("POST", { workIds: selectedWorks, pieceIds: selectedPieces.map((p) => p.id) }),
+      );
+      const missed = res.notAttached?.length ?? 0;
+      if (missed) {
+        // The links are saved; attaching is safe to repeat.
+        setError(
+          `Saved, but ${missed} inventory item(s) did not receive the invoice. Tap Save invoice to try again.`,
+        );
+        return;
+      }
+      setSaved({ attached: res.attached ?? 0 });
+    } catch (e) {
+      setError(messageOf(e, "The invoice could not be saved. Try again."));
+    } finally {
+      setSaving(false);
+    }
   }
 
   function set<K extends keyof Header>(k: K, v: Header[K]) {
@@ -153,6 +214,7 @@ export function InvoiceCapture({
   }
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploading = pages.some((p) => p.uploading);
 
   if (saved) {
     return (
@@ -162,8 +224,16 @@ export function InvoiceCapture({
         <p className="mt-1 text-[13px] text-ink-muted">
           Linked to {selectedWorks.length} captured work(s) and {selectedPieces.length} inventory item(s).
         </p>
+        {selectedPieces.length ? (
+          <p className="mt-1 text-[12.5px] text-ink-muted">
+            {saved.attached} inventory item(s) now carry it as their purchase invoice.
+          </p>
+        ) : null}
         <div className="mt-6 flex flex-col gap-2">
-          <Link href="/invoices/new" className="tap flex items-center justify-center rounded-xl bg-primary font-semibold text-primary-fg">
+          <Link
+            href={batchId ? `/invoices/new?batch=${batchId}` : "/invoices/new"}
+            className="tap flex items-center justify-center rounded-xl bg-primary font-semibold text-primary-fg"
+          >
             Another invoice
           </Link>
           <Link href="/" className="tap flex items-center justify-center rounded-xl border border-line-control bg-control font-medium text-ink-body">
@@ -181,6 +251,10 @@ export function InvoiceCapture({
         <Link href="/" className="text-[12px] text-ink-soft">Home</Link>
       </div>
 
+      {error ? (
+        <p className="mt-3 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-danger">{error}</p>
+      ) : null}
+
       {/* Pages */}
       <section className="mt-4 rounded-2xl border border-line bg-cell p-4">
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.05em] text-ink-faint">Pages</h2>
@@ -189,9 +263,14 @@ export function InvoiceCapture({
             {pages.map((p) => (
               <div key={p.id} className="relative aspect-[3/4] overflow-hidden rounded-xl border border-line bg-band">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt="" className={`h-full w-full object-cover ${p.uploading ? "opacity-50" : ""}`} />
+                <img
+                  src={p.url}
+                  alt=""
+                  decoding="async"
+                  className={`h-full w-full ${p.squared ? "object-contain" : "object-cover"} ${p.uploading ? "opacity-50" : ""}`}
+                />
                 <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                  {p.squared ? "Squared" : `p.${p.pageNo}`}
+                  {p.squared ? `p.${p.pageNo} · squared` : `p.${p.pageNo}`}
                 </span>
               </div>
             ))}
@@ -217,7 +296,7 @@ export function InvoiceCapture({
           </button>
           <button
             onClick={process}
-            disabled={processing || pages.length === 0}
+            disabled={processing || uploading || !invoiceId || pages.length === 0}
             className="tap rounded-xl bg-primary px-5 font-semibold text-primary-fg disabled:opacity-50"
           >
             {processing ? "Reading…" : processed ? "Re-read" : "Read invoice"}
@@ -238,6 +317,7 @@ export function InvoiceCapture({
             <Field label="Total" value={header.total} onChange={(v) => set("total", v)} onBlur={() => saveHeader(header)} inputMode="decimal" />
             <Field label="Currency" value={header.currency} onChange={(v) => set("currency", v.toUpperCase())} onBlur={() => saveHeader(header)} />
           </div>
+          {headerError ? <p className="text-[12px] text-danger">{headerError}</p> : null}
         </div>
       </section>
 
@@ -246,7 +326,9 @@ export function InvoiceCapture({
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.05em] text-ink-faint">Relates to</h2>
         {candidateWorks.length ? (
           <div className="mt-3">
-            <p className="text-[12px] text-ink-muted">Recently captured works</p>
+            <p className="text-[12px] text-ink-muted">
+              {batchId ? "Works in this purchase" : "Recently captured works — tick the ones this invoice covers"}
+            </p>
             <div className="mt-2 space-y-1.5">
               {candidateWorks.map((w) => {
                 const on = selectedWorks.includes(w.id);
@@ -300,8 +382,12 @@ export function InvoiceCapture({
       ) : null}
 
       <div className="safe-bottom sticky bottom-0 mt-6 flex gap-2 border-t border-line-soft bg-page/90 py-3 backdrop-blur">
-        <button onClick={save} disabled={!invoiceId} className="tap flex-1 rounded-xl bg-primary font-semibold text-primary-fg disabled:opacity-50">
-          Save invoice
+        <button
+          onClick={save}
+          disabled={saving || uploading}
+          className="tap flex-1 rounded-xl bg-primary font-semibold text-primary-fg disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save invoice"}
         </button>
       </div>
     </div>

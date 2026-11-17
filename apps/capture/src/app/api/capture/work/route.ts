@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeStoragePath, UUID_PATTERN } from "@jvb/db/storage-path";
 import { getSupabase, requireCapture } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -59,27 +60,42 @@ export async function PATCH(req: Request) {
   return NextResponse.json({ ok: true });
 }
 
-/** Remove a work (its photos cascade). */
+/**
+ * Remove a work, its photo rows (they cascade) and its photo files. When it
+ * was the batch's last work the draft batch goes too, unless the capture
+ * screen that is still adding works to it asks to keep it (?keepBatch=1).
+ */
 export async function DELETE(req: Request) {
   const gate = await requireCapture();
   if ("error" in gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
-  const id = new URL(req.url).searchParams.get("id");
+  const url = new URL(req.url);
+  const id = url.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  const keepBatch = url.searchParams.get("keepBatch") === "1";
 
   const supabase = await getSupabase();
   // Note the batch so we can clean it up if this was its last work.
   const { data: work } = await supabase.from("capture_works").select("batch_id").eq("id", id).maybeSingle();
+  const { data: photos } = await supabase.from("capture_photos").select("storage_path").eq("work_id", id);
 
   const { error } = await supabase.from("capture_works").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // The photo files too (the rows have gone): only files in this work's own
+  // folder, where the upload route puts them.
+  const own = new RegExp(`^works/${UUID_PATTERN}/${id.replace(/[^0-9a-f-]/g, "")}/[^/]+$`);
+  const paths = (photos ?? [])
+    .map((p) => safeStoragePath(p.storage_path, { pattern: own }))
+    .filter((p): p is string => p !== null);
+  if (paths.length) await supabase.storage.from("captures").remove(paths);
+
   // Don't leave empty draft batches lingering (they inflate the menu counter).
-  if (work?.batch_id) {
-    const { count } = await supabase
+  if (work?.batch_id && !keepBatch) {
+    const { count, error: cErr } = await supabase
       .from("capture_works")
       .select("id", { count: "exact", head: true })
       .eq("batch_id", work.batch_id);
-    if ((count ?? 0) === 0) {
+    if (!cErr && count === 0) {
       await supabase.from("capture_batches").delete().eq("id", work.batch_id).eq("status", "draft");
     }
   }

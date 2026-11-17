@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { WAITING_WORKS_SELECT, waitingWorks } from "@/lib/push";
 import { ReviewList } from "@/components/review-list";
 import { IconCheck } from "@/components/icons";
 
@@ -8,28 +9,31 @@ export const dynamic = "force-dynamic";
 
 const today = new Date();
 
+/** The purchase day the push records (London), whatever zone renders it. */
 function fmt(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
 }
 
 export default async function ReviewPage() {
   const supabase = await getSupabase();
   const { data: batches } = await supabase
     .from("capture_batches")
-    .select("id, captured_at, source_name, source_type, status, capture_works(count)")
+    .select(`id, captured_at, source_name, source_type, status, ${WAITING_WORKS_SELECT}`)
     .order("captured_at", { ascending: false })
     .limit(60);
 
-  const rows = (batches ?? []) as unknown as {
+  const rows = ((batches ?? []) as unknown as {
     id: string;
     captured_at: string;
     source_name: string | null;
     source_type: string | null;
     status: string;
-    capture_works: { count: number }[];
-  }[];
+    capture_works: unknown;
+  }[]).map((b) => ({ ...b, waiting: waitingWorks(b.capture_works) }));
 
-  const drafts = rows.filter((b) => b.status === "draft" && (b.capture_works?.[0]?.count ?? 0) > 0);
+  // A purchase is waiting when a draft work in it holds something; one left
+  // with only an empty card (the capture screen opened by mistake) is not.
+  const drafts = rows.filter((b) => b.status === "draft" && b.waiting > 0);
   const pushed = rows.filter((b) => b.status === "pushed");
 
   return (
@@ -45,7 +49,7 @@ export default async function ReviewPage() {
           id: b.id,
           name: b.source_name || "Unknown source",
           date: fmt(b.captured_at),
-          count: b.capture_works?.[0]?.count ?? 0,
+          count: b.waiting,
         }))}
       />
 

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
+import { NAME_CANDIDATES, namePattern, pickSameName } from "@/lib/name-match";
 
 const nullable = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim() || null;
 
@@ -36,13 +37,12 @@ export async function addMaker(formData: FormData) {
   const twinQuery = supabase
     .from("makers")
     .select("id, display_name")
-    .ilike("display_name", display_name);
-  const { data: twin } = await (life_dates === null
+    .ilike("display_name", namePattern(display_name));
+  const { data: twins } = await (life_dates === null
     ? twinQuery.is("life_dates", null)
     : twinQuery.eq("life_dates", life_dates)
-  )
-    .limit(1)
-    .maybeSingle();
+  ).limit(NAME_CANDIDATES);
+  const twin = pickSameName(twins, display_name, (m) => m.display_name);
   if (twin)
     fail(
       life_dates === null

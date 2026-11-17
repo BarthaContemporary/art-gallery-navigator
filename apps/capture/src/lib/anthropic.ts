@@ -1,6 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { AiReplyError, maxTokensFor, modelSettings, stopProblem } from "@/lib/ai-settings";
 
-export const MODEL = process.env.AI_CATALOGUE_MODEL ?? "claude-sonnet-5";
+/**
+ * The model for the card scan, label detection and invoice reading. Any
+ * current model works (lib/ai-settings.ts adapts the request to it); the
+ * listed ones there are read with thinking off and a forced tool.
+ */
+export const MODEL = process.env.AI_CATALOGUE_MODEL?.trim() || "claude-sonnet-5";
+
+export { AiReplyError };
 
 export type ImageInput = { base64: string; mediaType: string };
 
@@ -52,16 +60,38 @@ export function parseJsonObject<T>(text: string): T | null {
   }
 }
 
+/** The request settings every reading shares, for the configured model. */
+function readingParams(replyTokens: number) {
+  const settings = modelSettings(MODEL);
+  return {
+    settings,
+    params: {
+      model: MODEL,
+      max_tokens: maxTokensFor(settings, replyTokens),
+      ...(settings.thinkingOff ? { thinking: { type: "disabled" as const } } : {}),
+    },
+  };
+}
+
+/** Throws AiReplyError when the reply was cut off or refused. */
+function checkStop(msg: Anthropic.Message) {
+  const problem = stopProblem(msg.stop_reason);
+  if (problem) throw new AiReplyError(problem);
+}
+
 /**
  * Run a vision prompt over one or more images and parse a JSON object reply.
- * Returns null if the API is not configured or the reply can't be parsed.
+ * Returns null if the API is not configured or the reply holds no JSON
+ * object; throws AiReplyError if the reply was cut off or refused, and the
+ * SDK's errors if the request failed. The reply is untyped model output:
+ * callers check every field (lib/capture-values.ts) before using it.
  */
-export async function visionJson<T>(opts: {
+export async function visionJson(opts: {
   system: string;
   instruction: string;
   images: ImageInput[];
   maxTokens?: number;
-}): Promise<T | null> {
+}): Promise<Record<string, unknown> | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   const anthropic = new Anthropic({ apiKey });
@@ -71,60 +101,74 @@ export async function visionJson<T>(opts: {
     { type: "text", text: opts.instruction },
   ];
 
+  const { params } = readingParams(opts.maxTokens ?? 2048);
   const msg = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: opts.maxTokens ?? 1024,
+    ...params,
     system: opts.system,
     messages: [{ role: "user", content }],
   });
+  checkStop(msg);
 
   const text = msg.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("");
-  return parseJsonObject<T>(text);
+  const parsed = parseJsonObject<unknown>(text);
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : null;
 }
 
 /**
- * Run a vision prompt and get a *guaranteed* structured object back via tool
- * use (temperature 0, tool_choice forced). Far more reliable than parsing
- * free-text JSON — the model must fill the given schema, so the result shape is
- * always valid. Returns null only if the API isn't configured or errors.
+ * Run a vision prompt and get the reading back as a tool's input. On the
+ * models that allow it the tool is forced; on the others it is offered and
+ * the instruction asks for it. Returns null if the API isn't configured or
+ * the model answered without the tool; throws AiReplyError if the reply was
+ * cut off or refused. The schema is not enforced on the reply (no strict
+ * mode in this SDK), so callers still check every field.
  */
-export async function visionExtract<T>(opts: {
+export async function visionExtract(opts: {
   system: string;
   instruction: string;
   images: ImageInput[];
   schema: Anthropic.Tool.InputSchema;
   toolName?: string;
   maxTokens?: number;
-}): Promise<T | null> {
+}): Promise<Record<string, unknown> | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   const anthropic = new Anthropic({ apiKey });
   const name = opts.toolName ?? "extract";
+  const { settings, params } = readingParams(opts.maxTokens ?? 2048);
 
   const content: Block[] = [
     ...opts.images.map(imageBlock),
-    { type: "text", text: opts.instruction },
+    {
+      type: "text",
+      text: settings.forceTool
+        ? opts.instruction
+        : `${opts.instruction} Give your answer only by calling the ${name} tool.`,
+    },
   ];
 
   const msg = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: opts.maxTokens ?? 1024,
-    temperature: 0,
+    ...params,
     system: opts.system,
     tools: [
       { name, description: "Record the extracted fields.", input_schema: opts.schema },
     ],
-    tool_choice: { type: "tool", name },
+    tool_choice: settings.forceTool ? { type: "tool", name } : { type: "auto" },
     messages: [{ role: "user", content }],
   });
+  checkStop(msg);
 
   const block = msg.content.find(
     (b): b is Anthropic.ToolUseBlock => b.type === "tool_use" && b.name === name,
   );
-  return (block?.input as T) ?? null;
+  const input = block?.input;
+  return input && typeof input === "object" && !Array.isArray(input)
+    ? (input as Record<string, unknown>)
+    : null;
 }
 
 export function isConfigured() {

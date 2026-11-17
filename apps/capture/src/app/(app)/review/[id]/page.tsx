@@ -19,14 +19,17 @@ export default async function ReviewBatchPage({ params }: { params: Promise<{ id
 
   const { data: works } = await supabase
     .from("capture_works")
-    .select("id, maker, title, year, medium, dimensions_text, period, origin_region, category, notes, status")
+    .select("id, maker, title, year, medium, dimensions_text, period, origin_region, category, notes, status, pushed_piece_id")
     .eq("batch_id", id)
+    .eq("status", "draft")
     .order("sort_order");
 
-  // Photos + a signed thumbnail for each work.
+  // Photos + a small signed rendition for each (storage resizes it; the
+  // originals are 12-24 MP and these tiles are 80 px).
   const workIds = (works ?? []).map((w) => w.id);
   const photosByWork = new Map<string, { id: string; url: string; is_label: boolean }[]>();
   const linkedWorkIds = new Set<string>();
+  const stockNumbers = new Map<string, string>();
 
   if (workIds.length) {
     const { data: photos } = await supabase
@@ -34,20 +37,36 @@ export default async function ReviewBatchPage({ params }: { params: Promise<{ id
       .select("id, work_id, storage_path, is_label, sort_order")
       .in("work_id", workIds)
       .order("sort_order");
-    for (const p of photos ?? []) {
-      if (!p.work_id) continue;
-      const { data: signed } = await supabase.storage.from("captures").createSignedUrl(p.storage_path, 60 * 60);
-      if (!signed?.signedUrl) continue;
+    const signed = await Promise.all(
+      (photos ?? []).map((p) =>
+        supabase.storage
+          .from("captures")
+          .createSignedUrl(p.storage_path, 60 * 60, { transform: { width: 240, height: 240, resize: "cover", quality: 70 } })
+          .then(({ data }) => data?.signedUrl ?? null),
+      ),
+    );
+    (photos ?? []).forEach((p, i) => {
+      const url = signed[i];
+      if (!p.work_id || !url) return;
       const arr = photosByWork.get(p.work_id) ?? [];
-      arr.push({ id: p.id, url: signed.signedUrl, is_label: p.is_label });
+      arr.push({ id: p.id, url, is_label: p.is_label });
       photosByWork.set(p.work_id, arr);
-    }
+    });
 
     const { data: links } = await supabase
       .from("capture_invoice_links")
       .select("work_id")
       .in("work_id", workIds);
     for (const l of links ?? []) if (l.work_id) linkedWorkIds.add(l.work_id);
+
+    // Works an earlier push created a stock record for but did not finish.
+    // The record takes the work's id (lib/push.ts), so one that was never
+    // written down as pushed_piece_id is found too.
+    const pieceIds = (works ?? []).map((w) => w.pushed_piece_id ?? w.id);
+    if (pieceIds.length) {
+      const { data: pieces } = await supabase.from("vw_pieces_list").select("id, stock_number").in("id", pieceIds);
+      for (const p of pieces ?? []) if (p.stock_number) stockNumbers.set(p.id, p.stock_number);
+    }
   }
 
   const reviewWorks: ReviewWork[] = (works ?? [])
@@ -67,12 +86,16 @@ export default async function ReviewBatchPage({ params }: { params: Promise<{ id
       },
       photos: photosByWork.get(w.id) ?? [],
       hasInvoice: linkedWorkIds.has(w.id),
+      stockNumber: stockNumbers.get(w.pushed_piece_id ?? w.id) ?? null,
     }));
 
+  // The day the push records as the purchase date (lib/push.ts londonDay),
+  // whatever zone the server renders in.
   const purchased = new Date(batch.captured_at).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "Europe/London",
   });
 
   return (

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IconClose } from "@/components/icons";
+import { messageOf, requestJson } from "@/lib/request";
 
 export type PieceHit = { id: string; stock_number: string; title: string | null; maker: string | null };
 
@@ -16,6 +17,7 @@ export function InventoryLinkPicker({
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<PieceHit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -26,10 +28,15 @@ export function InventoryLinkPicker({
     }
     timer.current = setTimeout(async () => {
       setLoading(true);
+      setError(null);
       try {
-        const res = await fetch(`/api/capture/inventory/search?q=${encodeURIComponent(q.trim())}`);
-        const { results } = (await res.json()) as { results?: PieceHit[] };
+        const { results } = await requestJson<{ results?: PieceHit[] }>(
+          `/api/capture/inventory/search?q=${encodeURIComponent(q.trim())}`,
+        );
         setHits(results ?? []);
+      } catch (e) {
+        setHits([]);
+        setError(messageOf(e, "Search failed. Try again."));
       } finally {
         setLoading(false);
       }
@@ -67,6 +74,7 @@ export function InventoryLinkPicker({
         className="w-full rounded-lg border border-line-control bg-control px-3 py-2 text-ink"
       />
       {loading ? <p className="mt-1 text-[11.5px] text-ink-soft">Searching…</p> : null}
+      {error ? <p className="mt-1 text-[11.5px] text-danger">{error}</p> : null}
       {hits.length ? (
         <div className="mt-2 space-y-1">
           {hits.map((h) => {
