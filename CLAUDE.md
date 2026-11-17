@@ -68,7 +68,11 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   Privacy Notice. New third-party services go in `docs/compliance/PROCESSORS.md`
   and the notice's "Who we share it with". No new tag outside the consent gate.
 - Autosave forms PATCH `new FormData(formRef)` to an API route on input/change;
-  new hidden fields must be parsed on the server route AND the `savePiece` action.
+  a new hidden field must be parsed by the route the form PATCHes (inventory:
+  `apps/studio/src/app/api/inventory/[stockNumber]/route.ts`, which also maps
+  it in `lib/record-changes.ts`) and the form-key baseline updated in the same
+  change (`pnpm ui:guard:update`). A 400/403/404/409/410/413/422 answer is a
+  final refusal: the form shows the route's `{error}` and does not retry.
 
 ## Security rules (from the October 2026 security review)
 
