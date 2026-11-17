@@ -5,6 +5,7 @@ import { getSession, getSupabase, hasRole } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { FilePreviewLink } from "@/components/file-preview";
 import { loadPieceSummaries } from "@/lib/piece-store";
+import { pickWorks } from "@/lib/picker-search";
 import { DOC_TYPE_LABELS, labelOf } from "@/lib/labels";
 import { formatCount, formatDate } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
@@ -76,18 +77,20 @@ export default async function DocumentDetail({
     .filter(Boolean) as unknown as PieceLite[];
   const attachedIds = new Set(attached.map((p) => p.id));
 
+  const session = await getSession();
+  const roles = session?.roles ?? [];
+
+  // Link-works search: ranked pieces_search, with the search index merged in
+  // for admin and staff (typo-tolerant when nothing matches exactly), rows
+  // from vw_pieces_list, the works already linked taken out. A failed search
+  // shows as no matches, as it always did.
   const addQ = (add ?? "").trim();
-  let results: PieceLite[] = [];
-  if (addQ) {
-    const { data: hits } = await supabase.rpc("pieces_search", { q: addQ });
-    results = ((hits ?? []) as PieceLite[]).filter((h) => !attachedIds.has(h.id)).slice(0, 20);
-  }
+  const pick = addQ ? await pickWorks(supabase, addQ, { roles, exclude: attachedIds }) : null;
+  const results: PieceLite[] = pick?.rows ?? [];
 
   // Invoices are filed by admin only (staff may not write them, the
   // accountant writes nothing), so only an admin is offered those types. The
   // row policy is the gate; this only spares staff a refused save.
-  const session = await getSession();
-  const roles = session?.roles ?? [];
   const docTypes =
     hasRole(roles, "admin") || INVOICE_TYPES.has(doc.doc_type)
       ? DOC_TYPES
@@ -286,6 +289,8 @@ export default async function DocumentDetail({
           </form>
           {addQ ? (
             <div className="mt-2">
+              {/* Nothing matched exactly: these are the typo-tolerant search's. */}
+              {results.length > 0 && pick?.similar ? <p className="label mb-1.5">Similar matches</p> : null}
               {results.length > 0 ? (
                 <ul className="border-t border-rule">
                   {results.map((w) => (

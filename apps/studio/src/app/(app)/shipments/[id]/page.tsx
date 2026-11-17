@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getSupabase } from "@/lib/supabase";
+import { getSession, getSupabase } from "@/lib/supabase";
 import { RecordFiles, type RecordFile } from "@/components/record-files";
 import { RecordReturn } from "@/components/record-return";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { AutosaveForm } from "@/components/autosave-form";
 import { loadPieceSummaries, type PieceSummary } from "@/lib/piece-store";
+import { pickWorks, type Picked } from "@/lib/picker-search";
 import { selectInChunks, writeInChunks } from "@/lib/chunk";
 import { loadThumbnails } from "@/lib/thumbnails";
 import { PieceLine } from "@/components/piece-line";
@@ -71,22 +72,19 @@ export default async function ShipmentDetail({
     .filter((l) => l.piece) as LinkRow[];
   const attachedIds = new Set(links.map((l) => l.piece!.id));
 
+  // Attach-works search: ranked pieces_search, with the search index merged
+  // in for admin and staff (typo-tolerant when nothing matches exactly), the
+  // works already attached taken out. The rows (with the maker name the
+  // attached list shows) come from vw_pieces_list: they were read from
+  // vw_pieces_all, which includes the trash. A failed search shows as no
+  // matches.
   const addQ = (add ?? "").trim();
-  let results: PieceLite[] = [];
+  let pick: Picked<PieceLite> | null = null;
   if (addQ) {
-    const { data: hits } = await supabase.rpc("pieces_search", { q: addQ });
-    // pieces_search returns raw stock rows; the maker name lives on the union
-    // view, so hydrate the page's worth of ids the same way the attached list
-    // does rather than embedding a second shape here.
-    const hitIds = ((hits ?? []) as { id: string }[])
-      .map((h) => h.id)
-      .filter((hid) => !attachedIds.has(hid))
-      .slice(0, 20);
-    const resultSummaries = await loadPieceSummaries(supabase, hitIds);
-    results = hitIds
-      .map((hid) => resultSummaries.get(hid))
-      .filter((r): r is PieceLite => Boolean(r));
+    const session = await getSession();
+    pick = await pickWorks(supabase, addQ, { roles: session?.roles ?? [], exclude: attachedIds });
   }
+  const results: PieceLite[] = pick?.rows ?? [];
 
   // One signing call covers the attached works and the search results together.
   const thumbs = await loadThumbnails(supabase, [
@@ -398,6 +396,8 @@ export default async function ShipmentDetail({
           </form>
           {addQ ? (
             <div className="mt-2">
+              {/* Nothing matched exactly: these are the typo-tolerant search's. */}
+              {results.length > 0 && pick?.similar ? <p className="label mb-1.5">Similar matches</p> : null}
               {results.length > 0 ? (
                 <ul className="border-t border-rule">
                   {results.map((w) => (

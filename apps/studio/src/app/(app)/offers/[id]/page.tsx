@@ -8,6 +8,7 @@ import { OfferItemsEditor } from "@/components/offer-items-editor";
 import { logEmailEvent } from "@/lib/email-log";
 import { resolveListPieceIds, countListMembers, type ListRules } from "@/lib/list-members";
 import { loadPieceSummaries } from "@/lib/piece-store";
+import { pickContacts, pickWorks } from "@/lib/picker-search";
 import { resolveListContactIds } from "@/lib/crm-list-members";
 import { selectInChunks } from "@/lib/chunk";
 import {
@@ -154,6 +155,10 @@ export default async function OfferDetail({
   const { id } = await params;
   const sp = await searchParams;
   const supabase = await getSupabase();
+  // Read once (cached for the request) for the search boxes below: only
+  // admin and staff searches reach the search index.
+  const session = await getSession();
+  const roles = session?.roles ?? [];
 
   const { data: offer } = await supabase
     .from("offers")
@@ -273,38 +278,34 @@ export default async function OfferDetail({
       }
     }
   }
-  const existingPieceIds = new Set(items.map((i) => i.piece?.id).filter(Boolean));
+  const existingPieceIds = new Set(
+    items.map((i) => i.piece?.id).filter((pid): pid is string => Boolean(pid)),
+  );
   const existingContactIds = new Set(
-    recipients.map((r) => r.contact?.id).filter(Boolean),
+    recipients.map((r) => r.contact?.id).filter((cid): cid is string => Boolean(cid)),
   );
 
-  // Add-works search (ranked pieces_search), excluding pieces already added.
-  const addQ = (sp.add ?? "").trim();
-  let workResults: PieceLite[] = [];
-  if (addQ) {
-    const { data: hits } = await supabase.rpc("pieces_search", { q: addQ });
-    workResults = ((hits ?? []) as PieceLite[])
-      .filter((h) => !existingPieceIds.has(h.id))
-      .slice(0, 20);
-  }
-
+  // Add-works search: ranked pieces_search, with the search index merged in
+  // for admin and staff (typo-tolerant when nothing matches exactly), rows
+  // from vw_pieces_list, the pieces already added taken out.
+  //
   // Add-recipient contact search: the same trigram search as the contacts
-  // page, which also matches first and last name together ("Hiroshi
-  // Tanaka") and tolerates typos; the term goes in as a parameter, not into
-  // a filter string. Existing recipients are taken out before the first 20
-  // are kept, so a search whose best matches are all on the offer still
-  // shows the others.
+  // page (crm_contacts_search, which also matches first and last name
+  // together, "Hiroshi Tanaka", and tolerates typos; the term goes in as a
+  // parameter, not into a filter string), the index merged in the same way,
+  // rows from crm_contacts. Existing recipients are taken out before the
+  // first 20 are kept, so a search whose best matches are all on the offer
+  // still shows the others.
+  //
+  // A failed search shows as no matches, as it always did.
+  const addQ = (sp.add ?? "").trim();
   const rcQ = (sp.rc ?? "").trim();
-  let contactResults: Recipient["contact"][] = [];
-  if (rcQ) {
-    const { data: cs } = await supabase
-      .rpc("crm_contacts_search", { q: rcQ })
-      .select("id, first_name, last_name, salutation, email, unsubscribed_at, email_bounced_at")
-      .limit(50);
-    contactResults = ((cs ?? []) as unknown as Recipient["contact"][])
-      .filter((c) => c && !existingContactIds.has(c.id))
-      .slice(0, 20);
-  }
+  const [workPick, contactPick] = await Promise.all([
+    addQ ? pickWorks(supabase, addQ, { roles, exclude: existingPieceIds }) : null,
+    rcQ ? pickContacts(supabase, rcQ, { roles, exclude: existingContactIds }) : null,
+  ]);
+  const workResults: PieceLite[] = workPick?.rows ?? [];
+  const contactResults: Recipient["contact"][] = contactPick?.rows ?? [];
 
   const sentCount = recipients.filter((r) => r.sent_at).length;
   const sendable = recipients.filter((r) => !r.sent_at && canEmail(r.contact)).length;
@@ -374,14 +375,29 @@ export default async function OfferDetail({
       .maybeSingle();
     if (!listRow) return;
 
-    const memberIds = await resolveListPieceIds(db, listRow);
+    // resolveListPieceIds throws on a failed read. Uncaught, that replaced
+    // the page with the error boundary; now it is a message on the page, and
+    // nothing has been added.
+    let memberIds: string[];
+    try {
+      memberIds = await resolveListPieceIds(db, listRow);
+    } catch (e) {
+      console.error("[offer] list not resolved:", e instanceof Error ? e.message : e);
+      redirect(
+        `/offers/${id}?error=${encodeURIComponent("The list's works could not be read, so none were added. Try again.")}`,
+      );
+    }
 
     const rows = memberIds
       .filter((pid) => pid && !have.has(pid))
       .map((pid) => ({ offer_id: id, piece_id: pid, sort_order: nextSort++ }));
 
     if (rows.length > 0) {
-      await db.from("offer_items").insert(rows);
+      const { error } = await db.from("offer_items").insert(rows);
+      if (error) {
+        console.error("[offer] list works not added:", error.message);
+        redirect(`/offers/${id}?error=${encodeURIComponent("The list's works could not be added to the offer. Try again.")}`);
+      }
     }
     revalidatePath(`/offers/${id}`);
   }
@@ -760,9 +776,11 @@ export default async function OfferDetail({
               Search
             </Button>
           </form>
+          {/* Nothing matched exactly: these are the typo-tolerant search's. */}
+          {addQ && workResults.length > 0 && workPick?.similar ? <p className="label mt-3">Similar matches</p> : null}
           {addQ ? (
             workResults.length > 0 ? (
-              <ul className="mt-3 border-t border-rule">
+              <ul className={`${workPick?.similar ? "mt-1.5" : "mt-3"} border-t border-rule`}>
                 {workResults.map((w) => (
                   <li key={w.id} className="border-b border-rule">
                     <form action={addItem} className="flex items-center justify-between gap-3 py-2">
@@ -801,9 +819,10 @@ export default async function OfferDetail({
                   <option value="" disabled>
                     Choose an inventory list…
                   </option>
+                  {/* "—" when a list's size could not be read (countListMembers gives null). */}
                   {listOptions.map((l) => (
                     <option key={l.id} value={l.id}>
-                      {l.name} ({l.count}){l.isDynamic ? " · live" : ""}
+                      {l.name} ({l.count ?? "—"}){l.isDynamic ? " · live" : ""}
                     </option>
                   ))}
                 </select>
@@ -936,9 +955,10 @@ export default async function OfferDetail({
               </Button>
             </form>
           </div>
+          {rcQ && contactResults.length > 0 && contactPick?.similar ? <p className="label mt-3">Similar matches</p> : null}
           {rcQ ? (
             contactResults.length > 0 ? (
-              <ul className="mt-3 border-t border-rule">
+              <ul className={`${contactPick?.similar ? "mt-1.5" : "mt-3"} border-t border-rule`}>
                 {contactResults.map((c) =>
                   c ? (
                     <li key={c.id} className="border-b border-rule">
