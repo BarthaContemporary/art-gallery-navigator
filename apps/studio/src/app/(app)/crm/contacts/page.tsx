@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
+import { getSession, getSupabase } from "@/lib/supabase";
+import { CONTACTS_PAGE_LIMIT, findContacts, mayHaveMore, selectContactsPage } from "@/lib/contact-search";
 import { formatCount } from "@/lib/format";
 import { CONTACT_TYPE_LABELS, KYC_STATUS_LABELS, KYC_STATUS_TONES, labelOf } from "@/lib/labels";
 import { ExportMenu } from "@/components/export-menu";
@@ -9,18 +10,26 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 import { Pager } from "@/components/ui/pager";
+import { Notice } from "@/components/ui/notice";
 import { SearchIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "Contacts" };
 
 /** Contacts per page. The list used to stop at a hard 500, with nothing to say so. */
 const PAGE_SIZE = 100;
-/**
- * Search shows the best matches only; past this it says so. The same number
- * as crm_contacts_search's own `limit 100`: a larger one here could never be
- * reached, so the "+" and the hint below never showed.
- */
-const SEARCH_LIMIT = 100;
+
+type ContactListRow = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  contact_type: string | null;
+  city: string | null;
+  country: string | null;
+  marketing_consent: boolean | null;
+  kyc_status: string | null;
+  tags: string[] | null;
+};
 
 export default async function ContactsPage({
   searchParams,
@@ -28,6 +37,10 @@ export default async function ContactsPage({
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
   const { q, page: pageParam } = await searchParams;
+  // The roles decide whether the contacts index is asked (admin and staff);
+  // the layout has read the session already, so this is the cached one.
+  const session = await getSession();
+  if (!session) redirect("/login");
   const supabase = await getSupabase();
 
   const cols =
@@ -35,45 +48,32 @@ export default async function ContactsPage({
   const term = (q ?? "").trim();
   const page = Math.max(1, Math.floor(Number(pageParam ?? 1)) || 1);
   let total = 0;
-  let rawContacts: unknown = null;
+  let contacts: ContactListRow[] = [];
+  // Search: the best matches, not paged. crm_contacts_search stops at 100 by
+  // itself; with the contacts index merged in, up to CONTACTS_PAGE_LIMIT.
+  let similar = false;
+  let more = false;
+  let searchError: string | null = null;
   if (term) {
-    // Trigram-fuzzy search (tolerates typos / partial names).
-    const { data } = await supabase.rpc("crm_contacts_search", { q: term }).select(cols).limit(SEARCH_LIMIT);
-    rawContacts = data;
+    const found = await findContacts<ContactListRow>(supabase, term, {
+      roles: session.roles,
+      columns: cols,
+      limit: CONTACTS_PAGE_LIMIT,
+    });
+    contacts = found.rows;
+    similar = found.similar;
+    more = mayHaveMore(found.found, CONTACTS_PAGE_LIMIT);
+    searchError = found.error?.message ?? null;
   } else {
-    // One page in SQL, with the total, so every contact can be reached. The
-    // first-name and id tie-breaks keep the order stable from page to page.
-    const { data, count } = await supabase
-      .from("crm_contacts")
-      .select(cols, { count: "exact" })
-      .order("last_name", { nullsFirst: false })
-      .order("first_name", { nullsFirst: false })
-      .order("id")
-      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-    rawContacts = data;
-    total = count ?? 0;
-    if (page > 1 && !data?.length) {
+    // One page in SQL, with the total, so every contact can be reached.
+    ({ rows: contacts, total } = await selectContactsPage<ContactListRow>(supabase, cols, page, PAGE_SIZE));
+    if (page > 1 && contacts.length === 0) {
       // Past the end (an old link after contacts were deleted): go to the last page.
-      const { count: all } = await supabase
-        .from("crm_contacts")
-        .select("id", { count: "exact", head: true });
-      const last = Math.max(1, Math.ceil((all ?? 0) / PAGE_SIZE));
+      const last = Math.max(1, Math.ceil(total / PAGE_SIZE));
       if (last < page) redirect(last > 1 ? `/crm/contacts?page=${last}` : "/crm/contacts");
     }
   }
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const contacts = (rawContacts ?? []) as unknown as Array<{
-    id: string;
-    first_name: string | null;
-    last_name: string | null;
-    email: string | null;
-    contact_type: string | null;
-    city: string | null;
-    country: string | null;
-    marketing_consent: boolean | null;
-    kyc_status: string | null;
-    tags: string[] | null;
-  }>;
 
   // Create a blank contact and open the full editor (autosaves).
   async function addContact() {
@@ -90,7 +90,7 @@ export default async function ContactsPage({
 
   // The header's count: every contact when browsing, the matches when searching.
   const meta = term
-    ? `${formatCount(contacts.length)}${contacts.length >= SEARCH_LIMIT ? "+" : ""} ${
+    ? `${formatCount(contacts.length)}${more ? "+" : ""} ${similar ? "similar " : ""}${
         contacts.length === 1 ? "match" : "matches"
       } for “${term}”`
     : `${formatCount(total)} ${total === 1 ? "contact" : "contacts"}`;
@@ -147,11 +147,27 @@ export default async function ContactsPage({
       </form>
 
       {term ? (
-        contacts.length >= SEARCH_LIMIT ? (
-          <p className="mt-3 text-[12px] leading-[1.4] text-meta">
-            Showing the first {SEARCH_LIMIT} matches. Narrow the search to find the rest.
-          </p>
-        ) : null
+        searchError ? (
+          <Notice tone="danger" className="mt-3">
+            Couldn&rsquo;t search the contacts ({searchError}). Try again in a moment.
+          </Notice>
+        ) : (
+          <>
+            {similar ? (
+              <p className="mt-3 text-[12px] leading-[1.4] text-meta">
+                No exact matches for &ldquo;{term}&rdquo;. Showing similar contacts.
+              </p>
+            ) : null}
+            {more ? (
+              // The count shown, not a fixed number: without the contacts index
+              // the search stops at 100, with it at 200.
+              <p className="mt-3 text-[12px] leading-[1.4] text-meta">
+                Showing the best {formatCount(contacts.length)} matches. There may be more: narrow the search to find
+                them.
+              </p>
+            ) : null}
+          </>
+        )
       ) : (
         <ContactPager page={page} pages={pages} total={total} label="Pagination, top" className="mt-4" />
       )}
@@ -208,7 +224,9 @@ export default async function ContactsPage({
               );
             })}
             {contacts.length === 0 ? (
-              term ? (
+              term && searchError ? (
+                <EmptyRow colSpan={6}>The search failed; nothing to show.</EmptyRow>
+              ) : term ? (
                 <EmptyRow
                   colSpan={6}
                   action={

@@ -106,7 +106,10 @@ Pass when nothing typed is lost across a reload or Done.
       them one at a time.
 - [ ] ⌘K (Ctrl+K on Windows) or `/` opens the palette; it finds the test
       record by stock number and the test contact by name, and Enter opens
-      them.
+      them. Its maker shows under Makers, `Smoke test list` under Records
+      (three letters or more), and "All works matching …" and "All contacts
+      matching …" open the inventory and contacts searches with the query.
+      Signed in as the accountant, no Contacts group appears.
 - [ ] On a record page, ← and → step to the neighbouring records and the
       back link returns to the inventory.
 

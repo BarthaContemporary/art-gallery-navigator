@@ -2,7 +2,8 @@ import { SaveToDriveLink } from "@/components/save-to-drive";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
+import { getSession, getSupabase } from "@/lib/supabase";
+import { findContacts, LIST_ADD_ASK, LIST_ADD_SHOW } from "@/lib/contact-search";
 import { LabelPdfButton } from "@/components/label-pdf-button";
 import { loadListContacts, isDynamic, describeRules } from "@/lib/crm-list-members";
 import { ConfirmDelete } from "@/components/confirm-delete";
@@ -70,15 +71,25 @@ export default async function ListDetail({
 
   const term = (q ?? "").trim();
   let results: typeof members = [];
-  if (term) {
-    // Trigram-fuzzy contact search. Members are taken out before the first
-    // 20 are kept: taking 20 first showed nothing when the best matches were
-    // already on the list, though more contacts matched.
-    const { data } = await supabase
-      .rpc("crm_contacts_search", { q: term })
-      .select("id, first_name, last_name, email")
-      .limit(100);
-    results = ((data ?? []) as unknown as typeof members).filter((c) => !memberIds.has(c.id)).slice(0, 20);
+  let similar = false;
+  let searchError: string | null = null;
+  if (term && !dynamic) {
+    // The best 100 matches (crm_contacts_search, with the contacts index
+    // merged in for admin and staff), members taken out, then the first 20:
+    // taking 20 first showed nothing when the best matches were already on
+    // the list, though more contacts matched. The roles come from the
+    // session the layout has already read.
+    const session = await getSession();
+    const found = await findContacts<(typeof members)[number]>(supabase, term, {
+      roles: session?.roles ?? [],
+      columns: "id, first_name, last_name, email",
+      limit: LIST_ADD_ASK,
+      exclude: memberIds,
+      show: LIST_ADD_SHOW,
+    });
+    results = found.rows;
+    similar = found.similar;
+    searchError = found.error?.message ?? null;
   }
 
   async function addMember(formData: FormData) {
@@ -228,29 +239,40 @@ export default async function ListDetail({
               </Button>
             </form>
             {term ? (
-              results.length > 0 ? (
-                <ul className="mt-3 border-t border-rule">
-                  {results.map((c) => (
-                    <li key={c.id} className="border-b border-rule">
-                      <form action={addMember} className="flex items-center justify-between gap-3 py-2">
-                        <input type="hidden" name="contact_id" value={c.id} />
-                        <span className="min-w-0 text-[13px] leading-[1.45] text-ink">
-                          {nameOf(c)}
-                          <span className="ml-2 text-[12px] text-meta">{c.email ?? "no email"}</span>
-                        </span>
-                        <Button
-                          type="submit"
-                          size="sm"
-                          pendingLabel="Adding…"
-                          icon={<PlusIcon size={14} />}
-                          aria-label={`Add ${nameOf(c)}`}
-                        >
-                          Add
-                        </Button>
-                      </form>
-                    </li>
-                  ))}
-                </ul>
+              searchError ? (
+                <Notice tone="danger" className="mt-3">
+                  Couldn&rsquo;t search the contacts ({searchError}). Try again in a moment.
+                </Notice>
+              ) : results.length > 0 ? (
+                <>
+                  {similar ? (
+                    <p className="mt-3 text-[12px] leading-[1.4] text-meta">
+                      No exact matches for &ldquo;{term}&rdquo;. Similar matches:
+                    </p>
+                  ) : null}
+                  <ul className="mt-3 border-t border-rule">
+                    {results.map((c) => (
+                      <li key={c.id} className="border-b border-rule">
+                        <form action={addMember} className="flex items-center justify-between gap-3 py-2">
+                          <input type="hidden" name="contact_id" value={c.id} />
+                          <span className="min-w-0 text-[13px] leading-[1.45] text-ink">
+                            {nameOf(c)}
+                            <span className="ml-2 text-[12px] text-meta">{c.email ?? "no email"}</span>
+                          </span>
+                          <Button
+                            type="submit"
+                            size="sm"
+                            pendingLabel="Adding…"
+                            icon={<PlusIcon size={14} />}
+                            aria-label={`Add ${nameOf(c)}`}
+                          >
+                            Add
+                          </Button>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               ) : (
                 <p className="mt-3 text-[13px] leading-[1.45] text-body">
                   No contacts match “{term}” who are not already on the list.

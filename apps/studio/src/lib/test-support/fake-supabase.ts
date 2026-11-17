@@ -3,7 +3,8 @@
  * builder, enough of it for the studio's list and inventory helpers. Tables
  * are arrays of rows; filters, order, limit, range, counts, inserts,
  * upserts, updates and deletes behave as PostgREST's do for the cases those
- * helpers use (including the 416 a counted request past the end gets).
+ * helpers use (including the 416 a counted request past the end gets, and
+ * ilike, alone or inside or()).
  * `fail` makes a chosen request answer with an error, and `calls` records
  * every request, so a test can check what was (or was not) written.
  *
@@ -43,6 +44,16 @@ export type FakeOptions = {
 
 let nextId = 1;
 
+/** PostgREST's ILIKE: % (or *) any run, _ any one character, case folded, the whole value. */
+function ilike(cell: unknown, pattern: string): boolean {
+  if (cell === null || cell === undefined) return false;
+  const re = pattern
+    .split("")
+    .map((ch) => (ch === "%" || ch === "*" ? ".*" : ch === "_" ? "." : ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+    .join("");
+  return new RegExp(`^${re}$`, "is").test(String(cell));
+}
+
 function matches(row: Row, f: Req["filters"][number]): boolean {
   const v = row[f.column];
   switch (f.kind) {
@@ -56,6 +67,8 @@ function matches(row: Row, f: Req["filters"][number]): boolean {
       return f.value === null ? v === null || v === undefined : v === f.value;
     case "notis":
       return f.value === null ? v !== null && v !== undefined : v !== f.value;
+    case "ilike":
+      return ilike(v, String(f.value));
     case "or":
       return String(f.value)
         .split(",")
@@ -66,6 +79,7 @@ function matches(row: Row, f: Req["filters"][number]): boolean {
           if (op === "is") return value === "null" ? cell === null || cell === undefined : String(cell) === value;
           if (op === "eq") return String(cell) === value;
           if (op === "neq") return cell !== null && cell !== undefined && String(cell) !== value;
+          if (op === "ilike") return ilike(cell, value);
           throw new Error(`fake-supabase: unsupported or() operator ${op}`);
         });
     default:
@@ -232,6 +246,10 @@ export function fakeSupabase(opts: FakeOptions = {}) {
       not(column: string, op: string, value: unknown) {
         if (op !== "is") throw new Error(`fake-supabase: unsupported not(${op})`);
         req.filters.push({ kind: "notis", column, value });
+        return b;
+      },
+      ilike(column: string, pattern: string) {
+        req.filters.push({ kind: "ilike", column, value: pattern });
         return b;
       },
       or(filters: string) {

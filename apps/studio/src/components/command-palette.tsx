@@ -2,26 +2,16 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { STATUS_LABELS } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { SearchIcon } from "@/components/ui/icons";
 import { cx } from "@/components/ui/cx";
 import { isComposing, isEditableTarget } from "@/lib/ui-events";
+import { isSearchable } from "@/lib/opensearch/query";
+import { failedText, GROUP_HEADINGS, isSimilar, paletteRows, type PaletteRow, type RowGroup } from "@/lib/palette-rows";
+import type { PaletteResponse } from "@/lib/palette-search";
 
 type NavItem = { href: string; label: string; group?: string };
-type Piece = {
-  id: string;
-  stock_number: string;
-  title: string | null;
-  maker_name: string | null;
-  status: string | null;
-};
-type Contact = { id: string; name: string; email: string | null };
-
-type Row =
-  | { kind: "page"; href: string; label: string; sub?: string }
-  | { kind: "piece"; href: string; label: string; sub?: string }
-  | { kind: "contact"; href: string; label: string; sub?: string };
+type Row = PaletteRow;
 
 /**
  * A button that opens the palette from inside a page (the not-found page),
@@ -40,18 +30,21 @@ export function OpenSearchButton({ children = "Search" }: { children?: React.Rea
 
 /**
  * Global ⌘K palette. Opens on ⌘K / Ctrl-K from anywhere, blends page
- * navigation with live piece + contact search (via /api/search, which reuses
- * the pieces_search + crm_contacts_search RPCs). Fully keyboard-driven:
- * ↑/↓ to move, ⏎ to go, Esc to close. A combobox over a listbox: focus stays
- * in the field and aria-activedescendant names the highlighted row, so a
- * screen reader follows the arrows. Closing hands focus back to where it was.
+ * navigation with live search (/api/search: works, makers, contacts for
+ * admin and staff, and records such as offers, documents and lists), with
+ * rows through to the full inventory and contacts searches. Fully
+ * keyboard-driven: ↑/↓ to move, ⏎ to go, Esc to close. A combobox over a
+ * listbox whose groups are named by their headings: focus stays in the
+ * field and aria-activedescendant names the highlighted row, so a screen
+ * reader follows the arrows. Closing hands focus back to where it was.
+ * The rows are built by lib/palette-rows.ts.
  */
 export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const [pieces, setPieces] = useState<Piece[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  // The last search's answer (kept on screen while the next one runs).
+  const [answer, setAnswer] = useState<PaletteResponse | null>(null);
   const [loading, setLoading] = useState(false);
   // The search request failed (a lapsed session, a server error): said as
   // such, not as "No matches.", which reads as if nothing were there.
@@ -100,8 +93,7 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
     if (!open) return;
     returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setQ("");
-    setPieces([]);
-    setContacts([]);
+    setAnswer(null);
     setSearchFailed(false);
     setActive(0);
     const t = setTimeout(() => inputRef.current?.focus(), 20);
@@ -134,9 +126,9 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
   useEffect(() => {
     if (!open) return;
     const query = q.trim();
-    if (query.length < 2) {
-      setPieces([]);
-      setContacts([]);
+    // Two characters, or one Han / kana / Hangul character (塩): the route's own rule.
+    if (!isSearchable(query)) {
+      setAnswer(null);
       setSearchFailed(false);
       setLoading(false);
       return;
@@ -150,16 +142,21 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           return r.json();
         })
-        .then((json: { pieces?: Piece[]; contacts?: Contact[] }) => {
+        .then((json: Partial<PaletteResponse>) => {
           if (cancelled) return;
-          setPieces(json.pieces ?? []);
-          setContacts(json.contacts ?? []);
+          setAnswer({
+            pieces: json.pieces ?? [],
+            makers: json.makers ?? [],
+            contacts: json.contacts ?? [],
+            records: json.records ?? [],
+            similar: { pieces: false, makers: false, contacts: false, ...json.similar },
+            failed: json.failed ?? [],
+          });
           setSearchFailed(false);
         })
         .catch(() => {
           if (!cancelled) {
-            setPieces([]);
-            setContacts([]);
+            setAnswer(null);
             setSearchFailed(true);
           }
         })
@@ -172,28 +169,20 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
     };
   }, [q, open]);
 
-  // Flatten everything into one ordered list for arrow navigation.
-  const rows = useMemo<Row[]>(() => {
-    const query = q.trim().toLowerCase();
-    const pages = navItems
-      .filter((n) => !query || n.label.toLowerCase().includes(query))
-      .map<Row>((n) => ({ kind: "page", href: n.href, label: n.label, sub: "Go to" }));
-    const pieceRows = pieces.map<Row>((p) => ({
-      kind: "piece",
-      href: `/inventory/${encodeURIComponent(p.stock_number)}`,
-      label: p.title?.trim() ? p.title : p.stock_number,
-      sub: [p.stock_number, p.maker_name, p.status ? STATUS_LABELS[p.status] ?? p.status : null]
-        .filter(Boolean)
-        .join(" · "),
-    }));
-    const contactRows = contacts.map<Row>((c) => ({
-      kind: "contact",
-      href: `/crm/contacts/${c.id}`,
-      label: c.name,
-      sub: c.email ?? "Contact",
-    }));
-    return [...pages, ...pieceRows, ...contactRows];
-  }, [navItems, pieces, contacts, q]);
+  // Flatten everything into one ordered list for arrow navigation, then
+  // group it again (consecutive rows of one kind) for the headings.
+  const rows = useMemo<Row[]>(() => paletteRows(navItems, q, answer), [navItems, q, answer]);
+  const sections = useMemo(() => {
+    const out: { group: RowGroup; start: number; rows: Row[] }[] = [];
+    rows.forEach((row, i) => {
+      const last = out[out.length - 1];
+      if (last && last.group === row.group) last.rows.push(row);
+      else out.push({ group: row.group, start: i, rows: [row] });
+    });
+    return out;
+  }, [rows]);
+  // Some groups could not be searched: said beside the rest, never as "No matches.".
+  const partlyFailed = answer ? failedText(answer.failed) : null;
 
   // Keep the active index in range as results change.
   useEffect(() => {
@@ -243,15 +232,8 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
 
   if (!open) return null;
 
-  // Section headers derived from the flat list, so we can still render groups.
-  let lastKind: Row["kind"] | null = null;
-  const heading: Record<Row["kind"], string> = {
-    page: "Pages",
-    piece: "Inventory",
-    contact: "Contacts",
-  };
-
   const optionId = (i: number) => `${listId}-${i}`;
+  const searchable = isSearchable(q.trim());
 
   return (
     <div
@@ -285,7 +267,7 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
               if (listRef.current) listRef.current.scrollTop = 0;
             }}
             onKeyDown={onKeyDown}
-            placeholder="Search works and contacts, or go to a page"
+            placeholder="Search works, makers, contacts and records, or go to a page"
             aria-label="Search"
             role="combobox"
             aria-expanded={rows.length > 0}
@@ -303,67 +285,86 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
             <p role="status" className="px-4 py-6 text-center text-[13px] text-meta">
               {loading
                 ? "Searching…"
-                : q.trim().length >= 2
+                : searchable
                   ? searchFailed
-                    ? "Couldn't search works and contacts. Try again in a moment, or reload the page."
-                    : "No matches."
+                    ? "Couldn’t search. Try again in a moment, or reload the page."
+                    : partlyFailed ?? "No matches."
                   : "Type to search, or pick a page."}
             </p>
           ) : (
             <div id={listId} role="listbox" aria-label="Results">
-              {rows.map((row, i) => {
-                const showHeading = row.kind !== lastKind;
-                lastKind = row.kind;
-                const current = i === active;
+              {sections.map((section) => {
+                const headingId = `${listId}-g${section.start}`;
+                const similar = isSimilar(section.group, answer);
                 return (
-                  <div key={`${row.kind}-${row.href}-${i}`} role="presentation">
-                    {showHeading ? (
-                      <p
-                        role="presentation"
-                        className="px-4 pb-1 pt-2.5 text-[11.5px] font-semibold uppercase leading-[1.3] tracking-[0.06em] text-meta"
-                      >
-                        {heading[row.kind]}
-                      </p>
-                    ) : null}
-                    {/* The highlighted row is the keyboard row of a table:
-                        band with a 2px accent rule. */}
-                    <div
-                      id={optionId(i)}
-                      role="option"
-                      aria-selected={current}
-                      onMouseMove={() => {
-                        if (current) return;
-                        keyboardMove.current = false;
-                        setActive(i);
-                      }}
-                      onClick={() => go(row)}
-                      className={cx(
-                        "relative flex cursor-pointer items-center justify-between gap-3 px-4 py-2",
-                        current && "bg-band before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-accent before:content-['']",
-                      )}
+                  // One group per heading, named by it: a screen reader says
+                  // "Works, similar matches" as the arrows enter it.
+                  <div key={`${section.group}-${section.start}`} role="group" aria-labelledby={headingId}>
+                    <p
+                      id={headingId}
+                      role="presentation"
+                      className="px-4 pb-1 pt-2.5 text-[11.5px] font-semibold uppercase leading-[1.3] tracking-[0.06em] text-meta"
                     >
-                      <span className="min-w-0">
-                        <span className="block truncate text-[13.5px] text-ink">{row.label}</span>
-                        {row.sub ? (
-                          <span className={cx("block truncate text-[12px]", current ? "text-body" : "text-meta")}>
-                            {row.sub}
-                          </span>
-                        ) : null}
-                      </span>
-                      {current ? (
-                        <kbd aria-hidden className="shrink-0 font-sans text-[11px] text-body">
-                          ⏎
-                        </kbd>
+                      {GROUP_HEADINGS[section.group]}
+                      {similar ? (
+                        <span className="font-normal normal-case tracking-normal">
+                          <span aria-hidden> · </span>
+                          <span className="sr-only">, </span>
+                          Similar matches
+                        </span>
                       ) : null}
-                    </div>
+                    </p>
+                    {section.rows.map((row, j) => {
+                      const i = section.start + j;
+                      const current = i === active;
+                      return (
+                        // The highlighted row is the keyboard row of a table:
+                        // band with a 2px accent rule.
+                        <div
+                          key={row.key}
+                          id={optionId(i)}
+                          role="option"
+                          aria-selected={current}
+                          onMouseMove={() => {
+                            if (current) return;
+                            keyboardMove.current = false;
+                            setActive(i);
+                          }}
+                          onClick={() => go(row)}
+                          className={cx(
+                            "relative flex cursor-pointer items-center justify-between gap-3 px-4 py-2",
+                            current && "bg-band before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-accent before:content-['']",
+                          )}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-[13.5px] text-ink">{row.label}</span>
+                            {row.sub ? (
+                              <span className={cx("block truncate text-[12px]", current ? "text-body" : "text-meta")}>
+                                {row.sub}
+                              </span>
+                            ) : null}
+                            {row.note ? (
+                              <span className={cx("block truncate text-[11.5px] italic", current ? "text-body" : "text-meta")}>
+                                {row.note}
+                              </span>
+                            ) : null}
+                          </span>
+                          {current ? (
+                            <kbd aria-hidden className="shrink-0 font-sans text-[11px] text-body">
+                              ⏎
+                            </kbd>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
             </div>
           )}
-          {rows.length > 0 && searchFailed && !loading ? (
+          {rows.length > 0 && !loading && (searchFailed || partlyFailed) ? (
             <p role="status" className="px-4 pb-1.5 pt-2.5 text-[12px] leading-[1.4] text-meta">
-              Couldn&rsquo;t search works and contacts; only pages are listed.
+              {searchFailed ? "Couldn’t search; only pages are listed." : partlyFailed}
             </p>
           ) : null}
         </div>
