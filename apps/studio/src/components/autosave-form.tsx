@@ -12,6 +12,8 @@ import {
   useRefreshAfterSave,
 } from "@/components/editor-save";
 import { NO_ANSWER, planFlush, readSaveOutcome, type SaveOutcome } from "@/lib/save-outcome";
+import { CHANGED_FIELD, changedKeys } from "@/lib/record-changes";
+import { formDataEntries, renderedEntries, snapshot, type ControlLike } from "@/lib/form-snapshot";
 
 type Status = "idle" | "saving" | "saved" | "error";
 
@@ -21,14 +23,28 @@ type Status = "idle" | "saving" | "saved" | "error";
  * exactly what the server already holds.
  */
 function serialise(form: HTMLFormElement): string {
-  const entries: [string, string][] = [];
-  new FormData(form).forEach((value, key) => {
-    entries.push([
-      key,
-      typeof value === "string" ? value : `file:${value.name}:${value.size}:${value.lastModified}`,
-    ]);
-  });
-  return JSON.stringify(entries);
+  return snapshot(formDataEntries(new FormData(form)));
+}
+
+/**
+ * The same string for the form as the server rendered it (each control's
+ * default value), whatever the browser has put back into the fields since.
+ * See lib/form-snapshot.ts.
+ */
+function serialiseAsRendered(form: HTMLFormElement): string {
+  return snapshot(renderedEntries(Array.from(form.elements, (el) => el as unknown as ControlLike)));
+}
+
+/**
+ * Tell the route which fields differ from what the server holds (`_changed`,
+ * lib/record-changes.ts), so a field nobody touched in this tab is not
+ * written back over a change made elsewhere. Nothing is added when either
+ * snapshot cannot be read: the route then writes every field, as before.
+ * Only the record route reads it; the shipment route ignores the extra key.
+ */
+function markChanged(body: FormData, saved: string | null, sent: string): void {
+  const names = changedKeys(saved, sent);
+  if (names) body.set(CHANGED_FIELD, JSON.stringify(names));
 }
 
 /**
@@ -74,9 +90,13 @@ export function AutosaveForm({
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attempt = useRef(0);
   const dirty = useRef(false);
-  // What the server holds: the form as first rendered, then as last saved. A
-  // save whose form still equals it is skipped, so a blur or an edit undone
-  // before the debounce fires doesn't stamp updated_at or queue a website sync.
+  // What the server holds: the form as the server rendered it (its default
+  // values, so a value the browser restores on Back or a reload counts as an
+  // edit and goes with the next save), then as last saved. It advances only
+  // on a successful save, so a retry still lists the earlier changes in
+  // `_changed`. A save whose form still equals it is skipped, so a blur or an
+  // edit undone before the debounce fires doesn't stamp updated_at or queue
+  // a website sync.
   const lastSaved = useRef<string | null>(null);
   // The save on the wire, if any. Saves run one after another, so an older
   // PATCH never lands after a newer one, and Done can wait for the last.
@@ -99,7 +119,7 @@ export function AutosaveForm({
 
   useEffect(() => {
     mounted.current = true;
-    if (formRef.current && lastSaved.current === null) lastSaved.current = serialise(formRef.current);
+    if (formRef.current && lastSaved.current === null) lastSaved.current = serialiseAsRendered(formRef.current);
     return () => {
       mounted.current = false;
     };
@@ -120,9 +140,13 @@ export function AutosaveForm({
   const flushOnLeave = useCallback(
     (afterInFlight?: unknown): Promise<unknown> | null => {
       if (!dirty.current || refused.current || !formRef.current) return null;
+      const now = serialise(formRef.current);
       const body = new FormData(formRef.current);
       const send = (): Promise<unknown> => {
         try {
+          // Measured when it goes, against the save it waited for if that
+          // one landed.
+          markChanged(body, lastSaved.current, now);
           return fetch(endpoint, { method: "PATCH", body, keepalive: true }).then(
             (res) => {
               if (res.ok) markSaved();
@@ -169,12 +193,11 @@ export function AutosaveForm({
       setStatus("saving");
       // A lapsed session answers 401 (middleware); should a redirect to the
       // sign-in page ever be followed instead, its 200 is not a save either.
+      const body = new FormData(formRef.current);
+      markChanged(body, lastSaved.current, sent);
       let outcome: SaveOutcome;
       try {
-        const res = await fetch(endpoint, {
-          method: "PATCH",
-          body: new FormData(formRef.current),
-        });
+        const res = await fetch(endpoint, { method: "PATCH", body });
         outcome = await readSaveOutcome(res);
       } catch {
         outcome = NO_ANSWER;

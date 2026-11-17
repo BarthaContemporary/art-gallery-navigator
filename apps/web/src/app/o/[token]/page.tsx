@@ -218,7 +218,10 @@ export default async function OfferPage({
           db
             .from("vw_pieces_all")
             .select(`id, stock_number, title, medium, period, origin_region, ${DIMENSION_COLUMNS}`)
-            .in("id", chunk),
+            .in("id", chunk)
+            // A work moved to the Trash drops off the client's page at once
+            // (its line is left out below, like a work that no longer exists).
+            .is("deleted_at", null),
         ),
         selectInChunks<{ piece_id: string; marked_price_gbp: number | null }>(pieceIds, (chunk) =>
           db.from("piece_financials").select("piece_id, marked_price_gbp").in("piece_id", chunk),

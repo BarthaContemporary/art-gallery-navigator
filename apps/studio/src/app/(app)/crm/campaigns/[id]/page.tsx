@@ -330,16 +330,34 @@ export default async function CampaignDetail({
       redirect(`/crm/campaigns/${id}?err=noeligible`);
     }
 
-    // Claim it. Taking over a dead run also matches the timestamp judged
-    // stale, so two people resuming at once cannot both win.
-    let claim = db
+    // Claim it against the row as it was read: its status and its
+    // updated_at, which every edit stamps. So a subject, sender or design
+    // changed since the read above (another tab, a colleague) is never sent
+    // in the form read here, and of two people sending or resuming a dead
+    // run at once only one wins.
+    const { data: claimed, error: claimError } = await db
       .from("crm_campaigns")
       .update({ status: "sending" })
       .eq("id", id)
-      .eq("status", cc!.status);
-    if (cc!.status === "sending") claim = claim.eq("updated_at", cc!.updated_at);
-    const { data: claimed } = await claim.select("id");
-    if (!claimed || claimed.length === 0) redirect(`/crm/campaigns/${id}?err=sending`);
+      .eq("status", cc!.status)
+      .eq("updated_at", cc!.updated_at)
+      .select("id");
+    if (claimError) {
+      redirect(`/crm/campaigns/${id}?error=${encodeURIComponent(`Nothing was sent: ${claimError.message}`)}`);
+    }
+    if (!claimed || claimed.length === 0) {
+      // Lost to a send that started meanwhile, or to an edit made since the
+      // read: say which.
+      const { data: now } = await db.from("crm_campaigns").select("status").eq("id", id).maybeSingle();
+      if (now && (now as { status: string }).status === cc!.status && cc!.status !== "sending") {
+        redirect(
+          `/crm/campaigns/${id}?error=${encodeURIComponent(
+            "The newsletter was changed while the send was starting, so nothing was sent. Check it and press Send again.",
+          )}`,
+        );
+      }
+      redirect(`/crm/campaigns/${id}?err=sending`);
+    }
 
     let sent = 0;
     let outcome: string;

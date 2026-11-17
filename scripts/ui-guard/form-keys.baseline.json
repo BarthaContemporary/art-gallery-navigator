@@ -1349,8 +1349,7 @@
           "kind": "fetch",
           "method": "PATCH",
           "url": "{endpoint}",
-          "body": "form",
-          "source": "{formRef.current}"
+          "body": "{body}"
         },
         {
           "kind": "fetch",

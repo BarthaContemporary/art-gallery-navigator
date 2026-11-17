@@ -223,9 +223,17 @@ export function MakerProfileEditor({
 
   const [pressed, setPressed] = useState<Record<string, boolean>>({});
 
-  // contentEditable is uncontrolled — seed it once.
+  // contentEditable is uncontrolled — seed it once. Enter then starts a <p>,
+  // as the stored profiles are written, rather than Chrome's <div> (both
+  // survive the sanitiser; a <p> is what the website's text reads as a
+  // paragraph). The setting is the document's, and harmless elsewhere.
   useEffect(() => {
     if (editorRef.current) editorRef.current.innerHTML = initialHtml;
+    try {
+      document.execCommand("defaultParagraphSeparator", false, "p");
+    } catch {
+      // an old browser without the command: Enter keeps its own default
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

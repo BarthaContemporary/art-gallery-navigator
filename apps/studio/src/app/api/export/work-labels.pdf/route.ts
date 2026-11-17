@@ -42,22 +42,32 @@ export async function GET(request: Request) {
       ? (templateParam as AveryTemplate)
       : "L7163";
 
-  const { data: listRow } = await supabase
+  const { data: listRow, error: listErr } = await supabase
     .from("piece_lists")
     .select("id, is_dynamic, filter_rules")
     .eq("id", list)
     .maybeSingle();
+  if (listErr) return new Response(`Could not read the list: ${listErr.message}`, { status: 500 });
   if (!listRow) return new Response("List not found", { status: 404 });
 
-  const ids = await resolveListPieceIds(supabase, listRow as ListLike);
-  if (ids.length === 0)
-    return new Response("This list has no works to label.", { status: 422 });
-
-  const byId = await loadPieceRows<Row>(
-    supabase,
-    ids,
-    `id, stock_number, title, year, maker_name, deleted_at, ${DIMENSION_COLUMNS}`,
-  );
+  // A failed read answers with the reason as text, which the labels button
+  // shows on its line, rather than a bare 500 or a sheet with works missing.
+  let ids: string[];
+  let byId: Map<string, Row>;
+  try {
+    ids = await resolveListPieceIds(supabase, listRow as ListLike);
+    if (ids.length === 0)
+      return new Response("This list has no works to label.", { status: 422 });
+    byId = await loadPieceRows<Row>(
+      supabase,
+      ids,
+      `id, stock_number, title, year, maker_name, deleted_at, ${DIMENSION_COLUMNS}`,
+    );
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    console.error("[work-labels] could not read the list's works:", reason);
+    return new Response(`Could not make the labels. ${reason}`, { status: 500 });
+  }
   // loadPieceRows returns a map; walk the list's own order. A static list
   // keeps its rows for works moved to the trash (so a restore keeps the
   // list), and vw_pieces_all still has them: leave them out, as the list

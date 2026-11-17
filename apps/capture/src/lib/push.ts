@@ -38,6 +38,25 @@ type Db = ReturnType<typeof createServiceClient>;
 /** How long a claim on a work holds. Longer than the route's maxDuration (300 s). */
 export const LEASE_MINUTES = 10;
 
+/**
+ * The currencies a stock record may be saved in: a copy of the studio's
+ * RATE_CURRENCIES (apps/studio/src/lib/fx.ts, the ECB's list plus GBP),
+ * kept here because this module imports nothing relative. push.test.ts
+ * checks the two lists agree.
+ */
+export const PURCHASE_CURRENCIES: ReadonlySet<string> = new Set([
+  "GBP", "AUD", "BGN", "BRL", "CAD", "CHF", "CNY", "CZK", "DKK", "EUR", "HKD",
+  "HUF", "IDR", "ILS", "INR", "ISK", "JPY", "KRW", "MXN", "MYR", "NOK", "NZD",
+  "PHP", "PLN", "RON", "SEK", "SGD", "THB", "TRY", "USD", "ZAR",
+]);
+
+/** The ISO code for an invoice's currency, or null when it is not one the studio knows. */
+export function purchaseCurrencyCode(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const code = raw.trim().toUpperCase();
+  return PURCHASE_CURRENCIES.has(code) ? code : null;
+}
+
 const TEXT_FIELDS = [
   "maker",
   "title",
@@ -305,11 +324,15 @@ export async function attachInvoiceToPiece(
   const fills: [string, Record<string, unknown>][] = [];
   if (documentId) fills.push(["purchase_invoice_document_id", { purchase_invoice_document_id: documentId }]);
   if (invoice.invoice_date) fills.push(["purchase_date", { purchase_date: invoice.invoice_date }]);
-  if (opts.setCost && invoice.total != null) {
-    fills.push([
-      "purchase_cost",
-      { purchase_cost: invoice.total, ...(invoice.currency ? { purchase_currency: invoice.currency } : {}) },
-    ]);
+  // The currency goes with the cost only as an ISO code the studio knows
+  // ("usd" is written USD). A currency typed as something else ("£", "Yen")
+  // is not guessed at: the cost is then left for the cataloguer, since
+  // without a code it would sit under the column's default, GBP. An invoice
+  // with no currency at all fills the cost as before.
+  const typed = String(invoice.currency ?? "").trim();
+  const code = purchaseCurrencyCode(typed);
+  if (opts.setCost && invoice.total != null && (code || typed === "")) {
+    fills.push(["purchase_cost", { purchase_cost: invoice.total, ...(code ? { purchase_currency: code } : {}) }]);
   }
   for (const [column, patch] of fills) {
     const { error } = await db.from("piece_financials").update(patch).eq("piece_id", pieceId).is(column, null);

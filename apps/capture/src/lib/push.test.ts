@@ -6,9 +6,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-// node --test needs the extension; the app's tsconfig does not allow it.
-// @ts-ignore
-import { attachInvoiceToPiece, foldName, isEmptyWork, LEASE_MINUTES, londonDay, makerPattern, pushBatch } from "./push.ts";
+import {
+  attachInvoiceToPiece,
+  foldName,
+  isEmptyWork,
+  LEASE_MINUTES,
+  londonDay,
+  makerPattern,
+  PURCHASE_CURRENCIES,
+  purchaseCurrencyCode,
+  pushBatch,
+  // node --test needs the extension; the app's tsconfig does not allow it.
+  // @ts-ignore
+} from "./push.ts";
 
 type Row = Record<string, unknown>;
 type Pred = (r: Row) => boolean;
@@ -573,6 +583,37 @@ test("a linked invoice is attached once; cost only when it covers one item", asy
   // @ts-ignore - the stand-in
   assert.equal(await attachInvoiceToPiece(db, db.rows("capture_invoices")[0], piece.id, { prefill: true, setCost: true }), true);
   assert.equal(db.rows("piece_documents").length, 1);
+});
+
+test("an invoice's currency is written only as a code the studio knows; one it cannot read leaves the cost", async () => {
+  const cases: [string | null, number | null, string][] = [
+    ["usd", 1250, "USD"], // typed in lower case
+    [" JPY ", 1250, "JPY"],
+    ["Yen", null, "GBP"], // not a code: no cost under the GBP default
+    ["£", null, "GBP"],
+    ["", 1250, "GBP"], // no currency at all: the cost as before
+    [null, 1250, "GBP"],
+  ];
+  for (const [currency, cost, code] of cases) {
+    const db = new FakeDb();
+    const { batchId, workIds } = seed(db, [{ fields: { title: "Box" }, photos: [{}] }]);
+    const inv = seedInvoice(db, { currency });
+    db.rows("capture_invoice_links").push({ invoice_id: inv.id, work_id: workIds[0], piece_id: null });
+    await run(db, batchId);
+    const fin = db.rows("piece_financials")[0]!;
+    assert.equal(fin.purchase_cost, cost, `cost for ${JSON.stringify(currency)}`);
+    assert.equal(fin.purchase_currency, code, `currency for ${JSON.stringify(currency)}`);
+    assert.equal(fin.purchase_date, "2026-07-10", "the invoice date is filled either way");
+  }
+});
+
+test("the capture app's currency list is the studio's", async () => {
+  // @ts-ignore TS5097 - test only, read-only
+  const { RATE_CURRENCIES } = await import("../../../studio/src/lib/fx.ts");
+  assert.deepEqual([...PURCHASE_CURRENCIES].sort(), [...(RATE_CURRENCIES as Set<string>)].sort());
+  assert.equal(purchaseCurrencyCode("eur"), "EUR");
+  assert.equal(purchaseCurrencyCode("Euro"), null);
+  assert.equal(purchaseCurrencyCode(12), null);
 });
 
 test("an invoice covering a captured work and an existing record prefills no cost, and never replaces one", async () => {

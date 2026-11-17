@@ -782,6 +782,46 @@ export async function createCalendarEvent(
   }
 }
 
+/**
+ * Whether a stored calendar resource (unfolded lines) is one event the form
+ * can rewrite: exactly one VEVENT, which is not part of a series (no RRULE,
+ * RDATE or RECURRENCE-ID of its own). Only the event's own level counts.
+ * Apple Calendar stores a timed event with a VTIMEZONE beside it, whose
+ * STANDARD and DAYLIGHT parts carry an RRULE (or RDATE) of their own, the
+ * yearly change of the clocks; that says nothing about the event, and used
+ * to refuse every such event as "recurring". Exported for the unit tests.
+ */
+export function isSingleEvent(lines: string[]): boolean {
+  // The markers are matched exactly as updateCalendarEvent's rewrite below
+  // matches them, so whatever passes here is what it rewrites.
+  let events = 0;
+  let inEvent = false;
+  let depth = 0;
+  for (const l of lines) {
+    if (l === "BEGIN:VEVENT") {
+      events++;
+      inEvent = true;
+      depth = 0;
+      continue;
+    }
+    if (l === "END:VEVENT") {
+      inEvent = false;
+      continue;
+    }
+    if (!inEvent) continue; // VTIMEZONE and anything else beside the event
+    if (l.startsWith("BEGIN:")) {
+      depth++;
+      continue;
+    }
+    if (l.startsWith("END:")) {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (depth === 0 && /^(RRULE|RDATE|RECURRENCE-ID)[;:]/.test(l)) return false;
+  }
+  return events === 1;
+}
+
 export async function updateCalendarEvent(
   href: string,
   etag: string | null,
@@ -796,10 +836,7 @@ export async function updateCalendarEvent(
       .replace(/\r?\n[ \t]/g, "")
       .split(/\r?\n/)
       .filter((l) => l !== "");
-    if (
-      lines.filter((l) => l === "BEGIN:VEVENT").length !== 1 ||
-      lines.some((l) => /^RRULE[;:]/.test(l))
-    ) {
+    if (!isSingleEvent(lines)) {
       return { ok: false, message: "recurring events are edited in Apple Calendar" };
     }
     // Rewrite only the fields the form owns; every other property survives.

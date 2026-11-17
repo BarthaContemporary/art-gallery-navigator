@@ -7,6 +7,7 @@
 import { EMPTY, formatCount, formatDate, formatDateTime, gbpDisplay, gbpExact } from "@/lib/format";
 import { ACTIVITY_ACTION_LABELS, FIELD_LABELS, FIELD_VALUE_LABELS, labelOf } from "@/lib/labels";
 import { ArrowRightIcon } from "@/components/ui/icons";
+import { canReinstate } from "@/lib/revert-change";
 
 type Change = { old?: unknown; new?: unknown };
 
@@ -124,7 +125,10 @@ export function ChangeHistory({
                 })}
               </ul>
             ) : null}
-            {revertAction && e.action === "UPDATE" && diffKeys.length > 0 ? (
+            {/* Only when the change holds a field Reinstate can write back:
+                a register move, say, changes the register and the stock
+                number, neither of which it puts back (Move register does). */}
+            {revertAction && diffKeys.length > 0 && canReinstate(e) ? (
               <form
                 action={revertAction}
                 className="mt-1.5"
