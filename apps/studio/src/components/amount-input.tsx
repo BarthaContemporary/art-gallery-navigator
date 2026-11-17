@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type FocusEvent, type InputHTMLAttributes } from "react";
-import { cleanNumberPaste, parseAmount } from "@/lib/amount";
+import { cleanNumberPaste, parseAmount, readAmount } from "@/lib/amount";
 
 /**
  * Money field that reads and writes the way people do: "1,200" can be typed
- * or pasted, and the value is shown with thousands separators whenever the
- * field is not being edited. The form value keeps the commas; every server
- * path parses it with parseAmount. A text input, so the browser never
- * refuses a comma the way <input type="number"> does.
+ * or pasted (and "1250,50" with a decimal comma), and the value is shown with
+ * thousands separators whenever the field is not being edited. The form
+ * value keeps the commas; every server path parses it with parseAmount. A
+ * text input, so the browser never refuses a comma the way
+ * <input type="number"> does.
  */
 export function AmountInput({
   value,
@@ -34,12 +35,17 @@ export function AmountInput({
     if (controlled && !editing) setText(format(value, decimals));
   }, [controlled, value, editing, decimals]);
 
+  // Something typed that is not an amount ("1e5", "(150)"): marked, and the
+  // save leaves the stored figure as it was rather than clearing it.
+  const invalid = !editing && readAmount(text).invalid;
+
   return (
     <input
       {...rest}
       type="text"
       inputMode="decimal"
       autoComplete="off"
+      aria-invalid={invalid || rest["aria-invalid"] || undefined}
       value={text}
       onPaste={cleanNumberPaste}
       onFocus={(e) => {

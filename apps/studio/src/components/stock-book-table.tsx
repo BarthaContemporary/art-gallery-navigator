@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, Fragment, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { formatDate, gbpExact } from "@/lib/format";
 import { VAT_TREATMENT_LABELS, labelOf } from "@/lib/labels";
 import { ColumnResizer, EmptyRow, SortMark, Table, TableFrame, Td, Tr, type SortState } from "@/components/ui/table";
@@ -141,15 +141,29 @@ function vatFigure(r: StockBookRow): Figure {
   return r.vat_due_gbp;
 }
 
-const NEEDS_PURCHASE_TITLE =
-  "No purchase £ is recorded, so this figure is not known. Enter it under Edit financials.";
+/**
+ * Whether the reader may change the figures (admin). The accountant reads the
+ * stock book but row security lets that role write nothing, so the links and
+ * hints that send someone to enter a figure are for those who can.
+ */
+const CanEditFinancials = createContext(false);
 
 function NeedsPurchaseBadge() {
+  const canEdit = useContext(CanEditFinancials);
   // One line in both cells: the badge measures 93px and the 112px default
   // columns leave 96px inside, so the same reason never takes two shapes side
   // by side, and the All view still fits the 1440 page.
   return (
-    <Badge tone="warn" size="xs" title={NEEDS_PURCHASE_TITLE} className="whitespace-nowrap">
+    <Badge
+      tone="warn"
+      size="xs"
+      title={
+        canEdit
+          ? "No purchase £ is recorded, so this figure is not known. Enter it under Edit financials."
+          : "No purchase £ is recorded, so this figure is not known."
+      }
+      className="whitespace-nowrap"
+    >
       Needs purchase £
     </Badge>
   );
@@ -252,11 +266,37 @@ function financialsHref(stock: string) {
   return `/inventory/${encodeURIComponent(stock)}/edit#sec-financials`;
 }
 
+/** The work's record page, which shows the figures to everyone who reads the stock book. */
+function recordHref(stock: string) {
+  return `/inventory/${encodeURIComponent(stock)}`;
+}
+
+/**
+ * Costs incurred on a consigned work beyond its purchase: restoration, other
+ * costs and margin-scheme import VAT. Null where the row cannot give them (a
+ * per-scheme view has no total cost, and an unsold row there no margin to
+ * work it back from), rather than a 0 that reads as none.
+ */
+function costIncurred(r: StockBookRow): number | null {
+  const total = r.total_cost_gbp ?? (hasSale(r) && r.margin_gbp != null ? totalCost(r) : null);
+  if (total == null) return null;
+  return Math.max(0, total - (r.purchase_cost_gbp ?? 0)) + importVatCost(r);
+}
+
+/**
+ * J.v.d.B.'s share, once there is a sale £. The views read a missing sale as
+ * 0, which gave an unsold consigned work its costs as a share.
+ */
+function shareFigure(r: StockBookRow): number | null {
+  return hasSale(r) ? r.jvb_share_gbp : null;
+}
+
 /**
  * Step-by-step VAT working, rebuilt from the row so the accountant can see how
  * VAT due and any J.v.d.B. share were reached. Mirrors vw_stock_book_all.
  */
 function CalcSteps({ r }: { r: StockBookRow }) {
+  const canEdit = useContext(CanEditFinancials);
   const steps: { label: string; value: ReactNode; note?: string; total?: boolean }[] = [];
   const treatment = treatmentOf(r);
   const thirdParty = r.sale_handled_by_jvb === false;
@@ -287,7 +327,11 @@ function CalcSteps({ r }: { r: StockBookRow }) {
     steps.push({
       label: "VAT due (1/6 of positive margin)",
       value: vat,
-      note: missing ? "Enter the purchase £ under Edit financials to work this out." : unsoldNote,
+      note: missing
+        ? canEdit
+          ? "Enter the purchase £ under Edit financials to work this out."
+          : "Not known until a purchase £ is recorded."
+        : unsoldNote,
       total: true,
     });
   } else if (treatment === "standard") {
@@ -327,8 +371,10 @@ function CalcSteps({ r }: { r: StockBookRow }) {
   if (r.consignment_share_pct != null) {
     steps.push({
       label: `J.v.d.B. receives (${r.consignment_share_pct}% share)`,
-      value: gbp(r.jvb_share_gbp),
-      note: "Share of the profit pool, plus any restoration and other costs reimbursed.",
+      value: gbp(shareFigure(r)),
+      note: hasSale(r)
+        ? "Share of the profit pool, plus any restoration and other costs reimbursed."
+        : "Nothing to share until there is a sale £.",
     });
   }
 
@@ -383,6 +429,7 @@ function ShipmentLinks({ ship, kind }: { ship: PreviewShipment | null | undefine
 }
 
 function ExpandedRow({ r, colSpan, id }: { r: StockBookRow; colSpan: number; id: string }) {
+  const canEdit = useContext(CanEditFinancials);
   const [preview, setPreview] = useState<Preview | null>(null);
 
   // The shipment documents are fetched only when a row is opened.
@@ -432,26 +479,25 @@ function ExpandedRow({ r, colSpan, id }: { r: StockBookRow; colSpan: number; id:
               ) : null}
               {loading ? <p className="text-[12px] text-meta">Loading documents…</p> : null}
             </dl>
-            {r.consignment_share_pct != null
-              ? (() => {
-                  const extraCosts = Math.max(0, (r.total_cost_gbp ?? r.purchase_cost_gbp ?? 0) - (r.purchase_cost_gbp ?? 0));
-                  const costIncurred = extraCosts + importVatCost(r);
-                  return (
-                    <Panel className="mt-3">
-                      <dl className="space-y-1.5 text-[13px] leading-[1.45]">
-                        <Line label="J.v.d.B. share">{r.consignment_share_pct}%</Line>
-                        <Line label="Cost incurred">{gbp(costIncurred)}</Line>
-                        <Line label="Sale handled by">{r.sale_handled_by_jvb === false ? "Consignee" : "J.v.d.B."}</Line>
-                      </dl>
-                    </Panel>
-                  );
-                })()
-              : null}
+            {r.consignment_share_pct != null ? (
+              <Panel className="mt-3">
+                <dl className="space-y-1.5 text-[13px] leading-[1.45]">
+                  <Line label="J.v.d.B. share">{r.consignment_share_pct}%</Line>
+                  <Line label="Cost incurred">{gbp(costIncurred(r))}</Line>
+                  <Line label="Sale handled by">{r.sale_handled_by_jvb === false ? "Consignee" : "J.v.d.B."}</Line>
+                </dl>
+              </Panel>
+            ) : null}
             <div className="mt-4 flex flex-wrap gap-2">
-              <Link href={financialsHref(r.stock_number)} className={buttonClass({ size: "sm" })}>
-                Edit financials
-              </Link>
-              <Link href={`/inventory/${encodeURIComponent(r.stock_number)}`} className={buttonClass({ variant: "quiet", size: "sm" })}>
+              {canEdit ? (
+                <Link href={financialsHref(r.stock_number)} className={buttonClass({ size: "sm" })}>
+                  Edit financials
+                </Link>
+              ) : null}
+              <Link
+                href={recordHref(r.stock_number)}
+                className={buttonClass(canEdit ? { variant: "quiet", size: "sm" } : { size: "sm" })}
+              >
                 Open record
               </Link>
             </div>
@@ -515,6 +561,7 @@ export function StockBookTable({
   rows,
   showTreatment,
   showReasons = false,
+  canEditFinancials = false,
   emptyText = "No records.",
   emptyAction,
 }: {
@@ -522,6 +569,8 @@ export function StockBookTable({
   showTreatment: boolean;
   /** List each row's attention reasons under its description (the Needs attention view). */
   showReasons?: boolean;
+  /** The reader may change the figures (admin): links go to Edit financials. */
+  canEditFinancials?: boolean;
   /** The sentence the empty table shows, and one way out of it. */
   emptyText?: string;
   emptyAction?: ReactNode;
@@ -569,7 +618,7 @@ export function StockBookTable({
             vat: acc.vat + (numberOf(vat) ?? 0),
             vatLeftOut: acc.vatLeftOut + (vat === NEEDS_PURCHASE ? 1 : 0),
             reclaim: acc.reclaim + (r.reclaimable_import_vat_gbp ?? 0),
-            jvbShare: acc.jvbShare + (r.jvb_share_gbp ?? 0),
+            jvbShare: acc.jvbShare + (shareFigure(r) ?? 0),
           };
         },
         { purchase: 0, sold: 0, margin: 0, marginLeftOut: 0, vat: 0, vatLeftOut: 0, reclaim: 0, jvbShare: 0 },
@@ -602,9 +651,9 @@ export function StockBookTable({
               {isOpen ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
             </button>
             <Link
-              href={financialsHref(r.stock_number)}
+              href={canEditFinancials ? financialsHref(r.stock_number) : recordHref(r.stock_number)}
               onClick={(e) => e.stopPropagation()}
-              title="Edit this work’s financials"
+              title={canEditFinancials ? "Edit this work’s financials" : "Open this work’s record"}
               className="link-plain tabular truncate font-medium text-ink"
             >
               {r.stock_number}
@@ -656,7 +705,7 @@ export function StockBookTable({
           <span className="block min-w-0">
             <span className="tabular block text-body">{r.consignment_share_pct}%</span>
             <span className={`${sub} tabular`} title="Who handled the sale, and J.v.d.B.’s share">
-              {r.sale_handled_by_jvb === false ? "Third party" : "JvdB"} · {gbp(r.jvb_share_gbp)}
+              {r.sale_handled_by_jvb === false ? "Third party" : "JvdB"} · {gbp(shareFigure(r))}
             </span>
           </span>
         ) : (
@@ -718,6 +767,7 @@ export function StockBookTable({
   }
 
   return (
+    <CanEditFinancials.Provider value={canEditFinancials}>
     <div>
       {resize.isCustomised ? (
         <div className="mb-1.5 flex justify-end">
@@ -805,5 +855,6 @@ export function StockBookTable({
         </Table>
       </TableFrame>
     </div>
+    </CanEditFinancials.Provider>
   );
 }

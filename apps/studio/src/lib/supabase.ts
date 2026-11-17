@@ -66,4 +66,17 @@ export function canSeeFinancials(roles: UserRole[]) {
   return hasRole(roles, "admin", "accountant");
 }
 
+/**
+ * True when the user may change purchase and sale figures: admin only, as row
+ * security allows (the accountant reads the figures but writes nothing).
+ */
+export function canWriteFinancials(roles: UserRole[]) {
+  return hasRole(roles, "admin");
+}
+
+/** True when the user may edit a work's record (the accountant only reads). */
+export function canEditRecords(roles: UserRole[]) {
+  return hasRole(roles, "admin", "staff");
+}
+
 export { createServiceClient };

@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
-import { getSupabase } from "@/lib/supabase";
+import { redirect } from "next/navigation";
+import { getSupabase, getSession, canEditRecords, hasRole } from "@/lib/supabase";
+import { FlashNotice } from "@/components/ui/notice";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { LEDGER_LABEL, type Ledger, type PieceRef } from "@/lib/piece-store";
 // London dates: this page renders on the server, where the zone is UTC.
@@ -13,6 +15,15 @@ export const metadata = { title: "Trash" };
 
 const RETENTION_DAYS = 30;
 
+/**
+ * A refused or failed write comes back to the trash as a sentence, not
+ * silence: row security answers a refused write with no rows and no error.
+ * (Module level: the inline server actions must not close over a function.)
+ */
+function back(error: string): never {
+  redirect(`/inventory/trash?error=${encodeURIComponent(error)}`);
+}
+
 type TrashRow = {
   id: string;
   stock_number: string;
@@ -23,7 +34,12 @@ type TrashRow = {
   ledger: Ledger;
 };
 
-export default async function TrashPage() {
+export default async function TrashPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; notice?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await getSupabase();
   // The union view drops soft-deleted rows on purpose, so the recycle bin
   // reads both stock tables directly and remembers which one each row is in.
@@ -51,33 +67,66 @@ export default async function TrashPage() {
 
   async function reinstate(formData: FormData) {
     "use server";
-    const db = await getSupabase();
-    const {
-      data: { user },
-    } = await db.auth.getUser();
-    if (!user) return;
+    const s = await getSession();
+    if (!s || !canEditRecords(s.roles)) back("Your role can read the trash but not reinstate records.");
     const id = String(formData.get("id") ?? "");
     const table = String(formData.get("table") ?? "");
     if (!id || (table !== "pieces" && table !== "external_pieces")) return;
-    await db.from(table).update({ deleted_at: null }).eq("id", id);
+    const db = await getSupabase();
+    // Only a record that is still in the trash, and say when nothing changed
+    // (reinstated in another tab, purged, or refused by row security).
+    const { data, error } = await db
+      .from(table)
+      .update({ deleted_at: null })
+      .eq("id", id)
+      .not("deleted_at", "is", null)
+      .select("id");
     revalidatePath("/inventory/trash");
     revalidatePath("/inventory");
+    if (error) back(`Could not reinstate the record: ${error.message}`);
+    if (!data || data.length === 0) {
+      back("Nothing was reinstated: the record is no longer in the trash, or your role may not change it. Reload the page.");
+    }
   }
 
   async function purge(formData: FormData) {
     "use server";
-    const db = await getSupabase();
-    const {
-      data: { user },
-    } = await db.auth.getUser();
-    if (!user) return;
+    const s = await getSession();
+    if (!s || !canEditRecords(s.roles)) back("Your role can read the trash but not delete records.");
     const id = String(formData.get("id") ?? "");
     const table = String(formData.get("table") ?? "");
     if (!id || (table !== "pieces" && table !== "external_pieces")) return;
+    const db = await getSupabase();
+    // A sold work's purchase and sale are kept with the books (the retention
+    // schedule's six years), so only an administrator may remove one for
+    // good, say a true duplicate. Staff cannot read the sale figures; the
+    // status they can read is checked here, and migration 0098 holds the
+    // rule in the database for every sale on record.
+    if (table === "pieces" && !hasRole(s.roles, "admin")) {
+      const { data: work, error: readErr } = await db.from("pieces").select("status").eq("id", id).maybeSingle();
+      if (readErr) back(`Could not check the record: ${readErr.message}`);
+      if (work?.status === "sold") {
+        back("This work is marked sold, so its sale is kept with the books. Ask an administrator to remove it.");
+      }
+    }
     // Permanent delete. Removing the last stock row drops the identity too,
-    // which cascades to images, financials, provenance and the rest.
-    await db.from(table).delete().eq("id", id);
+    // which cascades to images, financials, provenance and the rest. Only
+    // while the record is still in the trash: a page left open while someone
+    // else reinstated it must not delete the live record for good.
+    const { data, error } = await db
+      .from(table)
+      .delete()
+      .eq("id", id)
+      .not("deleted_at", "is", null)
+      .select("id");
     revalidatePath("/inventory/trash");
+    revalidatePath("/inventory");
+    if (error) back(`Could not delete the record: ${error.message}`);
+    if (!data || data.length === 0) {
+      back(
+        "Nothing was deleted: the record is no longer in the trash (it may have been reinstated), or your role may not delete it. Reload the page.",
+      );
+    }
   }
 
   const daysLeft = (deletedAt: string) => {
@@ -97,6 +146,8 @@ export default async function TrashPage() {
           on the website is taken off it straight away, and returns if you reinstate the record.
         </p>
       </PageHeader>
+
+      <FlashNotice searchParams={sp} className="mb-4" />
 
       <TableFrame>
         <Table>

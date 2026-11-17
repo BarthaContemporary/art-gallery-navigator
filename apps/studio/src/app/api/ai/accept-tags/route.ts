@@ -42,11 +42,16 @@ export async function POST(req: Request) {
     ...tags.filter((t) => !existing.includes(t.toLowerCase())),
   ];
 
-  const { error } = await supabase
+  const { data: changed, error } = await supabase
     .from(ref.table)
     .update({ tags: merged })
-    .eq("id", ref.id);
+    .eq("id", ref.id)
+    .select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Row security filters a refused update to no rows and no error.
+  if (!changed || changed.length === 0) {
+    return NextResponse.json({ error: "The tags could not be saved on this record." }, { status: 403 });
+  }
 
   return NextResponse.json({ tags: merged });
 }

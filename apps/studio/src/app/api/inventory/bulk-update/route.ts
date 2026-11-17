@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabase, getSession, canEditRecords } from "@/lib/supabase";
 import { resolvePieces, byTable } from "@/lib/piece-store";
-import { writeInChunks } from "@/lib/chunk";
+import { chunkIds } from "@/lib/chunk";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +18,25 @@ const STATUSES = new Set([
 ]);
 
 /**
+ * Write the selection in id chunks (a long `.in()` list is refused as too
+ * long a URL), counting the rows each write actually changed: row security
+ * filters a refused write to no rows and no error, so counting ids would
+ * report changes that did not happen.
+ */
+async function writeCounted(
+  ids: string[],
+  write: (chunk: string[]) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
+): Promise<{ count: number; error: { message: string } | null }> {
+  let count = 0;
+  for (const chunk of chunkIds([...new Set(ids.filter(Boolean))])) {
+    const { data, error } = await write(chunk);
+    if (error) return { count, error };
+    count += data?.length ?? 0;
+  }
+  return { count, error: null };
+}
+
+/**
  * Bulk-edit or bulk-delete the selected pieces. The regular piece triggers
  * still fire per row (activity_log diff + location-history append), so a bulk
  * change is audited exactly like a single edit.
@@ -30,11 +49,13 @@ const STATUSES = new Set([
  * Body: { pieceIds: string[], action?: "delete", status?: string, locationId?: string }.
  */
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // The accountant reads the inventory but changes nothing.
+  if (!canEditRecords(session.roles)) {
+    return NextResponse.json({ error: "Your role can read these records but not change them." }, { status: 403 });
+  }
   const supabase = await getSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: { pieceIds?: unknown; status?: unknown; locationId?: unknown; action?: unknown };
   try {
@@ -51,20 +72,22 @@ export async function POST(req: Request) {
   }
 
   // Soft delete takes the same path as an edit — one column, every register.
+  // A work already in the trash is left as it is (and not counted).
   if (body.action === "delete") {
     const groups = byTable((await resolvePieces(supabase, pieceIds)).values());
     let deleted = 0;
     for (const [table, ids] of Object.entries(groups) as [keyof typeof groups, string[]][]) {
       if (ids.length === 0) continue;
-      const { error } = await writeInChunks(ids, (chunk) =>
+      const { count, error } = await writeCounted(ids, (chunk) =>
         supabase
           .from(table)
           .update({ deleted_at: new Date().toISOString() })
           .in("id", chunk)
-          .is("deleted_at", null),
+          .is("deleted_at", null)
+          .select("id"),
       );
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      deleted += ids.length;
+      deleted += count;
+      if (error) return NextResponse.json({ error: error.message, deleted }, { status: 500 });
     }
     return NextResponse.json({ ok: true, deleted });
   }
@@ -90,11 +113,17 @@ export async function POST(req: Request) {
   let updated = 0;
   for (const [table, ids] of Object.entries(groups) as [keyof typeof groups, string[]][]) {
     if (ids.length === 0) continue;
-    const { error } = await writeInChunks(ids, (chunk) =>
-      supabase.from(table).update(patch).in("id", chunk),
+    const { count, error } = await writeCounted(ids, (chunk) =>
+      supabase.from(table).update(patch).in("id", chunk).select("id"),
     );
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    updated += ids.length;
+    updated += count;
+    if (error) return NextResponse.json({ error: error.message, updated }, { status: 500 });
+  }
+  if (updated === 0) {
+    return NextResponse.json(
+      { error: "None of the selected works could be changed: they may have been deleted. Reload the page." },
+      { status: 403 },
+    );
   }
 
   return NextResponse.json({ ok: true, updated });

@@ -5,7 +5,7 @@
  * look. Every prop, name and defaultValue above all, goes straight to the
  * element, so `new FormData(form)` carries exactly what it did with a bare
  * <input>, and the CLAUDE.md autosave rule (field names parsed by the PATCH
- * route and savePiece) is untouched. Nothing here holds state.
+ * route) is untouched. Nothing here holds state.
  *
  *   <Field label hint? error? optional? id? className?>  one control
  *     Renders the label above the control (never a placeholder as the only

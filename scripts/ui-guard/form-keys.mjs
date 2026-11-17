@@ -37,7 +37,7 @@
  *   pnpm ui:guard / pnpm ui:guard:update           the same via package.json
  *
  * A diff is not necessarily wrong: it means a posted key changed. If the change
- * is intended, make sure the API route and the savePiece action parse the new
+ * is intended, make sure the API route that receives the form parses the new
  * keys (CLAUDE.md autosave rule), then update the baseline in the same change.
  */
 import fs from "node:fs";
@@ -693,7 +693,7 @@ if (args.has("--check")) {
     console.error(lines.join("\n"));
     console.error(
       "\nA posted form key, its type or its form changed. If this is intended, check that the API" +
-        "\nroute and the savePiece action parse it (CLAUDE.md autosave rule), then run" +
+        "\nroute that receives the form parses it (CLAUDE.md autosave rule), then run" +
         "\n`pnpm ui:guard:update` and commit the baseline with the change.",
     );
     process.exit(1);

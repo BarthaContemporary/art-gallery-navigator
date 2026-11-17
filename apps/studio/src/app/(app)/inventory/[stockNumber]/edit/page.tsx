@@ -2,7 +2,8 @@ import Link from "next/link";
 import { signedThumbnail, THUMB_WIDTH } from "@/lib/thumbnails";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
+import { getSupabase, getSession, canSeeFinancials, canWriteFinancials, canEditRecords } from "@/lib/supabase";
+import { FlashNotice } from "@/components/ui/notice";
 import { PieceFormFields } from "@/components/piece-form";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { EditHeader, EditHeaderFields, EditHeaderProvider } from "@/components/edit-header";
@@ -24,14 +25,25 @@ export const metadata = { title: "Edit record" };
 
 export default async function EditPiecePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ stockNumber: string }>;
+  searchParams: Promise<{ error?: string; notice?: string }>;
 }) {
   const { stockNumber: raw } = await params;
+  const sp = await searchParams;
   const stockNumber = decodeURIComponent(raw);
   const supabase = await getSupabase();
   const session = await getSession();
-  const showFinancials = session ? canSeeFinancials(session.roles) : false;
+  // The accountant reads records (the record page shows the figures) but row
+  // security lets that role change nothing: an editor would only show every
+  // edit as saved and keep none of it.
+  if (!session || !canEditRecords(session.roles)) redirect(`/inventory/${encodeURIComponent(stockNumber)}`);
+  // The financial fields are edited only by a role that can write them
+  // (admin). Someone who may read them but not write them (staff who is also
+  // the accountant) edits the rest here and reads the figures on the record.
+  const showFinancials = canWriteFinancials(session.roles);
+  const seeFinancials = canSeeFinancials(session.roles);
 
   const ref = await resolvePiece(supabase, stockNumber);
   if (!ref) notFound();
@@ -53,9 +65,9 @@ export default async function EditPiecePage({
       supabase.from("categories").select("id, name").eq("is_active", true).order("sort_order").order("name"),
       supabase.from("locations").select("id, code").order("sort_order").order("code"),
       supabase.from("origin_regions").select("name").eq("is_active", true).order("sort_order"),
-      showFinancials
+      seeFinancials
         ? supabase.from("piece_financials").select("*").eq("piece_id", piece.id).maybeSingle()
-        : Promise.resolve({ data: null }),
+        : Promise.resolve({ data: null, error: null }),
       supabase
         .from("piece_images")
         .select("storage_path_display")
@@ -76,6 +88,21 @@ export default async function EditPiecePage({
         .select("id", { count: "exact", head: true })
         .eq("piece_id", piece.id),
     ]);
+
+  // Every control in the autosave form starts from these reads, and the form
+  // posts all of it on the first edit: a failed read would render an empty
+  // location select or empty financial fields and the next save would store
+  // the blanks. Fail the page instead (the error page offers a retry). No row
+  // is not a failure (maybeSingle).
+  for (const [what, res] of [
+    ["makers", makers],
+    ["categories", categories],
+    ["locations", locations],
+    ["origin regions", originRegions],
+    ["financial figures", financials],
+  ] as const) {
+    if (res.error) throw new Error(`Could not load the ${what} for this record: ${res.error.message}`);
+  }
 
   // What the website sync decided for the first photograph of the roles the
   // website shows (the one the tile uses).
@@ -206,13 +233,36 @@ export default async function EditPiecePage({
     const shipmentId = String(formData.get("shipment_id") ?? "");
     const kind = String(formData.get("kind") ?? "");
     if (!shipmentId || (kind !== "import" && kind !== "export")) return;
-    // One import / one export per piece. The unique index on (piece_id, kind) is
-    // partial (import/export only), so ON CONFLICT inference can't target it —
-    // clear any existing link of this kind first, then attach (reassigning if
-    // the piece was on another import/export).
-    await db.from("piece_shipments").delete().eq("piece_id", piece.id).eq("kind", kind);
-    await db.from("piece_shipments").insert({ piece_id: piece.id, shipment_id: shipmentId, kind });
-    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/edit`);
+    const back = `/inventory/${encodeURIComponent(stockNumber)}/edit`;
+    const fail = (why: string) => redirect(`${back}?error=${encodeURIComponent(`Could not link the ${kind}: ${why}`)}`);
+    // One import / one export per piece. The unique index on (piece_id, kind)
+    // is partial (import/export only), so ON CONFLICT inference can't target
+    // it, and a delete-then-insert lost the old link whenever the insert
+    // failed. Repoint an existing link in one statement; insert only when
+    // there is none.
+    const { data: current, error: readErr } = await db
+      .from("piece_shipments")
+      .select("shipment_id")
+      .eq("piece_id", piece.id)
+      .eq("kind", kind)
+      .maybeSingle();
+    if (readErr) fail(readErr.message);
+    if (current) {
+      if (current.shipment_id !== shipmentId) {
+        const { data: moved, error } = await db
+          .from("piece_shipments")
+          .update({ shipment_id: shipmentId })
+          .eq("piece_id", piece.id)
+          .eq("kind", kind)
+          .select("piece_id");
+        if (error) fail(error.message);
+        if (!moved || moved.length === 0) fail("your role may not change this record.");
+      }
+    } else {
+      const { error } = await db.from("piece_shipments").insert({ piece_id: piece.id, shipment_id: shipmentId, kind });
+      if (error) fail(error.message);
+    }
+    revalidatePath(back);
   }
 
   async function unlinkShipment(formData: FormData) {
@@ -252,19 +302,37 @@ export default async function EditPiecePage({
     if (cur) categoryOptions.push({ id: cur.id, label: cur.name });
   }
   const originOptions = (originRegions.data ?? []).map((o) => o.name as string);
+  // The work's own location is always an option: a select without it shows
+  // "—", and the next save of the form would clear the stored location.
+  const locationOptions = (locations.data ?? []).map((l) => ({ id: l.id as string, label: l.code as string }));
+  const currentLocId = piece.location_id as string | null;
+  if (currentLocId && !locationOptions.some((l) => l.id === currentLocId)) {
+    locationOptions.push({ id: currentLocId, label: "Current location (not in the list)" });
+  }
 
   async function deletePiece() {
     "use server";
+    const s = await getSession();
+    const back = `/inventory/${encodeURIComponent(stockNumber)}/edit`;
+    if (!s || !canEditRecords(s.roles)) {
+      redirect(`${back}?error=${encodeURIComponent("Your role can read this record but not delete it.")}`);
+    }
     const db = await getSupabase();
-    const {
-      data: { user },
-    } = await db.auth.getUser();
-    if (!user) return;
-    // Soft delete: moves the record to the trash for 30 days.
-    await db
+    // Soft delete: moves the record to the trash for 30 days. Row security
+    // filters a refused update to no rows and no error, so count what changed
+    // rather than send the user to a trash the record is not in.
+    const { data, error } = await db
       .from(store.table)
       .update({ deleted_at: new Date().toISOString() })
-      .eq("id", store.id);
+      .eq("id", store.id)
+      .select("id");
+    if (error || !data || data.length === 0) {
+      redirect(
+        `${back}?error=${encodeURIComponent(
+          error ? `Could not delete the record: ${error.message}` : "The record could not be deleted. Reload the page and try again.",
+        )}`,
+      );
+    }
     revalidatePath("/inventory");
     redirect("/inventory/trash");
   }
@@ -321,6 +389,7 @@ export default async function EditPiecePage({
             />
           }
         >
+          <FlashNotice searchParams={sp} className="mb-4" />
           <AutosaveForm endpoint={`/api/inventory/${encodeURIComponent(stockNumber)}`} what="the record">
             <EditHeaderFields />
             <PieceFormFields
@@ -331,7 +400,7 @@ export default async function EditPiecePage({
                 label: m.life_dates ? `${m.display_name} (${m.life_dates})` : m.display_name,
               }))}
               categories={categoryOptions}
-              locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
+              locations={locationOptions}
               originRegions={originOptions}
               showFinancials={showFinancials}
               buyerName={buyerName}
@@ -530,7 +599,7 @@ export default async function EditPiecePage({
                   piece.sale_handled_by_jvb === true ? "yes" : piece.sale_handled_by_jvb === false ? "no" : "",
               }}
               settlement={
-                showFinancials
+                seeFinancials
                   ? {
                       soldGbp: (financials.data?.sold_price_gbp as number | null) ?? null,
                       totalCostGbp: (financials.data?.total_cost_gbp as number | null) ?? null,
@@ -547,7 +616,7 @@ export default async function EditPiecePage({
             </Section>
 
             {/* Original FileMaker record: kept at the bottom of the page */}
-            {showFinancials ? <LegacyRecordPanel pieceId={piece.id} /> : null}
+            {seeFinancials ? <LegacyRecordPanel pieceId={piece.id} /> : null}
           </div>
         </EditorSaveRoot>
       </EditHeaderProvider>

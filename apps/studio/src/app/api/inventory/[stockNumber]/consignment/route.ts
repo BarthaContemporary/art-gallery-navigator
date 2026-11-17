@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabase, getSession } from "@/lib/supabase";
+import { getSupabase, getSession, canEditRecords } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
@@ -23,6 +23,10 @@ export async function PATCH(
 
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Writes the stock table, which only admin and staff may change.
+  if (!canEditRecords(session.roles)) {
+    return NextResponse.json({ error: "Your role can read this record but not change it." }, { status: 403 });
+  }
 
   const supabase = await getSupabase();
   const fd = await req.formData();
@@ -52,7 +56,7 @@ export async function PATCH(
   const ref = await resolvePiece(supabase, stockNumber);
   if (!ref) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(ref.table)
     .update({
       shares_note: str("co_owner_consignee"),
@@ -62,8 +66,16 @@ export async function PATCH(
       sale_handled_by_jvb: saleHandled,
       updated_by: session.user.id,
     })
-    .eq("id", ref.id);
+    .eq("id", ref.id)
+    .select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // No row: refused by row security, or deleted or moved in another tab.
+  if (!data || data.length === 0) {
+    return NextResponse.json(
+      { error: "The consignment details could not be saved: the record may have been deleted or moved. Reload the page." },
+      { status: 403 },
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }
