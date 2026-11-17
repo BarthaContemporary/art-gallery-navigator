@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
+import { canEditRecords, getSession, getSupabase } from "@/lib/supabase";
+import { inOrder, searchWorkIds } from "@/lib/opensearch/search";
 import { StatusPill } from "@/components/status-pill";
 import { loadPieceSummaries, loadPieceRows } from "@/lib/piece-store";
 import { loadThumbnails } from "@/lib/thumbnails";
@@ -21,7 +22,7 @@ import {
 } from "@/lib/list-members";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { titleWithYear } from "@jvb/db";
-import { applyFacet, facetMatches, parseFacet } from "@/lib/facet";
+import { parseFacet } from "@/lib/facet";
 import { LabelPdfButton } from "@/components/label-pdf-button";
 import { ExportMenu } from "@/components/export-menu";
 import { ReorderGrid, ReorderHandle } from "@/components/reorder-grid";
@@ -47,9 +48,19 @@ type PieceLite = {
   year: string | null;
 };
 
+/** The columns the add-works results show, from vw_pieces_list (never the trash). */
+const ADD_COLUMNS = "id, stock_number, title, medium, period, status, year";
+/** How long the add-works search waits for OpenSearch: a page's 1,500 ms (lib/opensearch/search). */
+const ADD_SEARCH_TIMEOUT_MS = 1500;
+
 /** The redirect a server action answers a failed list read with. */
 function readFailed(id: string, e: unknown): never {
   const why = e instanceof Error ? e.message : "Could not read the list";
+  redirect(`/inventory/lists/${id}?error=${encodeURIComponent(why)}`);
+}
+
+/** Back to the list with a message for FlashNotice. */
+function listError(id: string, why: string): never {
   redirect(`/inventory/lists/${id}?error=${encodeURIComponent(why)}`);
 }
 
@@ -239,17 +250,48 @@ export default async function InventoryListDetail({
   // matches is shown, and the page says so: a broad word like "bronze" matches
   // a few hundred works, and once the first twenty had been added the rest
   // looked as if they didn't exist.
+  //
+  // searchWorkIds: Postgres's pieces_search always, OpenSearch's ids merged
+  // in for admin and staff, and its typo-tolerant pass when nothing matches
+  // exactly (`similar`, said above the results). The ids are checked here:
+  // the rows, and every word shown, come from vw_pieces_list through the
+  // user's own client, so an id this user may not read or that is in the
+  // trash does not load and is dropped.
   const ADD_PAGE = 50;
   const addQ = (sp.add ?? "").trim();
   let results: PieceLite[] = [];
   let addMatches = 0;
-  let hitsTotal: number | null = null;
+  /** Matches that are already members, so an empty result can say why. */
+  let alreadyIn = 0;
+  let addSimilar = false;
+  let addError: string | null = null;
   if (addQ && !isDynamic) {
-    const { data: hits } = await supabase.rpc("pieces_search", { q: addQ });
-    hitsTotal = (hits ?? []).length;
-    const notInList = ((hits ?? []) as PieceLite[]).filter((p) => !existing.has(p.id));
-    addMatches = notInList.length;
-    results = notInList.slice(0, ADD_PAGE);
+    const session = await getSession();
+    const found = await searchWorkIds(supabase, addQ, {
+      roles: session?.roles ?? [],
+      timeoutMs: ADD_SEARCH_TIMEOUT_MS,
+      fuzzy: true,
+    });
+    if (found.error) {
+      addError = found.error.message;
+    } else {
+      alreadyIn = found.ids.filter((pid) => existing.has(pid)).length;
+      const wanted = found.ids.filter((pid) => !existing.has(pid));
+      try {
+        const rows = await selectInChunks<PieceLite>(wanted, (chunk) =>
+          supabase.from("vw_pieces_list").select(ADD_COLUMNS).in("id", chunk) as unknown as PromiseLike<{
+            data: PieceLite[] | null;
+            error: { message: string } | null;
+          }>,
+        );
+        const notInList = inOrder(wanted, rows);
+        addMatches = notInList.length;
+        results = notInList.slice(0, ADD_PAGE);
+        addSimilar = found.similar && addMatches > 0;
+      } catch (e) {
+        addError = e instanceof Error ? e.message : "Could not read the matching works";
+      }
+    }
     for (const [pid, url] of await loadThumbnails(supabase, results.map((p) => p.id))) thumbByPiece.set(pid, url);
   }
 
@@ -340,13 +382,18 @@ export default async function InventoryListDetail({
    */
   async function copyAsStatic() {
     "use server";
+    // Row security would refuse the insert anyway; saying so first is kinder
+    // than a policy error.
+    const s = await getSession();
+    if (!s || !canEditRecords(s.roles)) listError(id, "Your role can read lists but not copy them. Nothing was saved.");
     const db = await getSupabase();
-    const { data: src } = await db
+    const { data: src, error: srcErr } = await db
       .from("piece_lists")
       .select("id, name, is_dynamic, filter_rules")
       .eq("id", id)
       .maybeSingle();
-    if (!src) redirect(`/inventory/lists/${id}`);
+    if (srcErr) readFailed(id, new Error(srcErr.message));
+    if (!src) redirect("/inventory/lists");
     // A failed read must not freeze into an empty copy.
     let ids: string[];
     try {
@@ -359,16 +406,28 @@ export default async function InventoryListDetail({
       .insert({ name: `${src.name} (copy)`, is_dynamic: false })
       .select("id")
       .single();
-    if (error || !created)
-      redirect(`/inventory/lists/${id}?error=${encodeURIComponent(error?.message ?? "Could not copy")}`);
+    if (error || !created) {
+      listError(
+        id,
+        error?.code === "42501"
+          ? "Your role may not make lists. Nothing was saved."
+          : `Could not copy the list: ${error?.message ?? "no copy came back"}. Nothing was saved.`,
+      );
+    }
     if (ids.length > 0) {
       const { error: itemsErr } = await db
         .from("piece_list_items")
         .insert(ids.map((pieceId, i) => ({ list_id: created.id, piece_id: pieceId, sort_order: i })));
       if (itemsErr) {
-        // Not an empty copy left behind under the list's name.
-        await db.from("piece_lists").delete().eq("id", created.id);
-        redirect(`/inventory/lists/${id}?error=${encodeURIComponent(`Could not copy the works: ${itemsErr.message}`)}`);
+        // Not an empty copy left behind under the list's name. If even that
+        // delete fails, say where the empty copy is rather than hide it.
+        const { data: gone, error: undoErr } = await db.from("piece_lists").delete().eq("id", created.id).select("id");
+        const left = undoErr || !gone || gone.length === 0;
+        listError(
+          id,
+          `Could not copy the works: ${itemsErr.message}.` +
+            (left ? ` An empty list “${src.name} (copy)” was left behind; delete it from the lists page.` : " Nothing was saved."),
+        );
       }
     }
     redirect(`/inventory/lists/${created.id}`);
@@ -516,8 +575,20 @@ export default async function InventoryListDetail({
 
   async function deleteList() {
     "use server";
+    const s = await getSession();
+    if (!s || !canEditRecords(s.roles)) listError(id, "Your role can read lists but not delete them. Nothing was deleted.");
     const db = await getSupabase();
-    await db.from("piece_lists").delete().eq("id", id);
+    // Row security filters a refused delete to no rows and no error, so count
+    // what went rather than leave for the lists page as if it had.
+    const { data: gone, error } = await db.from("piece_lists").delete().eq("id", id).select("id");
+    if (error) listError(id, `Could not delete the list: ${error.message}`);
+    if (!gone || gone.length === 0) {
+      // No row went: either someone deleted it first (fine, it is gone) or
+      // the delete was refused (say so, on the list it left in place).
+      const { data: still } = await db.from("piece_lists").select("id").eq("id", id).maybeSingle();
+      if (still) listError(id, "The list was not deleted: your role may not delete lists. Ask an admin.");
+    }
+    revalidatePath("/inventory/lists");
     redirect("/inventory/lists");
   }
 
@@ -737,6 +808,14 @@ export default async function InventoryListDetail({
           </form>
           {addQ ? (
             <div className="mt-3">
+              {addError ? (
+                <Notice tone="danger" className="mb-2">
+                  Could not search: {addError}
+                </Notice>
+              ) : null}
+              {addSimilar ? (
+                <Notice className="mb-2">No exact matches for “{addQ}”. Showing similar works.</Notice>
+              ) : null}
               {results.length > 0 ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
                   <p className="text-[12px] leading-[1.4] text-meta">
@@ -778,9 +857,9 @@ export default async function InventoryListDetail({
                     </li>
                   ))}
                 </ul>
-              ) : (
+              ) : addError ? null : (
                 <p className="text-[13px] leading-[1.45] text-body">
-                  {addMatches === 0 && (hitsTotal ?? 0) > 0
+                  {alreadyIn > 0
                     ? "Every match is already in the list."
                     : "No matches. Try a stock number, part of the title, or the maker."}
                 </p>
