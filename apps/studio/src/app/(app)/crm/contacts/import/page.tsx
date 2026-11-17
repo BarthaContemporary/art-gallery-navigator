@@ -37,7 +37,7 @@ export default function ImportContactsPage() {
 
         <Section
           title="Accepted column headers"
-          meta="Headers are matched without regard to case, and common variants are accepted (firstname, surname, zip, tel)."
+          meta="Headers are matched without regard to case, spaces or underscores, so a file exported from the studio imports as it is; common variants are accepted (firstname, surname, zip, tel). A file needs a name or an email column; columns that match nothing are left out and named after the import. A “Title” column is not used: the salutation is the whole greeting (“Dear Professor Tanaka”)."
         >
           <ul className="flex flex-wrap gap-1.5">
             {HEADERS.map((h) => (

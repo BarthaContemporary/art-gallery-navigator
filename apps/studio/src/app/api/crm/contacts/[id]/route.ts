@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { bounceResetFor } from "@/lib/email-bounce";
 import { getSupabase } from "@/lib/supabase";
 import { changedFlags, consentStamp, mergeInterests, parseNames } from "@/lib/contact-save";
 
@@ -80,6 +81,9 @@ export async function PATCH(
       salutation: s("salutation"),
       contact_type: raw("contact_type") || "collector",
       email: s("email"),
+      // A corrected address clears the hard-bounce stamp offers skip on
+      // (lib/email-bounce.ts); the same address keeps it.
+      ...(await bounceResetFor(supabase, id, s("email"))),
       phone: s("phone"),
       address_line1: s("address_line1"),
       address_line2: s("address_line2"),

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { selectInChunks } from "@/lib/chunk";
+import { selectAllRows } from "@/lib/paged-read";
 
 /*
  * One implementation of "who is in this contact list".
@@ -75,11 +76,19 @@ export function isDynamic(list: CrmListLike): boolean {
   return Boolean(list.is_dynamic);
 }
 
+type PageResult<T> = { data: T[] | null; error: { message: string } | null };
+
+/** A filtered crm_contacts select, as the paged read below uses it. */
+type PagedQuery<T> = {
+  order: (column: string) => PagedQuery<T>;
+  range: (from: number, to: number) => PromiseLike<PageResult<T>>;
+};
+
 /**
  * Load the contacts in a list with whichever columns the caller needs.
  *
  * Prefer this over resolving ids and re-querying: for a dynamic list it is a
- * single filtered read of crm_contacts, and for a curated one the id set is
+ * filtered read of crm_contacts (paged), and for a curated one the id set is
  * chunked, so a list of several hundred people cannot blow the URL length
  * limit the way inventory lists did.
  */
@@ -88,22 +97,28 @@ export async function loadListContacts<T extends { id: string }>(
   list: CrmListLike,
   columns: string,
 ): Promise<T[]> {
+  // Both reads below can pass a PostgREST row cap (db-max-rows), which cuts a
+  // plain select short without a word, so they are read a page at a time
+  // under a total order (lib/paged-read.ts). selectAllRows throws on an error.
   if (isDynamic(list)) {
-    const { data, error } = (await applyRules(
-      supabase.from("crm_contacts").select(columns),
-      rulesOf(list),
-    )) as { data: T[] | null; error: { message: string } | null };
-    if (error) throw new Error(error.message);
-    return data ?? [];
+    const rules = rulesOf(list);
+    return selectAllRows<T>((from, to) =>
+      (applyRules(supabase.from("crm_contacts").select(columns), rules) as PagedQuery<T>)
+        .order("id")
+        .range(from, to),
+    );
   }
 
-  const { data: rows, error } = await supabase
-    .from("crm_list_members")
-    .select("contact_id")
-    .eq("list_id", list.id);
-  if (error) throw new Error(error.message);
+  const rows = await selectAllRows<{ contact_id: string }>((from, to) =>
+    supabase
+      .from("crm_list_members")
+      .select("contact_id")
+      .eq("list_id", list.id)
+      .order("contact_id")
+      .range(from, to) as unknown as PromiseLike<PageResult<{ contact_id: string }>>,
+  );
 
-  const ids = ((rows ?? []) as { contact_id: string }[]).map((r) => r.contact_id);
+  const ids = rows.map((r) => r.contact_id);
   if (ids.length === 0) return [];
 
   return selectInChunks<T>(

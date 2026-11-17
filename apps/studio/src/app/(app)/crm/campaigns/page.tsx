@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { emptyDesign } from "@/lib/newsletter";
+import { selectInChunks } from "@/lib/chunk";
 import { formatCount, formatDate } from "@/lib/format";
 import { labelOf, type Tone } from "@/lib/labels";
 import { PageHeader } from "@/components/ui/page-header";
@@ -53,6 +54,24 @@ export default async function CampaignsPage() {
     .order("updated_at", { ascending: false });
   const campaigns = (data ?? []) as unknown as CampaignRow[];
 
+  // Refused emails were never sent, so they are not recipients: the
+  // newsletter's own page leaves them out, and so does this count (which
+  // used to say 180 recipients for a send Resend refused entirely). Failed
+  // rows are few, so they are read rather than counted per newsletter.
+  const refusedBy = new Map<string, number>();
+  const sentIds = campaigns.filter((c) => c.status === "sent").map((c) => c.id);
+  if (sentIds.length > 0) {
+    try {
+      const refused = await selectInChunks<{ campaign_id: string }>(sentIds, (chunk) =>
+        supabase.from("crm_campaign_recipients").select("campaign_id").eq("status", "failed").in("campaign_id", chunk),
+      );
+      for (const r of refused) refusedBy.set(r.campaign_id, (refusedBy.get(r.campaign_id) ?? 0) + 1);
+    } catch (e) {
+      // The count then includes refused rows, as it always did.
+      console.error("[newsletters] could not read refused recipients:", e);
+    }
+  }
+
   async function newCampaign() {
     "use server";
     const db = await getSupabase();
@@ -103,7 +122,7 @@ export default async function CampaignsPage() {
           <tbody>
             {campaigns.map((c) => {
               const sent = c.status === "sent";
-              const count = c.crm_campaign_recipients?.[0]?.count ?? 0;
+              const count = Math.max(0, (c.crm_campaign_recipients?.[0]?.count ?? 0) - (refusedBy.get(c.id) ?? 0));
               return (
                 <Tr key={c.id}>
                   {/* A floor under the name, so on a phone the table scrolls

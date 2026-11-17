@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { getSupabase, getSession } from "@/lib/supabase";
+import { getSupabase, getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import {
   compileNewsletter,
   personalise,
@@ -15,7 +15,8 @@ import {
 } from "@/lib/site";
 import { CampaignDesigner } from "@/components/campaign-designer";
 import { loadListContacts, countEligible, isMailable } from "@/lib/crm-list-members";
-import { writeInChunks } from "@/lib/chunk";
+import { chunkIds, selectInChunks, writeInChunks } from "@/lib/chunk";
+import { logEmailEvent } from "@/lib/email-log";
 import {
   sendEmail,
   emailIdempotencyKey,
@@ -93,26 +94,68 @@ function salutationFor(c: MemberContact): string {
   return "Dear friend";
 }
 
-async function unsubscribeUrlFor(
-  db: Awaited<ReturnType<typeof getSupabase>>,
-  contactId: string,
-): Promise<string> {
-  const { data: existing } = await db
-    .from("unsubscribe_tokens")
-    .select("token")
-    .eq("contact_id", contactId)
-    .limit(1)
-    .maybeSingle();
-  let token = (existing as { token: string } | null)?.token;
-  if (!token) {
-    const { data: created } = await db
+type Db = Awaited<ReturnType<typeof getSupabase>>;
+
+/**
+ * Each recipient's unsubscribe token, read (and the missing ones created)
+ * before anyone is mailed. Any failed read or write throws, so the send stops
+ * before an email goes out with a dead opt-out link
+ * (…/api/unsubscribe/undefined, which the website answers "Link not
+ * recognised"): every marketing email must carry a working one.
+ *
+ * A contact's oldest token is used, and the same one on every run: the link
+ * is part of the email, and so of the idempotency key that keeps a resumed
+ * send from mailing anyone twice.
+ */
+async function loadUnsubscribeTokens(db: Db, contactIds: string[]): Promise<Map<string, string>> {
+  const tokens = new Map<string, string>();
+  // Chunked by contact, so all of a contact's tokens arrive in one chunk,
+  // oldest first.
+  const found = await selectInChunks<{ contact_id: string; token: string }>(contactIds, (chunk) =>
+    db
       .from("unsubscribe_tokens")
-      .insert({ contact_id: contactId })
-      .select("token")
-      .single();
-    token = (created as { token: string } | null)?.token;
+      .select("contact_id, token, created_at")
+      .in("contact_id", chunk)
+      .order("created_at")
+      .order("id"),
+  );
+  for (const t of found) if (t.token && !tokens.has(t.contact_id)) tokens.set(t.contact_id, t.token);
+  const missing = [...new Set(contactIds)].filter((cid) => !tokens.has(cid));
+  for (const chunk of chunkIds(missing, 500)) {
+    const { data, error } = await db
+      .from("unsubscribe_tokens")
+      .insert(chunk.map((contact_id) => ({ contact_id })))
+      .select("contact_id, token");
+    if (error) throw new Error(`Could not create unsubscribe links: ${error.message}`);
+    for (const t of (data ?? []) as { contact_id: string; token: string }[]) tokens.set(t.contact_id, t.token);
   }
-  return `${PUBLIC_BASE_URL}/api/unsubscribe/${token}`;
+  return tokens;
+}
+
+/**
+ * Resend's refusals that are about the sender, not the recipient: every
+ * further email of the run would be refused the same way, so the run stops
+ * at the first and leaves the rest unsent. Not validation_error, which Resend
+ * also returns for one malformed recipient address, and not no_response.
+ */
+const SENDER_REFUSALS = new Set([
+  "missing_api_key",
+  "invalid_api_Key",
+  "invalid_api_key",
+  "restricted_api_key",
+  "invalid_from_address",
+  "daily_quota_exceeded",
+  "monthly_quota_exceeded",
+]);
+
+/** Recipient rows of this newsletter that were ever mailed (any status but pending or failed); null if the count failed. */
+async function mailedSoFar(db: Db, campaignId: string): Promise<number | null> {
+  const { count, error } = await db
+    .from("crm_campaign_recipients")
+    .select("id", { count: "exact", head: true })
+    .eq("campaign_id", campaignId)
+    .not("status", "in", `(${UNSENT.join(",")})`);
+  return error ? null : (count ?? 0);
 }
 
 export default async function CampaignDetail({
@@ -126,6 +169,7 @@ export default async function CampaignDetail({
     failed?: string;
     left?: string;
     reason?: string;
+    draft?: string;
     test?: string;
     err?: string;
   }>;
@@ -216,10 +260,23 @@ export default async function CampaignDetail({
    *   "failed" and are reported, and the sent view offers to retry just
    *   those (nobody who joined the list since is added then), so one dead
    *   address cannot hold a newsletter part-sent for ever.
+   * - Unless nothing has ever gone out: a first send whose every email was
+   *   refused (an unverified From address, a refused key) goes back to
+   *   "draft", so the cause can be corrected in the designer. Marked "sent",
+   *   it was locked with the cause in it, and Retry failed for ever. The
+   *   refused rows stay "failed" and the next Send mails them. (A refusal
+   *   coded no_response may in fact have gone out; once the From address or
+   *   design changes, the idempotency key changes with it, so such a contact
+   *   could be mailed a second time. Rare, and said here so it is known.)
    */
   async function sendCampaign() {
     "use server";
+    // Checked here, not only by the page: a server action can be called on
+    // its own, and the send log below is written with the service client.
+    const session = await getSession();
+    if (!session || !hasRole(session.roles, "admin", "staff")) throw new Error("Forbidden");
     const db = await getSupabase();
+    const audit = createServiceClient();
 
     const { data: c } = await db
       .from("crm_campaigns")
@@ -317,6 +374,13 @@ export default async function CampaignDetail({
         if (goneError) throw new Error(goneError.message);
       }
 
+      // Every recipient's opt-out link, before anyone is mailed (throws on a
+      // failed read or write, which parks the send below).
+      const tokens = await loadUnsubscribeTokens(
+        db,
+        todo.map((r) => r.contact_id).filter((cid) => byContact.has(cid)),
+      );
+
       const compiled = compileNewsletter(cc!.design ?? emptyDesign(), {
         galleryName: GALLERY_NAME,
         galleryAddress: GALLERY_ADDRESS,
@@ -332,7 +396,10 @@ export default async function CampaignDetail({
         const contact = byContact.get(row.contact_id);
         if (!contact) continue;
         if (Date.now() - started > SEND_BUDGET_MS) break;
-        const unsubscribeUrl = await unsubscribeUrlFor(db, contact.id);
+        const token = tokens.get(contact.id);
+        // Never mailed without a working opt-out link.
+        if (!token) throw new Error("No unsubscribe link for a recipient");
+        const unsubscribeUrl = `${PUBLIC_BASE_URL}/api/unsubscribe/${token}`;
         const html = personalise(compiled, {
           salutation: salutationFor(contact),
           unsubscribeUrl,
@@ -366,24 +433,32 @@ export default async function CampaignDetail({
           // Refused: the row is marked "failed", not sent, so Resume (or
           // Retry failed, once the rest has gone) sends it again.
           failed++;
-          reason ||= emailErrorCode(e);
+          const code = emailErrorCode(e);
+          reason ||= code;
           await db.from("crm_campaign_recipients").update({ status: "failed" }).eq("id", row.id);
-          await db.from("email_events").insert({
-            event_type: "failed",
-            campaign_recipient_id: row.id,
-            payload: { error: emailErrorCode(e), message: emailErrorDetail(e) },
-          });
+          await logEmailEvent(
+            audit,
+            {
+              event_type: "failed",
+              campaign_recipient_id: row.id,
+              payload: { error: code, message: emailErrorDetail(e) },
+            },
+            "newsletter",
+          );
+          // The sender itself was refused: the rest would be too. They stay
+          // unsent for the next run.
+          if (SENDER_REFUSALS.has(code)) break;
           continue;
         }
         await db
           .from("crm_campaign_recipients")
           .update({ status: "sent", resend_email_id: resendId })
           .eq("id", row.id);
-        await db.from("email_events").insert({
-          event_type: "sent",
-          campaign_recipient_id: row.id,
-          payload: { resend_id: resendId },
-        });
+        await logEmailEvent(
+          audit,
+          { event_type: "sent", campaign_recipient_id: row.id, payload: { resend_id: resendId } },
+          "newsletter",
+        );
         sent++;
       }
 
@@ -395,28 +470,40 @@ export default async function CampaignDetail({
         .eq("campaign_id", id)
         .eq("status", "pending");
       if (leftError) throw new Error(leftError.message);
+      // Nothing has ever gone out (this run sent none, and no earlier run
+      // either): back to draft, so the cause can be corrected.
+      let backToDraft = false;
+      if (!cc!.sent_at && sent === 0) {
+        const mailed = await mailedSoFar(db, id);
+        if (mailed === null) throw new Error("Could not count the recipients already mailed");
+        backToDraft = mailed === 0;
+      }
       await db
         .from("crm_campaigns")
         .update(
-          left
-            ? { status: "partial" }
-            : { status: "sent", sent_at: cc!.sent_at ?? new Date().toISOString() },
+          backToDraft
+            ? { status: "draft" }
+            : left
+              ? { status: "partial" }
+              : { status: "sent", sent_at: cc!.sent_at ?? new Date().toISOString() },
         )
         .eq("id", id);
       const skipped = contacts.length - eligible.length;
       outcome = `sent=${sent}&skipped=${skipped}&failed=${failed}&left=${left ?? 0}${
         reason ? `&reason=${encodeURIComponent(reason)}` : ""
-      }`;
+      }${backToDraft ? "&draft=1" : ""}`;
     } catch (e) {
       console.error("[newsletter] send stopped:", e);
       // Let go of the claim. The recipient rows already say who was mailed,
-      // so the next Send or Resume skips them either way.
-      await db
-        .from("crm_campaigns")
-        .update({
-          status: retryOnly ? "sent" : sent > 0 || cc!.status !== "draft" ? "partial" : "draft",
-        })
-        .eq("id", id);
+      // so the next Send or Resume skips them either way. A newsletter that
+      // has never reached anyone goes back to draft, as above; if that
+      // cannot be told, it is parked as part-sent, as before.
+      let status: "sent" | "partial" | "draft";
+      if (retryOnly) status = "sent";
+      else if (sent > 0) status = "partial";
+      else if (cc!.status === "draft") status = "draft";
+      else status = (await mailedSoFar(db, id)) === 0 ? "draft" : "partial";
+      await db.from("crm_campaigns").update({ status }).eq("id", id);
       revalidatePath(`/crm/campaigns/${id}`);
       redirect(`/crm/campaigns/${id}?err=sendfail`);
     }
@@ -461,6 +548,12 @@ export default async function CampaignDetail({
         />
 
         <div className="space-y-6">
+          {/* The result a send or retry redirected with (the skipped count,
+              err=nolist, nokey or already), which this view used to drop, so
+              a refused Retry seemed to do nothing. sendfail and sending are
+              worded by the notice below, without the draft view's "Resume
+              sending", a button this view does not have. */}
+          {sp.err !== "sendfail" && sp.err !== "sending" ? <FlashNotice searchParams={sp} codes="campaign" /> : null}
           {sp.err === "sendfail" || sp.err === "sending" || refused > 0 ? (
             <Notice
               tone={sp.err === "sendfail" ? "danger" : "warn"}

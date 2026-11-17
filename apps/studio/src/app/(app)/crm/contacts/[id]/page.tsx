@@ -12,6 +12,7 @@ import { ContactEditor, type Purchase, type Consignment } from "@/components/con
 import { DataProtectionPanel } from "@/components/data-protection-panel";
 import { consignmentSplit } from "@/lib/consignment";
 import { loadPieceRows } from "@/lib/piece-store";
+import { selectInChunks } from "@/lib/chunk";
 // London dates: this page renders on the server, where the zone is UTC.
 import { EMPTY, formatDate } from "@/lib/format";
 import {
@@ -22,6 +23,7 @@ import {
 } from "@/lib/labels";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Notice } from "@/components/ui/notice";
 
 export const metadata = { title: "Contact" };
 
@@ -136,63 +138,90 @@ export default async function ContactProfile({
     };
   });
 
-  // Consignments: works where this contact is the co-owner / consignee. Read
-  // via the service client so all staff see the work; this contact's share £ is
-  // only computed/serialised for admin/accountant (showPrices).
-  // Queried per stock table rather than through the union view because of the
-  // maker and financials embeds, which PostgREST resolves from foreign keys on
-  // a real table.
-  const CONSIGNMENT_COLUMNS =
-    "stock_number, title, year, consignment_share_pct, sale_handled_by_jvb, maker:makers ( display_name ), fin:piece_financials ( sold_date, sold_price_gbp, purchase_cost_gbp, restoration_cost_gbp, other_costs_gbp, vat_treatment, import_type, import_vat_gbp )";
-  const consResults = await Promise.all(
-    (["pieces", "external_pieces"] as const).map((table) =>
-      svc.from(table).select(CONSIGNMENT_COLUMNS).eq("consignee_contact_id", id),
-    ),
-  );
-  const consRows = consResults.flatMap((r) => r.data ?? []);
-  const num0 = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-  const consignments: Consignment[] = ((consRows ?? []) as unknown as {
+  // Consignments: works where this contact is the co-owner / consignee, in
+  // either register. Read via the service client so all staff see the work;
+  // this contact's share £ is only computed/serialised for admin/accountant
+  // (showPrices).
+  // Two reads, stitched by id: piece_financials keys on piece_ref, so there is
+  // no foreign key from a stock table (or the union view) for PostgREST to
+  // embed it through, and the embed this used to ask for failed the whole
+  // request, which left the section empty for every contact.
+  type ConsignedWork = {
+    id: string;
     stock_number: string | null;
     title: string | null;
     year: string | null;
     consignment_share_pct: number | null;
     sale_handled_by_jvb: boolean | null;
-    maker: { display_name: string | null } | null;
-    fin: {
-      sold_date: string | null;
-      sold_price_gbp: number | null;
-      purchase_cost_gbp: number | null;
-      restoration_cost_gbp: number | null;
-      other_costs_gbp: number | null;
-      vat_treatment: string | null;
-      import_type: string | null;
-      import_vat_gbp: number | null;
-    }[] | null;
-  }[]).map((r) => {
-    const f = r.fin?.[0] ?? null;
-    let coOwnerShare: number | null = null;
-    if (showPrices && f?.sold_date && r.consignment_share_pct != null) {
-      coOwnerShare = consignmentSplit({
-        amount: num0(f.sold_price_gbp),
-        vatTreatment: f.vat_treatment ?? "margin_scheme",
-        saleHandledByJvb: r.sale_handled_by_jvb,
-        purchaseCostGbp: num0(f.purchase_cost_gbp),
-        extraCostsGbp: num0(f.restoration_cost_gbp) + num0(f.other_costs_gbp),
-        importVatPaidGbp: f.import_type === "import_vat_paid" ? num0(f.import_vat_gbp) : 0,
-        sharePct: r.consignment_share_pct,
-      }).coOwnerShare;
-    }
-    return {
-      stock_number: r.stock_number ?? null,
-      title: r.title ?? null,
-      year: r.year ?? null,
-      maker_name: r.maker?.display_name ?? null,
-      share_pct: r.consignment_share_pct ?? null,
-      sale_handled_by_jvb: r.sale_handled_by_jvb ?? null,
-      sold_date: f?.sold_date ?? null,
-      co_owner_share_gbp: coOwnerShare,
-    };
-  });
+    maker_name: string | null;
+  };
+  type ConsignedFinancials = {
+    piece_id: string;
+    sold_date: string | null;
+    sold_price_gbp: number | null;
+    purchase_cost_gbp: number | null;
+    restoration_cost_gbp: number | null;
+    other_costs_gbp: number | null;
+    vat_treatment: string | null;
+    import_type: string | null;
+    import_vat_gbp: number | null;
+  };
+  const num0 = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  let consignments: Consignment[] = [];
+  let consignmentsFailed = false;
+  try {
+    const { data: consRows, error: consError } = await svc
+      .from("vw_pieces_all")
+      .select("id, stock_number, title, year, consignment_share_pct, sale_handled_by_jvb, maker_name")
+      .eq("consignee_contact_id", id)
+      // The union view keeps works in the trash; the page does not show them.
+      .is("deleted_at", null)
+      .order("stock_number");
+    if (consError) throw new Error(consError.message);
+    const works = (consRows ?? []) as unknown as ConsignedWork[];
+    const fins = await selectInChunks<ConsignedFinancials>(
+      works.map((w) => w.id),
+      (chunk) =>
+        svc
+          .from("piece_financials")
+          .select(
+            "piece_id, sold_date, sold_price_gbp, purchase_cost_gbp, restoration_cost_gbp, other_costs_gbp, vat_treatment, import_type, import_vat_gbp",
+          )
+          .in("piece_id", chunk),
+    );
+    // One financials row per work (piece_id is its key).
+    const finById = new Map(fins.map((f) => [f.piece_id, f]));
+    consignments = works.map((r) => {
+      const f = finById.get(r.id) ?? null;
+      let coOwnerShare: number | null = null;
+      if (showPrices && f?.sold_date && r.consignment_share_pct != null) {
+        coOwnerShare = consignmentSplit({
+          amount: num0(f.sold_price_gbp),
+          vatTreatment: f.vat_treatment ?? "margin_scheme",
+          saleHandledByJvb: r.sale_handled_by_jvb,
+          purchaseCostGbp: num0(f.purchase_cost_gbp),
+          extraCostsGbp: num0(f.restoration_cost_gbp) + num0(f.other_costs_gbp),
+          importVatPaidGbp: f.import_type === "import_vat_paid" ? num0(f.import_vat_gbp) : 0,
+          sharePct: r.consignment_share_pct,
+        }).coOwnerShare;
+      }
+      return {
+        stock_number: r.stock_number ?? null,
+        title: r.title ?? null,
+        year: r.year ?? null,
+        maker_name: r.maker_name ?? null,
+        share_pct: r.consignment_share_pct ?? null,
+        sale_handled_by_jvb: r.sale_handled_by_jvb ?? null,
+        sold_date: f?.sold_date ?? null,
+        // Never serialised to staff: the prop goes to a "use client" component.
+        co_owner_share_gbp: showPrices ? coOwnerShare : null,
+      };
+    });
+  } catch (e) {
+    // Said on the page rather than shown as "no consignments".
+    console.error("[contact] could not read consignments:", e);
+    consignmentsFailed = true;
+  }
 
   const name =
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
@@ -305,6 +334,12 @@ export default async function ContactProfile({
             Go to AML
           </a>
         </div>
+      ) : null}
+
+      {consignmentsFailed ? (
+        <Notice tone="danger" className="mb-6">
+          The works this contact has on consignment could not be loaded. Reload the page to try again.
+        </Notice>
       ) : null}
 
       <ContactEditor

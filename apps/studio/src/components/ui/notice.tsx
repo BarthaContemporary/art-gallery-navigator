@@ -20,10 +20,12 @@
  *     ?notice=<message> (ok); every page reads those. `codes` adds the
  *     bespoke codes of two pages:
  *       "campaign"  the newsletter page: sent, skipped, failed, left, reason,
- *                   test, and err=nokey|nolist|nosubject|testfail|already|
- *                   sending|noeligible|sendfail.
+ *                   draft=1 (nothing went out, back in draft), test, and
+ *                   err=nokey|nolist|nosubject|testfail|already|sending|
+ *                   noeligible|sendfail.
  *       "offer"     the offer page: sent=<n>|nokey|noitems, skipped, failed,
- *                   reason.
+ *                   reason, left (stopped near the time limit), unmarked
+ *                   (mailed, but the sent mark failed).
  *     fallback: shown when the URL carries no message (the newsletter page's
  *     "being sent" and "partly sent" lines, which come from the database).
  *     Pass the page's awaited searchParams object as it is.
@@ -102,6 +104,14 @@ function campaignFlash(sp: SearchParams): Flash | null {
   const failed = Number(one(sp, "failed") ?? 0);
   const left = Number(one(sp, "left") ?? 0);
   const reason = one(sp, "reason");
+  if (sent !== undefined && one(sp, "draft") === "1") {
+    // Nothing has gone out (every email refused: an unverified From address,
+    // a refused key), so the send put the newsletter back to draft.
+    return {
+      tone: "danger",
+      text: `Nothing was sent${failed > 0 ? `: ${plural(failed, "email")} refused (${describeEmailError(reason)})` : ""}. The newsletter is back in draft, so the sender, subject or design can be corrected before sending again.`,
+    };
+  }
   if (sent !== undefined) {
     const parts = [`Sent to ${plural(sent, "recipient")}`];
     if (skipped && skipped !== "0") parts.push(`${skipped} skipped (no consent or no email)`);
@@ -150,6 +160,8 @@ function offerFlash(sp: SearchParams): Flash | null {
   if (sent === "noitems") return { tone: "danger", text: "Add at least one work before sending." };
   const skipped = one(sp, "skipped");
   const failed = one(sp, "failed");
+  const left = Number(one(sp, "left") ?? 0);
+  const unmarked = Number(one(sp, "unmarked") ?? 0);
   const parts = [`Sent ${plural(sent, "email")}`];
   if (skipped && skipped !== "0") parts.push(`${skipped} skipped`);
   const hasFailed = Boolean(failed && failed !== "0");
@@ -158,7 +170,14 @@ function offerFlash(sp: SearchParams): Flash | null {
       `${failed} failed (${describeEmailError(one(sp, "reason"))}). They are still unsent: press Send again to retry them`,
     );
   }
-  return { tone: hasFailed ? "warn" : "ok", text: parts.join(" · ") + "." };
+  if (unmarked > 0) {
+    parts.push(
+      `${plural(unmarked, "email")} went out but could not be recorded as sent: press Send again within 24 hours to record ${unmarked === 1 ? "it" : "them"} without mailing anyone twice`,
+    );
+  }
+  // The send stops starting new emails near the time limit: the rest wait.
+  const tail = left > 0 ? `. ${left} still to send: press Send again to continue.` : ".";
+  return { tone: hasFailed || left > 0 || unmarked > 0 ? "warn" : "ok", text: parts.join(" · ") + tail };
 }
 
 export function FlashNotice({

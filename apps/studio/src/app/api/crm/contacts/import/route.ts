@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { selectAllRows } from "@/lib/paged-read";
+import { cleanCell, hasIdentityColumn, mapHeaders } from "./contact-csv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,23 +15,6 @@ const CONTACT_TYPES = [
   "restorer",
   "press",
 ];
-
-/** Canonical column -> accepted header aliases (all matched lower-cased & trimmed). */
-const ALIASES: Record<string, string[]> = {
-  first_name: ["first name", "firstname", "first", "given name"],
-  last_name: ["last name", "lastname", "last", "surname", "family name"],
-  email: ["email", "e-mail", "email address"],
-  phone: ["phone", "telephone", "tel", "mobile"],
-  contact_type: ["type", "contact type"],
-  salutation: ["salutation", "title"],
-  address_line1: ["address", "address line 1", "address1", "street"],
-  address_line2: ["address line 2", "address2"],
-  city: ["city", "town"],
-  postcode: ["postcode", "post code", "zip", "zip code", "postal code"],
-  country: ["country"],
-  instagram_handle: ["instagram", "ig"],
-  notes: ["notes", "note"],
-};
 
 /**
  * Parse CSV text into rows of string cells. Handles quoted fields containing
@@ -164,14 +149,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "The CSV file is empty" }, { status: 400 });
   }
 
-  const header = headerRow.map((h) => h.trim().toLowerCase());
-  // Build header index -> canonical column
-  const colFor: (string | null)[] = header.map((h) => {
-    for (const [canonical, aliases] of Object.entries(ALIASES)) {
-      if (aliases.includes(h)) return canonical;
-    }
-    return null;
-  });
+  // Header index -> canonical column; the headers that matched nothing are
+  // named in the reply, so a column left out is never left out unseen.
+  const { columns: colFor, ignored } = mapHeaders(headerRow);
 
   if (colFor.every((c) => c === null)) {
     return NextResponse.json(
@@ -179,24 +159,36 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  // Without a name or an email a row cannot be told from an existing contact
+  // (and would be imported as a nameless one), so such a file is refused.
+  if (!hasIdentityColumn(colFor)) {
+    return NextResponse.json(
+      {
+        error:
+          "The file has no name or email column (first name, last name or email), so its rows cannot be matched to contacts.",
+        ignored,
+      },
+      { status: 400 },
+    );
+  }
 
   const dataRows = rows.slice(1);
 
-  // Load existing contacts for de-duplication.
-  const { data: existing, error: existingError } = await supabase
-    .from("crm_contacts")
-    .select("email, first_name, last_name");
-  if (existingError) {
-    return NextResponse.json({ error: existingError.message }, { status: 500 });
+  // Load existing contacts for de-duplication, every page of them: a single
+  // read stops at the API's row cap, and contacts past it were imported again.
+  type Existing = { email: string | null; first_name: string | null; last_name: string | null };
+  let existing: Existing[];
+  try {
+    existing = await selectAllRows<Existing>((from, to) =>
+      supabase.from("crm_contacts").select("email, first_name, last_name").order("id").range(from, to),
+    );
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not read contacts" }, { status: 500 });
   }
 
   const seenEmails = new Set<string>();
   const seenNames = new Set<string>();
-  for (const c of (existing ?? []) as {
-    email: string | null;
-    first_name: string | null;
-    last_name: string | null;
-  }[]) {
+  for (const c of existing) {
     if (c.email) seenEmails.add(c.email.trim().toLowerCase());
     const nameKey = `${(c.first_name ?? "").trim().toLowerCase()}|${(c.last_name ?? "")
       .trim()
@@ -215,7 +207,7 @@ export async function POST(req: Request) {
     for (let idx = 0; idx < colFor.length; idx++) {
       const canonical = colFor[idx];
       if (!canonical) continue;
-      const val = (cells[idx] ?? "").trim();
+      const val = cleanCell(cells[idx] ?? "");
       if (val && !values[canonical]) values[canonical] = val;
     }
 
@@ -279,5 +271,5 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ imported, skipped, errors });
+  return NextResponse.json({ imported, skipped, errors, ignored });
 }

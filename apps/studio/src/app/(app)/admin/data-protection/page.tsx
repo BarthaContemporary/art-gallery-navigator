@@ -13,6 +13,10 @@ import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 
 export const metadata = { title: "Data protection" };
 
+// The page's server actions share its time limit; the legacy-consent
+// attestation writes to every imported contact.
+export const maxDuration = 300;
+
 async function assertAdmin() {
   const s = await getSession();
   if (!s || !hasRole(s.roles, "admin")) throw new Error("Forbidden");
@@ -116,19 +120,30 @@ export default async function DataProtectionPage({
     "use server";
     const s = await assertAdmin();
     const svc2 = createServiceClient();
-    const { data: rows } = await svc2
+    const { data: rows, error: readError } = await svc2
       .from("crm_contacts")
       .select("id, consent_date, consent_source")
       .eq("marketing_consent", true)
       .is("erased_at", null)
       .is("consent_evidence", null);
+    if (readError) {
+      redirect(`/admin/data-protection?error=${encodeURIComponent(`Nothing recorded: the contacts could not be read (${readError.message}).`)}`);
+    }
     const targets = ((rows ?? []) as { id: string; consent_date: string | null; consent_source: string | null }[]).filter(
       (r) => !r.consent_source || /^pre-existing/i.test(r.consent_source) || /import/i.test(r.consent_source),
     );
     const attestedAt = new Date().toISOString();
-    for (const r of targets) {
+    // Up to eight writes at a time (one after another, ~868 of them ran for
+    // tens of seconds), each only where no evidence is held yet, so a rerun,
+    // or a website double opt-in recorded meanwhile, is left as it is. The
+    // notice counts the rows actually written; it used to report every
+    // target whatever the writes did.
+    let recorded = 0;
+    let unwritten = 0;
+    let next = 0;
+    const writeOne = async (r: (typeof targets)[number]) => {
       const at = r.consent_date ?? "2026-07-01T00:00:00.000Z";
-      await svc2
+      const { data: written, error } = await svc2
         .from("crm_contacts")
         .update({
           consent_source: "Consent given in the previous system (FileMaker) and carried over at import, July 2026; confirmed by the gallery",
@@ -145,9 +160,22 @@ export default async function DataProtectionPage({
             },
           },
         })
-        .eq("id", r.id);
+        .eq("id", r.id)
+        .is("consent_evidence", null)
+        .select("id");
+      if (error) unwritten++;
+      else recorded += written?.length ?? 0;
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(8, targets.length) }, async () => {
+        while (next < targets.length) await writeOne(targets[next++]!);
+      }),
+    );
+    const done = `Recorded on ${recorded} contact${recorded === 1 ? "" : "s"}: consent given in the previous system, confirmed by ${s.user.email ?? "you"} today.`;
+    if (unwritten > 0) {
+      redirect(`/admin/data-protection?error=${encodeURIComponent(`${done} ${unwritten} could not be written: press the button again to finish.`)}`);
     }
-    redirect(`/admin/data-protection?notice=${encodeURIComponent(`Recorded on ${targets.length} contact${targets.length === 1 ? "" : "s"}: consent given in the previous system, confirmed by ${s.user.email ?? "you"} today.`)}`);
+    redirect(`/admin/data-protection?notice=${encodeURIComponent(done)}`);
   }
 
   async function addRequest(formData: FormData) {

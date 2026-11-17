@@ -307,13 +307,6 @@
       "fields": [],
       "payloads": []
     },
-    "app/(app)/crm/contacts/[id]/data/page.tsx": {
-      "forms": [
-        "form action=\"javascript:window.print()\""
-      ],
-      "fields": [],
-      "payloads": []
-    },
     "app/(app)/crm/contacts/[id]/page.tsx": {
       "forms": [
         "ContactEditor"

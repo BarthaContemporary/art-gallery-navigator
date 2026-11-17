@@ -15,8 +15,12 @@ export const metadata = { title: "Contacts" };
 
 /** Contacts per page. The list used to stop at a hard 500, with nothing to say so. */
 const PAGE_SIZE = 100;
-/** Search shows the best matches only; past this it says so. */
-const SEARCH_LIMIT = 200;
+/**
+ * Search shows the best matches only; past this it says so. The same number
+ * as crm_contacts_search's own `limit 100`: a larger one here could never be
+ * reached, so the "+" and the hint below never showed.
+ */
+const SEARCH_LIMIT = 100;
 
 export default async function ContactsPage({
   searchParams,
@@ -104,8 +108,9 @@ export default async function ContactsPage({
             <ExportMenu
               noun="contacts"
               items={[
-                { href: "/api/export/contacts.csv", label: "CSV and vCard" },
+                { href: "/api/export/contacts.csv", label: "CSV" },
                 { href: "/api/export/contacts.xlsx", label: "Excel (XLSX)" },
+                { href: "/api/export/contacts.vcf", label: "vCard" },
               ]}
             />
             <form action={addContact}>

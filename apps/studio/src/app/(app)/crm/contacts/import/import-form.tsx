@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { UploadIcon } from "@/components/ui/icons";
 
-type Result = { imported: number; skipped: number; errors: number };
+/** `ignored`: the file's headers that matched no contact column, left out of the import. */
+type Result = { imported: number; skipped: number; errors: number; ignored?: string[] };
 type Status = "idle" | "uploading" | "done" | "error";
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
@@ -37,13 +38,15 @@ export function ImportForm() {
       });
       const body = (await res.json().catch(() => null)) as
         | (Result & { error?: string })
-        | { error?: string }
+        | { error?: string; ignored?: string[] }
         | null;
 
       if (!res.ok) {
         setStatus("error");
+        const ignored = body && "ignored" in body ? body.ignored : undefined;
         setMessage(
-          (body && "error" in body && body.error) || "The import failed. Please try again.",
+          ((body && "error" in body && body.error) || "The import failed. Please try again.") +
+            (ignored?.length ? ` Columns not recognised: ${ignored.join(", ")}.` : ""),
         );
         return;
       }
@@ -84,8 +87,15 @@ export function ImportForm() {
       </Button>
 
       {status === "done" && result ? (
-        <Notice tone={result.errors > 0 ? "warn" : "ok"}>
+        <Notice tone={result.errors > 0 || result.ignored?.length ? "warn" : "ok"}>
           Imported {result.imported}, skipped {plural(result.skipped, "duplicate")}, {plural(result.errors, "error")}.
+          {result.ignored?.length ? (
+            <>
+              {" "}
+              {result.ignored.length === 1 ? "This column was" : "These columns were"} not recognised and left
+              out: {result.ignored.join(", ")}.
+            </>
+          ) : null}
         </Notice>
       ) : null}
 

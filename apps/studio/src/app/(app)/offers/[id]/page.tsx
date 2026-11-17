@@ -3,9 +3,9 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { OfferEmail } from "@jvb/emails";
-import { getSupabase } from "@/lib/supabase";
-import { sanitizeFilterTerm } from "@/lib/search";
+import { getSupabase, getSession, hasRole, createServiceClient } from "@/lib/supabase";
 import { OfferItemsEditor } from "@/components/offer-items-editor";
+import { logEmailEvent } from "@/lib/email-log";
 import { resolveListPieceIds, countListMembers, type ListRules } from "@/lib/list-members";
 import { loadPieceSummaries } from "@/lib/piece-store";
 import { resolveListContactIds } from "@/lib/crm-list-members";
@@ -30,6 +30,19 @@ import { EmptyRow, Table, TableFrame, Td, Th, Tr } from "@/components/ui/table";
 import { MailIcon, PlusIcon, SearchIcon } from "@/components/ui/icons";
 
 export const metadata = { title: "Offer" };
+
+// The send runs inside this page's server action, which shares the page's
+// time limit. An offer can carry a whole contact list, and the platform
+// default cut a list send off part way (as it did the newsletter's).
+export const maxDuration = 300;
+
+/**
+ * A send stops starting new emails after this long and reports how many are
+ * left, so it ends on its own terms well inside maxDuration. Pressing Send
+ * again carries on: only recipients with no sent_at are mailed, and the
+ * idempotency key covers the one in flight.
+ */
+const SEND_BUDGET_MS = 240_000;
 
 // Where the tokenized public offer pages live (the web app).
 const OFFER_BASE =
@@ -89,8 +102,20 @@ type Recipient = {
     salutation: string | null;
     email: string | null;
     unsubscribed_at: string | null;
+    /** Set by the Resend webhook on a permanent bounce; cleared when the email changes. */
+    email_bounced_at: string | null;
   } | null;
 };
+
+/**
+ * Whether an offer email can go to this contact: an address that is neither
+ * unsubscribed nor hard-bounced. A bounce stops every later email, whichever
+ * offer or newsletter it came from (the webhook's rule); the do-not-mail box
+ * is left out of this, as it always was for offers.
+ */
+function canEmail(c: Recipient["contact"]): boolean {
+  return Boolean(c?.email && !c.unsubscribed_at && !c.email_bounced_at);
+}
 
 /**
  * A recipient's state in a word and a tone. The client's own answer comes
@@ -121,6 +146,9 @@ export default async function OfferDetail({
     skipped?: string;
     failed?: string;
     reason?: string;
+    left?: string;
+    unmarked?: string;
+    error?: string;
   }>;
 }) {
   const { id } = await params;
@@ -150,7 +178,7 @@ export default async function OfferDetail({
     supabase
       .from("offer_recipients")
       .select(
-        "id, token, sent_at, first_viewed_at, view_count, response, responded_at, contact:crm_contacts ( id, first_name, last_name, salutation, email, unsubscribed_at )",
+        "id, token, sent_at, first_viewed_at, view_count, response, responded_at, contact:crm_contacts ( id, first_name, last_name, salutation, email, unsubscribed_at, email_bounced_at )",
       )
       .eq("offer_id", id)
       .order("created_at"),
@@ -224,9 +252,10 @@ export default async function OfferDetail({
   }
 
   // Why the last send to a still-unsent recipient was refused (sendOffer
-  // records each refusal as an email_events "failed" row), newest first.
-  // email_events is admin-only under RLS, so other roles see "not sent"
-  // (true, just without the reason); the banner after a send shows it to all.
+  // records each refusal as an email_events "failed" row, through the service
+  // client, whoever sent), newest first. Admin and staff can read
+  // email_events; the accountant cannot, and sees "not sent" (true, just
+  // without the reason).
   const sendFailures = new Map<string, string>();
   if (recipients.some((r) => !r.sent_at)) {
     const { data: fails } = await supabase
@@ -259,26 +288,26 @@ export default async function OfferDetail({
       .slice(0, 20);
   }
 
-  // Add-recipient contact search.
-  const rcQ = sanitizeFilterTerm((sp.rc ?? "").trim());
+  // Add-recipient contact search: the same trigram search as the contacts
+  // page, which also matches first and last name together ("Hiroshi
+  // Tanaka") and tolerates typos; the term goes in as a parameter, not into
+  // a filter string. Existing recipients are taken out before the first 20
+  // are kept, so a search whose best matches are all on the offer still
+  // shows the others.
+  const rcQ = (sp.rc ?? "").trim();
   let contactResults: Recipient["contact"][] = [];
   if (rcQ) {
     const { data: cs } = await supabase
-      .from("crm_contacts")
-      .select("id, first_name, last_name, salutation, email, unsubscribed_at")
-      .or(
-        `first_name.ilike.%${rcQ}%,last_name.ilike.%${rcQ}%,email.ilike.%${rcQ}%`,
-      )
-      .limit(20);
-    contactResults = ((cs ?? []) as Recipient["contact"][]).filter(
-      (c) => c && !existingContactIds.has(c.id),
-    );
+      .rpc("crm_contacts_search", { q: rcQ })
+      .select("id, first_name, last_name, salutation, email, unsubscribed_at, email_bounced_at")
+      .limit(50);
+    contactResults = ((cs ?? []) as unknown as Recipient["contact"][])
+      .filter((c) => c && !existingContactIds.has(c.id))
+      .slice(0, 20);
   }
 
   const sentCount = recipients.filter((r) => r.sent_at).length;
-  const sendable = recipients.filter(
-    (r) => !r.sent_at && r.contact?.email && !r.contact?.unsubscribed_at,
-  ).length;
+  const sendable = recipients.filter((r) => !r.sent_at && canEmail(r.contact)).length;
 
   // ---- server actions -----------------------------------------------------
   async function updateOffer(formData: FormData) {
@@ -357,26 +386,47 @@ export default async function OfferDetail({
     revalidatePath(`/offers/${id}`);
   }
 
+  // The line editors' writes throw when nothing was saved (an error, or no
+  // row of this offer matched), so the row says "Couldn't save" and keeps
+  // the change to send again, and a reorder snaps back. They used to resolve
+  // either way, and the row showed "Saved" over a price the database never
+  // took, which the offer email then went out without.
   async function updateItem(formData: FormData) {
     "use server";
     const db = await getSupabase();
     const itemId = String(formData.get("item_id") ?? "");
     // parseAmount, not Number(): Number("12,000") is NaN, which was stored as
     // null, so typing a price the way people write it cleared it.
-    await db
+    const { data, error } = await db
       .from("offer_items")
       .update({
         price_override_gbp: parseAmount(formData.get("price_override_gbp")),
         note: String(formData.get("note") ?? "").trim() || null,
       })
-      .eq("id", itemId);
+      .eq("id", itemId)
+      .eq("offer_id", id)
+      .select("id");
+    if (error || !data?.length) {
+      console.error("[offer] line not saved:", error?.message ?? "no row matched");
+      throw new Error("The offer line was not saved");
+    }
     revalidatePath(`/offers/${id}`);
   }
 
+  // A <form action>: a throw would replace the page with the error boundary,
+  // so a failed delete comes back as a message on the page instead.
   async function removeItem(formData: FormData) {
     "use server";
     const db = await getSupabase();
-    await db.from("offer_items").delete().eq("id", String(formData.get("item_id") ?? ""));
+    const { error } = await db
+      .from("offer_items")
+      .delete()
+      .eq("id", String(formData.get("item_id") ?? ""))
+      .eq("offer_id", id);
+    if (error) {
+      console.error("[offer] line not removed:", error.message);
+      redirect(`/offers/${id}?error=${encodeURIComponent("The work could not be removed from the offer. Try again.")}`);
+    }
     revalidatePath(`/offers/${id}`);
   }
 
@@ -384,11 +434,17 @@ export default async function OfferDetail({
     "use server";
     const db = await getSupabase();
     // Persist the new order as sequential sort_order values.
-    await Promise.all(
+    const results = await Promise.all(
       orderedIds.map((itemId, i) =>
-        db.from("offer_items").update({ sort_order: i }).eq("id", itemId).eq("offer_id", id),
+        db.from("offer_items").update({ sort_order: i }).eq("id", itemId).eq("offer_id", id).select("id"),
       ),
     );
+    const failedWrite = results.find((r) => r.error || !r.data?.length);
+    if (failedWrite) {
+      console.error("[offer] order not saved:", failedWrite.error?.message ?? "no row matched");
+      // ReorderGrid puts the old order back when this throws.
+      throw new Error("The new order was not saved");
+    }
     revalidatePath(`/offers/${id}`);
   }
 
@@ -443,7 +499,12 @@ export default async function OfferDetail({
 
   async function sendOffer() {
     "use server";
+    // Checked here, not only by the page: a server action can be called on
+    // its own, and the send log below is written with the service client.
+    const session = await getSession();
+    if (!session || !hasRole(session.roles, "admin", "staff")) throw new Error("Forbidden");
     const db = await getSupabase();
+    const audit = createServiceClient();
 
     const { count: itemCount } = await db
       .from("offer_items")
@@ -462,10 +523,11 @@ export default async function OfferDetail({
     const { data: recs } = await db
       .from("offer_recipients")
       .select(
-        "id, token, sent_at, contact:crm_contacts ( first_name, salutation, email, unsubscribed_at )",
+        "id, token, sent_at, contact:crm_contacts ( first_name, salutation, email, unsubscribed_at, email_bounced_at )",
       )
       .eq("offer_id", id)
-      .is("sent_at", null);
+      .is("sent_at", null)
+      .order("created_at");
 
     const from =
       process.env.OFFERS_FROM_EMAIL ??
@@ -473,14 +535,23 @@ export default async function OfferDetail({
       `${GALLERY_NAME} <offers@web.joostvandenbergh.com>`;
     const expiresAt = off?.expires_at ? longDate(off.expires_at) : undefined;
 
+    const started = Date.now();
     let sent = 0;
     let skipped = 0;
     let failed = 0;
+    let left = 0;
+    let unmarked = 0;
     let reason = "";
     for (const r of (recs ?? []) as unknown as Recipient[]) {
       const email = r.contact?.email;
-      if (!email || r.contact?.unsubscribed_at) {
+      // No address, unsubscribed, or an address that hard-bounced.
+      if (!email || !canEmail(r.contact)) {
         skipped++;
+        continue;
+      }
+      // Near the time limit: the rest wait for the next press of Send.
+      if (left > 0 || Date.now() - started > SEND_BUDGET_MS) {
+        left++;
         continue;
       }
       const recipientName =
@@ -511,34 +582,47 @@ export default async function OfferDetail({
         // kept for the recipients table.
         failed++;
         reason ||= emailErrorCode(e);
-        await db.from("email_events").insert({
-          event_type: "failed",
-          offer_recipient_id: r.id,
-          payload: { error: emailErrorCode(e), message: emailErrorDetail(e) },
-        });
+        await logEmailEvent(
+          audit,
+          {
+            event_type: "failed",
+            offer_recipient_id: r.id,
+            payload: { error: emailErrorCode(e), message: emailErrorDetail(e) },
+          },
+          "offer",
+        );
         continue;
       }
-      await db
-        .from("offer_recipients")
-        .update({
-          sent_at: new Date().toISOString(),
-          resend_email_id: resendId,
-        })
-        .eq("id", r.id);
-      await db
-        .from("email_events")
-        .insert({
-          event_type: "sent",
-          offer_recipient_id: r.id,
-          payload: { resend_id: resendId },
-        });
+      // The email went out, so it counts as sent whatever happens next. The
+      // mark is what keeps the next Send from mailing this person again, so a
+      // failed write is tried once more and then reported on its own.
+      const mark = () =>
+        db
+          .from("offer_recipients")
+          .update({
+            sent_at: new Date().toISOString(),
+            resend_email_id: resendId,
+          })
+          .eq("id", r.id)
+          .select("id");
+      let marked = await mark();
+      if (marked.error || !marked.data?.length) marked = await mark();
+      if (marked.error || !marked.data?.length) {
+        unmarked++;
+        console.error("[offer] sent but not marked sent:", r.id, marked.error?.message ?? "no row matched");
+      }
+      await logEmailEvent(
+        audit,
+        { event_type: "sent", offer_recipient_id: r.id, payload: { resend_id: resendId } },
+        "offer",
+      );
       sent++;
     }
     revalidatePath(`/offers/${id}`);
     redirect(
       `/offers/${id}?sent=${sent}&skipped=${skipped}${
         failed ? `&failed=${failed}&reason=${encodeURIComponent(reason)}` : ""
-      }`,
+      }${left ? `&left=${left}` : ""}${unmarked ? `&unmarked=${unmarked}` : ""}`,
     );
   }
 
@@ -766,6 +850,9 @@ export default async function OfferDetail({
                         {r.contact?.email ?? "—"}
                         {r.contact?.unsubscribed_at ? (
                           <span className="ml-1 text-[12px] text-meta">(unsubscribed)</span>
+                        ) : r.contact?.email_bounced_at ? (
+                          // Not mailed: a new address on the contact clears it.
+                          <span className="ml-1 text-[12px] text-meta">(bounced {formatDate(r.contact.email_bounced_at)})</span>
                         ) : null}
                       </Td>
                       <Td className="min-w-[220px]">
@@ -888,8 +975,8 @@ export default async function OfferDetail({
           title="Send private links"
           meta={
             sendable > 0
-              ? `${sendable} recipient${sendable === 1 ? "" : "s"} ready to send (unsent, with an email address).`
-              : "No unsent recipients with an email address."
+              ? `${sendable} recipient${sendable === 1 ? "" : "s"} ready to send (unsent, with an email address that has not bounced or unsubscribed).`
+              : "No unsent recipients with an email address that can be mailed."
           }
           actions={
             <form action={sendOffer}>
