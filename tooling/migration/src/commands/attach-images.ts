@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getSupabase } from "../lib/db.js";
-import { scanImages, type ManifestEntry } from "../lib/images.js";
+import { getSupabase } from "../lib/db.ts";
+import { scanImages, type ManifestEntry } from "../lib/images.ts";
 
 /**
  * attach-images — upload the exported FileMaker images and wire them to their

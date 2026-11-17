@@ -8,6 +8,7 @@ import {
 } from "docx";
 import type { FactSheetWork } from "./fact-sheet";
 import type { CertificateWork } from "./certificate";
+import { textRuns } from "./docx-text";
 
 /*
  * DOCX variants of the fact sheet and certificate — editable in Proton Docs
@@ -87,7 +88,7 @@ function factSheetSection(w: FactSheetWork, showPrices: boolean): Paragraph[] {
         spacing: { before: 200, after: 40 },
         children: [new TextRun({ text: "DESCRIPTION", color: LABEL, bold: true, size: 17 })],
       }),
-      new Paragraph({ children: [new TextRun({ text: w.description, size: 21, color: "3A3A3A" })] }),
+      new Paragraph({ children: textRuns(w.description, { size: 21, color: "3A3A3A" }) }),
     );
   }
   if (w.provenance && w.provenance.length > 0) {
@@ -99,13 +100,10 @@ function factSheetSection(w: FactSheetWork, showPrices: boolean): Paragraph[] {
       ...w.provenance.map(
         (p) =>
           new Paragraph({
-            children: [
-              new TextRun({
-                text: `${p.dateText ? `${p.dateText} — ` : ""}${p.text}`,
-                size: 21,
-                color: "3A3A3A",
-              }),
-            ],
+            children: textRuns(`${p.dateText ? `${p.dateText} — ` : ""}${p.text}`, {
+              size: 21,
+              color: "3A3A3A",
+            }),
           }),
       ),
     );
@@ -234,13 +232,10 @@ export async function certificateDocx(props: {
       ...w.provenance.map(
         (p) =>
           new Paragraph({
-            children: [
-              new TextRun({
-                text: `${p.dateText ? `${p.dateText} — ` : ""}${p.text}`,
-                size: 21,
-                color: "3A3A3A",
-              }),
-            ],
+            children: textRuns(`${p.dateText ? `${p.dateText} — ` : ""}${p.text}`, {
+              size: 21,
+              color: "3A3A3A",
+            }),
           }),
       ),
     );

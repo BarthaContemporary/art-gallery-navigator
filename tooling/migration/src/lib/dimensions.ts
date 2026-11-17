@@ -1,5 +1,5 @@
-import { COL } from "./columns.js";
-import { toText } from "./values.js";
+import { COL } from "./columns.ts";
+import { toText } from "./values.ts";
 
 /** Sanity bounds for a plausible dimension in cm. */
 export const MIN_CM = 0.1;
@@ -111,9 +111,11 @@ export function parseDimensionsFromText(text: string): {
       }
     }
 
-    // Compact form: 'H: 23.5 x W: 22 cm' / 'H 23.5 × W 22 × D 4 cm'
+    // Compact form: 'H: 23.5 x W: 22 cm' / 'H 23.5 × W 22 × D 4 cm'. A
+    // number followed by an inch unit is not a cm value: 'H 9 in (23 cm)'
+    // once gave height 9.
     if (/\bcm\b/i.test(line)) {
-      const compact = line.matchAll(/\b([HWDL])\s*:?\s*(\d+(?:[.,]\d+)?)/g);
+      const compact = line.matchAll(/\b([HWDL])\s*:?\s*(\d+(?:[.,]\d+)?)(?![\d.,]|\s*(?:in\b|inch|["”]|[¼½¾]))/g);
       for (const m of compact) {
         const key = LETTER_TO_KEY[m[1]!.toUpperCase()];
         if (key && values[key] === undefined) {

@@ -2,10 +2,11 @@
   "name": "@jvb/image-worker",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
   "type": "module",
   "description": "Derivative pipeline worker: LISTEN/NOTIFY + poll piece_images, EXIF via exifr, sharp -> sRGB JPEG display master into piece-derivatives",
   "scripts": {
-    "start": "tsx src/worker.ts",
+    "start": "node --import tsx src/worker.ts",
     "typecheck": "tsc --noEmit",
     "build": "echo ts source package"
   },
@@ -18,7 +19,7 @@
     "tsx": "^4.19.3"
   },
   "devDependencies": {
-    "@types/heic-convert": "^1.2.3",
+    "@types/heic-convert": "^2.1.0",
     "@types/node": "^22.14.0",
     "@types/pg": "^8.11.13",
     "typescript": "^5.8.3"

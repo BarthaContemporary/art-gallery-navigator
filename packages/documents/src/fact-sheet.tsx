@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
+import { SANS } from "./fonts";
 
 export interface FactSheetWork {
   stockNumber: string;
@@ -31,7 +32,7 @@ export interface FactSheetProps {
 }
 
 const s = StyleSheet.create({
-  page: { padding: 48, fontSize: 10.5, color: "#2f2f2f", fontFamily: "Helvetica" },
+  page: { padding: 48, fontSize: 10.5, color: "#2f2f2f", fontFamily: SANS },
   header: {
     fontSize: 9,
     letterSpacing: 1.2,
@@ -41,7 +42,7 @@ const s = StyleSheet.create({
   },
   stock: { fontSize: 8.5, color: "#8a8a8a", marginBottom: 6 },
   maker: { fontSize: 11, color: "#5f5f5f", marginBottom: 2 },
-  title: { fontSize: 17, fontFamily: "Helvetica-Bold", color: "#1f1f1f", marginBottom: 2 },
+  title: { fontSize: 17, fontWeight: 700, color: "#1f1f1f", marginBottom: 2 },
   sub: { fontSize: 10.5, color: "#5f5f5f", marginBottom: 14 },
   image: { maxHeight: 300, objectFit: "contain", marginBottom: 16 },
   specRow: { flexDirection: "row", borderTop: "0.5 solid #dcdcdc", paddingVertical: 5 },

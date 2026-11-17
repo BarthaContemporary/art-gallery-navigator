@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { levenshtein } from "./levenshtein.js";
+import { levenshtein } from "./levenshtein.ts";
 
 export interface ManifestEntry {
   filename: string;

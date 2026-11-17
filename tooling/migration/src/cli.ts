@@ -1,20 +1,20 @@
 #!/usr/bin/env tsx
 /**
- * FileMaker -> Supabase migration CLI (staged, idempotent, auditable).
+ * FileMaker -> Supabase migration CLI (staged, auditable).
  *
  * Offline commands (no DB, write to out/):
  *   parse, gen-mappings, clean, scan-images, match-images, report
  * DB commands (need SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY):
- *   load-raw, import-mappings, finalize
+ *   load-raw, import-mappings, finalize, backfill-codes, attach-images
  */
 import fs from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import { z } from "zod";
 
-import { COL, CONTAINER_COLUMNS, type RawRow } from "./lib/columns.js";
-import { cleanRows, issueCounts, type CleanedRow, type CleanIssue } from "./lib/clean.js";
-import { chunk, getSupabase } from "./lib/db.js";
+import { COL, CONTAINER_COLUMNS, type RawRow } from "./lib/columns.ts";
+import { cleanRows, issueCounts, type CleanedRow, type CleanIssue } from "./lib/clean.ts";
+import { chunk, getSupabase } from "./lib/db.ts";
 import {
   CLEANED_JSON,
   DEFAULT_XLSX,
@@ -31,25 +31,27 @@ import {
   readRawRows,
   writeCsv,
   writeJson,
-} from "./lib/io.js";
-import { matchFilename, scanImages, type ManifestEntry } from "./lib/images.js";
+} from "./lib/io.ts";
+import { matchFilename, scanImages, type ManifestEntry } from "./lib/images.ts";
 import {
   proposeCategory,
   proposeLocation,
   proposePublished,
   proposeStatus,
   type MappingProposal,
-} from "./lib/mappings.js";
-import { stockStats } from "./lib/stock.js";
-import { toText } from "./lib/values.js";
-import { fillRates, readWorkbook } from "./lib/xlsx.js";
-import { runFinalize } from "./commands/finalize.js";
-import { runAttachImages } from "./commands/attach-images.js";
+} from "./lib/mappings.ts";
+import { stockStats } from "./lib/stock.ts";
+import { toText } from "./lib/values.ts";
+import { fillRates, readWorkbook } from "./lib/xlsx.ts";
+import { MAPPING_KINDS } from "./lib/finalize-plan.ts";
+import { runFinalize } from "./commands/finalize.ts";
+import { runAttachImages } from "./commands/attach-images.ts";
+import { runBackfillCodes } from "./commands/backfill-codes.ts";
 
 const program = new Command();
 program
   .name("migrate")
-  .description("FileMaker -> Supabase migration CLI (staged, idempotent, auditable)");
+  .description("FileMaker -> Supabase migration CLI (staged, auditable)");
 
 // ---------------------------------------------------------------------------
 // parse (offline)
@@ -204,7 +206,8 @@ program
 const reviewedCsvSchema = z.object({
   raw_value: z.string().min(1),
   count: z.string().optional(),
-  proposed_kind: z.string(),
+  // A typo here would be imported and then silently ignored by finalize.
+  proposed_kind: z.enum(MAPPING_KINDS),
   proposed_value: z.string(),
   notes: z.string().optional(),
 });
@@ -273,7 +276,12 @@ program
     false,
   )
   .option("--batch-size <n>", "insert batch size", "100")
-  .action(async (opts: { acceptMakers: boolean; purchaseYearSeries: boolean; batchSize: string }) => {
+  .option(
+    "--resume",
+    "carry on after a run that failed part-way (refused otherwise once works have been imported)",
+    false,
+  )
+  .action(async (opts: { acceptMakers: boolean; purchaseYearSeries: boolean; batchSize: string; resume: boolean }) => {
     if (!fs.existsSync(CLEANED_JSON)) {
       console.error(`Missing ${CLEANED_JSON} — run \`pnpm migrate clean\` first.`);
       process.exit(1);
@@ -285,10 +293,34 @@ program
         acceptMakers: opts.acceptMakers,
         purchaseYearSeries: opts.purchaseYearSeries,
         batchSize: Math.max(1, Number(opts.batchSize) || 100),
+        resume: opts.resume,
       });
     } catch (err) {
       console.error(`finalize failed: ${err instanceof Error ? err.message : String(err)}`);
-      console.error("finalize is idempotent — fix the cause and re-run; linked rows are skipped.");
+      console.error(
+        "If this run created works before it failed: fix the cause, then run finalize again with --resume " +
+          "straight away (linked rows are skipped). Never run it again once the import is complete.",
+      );
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// backfill-codes (DB) — category / storage location for works already imported
+// ---------------------------------------------------------------------------
+program
+  .command("backfill-codes")
+  .description(
+    "Give imported works the category and storage location their reviewed mappings name, where still empty " +
+      "(reports only, unless --apply)",
+  )
+  .option("--apply", "write the changes (without it: report what would change)", false)
+  .action(async (opts: { apply: boolean }) => {
+    const db = getSupabase();
+    try {
+      await runBackfillCodes(db, { apply: opts.apply });
+    } catch (err) {
+      console.error(`backfill-codes failed: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
     }
   });

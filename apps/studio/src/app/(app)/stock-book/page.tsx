@@ -138,10 +138,11 @@ export default async function StockBookPage({
 
   // Status and the missing-purchase flag live on the work, not in the views,
   // so they are read for the works on this page only, in chunks of ids (a
-  // read across every sold work would pass PostgREST's row cap as the book
-  // grows and miss works silently). Only two kinds of row can raise either
-  // reason: one with no sale date ("Marked sold with no sale date") or one
-  // with no purchase £ (the flag is only ever set then).
+  // read across every sold work would miss works silently should PostgREST
+  // ever cap rows; none is capped today, infra/compose/docker-compose.yml).
+  // Only two kinds of row can raise either reason: one with no sale date
+  // ("Marked sold with no sale date") or one with no purchase £ (the flag is
+  // only ever set then).
   type WorkFlags = { id: string; status: string | null; missing_purchase_gbp: boolean | null };
   const lookupIds = ((rows ?? []) as unknown as StockBookRow[])
     .filter((r) => r.piece_id && (!r.sold_date || r.purchase_cost_gbp == null))

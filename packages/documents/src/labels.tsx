@@ -1,13 +1,8 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { SANS } from "./fonts";
+import { fitLabel, labelHyphenation, mailingLabelLines, type LabelAddress, type LabelFit, type LabelText } from "./label-fit";
 
-export interface LabelAddress {
-  name: string;
-  organization?: string;
-  lines: string[];
-  city?: string;
-  postcode?: string;
-  country?: string;
-}
+export type { LabelAddress } from "./label-fit";
 
 /** Avery layouts — dimensions in mm converted to points (1 mm = 2.8346 pt). */
 const AVERY = {
@@ -19,15 +14,66 @@ const AVERY = {
 export type AveryTemplate = keyof typeof AVERY;
 
 const MM = 2.8346;
+/** Inner margin of a label: clear of the die-cut's rounded corners. */
+const PAD_Y_MM = 4;
+const PAD_X_MM = 5;
 
 const s = StyleSheet.create({
-  page: { fontFamily: "Helvetica", fontSize: 9.5, color: "#1f1f1f" },
-  label: { position: "absolute", padding: `${4 * MM} ${5 * MM}`, justifyContent: "center", overflow: "hidden" },
-  line: { lineHeight: 1.35 },
-  stock: { fontFamily: "Helvetica-Bold", fontSize: 8, lineHeight: 1.35 },
-  workTitle: { fontFamily: "Helvetica-Oblique", lineHeight: 1.35 },
-  dims: { fontSize: 8, lineHeight: 1.35, color: "#3a3a3a" },
+  page: { fontFamily: SANS, fontSize: 9.5, color: "#1f1f1f" },
+  label: { position: "absolute", padding: `${PAD_Y_MM * MM} ${PAD_X_MM * MM}`, overflow: "hidden" },
 });
+
+/** The label's text area in points, inside the padding. */
+function contentBox(t: (typeof AVERY)[AveryTemplate]) {
+  return { width: (t.labelW - 2 * PAD_X_MM) * MM, height: (t.labelH - 2 * PAD_Y_MM) * MM };
+}
+
+/**
+ * One text's style at the fitted size. Each style states its own size and
+ * its leading in points: a unitless lineHeight is taken against the style's
+ * own fontSize (18 pt when it has none), not the inherited one, which set the
+ * lines 24 pt apart and printed wrapped lines over the next. flexShrink 0
+ * keeps the lines from being squeezed together when a label is full.
+ */
+function textStyle(fit: LabelFit, t: LabelText, i: number) {
+  const size = fit.fontSize * (t.scale ?? 1);
+  return {
+    fontSize: size,
+    lineHeight: `${(size * fit.leading).toFixed(2)}pt`,
+    flexShrink: 0,
+    maxLines: fit.maxLines[i],
+    textOverflow: "ellipsis" as const,
+    ...(t.bold ? { fontWeight: 700 as const } : {}),
+  };
+}
+
+function LabelBody({
+  texts,
+  box,
+  extra,
+}: {
+  texts: LabelText[];
+  box: { width: number; height: number };
+  /** Further style for the i-th text (italic title, grey size line). */
+  extra?: (i: number) => { fontStyle?: "italic"; color?: string } | undefined;
+}) {
+  const fit = fitLabel(texts, box);
+  return (
+    // Centred when everything fits; otherwise from the top, so what is cut
+    // off is the end of the label, never the addressee or the stock number.
+    <View style={{ flexGrow: 1, justifyContent: fit.fits ? "center" : "flex-start" }}>
+      {texts.map((t, i) => (
+        <Text
+          key={i}
+          hyphenationCallback={labelHyphenation}
+          style={[textStyle(fit, t, i), extra?.(i) ?? {}]}
+        >
+          {t.text}
+        </Text>
+      ))}
+    </View>
+  );
+}
 
 /**
  * Postal mailing labels on Avery stock. UK format by default; the country
@@ -41,6 +87,7 @@ export function MailingLabels({
   template?: AveryTemplate;
 }) {
   const t = AVERY[template];
+  const box = contentBox(t);
   const perPage = t.cols * t.rows;
   const pages: LabelAddress[][] = [];
   for (let i = 0; i < addresses.length; i += perPage) {
@@ -56,26 +103,13 @@ export function MailingLabels({
             const row = Math.floor(i / t.cols);
             const left = (t.marginLeft + col * (t.labelW + t.gutterX)) * MM;
             const top = (t.marginTop + row * (t.labelH + t.gutterY)) * MM;
-            const isUk =
-              !a.country || /^(uk|united kingdom|great britain|england|scotland|wales)$/i.test(a.country);
+            const texts = mailingLabelLines(a).map((text) => ({ text, maxLines: 2 }));
             return (
               <View
                 key={i}
                 style={[s.label, { left, top, width: t.labelW * MM, height: t.labelH * MM }]}
               >
-                <Text style={s.line}>{a.name}</Text>
-                {a.organization ? <Text style={s.line}>{a.organization}</Text> : null}
-                {a.lines.filter(Boolean).map((l, li) => (
-                  <Text key={li} style={s.line}>
-                    {l}
-                  </Text>
-                ))}
-                <Text style={s.line}>
-                  {[a.city, a.postcode].filter(Boolean).join("  ")}
-                </Text>
-                {!isUk && a.country ? (
-                  <Text style={s.line}>{a.country.toUpperCase()}</Text>
-                ) : null}
+                <LabelBody texts={texts} box={box} />
               </View>
             );
           })}
@@ -108,11 +142,13 @@ export function WorkLabels({
   template?: AveryTemplate;
 }) {
   const t = AVERY[template];
+  const box = contentBox(t);
   const perPage = t.cols * t.rows;
   const pages: WorkLabel[][] = [];
   for (let i = 0; i < works.length; i += perPage) {
     pages.push(works.slice(i, i + perPage));
   }
+  const small = 8 / 9.5;
 
   return (
     <Document>
@@ -123,15 +159,22 @@ export function WorkLabels({
             const row = Math.floor(i / t.cols);
             const left = (t.marginLeft + col * (t.labelW + t.gutterX)) * MM;
             const top = (t.marginTop + row * (t.labelH + t.gutterY)) * MM;
+            const texts: LabelText[] = [{ text: w.stockNumber, scale: small, bold: true, maxLines: 1 }];
+            if (w.maker) texts.push({ text: w.maker, maxLines: 2 });
+            const titleAt = texts.length;
+            texts.push({ text: w.title, maxLines: 3 });
+            if (w.dimensions) texts.push({ text: w.dimensions, scale: small, maxLines: 2 });
+            const dimsAt = w.dimensions ? texts.length - 1 : -1;
             return (
               <View
                 key={i}
                 style={[s.label, { left, top, width: t.labelW * MM, height: t.labelH * MM }]}
               >
-                <Text style={s.stock}>{w.stockNumber}</Text>
-                {w.maker ? <Text style={s.line}>{w.maker}</Text> : null}
-                <Text style={s.workTitle}>{w.title}</Text>
-                {w.dimensions ? <Text style={s.dims}>{w.dimensions}</Text> : null}
+                <LabelBody
+                  texts={texts}
+                  box={box}
+                  extra={(n) => (n === titleAt ? { fontStyle: "italic" } : n === dimsAt ? { color: "#3a3a3a" } : undefined)}
+                />
               </View>
             );
           })}

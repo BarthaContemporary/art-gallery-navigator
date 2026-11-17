@@ -32,6 +32,20 @@ clean.
 | `source-map-js@>=1.0.0 <1.2.2` → `^1.2.2` | GHSA-68fv-2mgg-jv7q; `@tailwindcss/node` (latest) and css-tree accept 1.2.1. Same major. | harmless to keep |
 | `tar@>=7.0.0 <7.5.21` → `^7.5.21` | `@sanity/cli` 8.27 asks for tar ^7.5.18 and pnpm would reuse a vulnerable 7.5.20. Only vulnerable 7.x copies are rewritten. | harmless to keep |
 
+## The image worker's own lockfile
+
+The image worker's container is built from `infra/image-worker` alone and
+installs from `infra/image-worker/pnpm-lock.yaml` (frozen), not from the root
+lockfile, so the overrides above do not reach it. The CI `worker-lockfile`
+job checks that lockfile matches the worker's `package.json`, typechecks
+against it and runs `pnpm audit` on it (zero, like the root). After changing
+the worker's `package.json`, run `pnpm install --ignore-workspace
+--lockfile-only` in `infra/image-worker` and commit the lockfile. Should the
+worker ever need an override, it goes under `pnpm.overrides` in the worker's
+own `package.json` (pnpm ignores it inside the workspace and applies it to
+the standalone install), with a row here. None is needed today (November
+2026: 96 packages, no advisories).
+
 ## The upgrade of 6 November 2026, in short
 
 - **Next.js** 15.5.20 → 15.5.29 in all three apps (critical cache-poisoning

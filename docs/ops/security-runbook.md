@@ -36,7 +36,8 @@ guess passwords, as fast as they liked. After this runbook:
 - the security changes' database updates are applied through the tunnel
   (step 5.4), and the stock book's old copies on the shared drive are
   removed (step 9);
-- the image worker refuses photographs filed somewhere unexpected (step 10).
+- the image worker refuses photographs filed somewhere unexpected and no
+  longer leaves photographs stuck at "Processing" (step 10).
 
 | Step | What | Interruption | Time |
 |---|---|---|---|
@@ -50,7 +51,7 @@ guess passwords, as fast as they liked. After this runbook:
 | 7 | Cloudflare check for capture and at the sign-in server | none | 20 min |
 | 8 | Google Maps keys | none if done in order | 20 min |
 | 9 | Remove old stock-book files from the shared drive | none | 10 min |
-| 10 | Update the image worker | new photographs wait a minute | 5 min |
+| 10 | Update the image worker (database change 0099 first) | new photographs wait a minute | 15 min |
 
 Do steps 1 to 5 in one sitting, and step 7 in the same sitting or within a
 few days. Until step 7 is done, someone calling the sign-in server directly
@@ -141,8 +142,10 @@ Appendix A shows the exact lines and what each does.
    Lines starting with `>` are only in the new file, lines starting with `<`
    only in the live one.
 
-   - If the `>` lines are just the new block (Appendix A) and there are no
-     `<` lines, use the new file:
+   - If the `>` lines are just the new block (Appendix A), perhaps with
+     some comment lines (starting with `#`) and the image worker's
+     `stop_grace_period: 2m` (step 10 adds it otherwise; harmless before
+     then), and there are no `<` lines, use the new file:
 
      ```sh
      mv docker-compose.yml.new docker-compose.yml
@@ -811,54 +814,195 @@ any time.
 ## Step 10. Update the image worker
 
 The image worker (the server program that makes the display copies of
-photographs) now refuses a photograph whose file is not where the studio and
-capture app put it (security review F6), so a planted path cannot make it
-read another folder, and it uses sharp 0.35.5, which fixes the image
-library's advisories (November 2026). It runs on the server, so it is
-updated by hand. Do it any time; it does not depend on the other steps.
-Repeat it whenever `infra/image-worker` changes.
+photographs) runs on the server, so it is updated by hand. Repeat this step
+whenever `infra/image-worker` changes. This version:
 
-1. Back up the files it replaces (on the server, after the usual first
-   commands; `$B` is the folder from step 1):
+- refuses a photograph whose file is not where the studio and capture app
+  put it (security review F6), so a planted path cannot make it read
+  another folder, and uses sharp 0.35.5, which fixes the image library's
+  advisories (November 2026);
+- no longer leaves photographs stuck at "Processing…" when it is restarted:
+  it now receives the stop signal, finishes the photographs in hand and
+  hands the rest back; with database change 0099 a photograph it was
+  working on when it stopped (a reboot, a crash) is picked up again 15
+  minutes later, a passing storage or network failure is retried a few
+  minutes later, and after 3 tries the photograph shows an error instead
+  (a try counts only for a photograph the worker had started, and one
+  that was tried before is made on its own, so a photograph that crashes
+  the worker does not use up the tries of the others);
+- survives a database restart, works on two photographs at a time (memory),
+  and puts cut-out photographs with a transparent background on white
+  rather than black;
+- installs exactly the library versions in its own `pnpm-lock.yaml`, which
+  CI checks and audits, instead of whatever was newest on the day.
+
+It does not depend on the other steps.
+
+1. **Apply database change 0099 first** (on your computer, through the
+   tunnel of 5.4; it can go in before or after 0089 to 0096):
 
    ```sh
-   cp -a ../image-worker/src/worker.ts "$B"/image-worker-worker.ts
-   cp -a ../image-worker/package.json "$B"/image-worker-package.json
-   [ -f ../image-worker/src/storage-path.ts ] && cp -a ../image-worker/src/storage-path.ts "$B"/image-worker-storage-path.ts
+   scripts/apply-migrations.sh 0099
    ```
 
-2. On your computer, in the repository folder:
+   The worker also runs without it, exactly as before (no retries); it
+   starts using it by itself once it is there.
+
+2. Back up what it replaces (on the server, after the usual first
+   commands). This step keeps its own folder, named with the date and
+   time, so doing step 10 again later never mixes with an earlier copy:
 
    ```sh
-   scp infra/image-worker/src/storage-path.ts infra/image-worker/src/worker.ts root@104.238.184.145:/opt/jvb/infra/image-worker/src/
-   scp infra/image-worker/package.json root@104.238.184.145:/opt/jvb/infra/image-worker/
+   S=/root/image-worker-backup-$(date +%Y%m%d-%H%M)
+   mkdir -p "$S" && chmod 700 "$S"
+   cp -a ../image-worker docker-compose.yml "$S"/
+   ls -la "$S"
+   echo "Step 10 backup folder: $S"
    ```
 
-3. On the server:
+   Write down the folder's name. In a new SSH session set it again first:
+   `S=/root/image-worker-backup-<what you wrote down>`.
+
+   **Check:** the listing shows `image-worker` and `docker-compose.yml`.
+
+3. On your computer, in the repository folder (every file of the worker:
+   the program, its library list and lockfile, and the build recipe):
+
+   ```sh
+   scp -r infra/image-worker/src infra/image-worker/package.json infra/image-worker/pnpm-lock.yaml \
+     infra/image-worker/Dockerfile infra/image-worker/.dockerignore infra/image-worker/tsconfig.json \
+     root@104.238.184.145:/opt/jvb/infra/image-worker/
+   ```
+
+4. On the server, give it two minutes to finish when it is stopped. First
+   see whether the compose file has the line already (it has if step 2
+   took the repository's file, or step 10 was done before):
+
+   ```sh
+   grep -n 'stop_grace_period' docker-compose.yml || echo "not there yet"
+   ```
+
+   - If it shows a line ending in `stop_grace_period: 2m`, leave the file
+     alone and go on to the check below. Adding the line a second time
+     makes the file invalid.
+   - If it prints `not there yet`: `nano docker-compose.yml`, press Ctrl+W
+     and search for `context: ../image-worker`, go down one line to
+     `restart: unless-stopped`, press End, press Enter and type the line
+     below. It must start with exactly four spaces, like the `restart:`
+     line above it. Save with Ctrl+O, Enter, then leave with Ctrl+X.
+
+     ```yaml
+         stop_grace_period: 2m
+     ```
+
+   Check: `docker compose config --quiet && echo "compose file OK"` prints
+   `compose file OK`. If it says instead that `stop_grace_period` is
+   "already defined", the line is there twice: open the file in nano,
+   press Ctrl+W, search for `stop_grace_period`, press Ctrl+K on the one
+   you typed to delete it, save and check again. On any other complaint,
+   put the copy from 2 back (`cp -a "$S"/docker-compose.yml
+   docker-compose.yml`) and do this point again.
+
+5. On the server:
 
    ```sh
    docker compose up -d --build image-worker
    docker compose logs --tail=20 image-worker
    ```
 
-   **Check:** the last lines include `listening on channel` and no error,
-   and `docker compose exec image-worker node -p "require('sharp').versions.sharp"`
+   **Check:** the last lines include `listening on channel`, and `claims
+   are leases (migration 0099)` once 0099 is in, and no error;
+   `docker compose exec image-worker node -p "require('sharp').versions.sharp"`
    prints 0.35.5 or later. Then add a photograph to any piece in the studio:
    its thumbnail appears within a minute or two, as before. sharp 0.35
    refuses an original with more than 5 colour channels (a layered TIFF
    with extra alpha channels) with "Input image exceeds channel limit":
    re-save such a file flattened, as RGB, and upload it again.
 
-**Undo:** put back what step 1 saved, then run the two commands of 3 again:
+6. Optional, once: photographs uploaded before this as PNG, WebP or TIFF
+   may show a black background where the file was transparent. This makes
+   every such photograph again, transparent or not. Most come out as
+   before, but the new worker may refuse one that the old one took (a
+   TIFF with more than 5 colour channels, see 5, or a file it will not
+   read for another reason): that photograph then shows an error in the
+   studio and drops off the website until you put it back with c. below.
+   Its old copy is not touched, so putting it back is safe.
+
+   a. Save the list of the photographs this makes again, in the backup
+      folder from 2 (set `S` again in a new SSH session), and count them:
+
+      ```sh
+      docker compose exec -T db psql -U postgres -d postgres -At -c \
+        "select id from piece_images where processing_status = 'done' and storage_path_original ~* '\.(png|webp|tiff?)$';" \
+        > "$S"/step10-remade.txt
+      wc -l < "$S"/step10-remade.txt
+      ```
+
+   b. Queue exactly those. The website picks up the new copies and square
+      tiles by itself:
+
+      ```sh
+      IDS=$(paste -sd, "$S"/step10-remade.txt)
+      docker compose exec -T db psql -U postgres -d postgres -c \
+        "with redo as (update piece_images set processing_status = 'pending', processing_error = null
+                        where id = any('{$IDS}'::uuid[]) and processing_status = 'done'
+                        returning id, storage_path_display),
+              squares as (delete from piece_image_squares s using redo where s.image_id = redo.id)
+         delete from sanity_assets a using redo where a.storage_path = 'piece-derivatives/' || redo.storage_path_display;"
+      ```
+
+      (Forgetting the square tile and the website's copy is what the
+      studio's rotate button does too: the master is replaced under the
+      same name.)
+
+   c. Afterwards, check how they came out, and put back any the new
+      worker refused. Run the first command until it shows no `pending`
+      or `processing` (two at a time, a few seconds each; a passing
+      storage failure is tried again up to about 15 minutes later):
+
+      ```sh
+      IDS=$(paste -sd, "$S"/step10-remade.txt)
+      docker compose exec -T db psql -U postgres -d postgres -c \
+        "select processing_status, count(*) from piece_images where id = any('{$IDS}'::uuid[]) group by 1;"
+      docker compose exec -T db psql -U postgres -d postgres -c \
+        "select id, piece_id, processing_error from piece_images where id = any('{$IDS}'::uuid[]) and processing_status = 'error';"
+      ```
+
+      If the second command lists any, put them back to their old copy
+      (the master the old worker made is still in storage under the same
+      name; the website sync makes their square tile again and puts them
+      back on the site):
+
+      ```sh
+      docker compose exec -T db psql -U postgres -d postgres -c \
+        "update piece_images set processing_status = 'done', processing_error = null
+          where id = any('{$IDS}'::uuid[]) and processing_status = 'error' and storage_path_display is not null;"
+      ```
+
+      Note the errors listed (a TIFF with too many channels can be re-saved
+      as RGB and uploaded again, as in 5).
+
+**Undo:** put back the worker folder saved in 2, take out the one line 4
+added, then run the two commands of 5 again. 0099 can stay: the old worker
+ignores it. Do not copy the whole saved `docker-compose.yml` back: step 2,
+or any other change made since, may have changed the live file, and
+copying it would undo that (for step 2, the sign-in server's limits). In a
+new SSH session set `S` again first, as in 2; the commands below change
+nothing and say STOP while `$S` does not hold the saved folder.
 
 ```sh
-cp -a "$B"/image-worker-worker.ts ../image-worker/src/worker.ts
-cp -a "$B"/image-worker-package.json ../image-worker/package.json
-if [ -f "$B"/image-worker-storage-path.ts ]; then cp -a "$B"/image-worker-storage-path.ts ../image-worker/src/storage-path.ts; else rm -f ../image-worker/src/storage-path.ts; fi
+if [ -d "$S"/image-worker ]; then
+  rm -rf ../image-worker && cp -a "$S"/image-worker ../image-worker
+  sed -i '/^    stop_grace_period: 2m$/d' docker-compose.yml
+  docker compose config --quiet && echo "compose file OK"
+else
+  echo "STOP: set S to the step 10 backup folder first (point 2)"
+fi
 ```
 
-The last line keeps `storage-path.ts` when this step had been done before
-(the saved `worker.ts` needs it) and removes it only on a first run.
+The line taken out is harmless to keep if you would rather leave the
+compose file alone (the old worker stops at once either way); taking it
+out makes `grep` in 4 show the true state next time.
 
 ## Afterwards
 
@@ -869,7 +1013,8 @@ The last line keeps `storage-path.ts` when this step had been done before
   anyone following those notes will find `/pg/query` closed: that is
   intended, use 5.4.
 - Record what step 6.7 found in the review file.
-- Delete the backup folder from step 1 a week after the last step.
+- Delete the backup folder from step 1 a week after the last step, and
+  step 10's (`/root/image-worker-backup-…`) a week after that step.
 
 ## If staff see "Too many sign-in attempts"
 

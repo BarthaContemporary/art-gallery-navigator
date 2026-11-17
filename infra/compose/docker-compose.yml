@@ -244,6 +244,13 @@ services:
       PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
+      # No row cap (PGRST_DB_MAX_ROWS), on purpose. About twenty reads in the
+      # studio take a whole set without paging: list sends and labels, the
+      # contact, inventory and stock-book exports, the CSV import's duplicate
+      # check, the per-category and per-location counts. Under a cap they
+      # would stop at the cap with status 200 and no warning (1,088 works and
+      # 869 contacts in November 2026). Do not add one until every such read
+      # pages (order by a unique key, .range()); infra/README.md §7.
     command: ["postgrest"]
 
   # ---------------------------------------------------------------------
@@ -403,6 +410,10 @@ services:
     build:
       context: ../image-worker
     restart: unless-stopped
+    # On stop the worker finishes the images in hand (two at a time) and hands
+    # any rest of its batch back; give it time to do that before Docker kills
+    # it. docs/ops/security-runbook.md step 10 adds this line on the server.
+    stop_grace_period: 2m
     # This service decodes attacker-influenceable image bytes (sharp/libvips +
     # the heic-convert WASM decoder). Deny privilege escalation so a decoder
     # memory-corruption bug can't be leveraged past the container.

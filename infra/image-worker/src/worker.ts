@@ -8,14 +8,26 @@
  *     `pg_notify('new_piece_image', <image id>)` (created in supabase/migrations).
  *   - This worker LISTENs on that channel and additionally polls every
  *     POLL_INTERVAL_MS (default 60s) as the reliable fallback.
- *   - Each cycle claims up to BATCH_SIZE pending rows (FOR UPDATE SKIP LOCKED,
- *     so multiple workers would not double-process), then per image:
+ *   - Each cycle claims as many pending rows as it works on at once
+ *     (CONCURRENCY, at most BATCH_SIZE; FOR UPDATE SKIP LOCKED, so multiple
+ *     workers would not double-process) and works through them, per image:
  *       download original → EXIF subset via exifr → sharp: auto-rotate,
- *       sRGB, max 4096px longest side (no enlargement), JPEG q85 →
- *       upload to `piece-derivatives/${piece_id}/${image_id}.jpg` →
- *       update the row (paths, dims, bytes, exif, status 'done').
- *   - Any failure marks the row 'error' with the message so the studio can
- *     surface it and offer a retry (retry = set status back to 'pending').
+ *       sRGB, flattened on white, max 4096px longest side (no enlargement),
+ *       JPEG q85 → upload to `piece-derivatives/${piece_id}/${image_id}.jpg`
+ *       → update the row (paths, dims, bytes, exif, status 'done').
+ *   - A claim is a lease once migration 0099 is applied (claim_piece_images):
+ *     a row left 'processing' by a worker that stopped mid-image is taken
+ *     again 15 minutes later, a passing storage/network failure is retried a
+ *     few minutes later, and after 3 tries the row is marked 'error'. A try
+ *     counts when work on the image starts, not when it is claimed, and a
+ *     row tried before is worked on alone, so an image that kills the worker
+ *     uses up only its own tries. Without 0099 the worker claims and fails
+ *     as it always did.
+ *   - Any other failure marks the row 'error' with the message; a retry is
+ *     setting the status back to 'pending'.
+ *   - On SIGTERM it finishes the images in hand, hands back the ones of the
+ *     batch it had not started ('pending'), and exits. The container runs
+ *     node itself as PID 1 (Dockerfile), so the signal reaches this process.
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -23,6 +35,20 @@ import exifr from "exifr";
 import convert from "heic-convert";
 import pg from "pg";
 import sharp, { type OutputInfo } from "sharp";
+import { displayMaster } from "./master.js";
+import {
+  claimLimit,
+  isMissingObject,
+  isNotFound,
+  isTransient,
+  LEASE_SECONDS,
+  MAX_ATTEMPTS,
+  planBatch,
+  positiveInt,
+  retryDelaySeconds,
+  runLimited,
+  TransientError,
+} from "./runtime.js";
 import { safeStoragePath, UUID_PATTERN } from "./storage-path.js";
 
 // ---------------------------------------------------------------------------
@@ -43,8 +69,24 @@ const SUPABASE_URL = requireEnv("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 const DATABASE_URL = requireEnv("DATABASE_URL");
 
-const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS ?? 60_000);
-const BATCH_SIZE = Number(process.env.BATCH_SIZE ?? 5);
+function numberEnv(name: string, fallback: number): number {
+  const { value, invalid } = positiveInt(process.env[name], fallback);
+  if (invalid) {
+    console.warn(
+      `[${new Date().toISOString()}] WARN ${name}=${JSON.stringify(process.env[name])} is not a whole number above 0; using ${fallback}`,
+    );
+  }
+  return value;
+}
+
+const POLL_INTERVAL_MS = numberEnv("POLL_INTERVAL_MS", 60_000);
+// Most rows one claim takes. A claim never takes more than CONCURRENCY
+// (claimLimit), so this only matters when set lower.
+const BATCH_SIZE = numberEnv("BATCH_SIZE", 5);
+// Images worked on at once. Each holds its original (up to the storage
+// limit) and a decoded bitmap in memory, so a whole batch at once could run
+// the 8 GB server out of memory.
+const CONCURRENCY = numberEnv("CONCURRENCY", 2);
 
 const ORIGINALS_BUCKET = "piece-originals";
 const DERIVATIVES_BUCKET = "piece-derivatives";
@@ -89,6 +131,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 const pool = new pg.Pool({ connectionString: DATABASE_URL, max: 4 });
+// An idle pooled connection that drops (a database restart) is reported
+// here. Without a listener the 'error' event threw and ended the worker
+// mid-batch. The pool has already discarded the client; the next query
+// opens a new connection.
+pool.on("error", (err) => {
+  log("warn", "idle database connection lost", { error: errorMessage(err) });
+});
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,6 +149,11 @@ interface PendingImage {
   storage_path_original: string | null;
   /** Manual quarter-turns applied to the previous derivative (0/90/180/270). */
   rotation: number | null;
+  /**
+   * Lease mode (migration 0099): the tries so far as claimed, then this
+   * try's number once work starts (startAttempt). Absent without 0099.
+   */
+  processing_attempts?: number;
 }
 
 /** Subset of EXIF we persist on piece_images.exif (jsonb). */
@@ -132,10 +186,58 @@ async function generateImageEmbedding(_displayJpeg: Buffer): Promise<number[] | 
 // ---------------------------------------------------------------------------
 
 /**
- * Atomically claim up to BATCH_SIZE pending rows by flipping them to
- * 'processing'. SKIP LOCKED makes this safe under concurrent workers.
+ * Whether migration 0099's claim_piece_images() is there. Checked before
+ * each claim until it is (cheap), so applying 0099 needs no restart; a claim
+ * that finds it gone again drops back to the old claim.
+ */
+let leaseMode = false;
+/** After the lease claim failed: when to look for it again (ms epoch). */
+let leaseCheckAfter = 0;
+
+async function detectLeaseMode(): Promise<void> {
+  if (leaseMode || Date.now() < leaseCheckAfter) return;
+  try {
+    const { rows } = await pool.query<{ ok: boolean }>(
+      `select to_regprocedure('public.claim_piece_images(integer,integer,integer)') is not null as ok`,
+    );
+    if (rows[0]?.ok) {
+      leaseMode = true;
+      log("info", "claims are leases (migration 0099): stranded rows are retried", {
+        leaseSeconds: LEASE_SECONDS,
+        maxAttempts: MAX_ATTEMPTS,
+      });
+    }
+  } catch (err) {
+    log("warn", "could not check for claim_piece_images", { error: errorMessage(err) });
+  }
+}
+
+/**
+ * Atomically claim the rows of one round by flipping them to 'processing':
+ * as many as are worked on at once (claimLimit), so none waits claimed but
+ * unstarted. SKIP LOCKED makes this safe under concurrent workers. With
+ * 0099 it also takes rows whose lease ran out (a worker stopped mid-image).
  */
 async function claimBatch(): Promise<PendingImage[]> {
+  const limit = claimLimit(BATCH_SIZE, CONCURRENCY);
+  await detectLeaseMode();
+  if (leaseMode) {
+    try {
+      const result = await pool.query<PendingImage>(
+        `select id, piece_id, storage_path_original, rotation, processing_attempts
+           from public.claim_piece_images($1, $2, $3)`,
+        [limit, LEASE_SECONDS, MAX_ATTEMPTS],
+      );
+      return result.rows;
+    } catch (err) {
+      // Gone again, or not callable by this role: claim as before 0099 and
+      // look again in 10 minutes rather than failing every cycle.
+      if (!isMissingObject(err)) throw err;
+      leaseMode = false;
+      leaseCheckAfter = Date.now() + 10 * 60_000;
+      log("warn", "claim_piece_images unusable; claiming as before 0099", { error: errorMessage(err) });
+    }
+  }
   const result = await pool.query<PendingImage>(
     `UPDATE piece_images
         SET processing_status = 'processing'
@@ -148,7 +250,7 @@ async function claimBatch(): Promise<PendingImage[]> {
                  FOR UPDATE SKIP LOCKED
             )
   RETURNING id, piece_id, storage_path_original, rotation`,
-    [BATCH_SIZE],
+    [limit],
   );
   return result.rows;
 }
@@ -175,9 +277,18 @@ async function extractExif(original: Buffer): Promise<ExifSubset> {
 }
 
 async function downloadOriginal(path: string): Promise<Buffer> {
-  const { data, error } = await supabase.storage.from(ORIGINALS_BUCKET).download(path);
+  let data: Blob | null = null;
+  let error: { message: string } | null = null;
+  try {
+    ({ data, error } = await supabase.storage.from(ORIGINALS_BUCKET).download(path));
+  } catch (err) {
+    throw new TransientError(`download from ${ORIGINALS_BUCKET}/${path} failed: ${errorMessage(err)}`);
+  }
   if (error || !data) {
-    throw new Error(`download from ${ORIGINALS_BUCKET}/${path} failed: ${error?.message ?? "no data"}`);
+    const message = `download from ${ORIGINALS_BUCKET}/${path} failed: ${error?.message ?? "no data"}`;
+    // A missing file stays missing; anything else (storage busy, network)
+    // may clear.
+    throw isNotFound(message) ? new Error(message) : new TransientError(message);
   }
   return Buffer.from(await data.arrayBuffer());
 }
@@ -195,6 +306,85 @@ async function markError(imageId: string, err: unknown): Promise<void> {
   } catch (updateErr) {
     log("error", "failed to record error state", { imageId, error: errorMessage(updateErr) });
   }
+}
+
+/**
+ * Lease mode: try again after a delay. The row stays 'processing' with its
+ * lease set to run out after `delaySeconds`; the next claim after that takes
+ * it as another try. The message is kept for when the tries run out.
+ */
+async function retryLater(imageId: string, err: unknown, delaySeconds: number): Promise<void> {
+  try {
+    await pool.query(
+      `UPDATE piece_images
+          SET processing_started_at = now() - make_interval(secs => $3) + make_interval(secs => $4),
+              processing_error      = $2
+        WHERE id = $1 AND processing_status = 'processing'`,
+      [imageId, errorMessage(err).slice(0, 2000), LEASE_SECONDS, delaySeconds],
+    );
+  } catch (updateErr) {
+    // The lease runs out on its own in 15 minutes; that is the retry then.
+    log("error", "failed to schedule retry", { imageId, error: errorMessage(updateErr) });
+  }
+}
+
+/**
+ * Lease mode: work on the image starts. Counts the try and renews the lease
+ * (it runs from the start, not the claim) in one write, and returns this
+ * try's number. The claim counted nothing, so a row claimed but never
+ * started keeps its tries.
+ */
+async function startAttempt(row: PendingImage): Promise<number> {
+  const guess = (row.processing_attempts ?? 0) + 1;
+  try {
+    const { rows } = await pool.query<{ processing_attempts: number }>(
+      `UPDATE piece_images
+          SET processing_started_at = now(),
+              processing_attempts   = processing_attempts + 1
+        WHERE id = $1 AND processing_status = 'processing'
+    RETURNING processing_attempts`,
+      [row.id],
+    );
+    return rows[0]?.processing_attempts ?? guess;
+  } catch (err) {
+    log("warn", "could not record the start of a try", { imageId: row.id, error: errorMessage(err) });
+    return guess;
+  }
+}
+
+/**
+ * Hand claimed rows that were never started back to the queue (shutdown).
+ * Back at 'pending' a row starts a fresh count when claimed again; the old
+ * worker (runbook step 10's undo) takes 'pending' rows only.
+ */
+async function release(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  try {
+    await pool.query(
+      `UPDATE piece_images SET processing_status = 'pending'
+        WHERE id = ANY($1::uuid[]) AND processing_status = 'processing'`,
+      [ids],
+    );
+    log("info", "handed back unstarted images", { count: ids.length });
+  } catch (err) {
+    log("error", "could not hand back unstarted images", { ids, error: errorMessage(err) });
+  }
+}
+
+/** After a failure: retry later when it may clear and tries are left, else 'error'. */
+async function handleFailure(row: PendingImage, err: unknown): Promise<void> {
+  const attempt = row.processing_attempts;
+  if (leaseMode && attempt !== undefined && isTransient(err)) {
+    if (attempt < MAX_ATTEMPTS) {
+      const delay = retryDelaySeconds(attempt);
+      log("warn", "image failed; will retry", { imageId: row.id, attempt, retryInSeconds: delay, error: errorMessage(err) });
+      await retryLater(row.id, err, delay);
+      return;
+    }
+    await markError(row.id, new Error(`Gave up after ${attempt} tries: ${errorMessage(err)}`));
+    return;
+  }
+  await markError(row.id, err);
 }
 
 /** True when sharp/libvips couldn't decode the input because it's HEIC/HEVC. */
@@ -241,32 +431,18 @@ async function processImage(row: PendingImage): Promise<void> {
   const original = await downloadOriginal(originalPath);
   const exif = await extractExif(original);
 
-  // sharp: .rotate() with no args auto-orients from EXIF; TIFF input is
-  // handled natively by libvips; toColorspace('srgb') normalises AdobeRGB /
-  // ProPhoto / CMYK originals to an sRGB display master.
-  // Re-apply any rotation a human set by hand in the studio; without it a
-  // re-derivation silently reverts their correction to the original's
-  // orientation.
-  //
-  // autoOrient() rather than the bare rotate() this used to call: chaining
-  // rotate().rotate(n) is ambiguous — sharp documents that the last rotate
-  // wins, so whether the EXIF orientation survives depends on the angle.
-  // autoOrient() applies EXIF orientation explicitly and composes cleanly with
-  // a following rotate(), verified for both n=0 and n=270.
+  // sharp (master.ts): EXIF orientation, then any rotation a human set by
+  // hand in the studio (without it a re-derivation silently reverts their
+  // correction), transparency on white, sRGB, size cap. TIFF input is
+  // handled natively by libvips.
   const manualRotation = (((row.rotation ?? 0) % 360) + 360) % 360;
   const toMaster = (buf: Buffer) =>
-    sharp(buf, { limitInputPixels: MAX_INPUT_PIXELS })
-      .autoOrient()
-      .rotate(manualRotation)
-      .toColorspace("srgb")
-      .resize({
-        width: MAX_DIMENSION_PX,
-        height: MAX_DIMENSION_PX,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
-      .toBuffer({ resolveWithObject: true });
+    displayMaster(buf, {
+      rotation: manualRotation,
+      maxDimension: MAX_DIMENSION_PX,
+      maxInputPixels: MAX_INPUT_PIXELS,
+      quality: JPEG_QUALITY,
+    });
 
   let displayJpeg: Buffer;
   let info: OutputInfo;
@@ -291,11 +467,7 @@ async function processImage(row: PendingImage): Promise<void> {
         if (metaErr instanceof Error && metaErr.message === "HEIC exceeds pixel limit") throw metaErr;
         // metadata unreadable — fall through; toMaster still enforces the cap.
       }
-      // @types/heic-convert types buffer as ArrayBufferLike; a Node Buffer is
-      // accepted at runtime (verified), so cast past the imperfect types.
-      const jpeg = Buffer.from(
-        await convert({ buffer: original as unknown as ArrayBufferLike, format: "JPEG", quality: 0.95 }),
-      );
+      const jpeg = Buffer.from(await convert({ buffer: original, format: "JPEG", quality: 0.95 }));
       ({ data: displayJpeg, info } = await toMaster(jpeg));
     } else {
       throw err;
@@ -311,7 +483,7 @@ async function processImage(row: PendingImage): Promise<void> {
       upsert: true, // re-processing (retry) overwrites the previous master
     });
   if (uploadError) {
-    throw new Error(`upload to ${DERIVATIVES_BUCKET}/${displayPath} failed: ${uploadError.message}`);
+    throw new TransientError(`upload to ${DERIVATIVES_BUCKET}/${displayPath} failed: ${uploadError.message}`);
   }
 
   // Phase 2b: CLIP embedding of the display master → piece_embeddings.
@@ -364,21 +536,30 @@ async function runCycle(): Promise<void> {
       return;
     }
     if (batch.length === 0) return;
-    log("info", "claimed batch", { count: batch.length });
 
-    // Process the batch concurrently — each image is mostly I/O (download the
-    // original, upload the derivative), so overlapping them drains a bulk
-    // upload roughly BATCH_SIZE× faster. A failure is isolated per image.
-    await Promise.all(
-      batch.map(async (row) => {
+    // CONCURRENCY images at a time: overlapping the downloads and uploads
+    // drains a bulk upload faster, while the memory each decode takes stays
+    // bounded. A row tried before goes last and alone (planBatch), so if it
+    // is the image that kills the worker no other image loses a try with
+    // it. A failure is isolated per image. Once shutdown starts no new
+    // image is begun; those are handed back below.
+    const plan = planBatch(batch, CONCURRENCY);
+    log("info", "claimed batch", { count: batch.length, lease: leaseMode, atOnce: plan.concurrency });
+    const skipped = await runLimited(
+      plan.rows,
+      plan.concurrency,
+      async (row) => {
         try {
+          if (row.processing_attempts !== undefined) row.processing_attempts = await startAttempt(row);
           await processImage(row);
         } catch (err) {
           log("error", "image failed", { imageId: row.id, error: errorMessage(err) });
-          await markError(row.id, err);
+          await handleFailure(row, err);
         }
-      }),
+      },
+      () => shuttingDown,
     );
+    await release(skipped.map((row) => row.id));
   }
 }
 
@@ -410,6 +591,13 @@ let listenClient: pg.Client | null = null;
 async function startListener(attempt = 0): Promise<void> {
   if (shuttingDown) return;
   const client = new pg.Client({ connectionString: DATABASE_URL });
+  // Listen for errors from the start: an 'error' event with no listener
+  // throws and ends the process. The 'end' handler (reconnect) is attached
+  // only once connected, so a failed connect does not start a second loop
+  // beside the backoff below.
+  client.on("error", (err) => {
+    log("error", "listener connection error", { error: errorMessage(err) });
+  });
   try {
     await client.connect();
     await client.query(`LISTEN ${NOTIFY_CHANNEL}`);
@@ -419,9 +607,6 @@ async function startListener(attempt = 0): Promise<void> {
     client.on("notification", (msg) => {
       log("info", "notify received", { channel: msg.channel, payload: msg.payload ?? null });
       wake("notify");
-    });
-    client.on("error", (err) => {
-      log("error", "listener connection error", { error: errorMessage(err) });
     });
     client.on("end", () => {
       listenClient = null;
@@ -451,10 +636,11 @@ async function shutdown(signal: string): Promise<void> {
 
   if (pollTimer) clearInterval(pollTimer);
 
-  // Let the in-flight batch finish — images mid-flight would otherwise be
-  // stuck in 'processing' until manually reset.
+  // Let the images in hand finish (at most CONCURRENCY); any rest of the
+  // batch is handed back as 'pending'. Compose allows 2 minutes for this
+  // (stop_grace_period) before it kills the container.
   if (cycleInFlight) {
-    log("info", "waiting for in-flight cycle to finish");
+    log("info", "waiting for in-flight images to finish");
     await cycleInFlight;
   }
 
@@ -471,7 +657,8 @@ async function main(): Promise<void> {
   log("info", "image-worker starting", {
     supabaseUrl: SUPABASE_URL,
     pollIntervalMs: POLL_INTERVAL_MS,
-    batchSize: BATCH_SIZE,
+    claimSize: claimLimit(BATCH_SIZE, CONCURRENCY),
+    concurrency: CONCURRENCY,
     maxDimensionPx: MAX_DIMENSION_PX,
     jpegQuality: JPEG_QUALITY,
   });
