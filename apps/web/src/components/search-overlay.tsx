@@ -3,14 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { highlightParts } from "@/lib/fold";
 import { ratioUrl, type SanityImage } from "@/lib/sanity";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
+import { openWork, workOnThisPage } from "@/lib/work-open";
 
 /**
  * Search — the only overlay on the site (handoff 2h). Opens from the header
  * icon or ⌘K / Ctrl-K, full screen on #faf9f6, logo top-left, ✕ top-right.
  * Instant results grouped under grey eyebrows; the matched substring in bold;
- * Esc closes; focus stays inside while open.
+ * Esc closes; focus stays inside while open and returns to what opened it.
+ * Choosing a result closes the overlay, also when the result is on the page
+ * already shown.
  */
 
 const OPEN_EVENT = "jvb:search-open";
@@ -44,43 +48,41 @@ const GROUP_LABEL: Record<Hit["kind"], string> = {
   event: "Events",
 };
 
-/** Bold every occurrence of the query terms inside a result line. */
+/**
+ * Bold every occurrence of the query terms inside a result line, folded the
+ * same way as the search itself (lib/fold), so "hozan" bolds "Hōzan".
+ */
 function Highlight({ text, query }: { text: string; query: string }) {
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return <>{text}</>;
-  const lower = text.toLowerCase();
-  const marks: [number, number][] = [];
-  for (const t of terms) {
-    let i = lower.indexOf(t);
-    while (i !== -1) {
-      marks.push([i, i + t.length]);
-      i = lower.indexOf(t, i + t.length);
-    }
-  }
-  marks.sort((a, b) => a[0] - b[0]);
-  const out: React.ReactNode[] = [];
-  let pos = 0;
-  for (const [s, e] of marks) {
-    if (s < pos) continue;
-    if (s > pos) out.push(text.slice(pos, s));
-    out.push(
-      <b key={s} className="font-semibold text-ink">
-        {text.slice(s, e)}
-      </b>,
-    );
-    pos = e;
-  }
-  if (pos < text.length) out.push(text.slice(pos));
-  return <>{out}</>;
+  return (
+    <>
+      {highlightParts(text, query).map((p, i) =>
+        p.match ? (
+          <b key={i} className="font-semibold text-ink">
+            {p.text}
+          </b>
+        ) : (
+          p.text
+        ),
+      )}
+    </>
+  );
 }
+
+/** A plain click or Enter: not one that opens the link in a new tab or window. */
+function plainActivation(e: React.MouseEvent): boolean {
+  return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}
+
+type Results = { key: string; total: number; groups: Group[]; failed: boolean };
 
 export function SearchOverlay() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState("all");
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
+  // The last answer, with the scope and query it belongs to: until the
+  // answer for what is typed now arrives, the count reads "…" and the
+  // previous results stay, rather than "Nothing found" while typing.
+  const [results, setResults] = useState<Results | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -109,9 +111,13 @@ export function SearchOverlay() {
     setOpen(false);
   }, [pathname]);
 
-  // Esc, body scroll lock, focus trap, initial focus.
+  // Esc, body scroll lock, focus trap, initial focus; on closing, focus goes
+  // back to what opened the overlay (the header's Search button), if it is
+  // still on the page.
   useEffect(() => {
     if (!open) return;
+    const opener =
+      document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     inputRef.current?.focus();
@@ -141,6 +147,7 @@ export function SearchOverlay() {
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, [open, close]);
 
@@ -149,26 +156,27 @@ export function SearchOverlay() {
     if (!open) return;
     const q = query.trim();
     if (!q) {
-      setGroups([]);
-      setTotal(0);
+      setResults(null);
       return;
     }
+    const key = `${scope}:${q}`;
     const controller = new AbortController();
-    const t = setTimeout(async () => {
-      setLoading(true);
+    const run = async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&scope=${scope}`, {
           signal: controller.signal,
         });
-        const json = (await res.json()) as { total: number; groups: Group[] };
-        setGroups(json.groups ?? []);
-        setTotal(json.total ?? 0);
+        if (!res.ok) throw new Error(`search answered ${res.status}`);
+        const json = (await res.json()) as { total?: number; groups?: Group[] };
+        setResults({ key, total: json.total ?? 0, groups: json.groups ?? [], failed: false });
       } catch {
-        /* aborted or offline — keep previous results */
-      } finally {
-        setLoading(false);
+        // Superseded by a newer query: that one will answer.
+        if (controller.signal.aborted) return;
+        // Offline or a failed answer: say so (keeping what was shown) rather than "…" for ever.
+        setResults((prev) => ({ key, total: prev?.total ?? 0, groups: prev?.groups ?? [], failed: true }));
       }
-    }, 150);
+    };
+    const t = setTimeout(() => void run(), 150);
     return () => {
       clearTimeout(t);
       controller.abort();
@@ -178,6 +186,10 @@ export function SearchOverlay() {
   if (!open) return null;
 
   const trimmed = query.trim();
+  const settled = results !== null && results.key === `${scope}:${trimmed}`;
+  const failed = settled && results.failed;
+  const groups = results?.groups ?? [];
+  const total = results?.total ?? 0;
 
   return (
     <div
@@ -218,7 +230,7 @@ export function SearchOverlay() {
           />
           {trimmed ? (
             <span className="shrink-0 font-sans text-small text-meta" aria-live="polite">
-              {loading ? "…" : `${total} result${total === 1 ? "" : "s"}`}
+              {!settled ? "…" : failed ? "Search unavailable" : `${total} result${total === 1 ? "" : "s"}`}
             </span>
           ) : null}
         </div>
@@ -241,7 +253,9 @@ export function SearchOverlay() {
         <div className="mt-8">
           {!trimmed ? (
             <p className="font-sans text-ui text-meta">Try Gutai, Mingei, Tantra</p>
-          ) : groups.length === 0 && !loading ? (
+          ) : groups.length === 0 && failed ? (
+            <p className="font-sans text-ui text-meta">Search is not available just now. Please try again in a moment.</p>
+          ) : groups.length === 0 && settled ? (
             <p className="font-sans text-ui text-meta">Nothing found for “{trimmed}”.</p>
           ) : (
             <div className="flex flex-col gap-8">
@@ -256,6 +270,20 @@ export function SearchOverlay() {
                         <li key={h.id}>
                           <Link
                             href={h.href}
+                            // Close on choosing, not only when the path changes:
+                            // a result on the page already shown (its event, or a
+                            // work hanging in it) changes only the query string.
+                            // A Cmd/Ctrl-click into a new tab leaves search open.
+                            // A work on this page: when its grid takes it (opens
+                            // the panel, scrolls it into view, writes ?work=), no
+                            // navigation, or Next's scroll to the top after it
+                            // would undo the centring.
+                            onClick={(e) => {
+                              if (!plainActivation(e)) return;
+                              const work = workOnThisPage(h.href, window.location.href);
+                              if (work && openWork(work)) e.preventDefault();
+                              close();
+                            }}
                             className="flex min-h-[56px] items-center gap-4 py-2 hover:text-accent"
                           >
                             <span

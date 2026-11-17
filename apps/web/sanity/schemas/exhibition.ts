@@ -1,4 +1,6 @@
 import { WorkOrderInput } from "../components/WorkOrderInput";
+import { richTextBlock } from "./richText";
+import { wanted, type RuleLike } from "./validation";
 /**
  * `exhibition` — a gallery show or art-fair presentation. The core of the
  * public site. Editors curate synced `work` documents into each exhibition.
@@ -8,12 +10,18 @@ const exhibition = {
   title: "Exhibition",
   type: "document",
   fields: [
-    { name: "title", title: "Title", type: "string" },
+    {
+      name: "title",
+      title: "Title",
+      type: "string",
+      validation: wanted("Without a title the event page has an empty heading."),
+    },
     {
       name: "slug",
       title: "Slug",
       type: "slug",
       options: { source: "title", maxLength: 96 },
+      validation: wanted("Without a slug the event has no page and is not listed."),
     },
     {
       name: "subtitle",
@@ -28,7 +36,19 @@ const exhibition = {
       description: "Where the show takes place (e.g. the gallery, or a fair hall).",
     },
     { name: "startDate", title: "Start date", type: "date" },
-    { name: "endDate", title: "End date", type: "date" },
+    {
+      name: "endDate",
+      title: "End date",
+      type: "date",
+      // Backwards dates file a running show under Previous events and print "10 November 2026 – 30 November 2025".
+      validation: (Rule: RuleLike) =>
+        Rule.custom((end, context) => {
+          const start = context.parent?.startDate;
+          return typeof end === "string" && typeof start === "string" && end < start
+            ? "The end date is before the start date."
+            : true;
+        }).error(),
+    },
     {
       name: "datePrecision",
       title: "Show dates as",
@@ -54,7 +74,13 @@ const exhibition = {
           name: "privateView",
           fields: [
             { name: "label", title: "Label", type: "string", initialValue: "Private view" },
-            { name: "start", title: "Start", type: "datetime", options: { timeStep: 15 } },
+            {
+              name: "start",
+              title: "Start",
+              type: "datetime",
+              options: { timeStep: 15 },
+              validation: wanted("Without a start this private view is not shown on the site."),
+            },
             { name: "end", title: "End", type: "datetime", options: { timeStep: 15 } },
             {
               name: "access",
@@ -97,7 +123,7 @@ const exhibition = {
       name: "stand",
       title: "Stand / booth",
       type: "string",
-      description: "e.g. Stand 262 — shown for fairs.",
+      description: "The number only, e.g. 262 — the page writes “Stand 262”. Shown for fairs.",
       hidden: ({ parent }: { parent?: { isArtFair?: boolean } }) => !parent?.isArtFair,
     },
     {
@@ -118,7 +144,7 @@ const exhibition = {
       title: "Read more (longer curatorial text)",
       type: "array",
       description: "Revealed inline by “Read more”. The Introduction above stays the plain-language opener.",
-      of: [{ type: "block" }],
+      of: [richTextBlock],
     },
     {
       name: "pdf",
@@ -138,7 +164,7 @@ const exhibition = {
       title: "Introduction",
       type: "array",
       of: [
-        { type: "block" },
+        richTextBlock,
         {
           type: "image",
           options: { hotspot: true },

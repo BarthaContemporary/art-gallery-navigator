@@ -11,6 +11,12 @@ const FLIP_MS = 420;
  * spine to reveal the next. Arrows, ← → keys anywhere on the page, swipe, a
  * "Fullscreen ⤢" view over the blurred page (like the image zoom) and a
  * spread counter. Reduced motion swaps spreads without the turn.
+ *
+ * Full screen is a modal dialog: focus moves to ✕, Tab stays inside the
+ * reader, and leaving returns focus to the Fullscreen button. Arrow keys
+ * held with Alt, Cmd, Ctrl or Shift are left to the browser (Alt+← and
+ * Cmd+← are Back), and keys pressed inside another dialog (the search
+ * overlay) are not the reader's.
  */
 export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; title: string }) {
   const [index, setIndex] = useState(0);
@@ -18,6 +24,9 @@ export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; tit
   const turnRef = useRef<{ from: number; dir: 1 | -1 } | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const toggleButton = useRef<HTMLButtonElement>(null);
+  const wasFullscreen = useRef(false);
   const touchX = useRef<number | null>(null);
   const count = spreads.length;
 
@@ -50,21 +59,61 @@ export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; tit
       return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
     };
     const onKey = (e: KeyboardEvent) => {
+      // Full screen keeps Tab inside the reader, wrapping at either end.
+      if (fullscreen && e.key === "Tab" && wrap.current) {
+        const focusables = [
+          ...wrap.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'),
+        ];
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (!first || !last) return;
+        const active = document.activeElement;
+        if (!wrap.current.contains(active)) {
+          e.preventDefault();
+          first.focus();
+        } else if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+        return;
+      }
       if (typing(e.target)) return;
+      // A key pressed inside another dialog (the search overlay) is not ours.
+      const dialog = (e.target as Element | null)?.closest?.('[role="dialog"]');
+      if (dialog && dialog !== wrap.current) return;
+      if (e.key === "Escape" && fullscreen) {
+        e.preventDefault();
+        setFullscreen(false);
+        return;
+      }
+      // Alt/Cmd + arrow is the browser's Back and Forward; Shift/Ctrl + arrow select text.
+      if (e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
       if (e.key === "ArrowRight") {
         e.preventDefault();
         go(1);
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         go(-1);
-      } else if (e.key === "Escape" && fullscreen) {
-        e.preventDefault();
-        setFullscreen(false);
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [go, fullscreen]);
+
+  // Focus into the full-screen view on entering it, and back to the
+  // Fullscreen button on leaving (✕ itself is gone by then).
+  useEffect(() => {
+    if (fullscreen) {
+      wasFullscreen.current = true;
+      closeButton.current?.focus({ preventScroll: true });
+    } else if (wasFullscreen.current) {
+      wasFullscreen.current = false;
+      toggleButton.current?.focus();
+    }
+  }, [fullscreen]);
 
   useEffect(() => {
     if (!fullscreen) return;
@@ -97,8 +146,12 @@ export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; tit
           ? "lightbox fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white/55 p-6 backdrop-blur-xl md:p-10"
           : "outline-none"
       }
+      // A named group in the page; a modal dialog while full screen. The
+      // spread number is announced by the counter's live region below.
+      role={fullscreen ? "dialog" : "group"}
+      aria-modal={fullscreen ? true : undefined}
       aria-roledescription="page reader"
-      aria-label={`${title} — spread ${index + 1} of ${count}`}
+      aria-label={`${title}, page reader`}
       onTouchStart={(e) => {
         touchX.current = e.touches[0]?.clientX ?? null;
       }}
@@ -113,6 +166,7 @@ export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; tit
     >
       {fullscreen ? (
         <button
+          ref={closeButton}
           type="button"
           onClick={() => setFullscreen(false)}
           aria-label="Close full screen"
@@ -179,9 +233,14 @@ export function PageFlipReader({ spreads, title }: { spreads: SanityImage[]; tit
           </button>
         </div>
         <span className="tabular font-sans text-small text-meta" aria-live="polite">
-          {index + 1} / {count}
+          <span aria-hidden="true">
+            {index + 1} / {count}
+          </span>
+          <span className="sr-only">
+            Spread {index + 1} of {count}
+          </span>
         </span>
-        <button type="button" className="link-accent min-h-[44px]" onClick={() => setFullscreen((f) => !f)}>
+        <button ref={toggleButton} type="button" className="link-accent min-h-[44px]" onClick={() => setFullscreen((f) => !f)}>
           {fullscreen ? "Exit fullscreen ⤡" : "Fullscreen ⤢"}
         </button>
       </div>

@@ -7,11 +7,18 @@ import {
 } from "@/lib/sanity";
 import type { ReactNode } from "react";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
+import { nestLists, renderedStyle, type ListNode } from "@/lib/portable-lists";
 
 /**
  * Minimal Portable Text renderer (no @portabletext/react dependency).
  * Voice register: serif body at 17/1.65 on a 640px measure; sans headings.
  * No italics anywhere — `em` is rendered upright.
+ *
+ * The Studio offers only what is drawn here (sanity/schemas/richText.ts).
+ * Text stored before that keeps working: Heading 1 is drawn as Heading 2,
+ * Heading 5 and 6 as Heading 4, a line break typed with Shift+Enter stays a
+ * line break, nested list items nest; underline, strike-through and code
+ * read as plain text.
  */
 
 interface Span {
@@ -35,8 +42,15 @@ interface TextBlock extends PortableBlock {
   markDefs?: MarkDef[];
 }
 
+/** Span text with its soft line breaks ("\n", Shift+Enter in the Studio) kept. */
+function withBreaks(text: string): ReactNode {
+  if (!text.includes("\n")) return text;
+  const lines = text.split("\n");
+  return lines.flatMap((line, i) => (i === 0 ? [line] : [<br key={`br${i}`} />, line]));
+}
+
 function renderSpan(span: Span, markDefs: MarkDef[], key: number): ReactNode {
-  let node: ReactNode = span.text ?? "";
+  let node: ReactNode = withBreaks(span.text ?? "");
   for (const mark of span.marks ?? []) {
     if (mark === "strong") {
       node = (
@@ -75,7 +89,7 @@ function BlockContent({ block }: { block: TextBlock }) {
     renderSpan(span, block.markDefs ?? [], i),
   );
 
-  switch (block.style) {
+  switch (renderedStyle(block.style)) {
     case "h2":
       return (
         <h2 className="t-section mt-10">
@@ -138,39 +152,39 @@ export function PortableText({
 
   const output: ReactNode[] = [];
   let listBuffer: TextBlock[] = [];
-  let listType: string | null = null;
+
+  /** One list and the lists nested in its items, by each item's level. */
+  const renderList = (list: ListNode<TextBlock>, nested: boolean): ReactNode => {
+    const items = list.items.map(({ block: item, children }) => (
+      <li key={item._key} className="font-sans text-body text-ink-70">
+        {(item.children ?? []).map((span, i) => renderSpan(span, item.markDefs ?? [], i))}
+        {children.map((child) => renderList(child, true))}
+      </li>
+    ));
+    const spacing = nested ? "mt-2" : "mt-5";
+    const key = `list-${list.key}`;
+    return list.type === "number" ? (
+      <ol key={key} className={`${spacing} list-decimal space-y-2 pl-6`}>
+        {items}
+      </ol>
+    ) : (
+      <ul key={key} className={`${spacing} space-y-2 pl-6 ${nested ? "list-[circle]" : "list-disc"}`}>
+        {items}
+      </ul>
+    );
+  };
 
   const flushList = () => {
     if (listBuffer.length === 0) return;
-    const items = listBuffer.map((item) => (
-      <li key={item._key} className="font-sans text-body text-ink-70">
-        {(item.children ?? []).map((span, i) =>
-          renderSpan(span, item.markDefs ?? [], i),
-        )}
-      </li>
-    ));
-    const key = `list-${listBuffer[0]?._key ?? output.length}`;
-    output.push(
-      listType === "number" ? (
-        <ol key={key} className="mt-5 list-decimal space-y-2 pl-6">
-          {items}
-        </ol>
-      ) : (
-        <ul key={key} className="mt-5 list-disc space-y-2 pl-6">
-          {items}
-        </ul>
-      ),
-    );
+    for (const list of nestLists(listBuffer)) output.push(renderList(list, false));
     listBuffer = [];
-    listType = null;
   };
 
   for (const block of value) {
     if (block._type === "block") {
       const textBlock = block as TextBlock;
       if (textBlock.listItem) {
-        if (listType && listType !== textBlock.listItem) flushList();
-        listType = textBlock.listItem;
+        // Every consecutive list item, whatever its type or level; nestLists sorts them out.
         listBuffer.push(textBlock);
         continue;
       }

@@ -11,11 +11,11 @@ import {
 } from "@/lib/sanity";
 import { eventJsonLd } from "@/lib/structured-data";
 import { eventDescription, fitTitle, ogImage, pageMeta, stripBrand } from "@/lib/seo";
-import { ACCESS_LABEL, eventDates, eventEyebrow, privateViewWhen } from "@/lib/events";
+import { ACCESS_LABEL, eventDates, eventEyebrow, privateViewWhen, standNumber } from "@/lib/events";
 import { arrangeWorks } from "@/lib/arrange-works";
 import { artistCollator } from "@/lib/artist-order";
 import { ARTISTS_UNDER_CONSTRUCTION } from "@/lib/site";
-import { catalogueToGrid, workToGrid, type GridWork } from "@/lib/grid-work";
+import { catalogueShown, catalogueToGrid, workToGrid, type GridWork } from "@/lib/grid-work";
 import { JsonLd } from "@/components/json-ld";
 import { PortableText } from "@/components/portable-text";
 import { HeroSlideshow, type Slide } from "@/components/hero-slideshow";
@@ -28,6 +28,8 @@ async function getEvent(slug: string): Promise<Exhibition | null> {
     params: { slug },
     tags: ["exhibition", "work", "workList", "publication"],
     fallback: null,
+    // A Sanity outage must not be cached as a 404 (lib/sanity sanityFetch).
+    required: true,
   });
 }
 
@@ -85,8 +87,10 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const arranged = arrangeWorks(sourceWorks, ev.workOrder);
   const works: GridWork[] = [
     ...arranged.map(workToGrid).filter((w): w is GridWork => w !== null),
-    ...(ev.catalogue ?? []).filter((c) => c?.image).map(catalogueToGrid),
+    ...(ev.catalogue ?? []).filter(catalogueShown).map(catalogueToGrid),
   ];
+  // The Studio hides the stand once "Art-fair presentation" is unticked but keeps its value.
+  const stand = ev.isArtFair ? standNumber(ev.stand) : null;
 
   // Every artist on show with a page of their own, A to Z: the event's links into the artist section.
   const eventArtists = ARTISTS_UNDER_CONSTRUCTION
@@ -128,9 +132,9 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             <p className="eyebrow">{eventEyebrow(ev)}</p>
             <h1 className="t-title mt-3">{ev.title}</h1>
             {ev.subtitle ? <p className="mt-3 font-sans text-body text-body">{ev.subtitle}</p> : null}
-            {dates || ev.stand ? (
+            {dates || stand ? (
               <p className="mt-3 whitespace-pre-line font-sans text-small text-meta">
-                {[dates, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join("\n")}
+                {[dates, stand ? `Stand ${stand}` : null].filter(Boolean).join("\n")}
               </p>
             ) : null}
             {privateViews.length > 0 ? (

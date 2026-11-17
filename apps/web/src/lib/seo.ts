@@ -21,7 +21,8 @@ import {
   type SanityImage,
 } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName } from "@/lib/site";
-import { eventDates } from "@/lib/events";
+import { eventDates, standNumber } from "@/lib/events";
+import { catalogueShown } from "@/lib/grid-work";
 import { formatLifeDates } from "@/lib/life-dates";
 
 /** Same suffix as the layout's title.template. */
@@ -134,15 +135,16 @@ export function eventDescription(ev: Exhibition): string | undefined {
   // "Frieze Masters - The Regent's Park - Stand B03": the stand has its own field.
   const venue = oneLine(ev.venue?.replace(/\s*[-–·,]?\s*Stand\s+\S+\s*$/i, ""));
   const fair = ev.isArtFair ? oneLine(ev.fairName) ?? venue : undefined;
+  const stand = standNumber(ev.stand);
   const where = fair
-    ? `${fallbackGalleryName} at ${fair}${ev.stand ? `, Stand ${ev.stand}` : ""}`
+    ? `${fallbackGalleryName} at ${fair}${stand ? `, Stand ${stand}` : ""}`
     : ev.isArtFair
       ? `Art fair presentation by ${fallbackGalleryName}`
       : venue && !/^gallery$/i.test(venue)
         ? `Exhibition by ${fallbackGalleryName} at ${venue}`
         : `Exhibition at ${fallbackGalleryName}, London`;
   const ids = new Set([...(ev.works ?? []), ...(ev.workLists ?? []).flatMap((l) => l?.works ?? [])].map((w) => w?._id).filter(Boolean));
-  const workCount = ids.size + (ev.catalogue ?? []).filter((c) => c?.image).length;
+  const workCount = ids.size + (ev.catalogue ?? []).filter(catalogueShown).length;
   const at = `${where}${dates ? `, ${dates}` : ""}.`;
   const works = workCount ? ` ${workCount} works illustrated` : "";
   return (

@@ -1,4 +1,10 @@
-/** Free-form editorial page (about, contact intro, terms, privacy, …). */
+import { richTextBlock } from "./richText";
+
+/**
+ * Editorial page. Only the page with the slug "about" is read by the site:
+ * its title and body stand in on the About page while Site settings has no
+ * About headline and statement. Other slugs have no route.
+ */
 const page = {
   name: "page",
   title: "Page",
@@ -11,14 +17,14 @@ const page = {
       type: "slug",
       options: { source: "title", maxLength: 96 },
       description:
-        'The website renders "about" and "contact" on their fixed routes; other slugs are available to link from navigation.',
+        'Only "about" is used: its title and body fill the About page until Site settings has an About headline and statement. Pages with other slugs are not shown on the website.',
     },
     {
       name: "body",
       title: "Body",
       type: "array",
       of: [
-        { type: "block" },
+        richTextBlock,
         {
           type: "image",
           options: { hotspot: true },

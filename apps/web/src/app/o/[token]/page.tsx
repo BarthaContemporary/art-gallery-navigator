@@ -8,6 +8,8 @@ import { OfferResponse } from "@/components/offer-response";
 import { OfferGate } from "@/components/offer-gate";
 import { grantCookieName, verifyGrant } from "@/lib/offer-access";
 import { PRIVATE_PAGE_REFERRER } from "@/lib/private-paths";
+import { ChunkReadError, selectInChunks } from "@/lib/chunk";
+import { orderOfferLines, primaryImage } from "@/lib/offer-lines";
 
 /**
  * Tokenized private offer / fair-preview page. Never indexed, never cached,
@@ -51,8 +53,10 @@ interface ItemRow {
   price_override_gbp: number | null;
   note: string | null;
   piece_id: string;
+  /** The order staff arranged in the studio. */
+  sort_order: number | null;
   /** Filled in by a second pass — see the loader below. */
-  piece: PieceRow | null;
+  piece?: PieceRow | null;
 }
 
 interface OfferRow {
@@ -93,12 +97,32 @@ function markedPrice(piece: PieceRow): number | null {
   return row?.marked_price_gbp ?? null;
 }
 
-/** Primary display image: prefer role "front", then lowest sort_order. */
-function primaryImage(piece: PieceRow): ImageRow | null {
-  const usable = (piece.images ?? [])
-    .filter((img) => img.storage_path_display && img.processing_status !== "error")
-    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  return usable.find((img) => img.role === "front") ?? usable[0] ?? null;
+/**
+ * Log a failed read without the token, which is the bearer key to the page:
+ * only PostgREST's code and message.
+ */
+function logFailure(step: string, error: unknown): void {
+  const e = error as { code?: unknown; message?: unknown } | null;
+  console.error(`[offer] ${step} failed:`, e?.code ?? null, e?.message ?? String(error));
+}
+
+/** The database or its API could not be reached: nothing says the link is bad. */
+function TemporaryErrorView() {
+  return (
+    <div className="page flex flex-col items-start py-[var(--section)]">
+      <h1 className="max-w-[var(--measure)] font-sans text-h1 font-medium tracking-tight text-sumi">
+        This page is temporarily unavailable
+      </h1>
+      <p className="mt-5 max-w-[var(--measure)] font-serif text-body text-ink-70">
+        We could not load your selection just now. Please try again in a moment by
+        reloading this page; your link is still valid. If it keeps happening, do
+        get in touch and we will send the works another way.
+      </p>
+      <Link href="/about" className="btn btn-filled mt-10">
+        Contact the gallery
+      </Link>
+    </div>
+  );
 }
 
 function UnavailableView() {
@@ -127,46 +151,89 @@ export default async function OfferPage({
   const { token } = await params;
   if (!token || token.length < 8) return <UnavailableView />;
 
-  let recipient: RecipientRow | null = null;
-  let supabase: ReturnType<typeof createServiceClient> | null = null;
-
+  // A failed lookup (database restarting, PostgREST reloading its schema,
+  // missing configuration) is a temporary error, not an expired link: only a
+  // lookup that succeeds and finds nothing says the link is not recognised.
+  let supabase: ReturnType<typeof createServiceClient>;
+  let recipient: RecipientRow | null;
   try {
     supabase = createServiceClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("offer_recipients")
       .select(
         `id, token, response, view_count, first_viewed_at,
          contact:crm_contacts ( first_name, last_name, salutation ),
          offer:offers (
            id, title, kind, intro, show_prices, expires_at, access_password,
-           items:offer_items ( id, price_override_gbp, note, piece_id )
+           items:offer_items ( id, price_override_gbp, note, piece_id, sort_order )
          )`,
       )
       .eq("token", token)
       .maybeSingle();
-    recipient = (data as unknown as RecipientRow) ?? null;
+    if (error) {
+      logFailure("recipient lookup", error);
+      return <TemporaryErrorView />;
+    }
+    recipient = (data as unknown as RecipientRow | null) ?? null;
+  } catch (error) {
+    logFailure("recipient lookup", error);
+    return <TemporaryErrorView />;
+  }
 
-    // Offer lines key on the shared work identity rather than on a single
-    // stock table, so the works, their prices and their images are loaded in a
-    // second pass and stitched back onto the lines.
-    const lines: ItemRow[] = recipient?.offer?.items ?? [];
-    const pieceIds = lines.map((i) => i.piece_id).filter(Boolean);
-    if (pieceIds.length > 0) {
-      const [{ data: works }, { data: fins }, { data: imgs }] = await Promise.all([
-        supabase
-          .from("vw_pieces_all")
-          .select(`id, stock_number, title, medium, period, origin_region, ${DIMENSION_COLUMNS}`)
-          .in("id", pieceIds),
-        supabase.from("piece_financials").select("piece_id, marked_price_gbp").in("piece_id", pieceIds),
-        supabase
-          .from("piece_images")
-          .select("id, piece_id, role, caption, sort_order, storage_path_display, processing_status")
-          .in("piece_id", pieceIds),
+  const offer = recipient?.offer ?? null;
+  const expired =
+    !recipient ||
+    !offer ||
+    (offer.expires_at !== null && new Date(offer.expires_at).getTime() < Date.now());
+
+  if (expired || !recipient || !offer) {
+    return <UnavailableView />;
+  }
+
+  // Password gate: if the offer carries an access password, require a valid
+  // access cookie (set after unlocking or via a magic link) before revealing
+  // the works — and don't log a view for a locked page.
+  if (offer.access_password) {
+    const cookieVal = (await cookies()).get(grantCookieName(token))?.value;
+    if (!verifyGrant(token, cookieVal, Date.now())) {
+      return <OfferGate token={token} />;
+    }
+  }
+
+  // The lines in the order staff arranged them in the studio.
+  const lines: ItemRow[] = orderOfferLines(offer.items);
+
+  // Offer lines key on the shared work identity rather than on a single
+  // stock table, so the works, their prices and their images are loaded in a
+  // second pass and stitched back onto the lines. The reads go in chunks (an
+  // offer built from a whole list can hold hundreds of works, past what one
+  // request line carries), and any failure shows the temporary error rather
+  // than an offer with works or prices missing.
+  const pieceIds = lines.map((i) => i.piece_id).filter(Boolean);
+  if (pieceIds.length > 0) {
+    const db = supabase;
+    try {
+      const [works, fins, imgs] = await Promise.all([
+        selectInChunks<Record<string, unknown> & { id: string }>(pieceIds, (chunk) =>
+          db
+            .from("vw_pieces_all")
+            .select(`id, stock_number, title, medium, period, origin_region, ${DIMENSION_COLUMNS}`)
+            .in("id", chunk),
+        ),
+        selectInChunks<{ piece_id: string; marked_price_gbp: number | null }>(pieceIds, (chunk) =>
+          db.from("piece_financials").select("piece_id, marked_price_gbp").in("piece_id", chunk),
+        ),
+        selectInChunks<ImageRow & { piece_id: string }>(pieceIds, (chunk) =>
+          db
+            .from("piece_images")
+            .select("id, piece_id, role, caption, sort_order, storage_path_display, processing_status")
+            .in("piece_id", chunk),
+        ),
       ]);
-      const byId = new Map((works ?? []).map((w) => [w.id as string, w]));
-      const finByPiece = new Map((fins ?? []).map((f) => [f.piece_id as string, f]));
+      const byId = new Map(works.map((w) => [w.id, w]));
+      const finByPiece = new Map(fins.map((f) => [f.piece_id, f]));
       const imagesByPiece = new Map<string, ImageRow[]>();
-      for (const img of (imgs ?? []) as (ImageRow & { piece_id: string })[]) {
+      for (const img of imgs) {
         const list = imagesByPiece.get(img.piece_id) ?? [];
         list.push(img);
         imagesByPiece.set(img.piece_id, list);
@@ -181,39 +248,21 @@ export default async function OfferPage({
             } as unknown as PieceRow)
           : null;
       }
-    }
-  } catch {
-    recipient = null;
-  }
-
-  const offer = recipient?.offer ?? null;
-  const expired =
-    !recipient ||
-    !offer ||
-    (offer.expires_at !== null && new Date(offer.expires_at).getTime() < Date.now());
-
-  if (expired || !recipient || !offer || !supabase) {
-    return <UnavailableView />;
-  }
-
-  // Password gate: if the offer carries an access password, require a valid
-  // access cookie (set after unlocking or via a magic link) before revealing
-  // the works — and don't log a view for a locked page.
-  if (offer.access_password) {
-    const cookieVal = (await cookies()).get(grantCookieName(token))?.value;
-    if (!verifyGrant(token, cookieVal, Date.now())) {
-      return <OfferGate token={token} />;
+    } catch (error) {
+      logFailure(error instanceof ChunkReadError ? "works lookup" : "works stitching", error);
+      return <TemporaryErrorView />;
     }
   }
 
   // Log the view (best-effort — never blocks rendering).
   const nowIso = new Date().toISOString();
   try {
-    await supabase.from("offer_views").insert({
+    const { error: viewError } = await supabase.from("offer_views").insert({
       recipient_id: recipient.id,
       viewed_at: nowIso,
     });
-    await supabase
+    if (viewError) logFailure("view log", viewError);
+    const { error: countError } = await supabase
       .from("offer_recipients")
       .update({
         view_count: (recipient.view_count ?? 0) + 1,
@@ -221,15 +270,17 @@ export default async function OfferPage({
         last_viewed_at: nowIso,
       })
       .eq("id", recipient.id);
-  } catch {
+    if (countError) logFailure("view count", countError);
+  } catch (error) {
     // view logging must never break the page
+    logFailure("view log", error);
   }
 
   // Signed URLs for the primary image of each piece (private bucket, 1h expiry).
-  const items = (offer.items ?? []).filter((item) => item.piece);
+  const items = lines.filter((item) => item.piece);
   const heroByPiece = new Map<string, ImageRow>();
   for (const item of items) {
-    const hero = item.piece ? primaryImage(item.piece) : null;
+    const hero = item.piece ? primaryImage(item.piece.images) : null;
     if (item.piece && hero) heroByPiece.set(item.piece.id, hero);
   }
   // Signed with the service client, so each stored path is checked first:
@@ -246,16 +297,18 @@ export default async function OfferPage({
   const signedByPath = new Map<string, string>();
   if (paths.length > 0) {
     try {
-      const { data: signed } = await supabase.storage
+      const { data: signed, error: signError } = await supabase.storage
         .from("piece-derivatives")
         .createSignedUrls(paths, 60 * 60);
+      if (signError) logFailure("image signing", signError);
       for (const entry of signed ?? []) {
         if (entry.path && entry.signedUrl && !entry.error) {
           signedByPath.set(entry.path, entry.signedUrl);
         }
       }
-    } catch {
+    } catch (error) {
       // render without images rather than failing
+      logFailure("image signing", error);
     }
   }
 

@@ -1,14 +1,17 @@
 /**
  * Minimal ICS (RFC 5545) builder — no dependency.
- * Emits a single VEVENT with floating local times (no TZ conversion),
- * which imports cleanly into Proton Calendar, Apple Calendar and Google.
+ * Emits a single VEVENT. Give start and end as Dates (real instants), and
+ * they are written in UTC ("…Z"), so a calendar in any time zone shows the
+ * right hour; a string is written as a floating local time, which a
+ * calendar reads in its own zone. Imports cleanly into Proton Calendar,
+ * Apple Calendar, Google and Outlook.
  */
 
 export interface IcsEventInput {
   uid: string;
-  /** Local start, e.g. "2026-07-20T14:00:00" or a Date. */
+  /** The start: a Date (written in UTC), or a floating local time such as "2026-07-20T14:00:00". */
   start: Date | string;
-  /** Local end. */
+  /** The end, in the same form. */
   end: Date | string;
   summary: string;
   description?: string;
@@ -17,6 +20,8 @@ export interface IcsEventInput {
   /** The name is left out when there is none safe to show (a booking's typed name). */
   attendee?: { name?: string | null; email: string };
   url?: string;
+  /** VEVENT STATUS: TENTATIVE for a request nobody has confirmed yet. Default CONFIRMED. */
+  status?: "CONFIRMED" | "TENTATIVE";
 }
 
 /**
@@ -43,18 +48,17 @@ function paramValue(value: string): string {
   return `"${value.replace(/["\u0000-\u001f\u007f]/g, "")}"`;
 }
 
-/** "20260720T140000" — floating local time. */
-function formatLocal(input: Date | string): string {
+/**
+ * A DTSTART / DTEND value: "20260720T130000Z" for a Date (the instant, in
+ * UTC), "20260720T140000" for a string (floating local time).
+ */
+function formatDateTime(input: Date | string): string {
   if (typeof input === "string") {
     const digits = input.replace(/[-:]/g, "").slice(0, 15);
     // "20260720T1400" -> pad seconds
     return digits.length === 13 ? `${digits}00` : digits;
   }
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return (
-    `${input.getFullYear()}${pad(input.getMonth() + 1)}${pad(input.getDate())}` +
-    `T${pad(input.getHours())}${pad(input.getMinutes())}${pad(input.getSeconds())}`
-  );
+  return formatUtc(input);
 }
 
 /** "20260713T101500Z" — UTC stamp for DTSTAMP. */
@@ -86,8 +90,8 @@ export function buildIcs(event: IcsEventInput): string {
     "BEGIN:VEVENT",
     `UID:${escapeText(event.uid)}`,
     `DTSTAMP:${formatUtc(new Date())}`,
-    `DTSTART:${formatLocal(event.start)}`,
-    `DTEND:${formatLocal(event.end)}`,
+    `DTSTART:${formatDateTime(event.start)}`,
+    `DTEND:${formatDateTime(event.end)}`,
     `SUMMARY:${escapeText(event.summary)}`,
   ];
 
@@ -104,7 +108,7 @@ export function buildIcs(event: IcsEventInput): string {
     lines.push(`ATTENDEE${cn};ROLE=REQ-PARTICIPANT:mailto:${event.attendee.email}`);
   }
 
-  lines.push("STATUS:CONFIRMED", "END:VEVENT", "END:VCALENDAR");
+  lines.push(`STATUS:${event.status === "TENTATIVE" ? "TENTATIVE" : "CONFIRMED"}`, "END:VEVENT", "END:VCALENDAR");
 
   return lines.map(fold).join("\r\n") + "\r\n";
 }

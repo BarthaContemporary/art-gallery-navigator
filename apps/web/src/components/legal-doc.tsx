@@ -12,7 +12,7 @@ export function LegalDoc({
   children: ReactNode;
 }) {
   return (
-    <main className="page py-[var(--section)]">
+    <div className="page py-[var(--section)]">
       <div className="grid12">
         <div className="col-span-12 md:col-span-8 md:col-start-3">
           <p className="label">
@@ -29,7 +29,7 @@ export function LegalDoc({
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 

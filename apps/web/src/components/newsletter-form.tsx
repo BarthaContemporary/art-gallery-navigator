@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
+import { TurnstileUnavailable, TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
 
 /**
  * Footer newsletter: Name + Email, both required. Translucent white fields
@@ -23,6 +23,17 @@ export function NewsletterForm() {
   // even one that then fails; after a failure the widget is remounted for a
   // fresh token, so "please try again" works straight away.
   const [turnstileRound, setTurnstileRound] = useState(0);
+  // The check could not run (TurnstileWidget onUnavailable): say so instead of "please wait".
+  const [turnstileDown, setTurnstileDown] = useState(false);
+  const onTurnstileToken = (token: string) => {
+    setTurnstileToken(token);
+    if (token) setTurnstileDown(false);
+  };
+  const retryTurnstile = () => {
+    setTurnstileDown(false);
+    setError(null);
+    setTurnstileRound((n) => n + 1);
+  };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -30,7 +41,8 @@ export function NewsletterForm() {
     const data = new FormData(form);
     if (turnstileEnabled && !turnstileToken) {
       setEngaged(true);
-      setError("Please wait a moment for the verification to complete, then try again.");
+      // When the check is down, the message below the form already says why.
+      setError(turnstileDown ? null : "Please wait a moment for the verification to complete, then try again.");
       return;
     }
     setStatus("sending");
@@ -101,7 +113,9 @@ export function NewsletterForm() {
           . Unsubscribe at any time.
         </span>
       </label>
-      {engaged ? <TurnstileWidget key={turnstileRound} onToken={setTurnstileToken} /> : null}
+      {engaged ? (
+        <TurnstileWidget key={turnstileRound} onToken={onTurnstileToken} onUnavailable={() => setTurnstileDown(true)} />
+      ) : null}
       <button
         type="submit"
         disabled={status === "sending"}
@@ -109,6 +123,9 @@ export function NewsletterForm() {
       >
         {status === "sending" ? "Signing up…" : "Sign up"}
       </button>
+      {turnstileDown && !turnstileToken ? (
+        <TurnstileUnavailable onRetry={retryTurnstile} className="font-sans text-[13px] text-white" />
+      ) : null}
       {error ? (
         <p className="font-sans text-[13px] text-white" role="alert">
           {error}

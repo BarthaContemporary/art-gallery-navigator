@@ -2,6 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildIcs } from "./ics.ts";
+import { londonWallToUtc } from "./london-time.ts";
 
 const event = {
   uid: "u1@jvb-booking",
@@ -40,4 +41,24 @@ test("names are quoted parameter values and can be left out", () => {
 
   const anonymous = unfolded(buildIcs({ ...event, attendee: { name: null, email: "jane@example.com" } }));
   assert.ok(anonymous.includes("ATTENDEE;ROLE=REQ-PARTICIPANT:mailto:jane@example.com"));
+});
+
+test("Date start and end are written as UTC instants, strings as floating times", () => {
+  // 11:00 in London in winter (GMT) and in summer (BST), as the booking route converts them.
+  const at = (wall: string) => new Date(londonWallToUtc(wall));
+  const winter = unfolded(buildIcs({ ...event, start: at("2026-11-02T11:00:00"), end: at("2026-11-02T12:00:00") }));
+  assert.ok(winter.includes("DTSTART:20261102T110000Z"));
+  assert.ok(winter.includes("DTEND:20261102T120000Z"));
+  const summer = unfolded(buildIcs({ ...event, start: at("2026-07-20T11:00:00"), end: at("2026-07-20T12:00:00") }));
+  assert.ok(summer.includes("DTSTART:20260720T100000Z"));
+  assert.ok(summer.includes("DTEND:20260720T110000Z"));
+  const floating = unfolded(buildIcs(event));
+  assert.ok(floating.includes("DTSTART:20261102T110000"));
+});
+
+test("status defaults to CONFIRMED and can be TENTATIVE", () => {
+  assert.ok(unfolded(buildIcs(event)).includes("STATUS:CONFIRMED"));
+  const tentative = unfolded(buildIcs({ ...event, status: "TENTATIVE" }));
+  assert.ok(tentative.includes("STATUS:TENTATIVE"));
+  assert.ok(!tentative.includes("STATUS:CONFIRMED"));
 });

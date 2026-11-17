@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       }
       if (type) for (const t of tagsFor(type)) revalidateTag(t);
       else {
-        for (const t of ["work", "artist", "exhibition", "publication", "collection", "page", "siteSettings", "journalPost"]) {
+        for (const t of ["work", "artist", "exhibition", "publication", "page", "siteSettings", "workList"]) {
           revalidateTag(t);
         }
       }
@@ -45,10 +45,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Missing _type" }, { status: 400 });
     }
 
-    // Every sanityFetch is tagged with its document type (and "sanity").
+    // Every sanityFetch is tagged with the document types it reads (and
+    // "sanity"), so per-type tags cover list and detail routes alike. The
+    // site settings (on every page, through the layout) carry only
+    // "siteSettings": a work's change refreshes just the pages showing works.
     for (const t of tagsFor(body._type)) revalidateTag(t);
-    // siteSettings/work references surface on most pages; nothing else needed —
-    // per-type tags cover list + detail routes alike.
 
     return NextResponse.json({
       revalidated: true,

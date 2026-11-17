@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
+import { TurnstileUnavailable, TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
 
 /**
  * Inline enquiry (handoff 2b3 / 2f / 2g): Name, Email, Phone (optional),
@@ -41,6 +41,17 @@ export function EnquiryForm({
   // even one that then fails; after a failure the widget is remounted for a
   // fresh token, so "please try again" works straight away.
   const [turnstileRound, setTurnstileRound] = useState(0);
+  // The check could not run (TurnstileWidget onUnavailable): say so instead of "please wait".
+  const [turnstileDown, setTurnstileDown] = useState(false);
+  const onTurnstileToken = (token: string) => {
+    setTurnstileToken(token);
+    if (token) setTurnstileDown(false);
+  };
+  const retryTurnstile = () => {
+    setTurnstileDown(false);
+    setError(null);
+    setTurnstileRound((n) => n + 1);
+  };
   /** The mailing-list box was ticked on the enquiry that was sent. */
   const [askedToJoin, setAskedToJoin] = useState(false);
 
@@ -48,7 +59,8 @@ export function EnquiryForm({
     e.preventDefault();
     const data = new FormData(e.currentTarget);
     if (turnstileEnabled && !turnstileToken) {
-      setError("Please wait a moment for the verification to complete, then try again.");
+      // When the check is down, the message below the form already says why.
+      setError(turnstileDown ? null : "Please wait a moment for the verification to complete, then try again.");
       return;
     }
     setStatus("sending");
@@ -175,7 +187,8 @@ export function EnquiryForm({
           {status === "sending" ? "Sending…" : "Send"}
         </button>
       </div>
-      <TurnstileWidget key={turnstileRound} onToken={setTurnstileToken} />
+      <TurnstileWidget key={turnstileRound} onToken={onTurnstileToken} onUnavailable={() => setTurnstileDown(true)} />
+      {turnstileDown && !turnstileToken ? <TurnstileUnavailable onRetry={retryTurnstile} /> : null}
       {error ? (
         <p className="font-sans text-small text-accent-deep" role="alert">
           {error}

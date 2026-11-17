@@ -6,13 +6,21 @@ import { PortableText } from "@/components/portable-text";
 import { RatioImage } from "@/components/ratio-image";
 import { PageFlipReader } from "@/components/page-flip-reader";
 import { InlineEnquiry } from "@/components/inline-enquiry";
-import { availabilityLabel } from "@/lib/publications";
+import { availabilityLabel, catalogueLink } from "@/lib/publications";
 import { JsonLd } from "@/components/json-ld";
 import { publicationJsonLd } from "@/lib/structured-data";
 import { fitTitle, ogImage, pageMeta, publicationDescription, stripBrand } from "@/lib/seo";
 
 async function getPublication(slug: string): Promise<Publication | null> {
-  return sanityFetch<Publication | null>({ query: publicationBySlugQuery, params: { slug }, tags: ["publication"], fallback: null });
+  // Tagged "exhibition" too: hiding the related show must drop its link here.
+  // required: a Sanity outage must not be cached as a 404 (lib/sanity sanityFetch).
+  return sanityFetch<Publication | null>({
+    query: publicationBySlugQuery,
+    params: { slug },
+    tags: ["publication", "exhibition"],
+    fallback: null,
+    required: true,
+  });
 }
 
 export async function generateStaticParams() {
@@ -55,7 +63,7 @@ export default async function PublicationPage({ params }: { params: Promise<{ sl
   const meta = [p.publishedYear ? String(p.publishedYear) : null, p.pages ? `${p.pages} pages` : null, p.language, p.format]
     .filter(Boolean)
     .join(" · ");
-  const pdfHref = p.pdfUrl ?? p.externalUrl;
+  const link = catalogueLink(p);
 
   const aside = (
     <div className="flex flex-col gap-5">
@@ -99,9 +107,9 @@ export default async function PublicationPage({ params }: { params: Promise<{ sl
             heading="Ask about this catalogue"
           />
         )}
-        {pdfHref ? (
-          <a href={pdfHref} target="_blank" rel="noopener noreferrer" className="link-accent inline-flex min-h-[44px] items-center">
-            Download PDF ↓
+        {link ? (
+          <a href={link.href} target="_blank" rel="noopener noreferrer" className="link-accent inline-flex min-h-[44px] items-center">
+            {link.label}
           </a>
         ) : null}
       </div>

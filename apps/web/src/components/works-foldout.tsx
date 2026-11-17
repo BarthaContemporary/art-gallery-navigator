@@ -8,6 +8,7 @@ import { EnquiryForm } from "./enquiry-form";
 import { ReadMore } from "./read-more";
 import { Lightbox } from "./lightbox";
 import { imageDimensions, imageUrl } from "@/lib/sanity";
+import { WORK_OPEN_EVENT } from "@/lib/work-open";
 
 /** Width the fold-out panel's picture is rendered at. */
 const PANEL_PX = 1600;
@@ -116,9 +117,30 @@ export function WorksFoldout({
     [rendered, selected, rowOf],
   );
 
+  // Bumped to scroll the open drawer back into view without changing it.
+  const [recentre, setRecentre] = useState(0);
+
+  // A search result for a work on this same page (lib/work-open): only the
+  // query string changes, so the deep-link effect above may not run again.
+  // Goes through select() so the row-change and ?work= handling apply.
+  // Cancelling the event tells the overlay this grid took it, so it does not
+  // also navigate (Next would scroll to the top and cut the centring short).
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const id = (e as CustomEvent<unknown>).detail;
+      if (typeof id !== "string" || !byId.has(id)) return;
+      e.preventDefault();
+      if (id === selected) setRecentre((n) => n + 1);
+      else select(id);
+    };
+    window.addEventListener(WORK_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(WORK_OPEN_EVENT, onOpen);
+  }, [byId, select, selected]);
+
   // Centre the opened drawer in the viewport. The track is still growing when
   // this runs, but its top is fixed and the body already has its final height,
   // so the resting position is known; scroll to it while the drawer settles.
+  // `recentre` re-runs it for a search hit on the work already open.
   useEffect(() => {
     if (!selected) return;
     const raf = requestAnimationFrame(() => {
@@ -134,7 +156,7 @@ export function WorksFoldout({
       window.scrollTo({ top: window.scrollY + target, behavior: reduce ? "auto" : "smooth" });
     });
     return () => cancelAnimationFrame(raf);
-  }, [selected]);
+  }, [selected, recentre]);
 
   const close = useCallback(() => {
     const id = selected;
