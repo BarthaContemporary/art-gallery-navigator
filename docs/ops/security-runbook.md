@@ -489,6 +489,13 @@ gets the new one in the same sitting.
 | anon key (public) | server `.env` (`ANON_KEY`); Vercel jvb-studio, jvb-web, capture: `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
 | service-role key | server `.env` (`SERVICE_ROLE_KEY`; the gateway, storage, image worker and dashboard read it from there); Vercel jvb-studio, jvb-web, capture: `SUPABASE_SERVICE_ROLE_KEY` |
 | copies | the password manager's copy of `.env`; any `apps/*/.env.local` or `tooling/migration/.env` on a developer's computer; `infra/scripts/.bootstrap-state/secrets.env` if the bootstrap script was ever run from a computer |
+| search password `jvb-search` (OpenSearch, can only search) | the password manager ("JVB search logins"); Vercel jvb-studio, Production only: `OPENSEARCH_SEARCH_PASSWORD`; the server holds only its hash, in `/etc/caddy/Caddyfile` (search site). Never in `.env` |
+| search password `jvb-index` (OpenSearch, keeps the index up to date) | the password manager ("JVB search logins"); Vercel jvb-studio, Production only: `OPENSEARCH_INDEX_PASSWORD`; the server holds only its hash, in `/etc/caddy/Caddyfile` (search site, three places). Never in `.env` |
+
+The two search passwords are not made from `JWT_SECRET`, so this step
+leaves them as they are; they are listed so that every key and where it
+lives is in one table. To replace one, follow `docs/ops/opensearch-runbook.md`,
+"Changing a search password" (if a password may have leaked, change both).
 
 Expect about five minutes in which the studio, the capture app and the
 website's forms (enquiries, appointments, newsletter) fail, and afterwards

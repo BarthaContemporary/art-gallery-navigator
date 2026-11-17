@@ -8,8 +8,9 @@
 # A records for api.<domain> and studio.<domain> must point at the VPS first.
 #
 # Everything proxies to loopback ports published by docker-compose:
-#   kong   → 127.0.0.1:8000
-#   studio → 127.0.0.1:3000
+#   kong       → 127.0.0.1:8000
+#   studio     → 127.0.0.1:3000
+#   opensearch → 127.0.0.1:9200 (search.<domain>, the last site below)
 # ===========================================================================
 
 # Global options.
@@ -218,3 +219,181 @@ files.example.com {
 # 	import security_headers
 # 	reverse_proxy 127.0.0.1:8018
 # }
+
+# ---------------------------------------------------------------------------
+# OpenSearch, the studio's search index (docs/ops/opensearch-runbook.md).
+# The engine listens on 127.0.0.1:9200 only and has no password of its own
+# (its security plugin is not in the image), so this site is its one door
+# from the internet. It is an allow-list of request shapes, not a deny-list:
+# a request reaches the engine only when its method and its request target,
+# exactly as sent, are one of the shapes below, and its login is one of
+# those that shape allows. Everything else is answered here and never
+# touches the engine: 400 for a target not in its plain form; 401 at once,
+# before any password is checked, for a login that is neither of the two
+# below, or the search login asking for anything but a search; 404 for any
+# other shape not listed (no password prompt); 401 for a listed shape
+# without a right password. There is no way in without a password, not
+# even a health check: Admin → Search shows the engine's state, and Docker
+# checks it from inside the server.
+#
+# Every pattern is anchored (^...$) and is run on {http.request.orig_uri}:
+# the path AND query string as the client sent them, before Caddy cleans or
+# decodes anything. So a comma list (/jvb-works-v1,*/_search), a wildcard
+# (/jvb-*/_search), /_all, percent-encoding (%2C is a comma to the engine),
+# doubled slashes, dot segments, a trailing slash and any query string not
+# written out below (?scroll=, ?q=, ?source=) all fail to match. Do not
+# loosen a pattern to a prefix or a wildcard, and do not add a `path`
+# matcher: it reads a cleaned, decoded copy of the path, and `path /jvb-*`
+# would let /jvb-works-v1,*/_search read every index on the server.
+# Index names are the studio's (apps/studio/src/lib/opensearch/config.ts):
+# jvb-<works|makers|contacts>-v<number>, with no aliases; change both
+# together.
+#
+# Two logins, so the password that travels with every search cannot write:
+#   jvb-search  searches, nothing else (the studio's search boxes)
+#   jvb-index   searches too (reconcile lists the ids in an index), and
+#               what the sync route, reconcile and Admin → Search send
+# Only the studio on Vercel (Production) and the password manager hold the
+# passwords. Hash each with `caddy hash-password --bcrypt-cost 10` (runbook
+# step 6). Every password Caddy checks costs it processor time: about
+# 0.06 s at cost 10, almost 1 s at the default 14. The passwords are 48
+# random characters, so the cheaper hash loses nothing, and Caddy remembers
+# a correct password after its first check. Caddy also checks a password
+# whose login a basic_auth block does not list, against a built-in hash at
+# cost 14 (so that a wrong name takes as long as a wrong password): almost
+# 1 s each, whatever the hashes below, so a few such requests a second
+# would keep the server's four processors busy. The two checks right after
+# the plain-form one stop that: a request reaches a basic_auth block only
+# with no login (a prompt, nothing checked) or with a login that block
+# lists, so every check is against one of the two cost-10 hashes.
+# The placeholders below start with "$" so that this file validates as it
+# is (and bootstrap.sh can install it); no password matches them, so both
+# logins stay shut until the runbook puts in real hashes.
+#
+# No fail2ban jail here: the studio calls from Vercel's shared addresses
+# (docs/ops/security-runbook.md, "Why there is no fail2ban jail").
+# apps/studio/src/app/login/search-edge-config.test.ts reads this block and
+# runs a long list of requests that must and must not get through, for each
+# login; a change here needs the same look at that list.
+# infra/scripts/verify-search-edge.sh checks the live site.
+#
+# DNS: none needed on sslip.io. With your own domain, add an A record for
+# search.<domain> pointing at the server before loading this block.
+# ---------------------------------------------------------------------------
+search.example.com {
+	import security_headers
+
+	# Who called, what they asked for and what came back, for when something
+	# looks wrong (docs/compliance/BREACH_PROCEDURE.md). Never request bodies,
+	# which is where the search words travel (query strings are refused), and
+	# Caddy blanks the Authorization header in its logs.
+	log {
+		output file /var/log/caddy/search-access.log {
+			roll_size 10MiB
+			roll_keep 3
+		}
+		format json
+	}
+
+	# Targets only in their plain form, as in supabase_api above: a target
+	# with percent-encoding, doubled slashes or "." / ".." segments could be
+	# read one way here and another way by the engine. The studio never
+	# sends such targets.
+	@search_noncanonical expression `{http.request.orig_uri}.matches("^[^?]*([%]|//|/[.][.]?(/|[?]|$))")`
+	handle @search_noncanonical {
+		respond "Bad request" 400
+	}
+
+	# A login that is neither jvb-search nor jvb-index: refused at once,
+	# before any password check (see the note on hashes above). The two
+	# patterns are how "Basic " followed by base64 of "jvb-search:" and of
+	# "jvb-index:" begin; the bracketed letters pin the colon, so jvb-index8
+	# or jvb-search5 is refused too. A request with no login goes on to the
+	# password prompt of the shape it asks for, or to 404. Change these with
+	# the logins: search-edge-config.test.ts works them out from the names.
+	@search_unknown_login expression `{http.request.header.Authorization} != "" && !{http.request.header.Authorization}.matches("^Basic (anZiLXNlYXJjaD[o-r]|anZiLWluZGV4O[g-v])")`
+	handle @search_unknown_login {
+		respond "Unauthorized" 401
+	}
+
+	# The search login asking for anything but a search: refused at once
+	# too. Only the search shape (1. below) lists jvb-search, so without this
+	# its name on any other listed shape would be checked against Caddy's
+	# built-in slow hash. The shape here is exactly that of 1.
+	@search_login_not_search expression `{http.request.header.Authorization}.matches("^Basic anZiLXNlYXJjaD[o-r]") && !(method('POST') && {http.request.orig_uri}.matches("^/jvb-(works|makers|contacts)-v[0-9]+/_search$"))`
+	handle @search_login_not_search {
+		respond "Unauthorized" 401
+	}
+
+	# 1. Searching: one index per request, no query string; the body
+	#    carries everything (size, _source, timeout, the words).
+	@search_query {
+		method POST
+		expression `{http.request.orig_uri}.matches("^/jvb-(works|makers|contacts)-v[0-9]+/_search$")`
+	}
+	handle @search_query {
+		request_body {
+			max_size 64KB
+		}
+		basic_auth {
+			jvb-search $2a$10$CHANGE_ME_bcrypt_hash_for_jvb-search
+			jvb-index $2a$10$CHANGE_ME_bcrypt_hash_for_jvb-index
+		}
+		reverse_proxy 127.0.0.1:9200 {
+			# The engine has no use for the password; do not hand it on.
+			header_up -Authorization
+		}
+	}
+
+	# 2. Keeping the index current: bulk writes to one index, with an
+	#    optional ?refresh. The sync route and reconcile send at most 5 MB
+	#    at a time.
+	@index_bulk {
+		method POST
+		expression `{http.request.orig_uri}.matches("^/jvb-(works|makers|contacts)-v[0-9]+/_bulk([?]refresh=(true|false))?$")`
+	}
+	handle @index_bulk {
+		request_body {
+			max_size 16MB
+		}
+		basic_auth {
+			jvb-index $2a$10$CHANGE_ME_bcrypt_hash_for_jvb-index
+		}
+		reverse_proxy 127.0.0.1:9200 {
+			header_up -Authorization
+		}
+	}
+
+	# 3. Reconcile and Admin → Search: make and delete an index by its exact
+	#    name, refresh it, squeeze erased contacts out of it, read its count,
+	#    mapping and settings, and three exact status reads (health, the
+	#    disk guard's blocks, the list of jvb- indices).
+	@index_admin expression `
+		(method('PUT') && {http.request.orig_uri}.matches("^/jvb-(works|makers|contacts)-v[0-9]+$")) ||
+		(method('DELETE') && {http.request.orig_uri}.matches("^/jvb-(works|makers|contacts)-v[0-9]+$")) ||
+		(method('POST') && {http.request.orig_uri}.matches("^/jvb-(works|makers|contacts)-v[0-9]+/_refresh$")) ||
+		(method('POST') && {http.request.orig_uri}.matches("^/jvb-(works|makers|contacts)-v[0-9]+/_forcemerge[?]only_expunge_deletes=true$")) ||
+		(method('GET') && {http.request.orig_uri}.matches("^/jvb-(works|makers|contacts)-v[0-9]+/(_count|_mapping|_settings)$")) ||
+		(method('GET') && {http.request.orig_uri} == "/_cluster/health") ||
+		(method('GET') && {http.request.orig_uri} == "/_cluster/settings?flat_settings=true") ||
+		(method('GET') && {http.request.orig_uri} == "/_cat/indices/jvb-*?format=json&h=index,health,docs.count,docs.deleted,store.size")
+	`
+	handle @index_admin {
+		request_body {
+			max_size 1MB
+		}
+		basic_auth {
+			jvb-index $2a$10$CHANGE_ME_bcrypt_hash_for_jvb-index
+		}
+		reverse_proxy 127.0.0.1:9200 {
+			header_up -Authorization
+		}
+	}
+
+	# Everything else (other indices, aliases, cluster settings changes,
+	# snapshots, tasks, node information, scroll, scripts): not here. No
+	# password prompt, nothing sent on.
+	handle {
+		respond "Not found" 404
+	}
+}

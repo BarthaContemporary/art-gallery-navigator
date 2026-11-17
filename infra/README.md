@@ -15,11 +15,18 @@ and `import supabase_api`, never a `reverse_proxy` line of its own, and must
 pass the runbook's step 4 before anything uses it: without the snippet the
 sign-in server counts nothing and the code emails reopen.
 
+The studio's search index (OpenSearch, the `opensearch` service, reached
+from outside only through the `search.` Caddy site with two logins) is set
+up, checked, upgraded and removed step by step in
+[`docs/ops/opensearch-runbook.md`](../docs/ops/opensearch-runbook.md).
+
 ```
 infra/
-  compose/          docker-compose.yml, .env.example, Caddyfile, kong/db init
+  compose/          docker-compose.yml, .env.example, Caddyfile, kong/db init,
+                    opensearch/ (the search engine's image, built by compose)
   image-worker/     Node + sharp derivative worker (built by compose)
-  scripts/          provision.sh, backup.sh, restore-drill.sh
+  scripts/          provision.sh, backup.sh, restore-drill.sh,
+                    verify-search-edge.sh (read-only check of the search site)
 ```
 
 ## 1. Provisioning order (fresh VPS)
@@ -66,6 +73,7 @@ infra/
 |---|---|---|---|
 | `api.<domain>` | A | VPS IP | Supabase gateway (Caddy → Kong :8000) |
 | `studio.<domain>` | A | VPS IP | Supabase dashboard (Caddy → :3000, basic-auth, break-glass only) |
+| `search.<domain>` | A | VPS IP | The studio's search index (Caddy → OpenSearch :9200, two logins, exact request list). None needed on sslip.io (`search.104-238-184-145.sslip.io`); `search.joostvandenbergh.com` if sslip.io's shared certificate limit bites (opensearch runbook step 6) |
 | Resend DKIM/SPF/MX | per Resend | per Resend | auth + offer/newsletter email |
 
 The Next.js apps (`studio` back-office, public site) are Vercel domains and
@@ -76,7 +84,8 @@ no public traffic ever reaches this box except API calls.
 
 ```sh
 cd /opt/jvb/infra/compose
-docker compose up -d          # first run builds ../image-worker
+docker compose up -d          # first run builds ../image-worker and ./opensearch
+                              # (OpenSearch: about a 1.2 GB download)
 docker compose ps             # all services healthy?
 docker compose logs -f image-worker
 ```
@@ -782,6 +791,15 @@ record the tag in the compose file when you first deploy). To upgrade:
 Rollback = revert the tag and `docker compose up -d <service>` (except
 Postgres once its data directory has been upgraded — hence step 2).
 
+OpenSearch is the exception: it has no `image:` tag (compose builds it from
+`compose/opensearch/Dockerfile`, pinned there by version and digest, and
+`docker compose pull` skips it), and it is upgraded or rolled back by
+changing that `FROM` line and starting from an empty data volume, then
+Admin → Search → "Reconcile now" (opensearch runbook, "Upgrading
+OpenSearch"). Never revert its tag on the same volume: OpenSearch cannot
+open data a newer version wrote. Its data is a copy of Postgres, so nothing
+is lost.
+
 PostgREST (the `rest` service) runs with **no row cap** on purpose: several
 studio reads take a whole table without paging (list sends and labels, the
 contact, inventory and stock-book exports, the contact import's duplicate
@@ -805,7 +823,12 @@ lives in exactly three places — Postgres (dumped nightly), Object Storage
 3. Clone repo, recreate `.env` from the password manager (the `.env` values
    are the ONE thing not in git — keep a copy in the manager, always
    current), install Caddyfile.
-4. `docker compose up -d`, then restore the latest dump (§5).
+4. `docker compose up -d`, then restore the latest dump (§5). The first
+   `up -d` also builds OpenSearch (about a 1.2 GB download). Its index is
+   not restored: it is made again from Postgres (opensearch runbook steps
+   6, 7 and 9 for the search site's passwords and the studio's settings,
+   then Admin → Search → "Reconcile now"; its "Why there is no backup"
+   says what to do first when the Caddyfile came whole from this repo).
 5. Storage objects are already in Object Storage — nothing to restore unless
    the bucket itself was lost, in which case `rclone sync` back from
    `jvb-storage-replica`.
