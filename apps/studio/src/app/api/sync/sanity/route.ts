@@ -12,14 +12,30 @@ import { deleteUnusedAssets, forgetMissingAssets } from "@/lib/sanity-assets";
 import {
   artistDocId,
   listDocId,
+  downloadForSync,
   ensureImageAsset,
   htmlToText,
   loadAssetCache,
   sanityEnv,
   sanityMutate,
   slugify,
+  SyncRetryError,
   workDocId,
 } from "@/lib/sanity-sync";
+import {
+  entityKey,
+  failedWriteState,
+  HOLD_LIMIT_MS,
+  heldSince,
+  heldTooLong,
+  overlappedEntities,
+  settleBatch,
+  storageFailureIsPermanent,
+  type OutboxRow,
+  type Outcome,
+  type StateUpdate,
+  type SyncEntity,
+} from "@/lib/sanity-sync-rules";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -39,6 +55,15 @@ const TIME_BUDGET_MS = 42_000;
  * wake-up, which the queue itself raises.
  */
 const RENDER_BUDGET_MS = 24_000;
+/**
+ * A work's photographs are uploaded only this long into the invocation
+ * (counted after the settle, so 56 s remain of maxDuration). A work whose
+ * next upload would start later is left whole, nothing of it written, and
+ * queued again for a fresh invocation; what it uploaded so far is
+ * remembered. The rest of the time is for the upload in flight, the tile,
+ * the write, the deletes and the cleanup.
+ */
+const WORK_BUDGET_MS = 32_000;
 
 /**
  * Supabase → Sanity sync (one way). Woken by the database the moment an
@@ -50,6 +75,16 @@ const RENDER_BUDGET_MS = 24_000;
  * web-visible, and pieces in the trash. Once the documents are written, the
  * images the sync had uploaded for them that nothing uses any more are
  * deleted from Sanity (lib/sanity-assets.ts).
+ *
+ * Nothing goes out on data the sync could not read. A failed read of the
+ * batch's rows leaves the whole claim to lapse; a work, artist or list whose
+ * own read or upload fails (a list's membership, a photograph Sanity or
+ * storage would not take just then, a delete refused for any reason but a
+ * reference) is held back on its own: nothing of it is written, its rows
+ * stay unprocessed, and a later run retries it while the rest of the batch
+ * goes out (HOLD_LIMIT_MS bounds how long, counted from the first run that
+ * held it, which its sync state records). Entity outcomes and what they
+ * write back are in lib/sanity-sync-rules.ts.
  *
  * Every storage path read here comes from a database column that staff can
  * write, and the downloads use the service role, so each one is checked
@@ -71,16 +106,23 @@ async function detectFocusInStorage(supabase: Db, bucket: string, path: string):
   }
 }
 
-/** Download a storage object as a buffer; null when it is missing (or its path is refused). */
+/**
+ * Download a storage object as a buffer; null when it is missing (or its
+ * path is refused). Throws SyncRetryError when storage failed in a way a
+ * later run may not, so the work waits rather than go out without its tile.
+ */
 async function downloadBuffer(supabase: Db, bucket: string, path: string): Promise<Buffer | null> {
   if (!safeStoragePath(path)) return null;
-  const { data: blob, error } = await supabase.storage.from(bucket).download(path);
-  if (error || !blob) return null;
-  return Buffer.from(await blob.arrayBuffer());
+  return (await downloadForSync(supabase, bucket, path))?.buffer ?? null;
 }
 
 /** How a work's square tile is drawn: fitted on white, rendered on the extended backdrop, or the photograph as taken cut square around the piece. */
 type Presentation = "flat" | "object" | "photo";
+
+/** The owner's "Website square" choice on the piece, when it is not auto. */
+const forcedPresentation = (p: string | null): Presentation | null => (p === "flat" || p === "object" || p === "photo" ? p : null);
+
+type Square = { kind: Presentation | null; squarePath: string | null; rendered: boolean; deferred: boolean };
 
 /** What the sync decided for a display master before (piece_image_squares). */
 type SquareRow = {
@@ -100,7 +142,9 @@ type SquareRow = {
  * backdrop extended) stored beside the display master. The owner's choice on
  * the piece overrides the photograph's reading. Analysis and rendering happen
  * once per master; the row remembers them. Null kind: nothing could be
- * decided (the master would not download), so the website keeps its crop.
+ * decided (the master is not in storage, or would not render), so the
+ * website keeps its crop. A storage failure that may pass throws
+ * SyncRetryError instead, and the work waits for a later run.
  */
 async function ensureSquare(
   supabase: Db,
@@ -108,8 +152,8 @@ async function ensureSquare(
   img: { id: string; path: string; width: number | null; height: number | null },
   row: SquareRow | null,
   renderUntil: number,
-): Promise<{ kind: Presentation | null; squarePath: string | null; rendered: boolean; deferred: boolean }> {
-  const forced = piece.presentation === "flat" || piece.presentation === "object" || piece.presentation === "photo" ? piece.presentation : null;
+): Promise<Square> {
+  const forced = forcedPresentation(piece.presentation);
   const flatHint = flatWorkHint(piece.medium, piece.title);
   // Same master as before: the rendered square still holds; the guess only
   // if the catalogue hint it was made with has not changed.
@@ -149,19 +193,23 @@ async function ensureSquare(
     if (outOfTime()) return { kind, squarePath: null, rendered, deferred: true };
     const buf = await load();
     if (!buf) return { kind: null, squarePath: null, rendered, deferred: false };
+    let r: Awaited<ReturnType<typeof renderObjectSquare>>;
     try {
-      const r = kind === "photo" ? await renderPhotoSquare(buf, { flatHint, analysed }) : await renderObjectSquare(buf, { flatHint, analysed });
-      const path = `${piece.id}/${img.id}.sq-${r.sourceWidth}x${r.sourceHeight}.jpg`;
-      const { error } = await supabase.storage
-        .from("piece-derivatives")
-        .upload(path, r.square, { contentType: "image/jpeg", upsert: true });
-      if (error) return { kind: null, squarePath: null, rendered, deferred: false };
-      squarePath = path;
-      rendered = true;
-      box = r.box;
+      r = kind === "photo" ? await renderPhotoSquare(buf, { flatHint, analysed }) : await renderObjectSquare(buf, { flatHint, analysed });
     } catch {
       return { kind: null, squarePath: null, rendered, deferred: false };
     }
+    const path = `${piece.id}/${img.id}.sq-${r.sourceWidth}x${r.sourceHeight}.jpg`;
+    const { error } = await supabase.storage
+      .from("piece-derivatives")
+      .upload(path, r.square, { contentType: "image/jpeg", upsert: true });
+    if (error) {
+      if (storageFailureIsPermanent(error)) return { kind: null, squarePath: null, rendered, deferred: false };
+      throw new SyncRetryError(`Could not store the square tile ${path}: ${error.message}`);
+    }
+    squarePath = path;
+    rendered = true;
+    box = r.box;
   }
 
   if (!fresh || row!.kind !== kind || (row!.square_path ?? null) !== (squarePath ?? null)) {
@@ -203,22 +251,25 @@ export async function POST(request: Request) {
   if (request.headers.get("x-sync-source") === "outbox") await sleep(SETTLE_MS);
 
   const started = Date.now();
-  const renderUntil = started + RENDER_BUDGET_MS;
-  const totals = { processed: 0, pieces: 0, makers: 0, lists: 0, runs: 0, deferred: 0, assetsDeleted: 0 };
+  const limits = { renderUntil: started + RENDER_BUDGET_MS, workUntil: started + WORK_BUDGET_MS };
+  const totals = { processed: 0, held: 0, pieces: 0, makers: 0, lists: 0, runs: 0, deferred: 0, assetsDeleted: 0 };
   while (Date.now() - started < TIME_BUDGET_MS) {
-    const r = await processBatch(supabase, env, renderUntil);
+    const r = await processBatch(supabase, env, limits);
     if (!r.ok) {
-      return Response.json({ error: "sanity mutate failed", detail: r.detail, ...totals }, { status: 502 });
+      return Response.json({ error: "sync batch failed", detail: r.detail, ...totals }, { status: 502 });
     }
-    if (r.processed === 0) break;
+    // Rows held back stay claimed, so the next batch takes other rows.
+    if (r.claimed === 0) break;
     totals.processed += r.processed;
+    totals.held += r.held;
     totals.pieces += r.pieces;
     totals.makers += r.makers;
     totals.lists += r.lists;
     totals.runs += 1;
     totals.deferred += r.deferred;
     totals.assetsDeleted += r.assetsDeleted;
-    // Tiles left for later belong to the next invocation, not to this one.
+    // Work left for later belongs to the next invocation (the queue wakes
+    // one); draining on here would only overlap it.
     if (r.deferred > 0) break;
   }
   return Response.json(totals);
@@ -241,26 +292,143 @@ async function isAuthorised(supabase: ReturnType<typeof createServiceClient>, pr
 }
 
 type BatchResult =
-  | { ok: true; processed: number; pieces: number; makers: number; lists: number; deferred: number; assetsDeleted: number }
+  | {
+      ok: true;
+      /** Rows claimed; zero means the outbox is drained. */
+      claimed: number;
+      /** Rows finished (marked processed). */
+      processed: number;
+      /** Rows left unprocessed for a later run (a failed read or upload). */
+      held: number;
+      pieces: number;
+      makers: number;
+      lists: number;
+      deferred: number;
+      assetsDeleted: number;
+    }
   | { ok: false; detail: string };
+
+/**
+ * When each of the batch's entities began to be held, as earlier runs
+ * recorded it in sanity_sync_state (lib/sanity-sync-rules.ts, heldSince), for
+ * HOLD_LIMIT_MS. An entity with no hold recorded is absent. Null when the
+ * read fails: nothing then counts as held too long, and held entities leave
+ * their records as they are.
+ */
+async function loadHoldStarts(supabase: Db, rows: OutboxRow[]): Promise<Map<string, number> | null> {
+  const keys = new Set(rows.map((r) => entityKey(r.entity_type, r.entity_id)));
+  try {
+    const { data, error } = await supabase
+      .from("sanity_sync_state")
+      .select("entity_type, entity_id, error")
+      .in("entity_id", [...new Set(rows.map((r) => r.entity_id))]);
+    if (error) throw new Error(error.message);
+    const at = new Map<string, number>();
+    for (const r of (data ?? []) as { entity_type: string; entity_id: string; error: string | null }[]) {
+      const key = entityKey(r.entity_type, r.entity_id);
+      const since = keys.has(key) ? heldSince(r.error) : null;
+      if (since !== null) at.set(key, since);
+    }
+    return at;
+  } catch (e) {
+    console.warn(`[sync] could not read when the held entities were first held: ${message(e)}`);
+    return null;
+  }
+}
+
+/**
+ * Queue once more each entity this batch wrote that another run took a
+ * later row for meanwhile (lib/sanity-sync-rules.ts, overlappedEntities), so
+ * an older snapshot written last does not stay on the website. Best effort:
+ * a failed check is logged and the entity's next edit pushes it again.
+ */
+async function requeueOverlapped(supabase: Db, rows: OutboxRow[], written: SyncEntity[]): Promise<number> {
+  if (written.length === 0) return 0;
+  const { data, error } = await supabase
+    .from("sync_outbox")
+    .select("id, entity_type, entity_id, claimed_at, processed_at")
+    .in("entity_id", [...new Set(written.map((e) => e.id))])
+    .gt("id", Math.min(...rows.map((r) => r.id)));
+  if (error) {
+    console.error(`[sync] could not check for an overlapping run: ${error.message}`);
+    return 0;
+  }
+  const again = overlappedEntities(rows, (data ?? []) as Parameters<typeof overlappedEntities>[1], written);
+  for (const e of again) {
+    // Lists through their own queueing, which skips a row already waiting.
+    const { error: queueErr } =
+      e.type === "list"
+        ? await supabase.rpc("queue_list_sync", { _list_id: e.id })
+        : await supabase.from("sync_outbox").insert({ entity_type: e.type, entity_id: e.id, op: "upsert" });
+    if (queueErr) console.error(`[sync] could not queue ${e.type} ${e.id} again after an overlapping run: ${queueErr.message}`);
+  }
+  return again.length;
+}
+
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 async function processBatch(
   supabase: ReturnType<typeof createServiceClient>,
   env: NonNullable<ReturnType<typeof sanityEnv>>,
-  /** Square analysis and rendering run only before this time; later pieces are queued again. */
-  renderUntil: number,
+  limits: {
+    /** Square analysis and rendering run only before this time; later pieces are queued again. */
+    renderUntil: number;
+    /** A work's photographs are uploaded only before this time; a work not finished by then is queued again whole. */
+    workUntil: number;
+  },
 ): Promise<BatchResult> {
   // Claim rows (SKIP LOCKED) so an overlapping cron/webhook/resync run never
   // pushes the same row twice; a claim lapses after two minutes if the run
   // dies, and the next run picks the row up again.
   const { data: outbox, error } = await supabase.rpc("claim_sync_outbox", { batch: BATCH });
   if (error) return { ok: false, detail: error.message };
-  if (!outbox || outbox.length === 0) return { ok: true, processed: 0, pieces: 0, makers: 0, lists: 0, deferred: 0, assetsDeleted: 0 };
+  if (!outbox || outbox.length === 0) {
+    return { ok: true, claimed: 0, processed: 0, held: 0, pieces: 0, makers: 0, lists: 0, deferred: 0, assetsDeleted: 0 };
+  }
 
-  const rows = outbox as { id: number; entity_type: string; entity_id: string; op: string }[];
+  const rows = outbox as (OutboxRow & { op: string })[];
   const pieceIds = [...new Set(rows.filter((o) => o.entity_type === "piece").map((o) => o.entity_id))];
   const makerIds = [...new Set(rows.filter((o) => o.entity_type === "maker").map((o) => o.entity_id))];
   const listIds = [...new Set(rows.filter((o) => o.entity_type === "list").map((o) => o.entity_id))];
+
+  // What happened to each entity; one with no entry was pushed as it stands.
+  const outcomes = new Map<string, Outcome>();
+  // A failed read or upload holds the entity back: nothing of it is written
+  // and its rows stay claimed, so the claim lapses and a later run retries.
+  const hold = (key: string, what: string, e: unknown) => {
+    console.warn(`[sync] ${what} held back for a later run: ${message(e)}`);
+    outcomes.set(key, { kind: "held", reason: message(e) });
+  };
+  // When each entity's hold began, as earlier runs recorded it: read once,
+  // the first time a failure needs it. The clock starts at the first held
+  // attempt, not at queueing, so a row that waited out an outage is still
+  // held and retried on its first failure.
+  let recordedHolds: Promise<Map<string, number> | null> | null = null;
+  const holdStarts = () => (recordedHolds ??= loadHoldStarts(supabase, rows));
+  const waitedTooLong = async (key: string) => heldTooLong((await holdStarts())?.get(key), Date.now());
+  const holdClock = async () => ({
+    // Read only when something is held: the records are not needed otherwise.
+    since: [...outcomes.values()].some((o) => o.kind === "held") ? await holdStarts() : new Map<string, number>(),
+    now: Date.now(),
+  });
+  // Images that would not upload, per entity, once it has been held too long
+  // by earlier runs: it then goes out without them rather than keep coming back.
+  const leftOut = new Map<string, string[]>();
+  const orLeaveOut = async <T>(key: string, attempt: () => Promise<T>, fallback: T): Promise<T> => {
+    try {
+      return await attempt();
+    } catch (e) {
+      if (!(e instanceof SyncRetryError) || !(await waitedTooLong(key))) throw e;
+      leftOut.set(key, [...(leftOut.get(key) ?? []), e.message]);
+      return fallback;
+    }
+  };
+  const incomplete = (key: string) => {
+    const missing = leftOut.get(key);
+    if (!missing) return {};
+    const n = missing.length;
+    return { incomplete: `Published without ${n} image${n === 1 ? "" : "s"} that would not upload for ${HOLD_LIMIT_MS / 3_600_000} h: ${missing[0]}` };
+  };
 
   /* ---- pieces ---------------------------------------------------------- */
   type PieceRow = PieceDimensions & {
@@ -310,12 +478,14 @@ async function processBatch(
   // Provenance: only entries marked public, oldest first, as one line each.
   const provenanceByPiece = new Map<string, string>();
   if (livePieceIds.length > 0) {
-    const { data: prov } = await supabase
+    const { data: prov, error: provErr } = await supabase
       .from("provenance_entries")
       .select("piece_id, date_text, party, details, sort_order")
       .in("piece_id", livePieceIds)
       .eq("is_public", true)
       .order("sort_order", { ascending: true });
+    // A failed read would publish the works with no provenance: leave the claim to lapse.
+    if (provErr) return { ok: false, detail: provErr.message };
     for (const row of prov ?? []) {
       const line = [row.party, row.date_text ? `(${row.date_text})` : null, row.details].filter(Boolean).join(" ");
       if (!line) continue;
@@ -359,10 +529,12 @@ async function processBatch(
   const firstImagePiece = new Map<string, string>();
   for (const [pieceId, list] of imagesByPiece) if (list[0]) firstImagePiece.set(list[0].id, pieceId);
   if (firstImagePiece.size > 0) {
-    const { data } = await supabase
+    const { data, error: squaresErr } = await supabase
       .from("piece_image_squares")
       .select("image_id, guess, kind, square_path, source_width, source_height, flat_hint")
       .in("image_id", [...firstImagePiece.keys()]);
+    // Read as none, every tile would be analysed, rendered and uploaded again.
+    if (squaresErr) return { ok: false, detail: squaresErr.message };
     for (const row of (data ?? []) as SquareRow[]) {
       // A tile path that is not the sync's own is dropped, so the tile is rendered afresh.
       const pieceId = firstImagePiece.get(row.image_id) ?? "";
@@ -411,135 +583,182 @@ async function processBatch(
     ...[...squareRows.values()].filter((r) => r.square_path).map((r) => `piece-derivatives/${r.square_path}`),
     ...[...makers.values()].filter((m) => makerPublished(m) && m?.portrait_path).map((m) => `maker-portraits/${m!.portrait_path}`),
   ];
-  const assetCache = await loadAssetCache(supabase, assetKeys);
+  // Read as empty, every image would be uploaded again (and the batch could
+  // outlast the function on every retry): leave the claim to lapse instead.
+  let assetCache: Map<string, string>;
+  try {
+    assetCache = await loadAssetCache(supabase, assetKeys);
+  } catch (e) {
+    return { ok: false, detail: message(e) };
+  }
   // Every asset the new documents reference: in use, whatever else is found.
   const published = new Set<string>();
 
   const mutations: unknown[] = [];
-  // Pieces whose square tile could not be made within this invocation's budget.
-  const deferredPieceIds: string[] = [];
   // Deletes go in their own calls: Sanity refuses to delete a document that a
   // strong reference still points at, and one such row must not wedge the
   // whole batch behind it.
-  const deletes: { delete: { id: string } }[] = [];
+  const deletes: { key: string; id: string }[] = [];
 
   // Artists first so the works' references resolve in the same transaction.
   for (const makerId of makerIds) {
+    const key = entityKey("maker", makerId);
     const m = makers.get(makerId) ?? null;
     if (!makerPublished(m)) {
-      deletes.push({ delete: { id: artistDocId(makerId) } });
+      deletes.push({ key, id: artistDocId(makerId) });
       continue;
     }
-    const name = m!.romanized_name?.trim() || m!.display_name;
-    const portraitAsset = m!.portrait_path
-      ? await ensureImageAsset(supabase, env, "maker-portraits", m!.portrait_path, assetCache)
-      : null;
-    if (portraitAsset) published.add(portraitAsset);
-    // Portraits uploaded before face detection existed get their focus here,
-    // once; the makers trigger then queues one more pass that finds it set.
-    let focus = m!.portrait_focus;
-    if (portraitAsset && m!.portrait_path && !focus) {
-      focus = await detectFocusInStorage(supabase, "maker-portraits", m!.portrait_path);
-      if (focus) await supabase.from("makers").update({ portrait_focus: focus }).eq("id", makerId);
+    try {
+      const name = m!.romanized_name?.trim() || m!.display_name;
+      const portraitPath = m!.portrait_path;
+      const portraitAsset = portraitPath
+        ? await orLeaveOut(key, () => ensureImageAsset(supabase, env, "maker-portraits", portraitPath, assetCache), null)
+        : null;
+      // Portraits uploaded before face detection existed get their focus here,
+      // once; the makers trigger then queues one more pass that finds it set.
+      let focus = m!.portrait_focus;
+      if (portraitAsset && portraitPath && !focus) {
+        focus = await detectFocusInStorage(supabase, "maker-portraits", portraitPath);
+        if (focus) await supabase.from("makers").update({ portrait_focus: focus }).eq("id", makerId);
+      }
+      mutations.push({
+        createOrReplace: {
+          _id: artistDocId(makerId),
+          _type: "artist",
+          supabaseId: makerId,
+          name,
+          nameNative: m!.native_name,
+          slug: { _type: "slug", current: slugify(name) || makerId.slice(0, 8) },
+          lifeDates: m!.life_dates,
+          country: m!.region,
+          period: m!.school_or_workshop,
+          bioShort: m!.biography,
+          bioLong: htmlToText(m!.profile_html),
+          portrait: portraitAsset
+            ? { _type: "image", asset: { _type: "reference", _ref: portraitAsset }, ...sanityFraming(focus) }
+            : null,
+          hidden: false,
+        },
+      });
+      if (portraitAsset) published.add(portraitAsset);
+      outcomes.set(key, { kind: "pushed", ...incomplete(key) });
+    } catch (e) {
+      hold(key, `artist ${makerId}`, e);
     }
-    mutations.push({
-      createOrReplace: {
-        _id: artistDocId(makerId),
-        _type: "artist",
-        supabaseId: makerId,
-        name,
-        nameNative: m!.native_name,
-        slug: { _type: "slug", current: slugify(name) || makerId.slice(0, 8) },
-        lifeDates: m!.life_dates,
-        country: m!.region,
-        period: m!.school_or_workshop,
-        bioShort: m!.biography,
-        bioLong: htmlToText(m!.profile_html),
-        portrait: portraitAsset
-          ? { _type: "image", asset: { _type: "reference", _ref: portraitAsset }, ...sanityFraming(focus) }
-          : null,
-        hidden: false,
-      },
-    });
   }
 
   for (const pieceId of pieceIds) {
+    const key = entityKey("piece", pieceId);
     const piece = pieces.get(pieceId) ?? null;
     const docId = workDocId(pieceId);
     if (!piece || !pieceLive(piece)) {
-      deletes.push({ delete: { id: docId } });
+      deletes.push({ key, id: docId });
       continue;
     }
-    const images: unknown[] = [];
-    for (const img of imagesByPiece.get(pieceId) ?? []) {
-      const assetId = await ensureImageAsset(supabase, env, "piece-derivatives", img.path, assetCache);
-      if (!assetId) continue;
-      published.add(assetId);
-      images.push({
-        _type: "image",
-        _key: img.id.replace(/-/g, "").slice(0, 12),
-        asset: { _type: "reference", _ref: assetId },
-      });
-    }
-    // The square tile: decided from the first photograph (or forced on the piece).
-    const first = (imagesByPiece.get(pieceId) ?? [])[0];
-    let presentation: Presentation | null = null;
-    let tile: unknown = null;
-    if (first) {
-      const square = await ensureSquare(supabase, piece, first, squareRows.get(first.id) ?? null, renderUntil);
-      presentation = square.kind;
-      if (square.deferred) deferredPieceIds.push(pieceId);
-      if (square.squarePath) {
-        if (square.rendered) {
-          // New pixels at a path the website may already hold: forget the old
-          // asset (the table's trigger files it as retired, and the cleanup
-          // below deletes it once the new tile has replaced it).
-          const key = `piece-derivatives/${square.squarePath}`;
-          assetCache.delete(key);
-          await supabase.from("sanity_assets").delete().eq("storage_path", key);
+    const photos = imagesByPiece.get(pieceId) ?? [];
+    // Past the work budget a work stops before its next upload; what is
+    // already on Sanity costs nothing and still goes out.
+    const outOfTime = (path: string) => Date.now() > limits.workUntil && !assetCache.has(`piece-derivatives/${path}`);
+    try {
+      const assets: string[] = [];
+      const images: unknown[] = [];
+      let unfinished = false;
+      for (const img of photos) {
+        if (outOfTime(img.path)) {
+          unfinished = true;
+          break;
         }
-        const tileAssetId = await ensureImageAsset(supabase, env, "piece-derivatives", square.squarePath, assetCache);
-        if (tileAssetId) {
-          published.add(tileAssetId);
-          tile = { _type: "image", asset: { _type: "reference", _ref: tileAssetId } };
+        const assetId = await orLeaveOut(key, () => ensureImageAsset(supabase, env, "piece-derivatives", img.path, assetCache), null);
+        if (!assetId) continue;
+        assets.push(assetId);
+        images.push({
+          _type: "image",
+          _key: img.id.replace(/-/g, "").slice(0, 12),
+          asset: { _type: "reference", _ref: assetId },
+        });
+      }
+      // The square tile: decided from the first photograph (or forced on the piece).
+      const first = photos[0];
+      let presentation: Presentation | null = null;
+      let tile: unknown = null;
+      let tileDeferred = false;
+      if (first && !unfinished) {
+        const square = await orLeaveOut(
+          key,
+          () => ensureSquare(supabase, piece, first, squareRows.get(first.id) ?? null, limits.renderUntil),
+          // The master would not download: decided as if it were missing.
+          { kind: forcedPresentation(piece.presentation), squarePath: null, rendered: false, deferred: false },
+        );
+        presentation = square.kind;
+        tileDeferred = square.deferred;
+        const tilePath = square.squarePath;
+        if (tilePath) {
+          if (square.rendered) {
+            // New pixels at a path the website may already hold: forget the old
+            // asset (the table's trigger files it as retired, and the cleanup
+            // below deletes it once the new tile has replaced it).
+            const tileKey = `piece-derivatives/${tilePath}`;
+            assetCache.delete(tileKey);
+            await supabase.from("sanity_assets").delete().eq("storage_path", tileKey);
+          }
+          if (outOfTime(tilePath)) {
+            unfinished = true;
+          } else {
+            const tileAssetId = await orLeaveOut(key, () => ensureImageAsset(supabase, env, "piece-derivatives", tilePath, assetCache), null);
+            if (tileAssetId) {
+              assets.push(tileAssetId);
+              tile = { _type: "image", asset: { _type: "reference", _ref: tileAssetId } };
+            }
+          }
         }
       }
-    }
-    const maker = piece.maker;
-    // A live work always makes its maker publishable, so the reference resolves.
-    const artistLinked = !!piece.maker_id && !!maker;
-    mutations.push({
-      createOrReplace: {
-        _id: docId,
-        _type: "work",
-        supabaseId: piece.id,
-        stockNumber: piece.stock_number,
-        title: piece.title ?? "Untitled",
-        maker: maker?.romanized_name?.trim() || maker?.display_name || null,
-        makerNative: maker?.native_name ?? null,
-        makerLifeDates: maker?.life_dates ?? null,
-        // Weak so an artist page can be withdrawn without the work blocking it.
-        artist: artistLinked ? { _type: "reference", _ref: artistDocId(piece.maker_id!), _weak: true } : null,
-        year: piece.year,
-        medium: piece.medium,
-        period: piece.period,
-        originRegion: piece.origin_region,
-        description: piece.description,
-        provenance: provenanceByPiece.get(pieceId) ?? null,
-        // Composed from the numeric cm fields — the Sanity field keeps its
-        // name, but the verbatim legacy column no longer feeds it.
-        dimensionsDisplay: formatDimensionsFullCm(piece),
-        available: piece.status === "in_stock",
-        priceDisplay: "POA",
-        images,
-        presentation,
-        tile,
-        slug: {
-          _type: "slug",
-          current: `${piece.stock_number.toLowerCase()}-${slugify(piece.title ?? "untitled", 60)}`,
+      if (unfinished) {
+        // Nothing of it is written; a fresh invocation finishes it.
+        outcomes.set(key, { kind: "deferred" });
+        continue;
+      }
+      const maker = piece.maker;
+      // A live work always makes its maker publishable, so the reference resolves.
+      const artistLinked = !!piece.maker_id && !!maker;
+      mutations.push({
+        createOrReplace: {
+          _id: docId,
+          _type: "work",
+          supabaseId: piece.id,
+          stockNumber: piece.stock_number,
+          title: piece.title ?? "Untitled",
+          maker: maker?.romanized_name?.trim() || maker?.display_name || null,
+          makerNative: maker?.native_name ?? null,
+          makerLifeDates: maker?.life_dates ?? null,
+          // Weak so an artist page can be withdrawn without the work blocking it.
+          artist: artistLinked ? { _type: "reference", _ref: artistDocId(piece.maker_id!), _weak: true } : null,
+          year: piece.year,
+          medium: piece.medium,
+          period: piece.period,
+          originRegion: piece.origin_region,
+          description: piece.description,
+          provenance: provenanceByPiece.get(pieceId) ?? null,
+          // Composed from the numeric cm fields — the Sanity field keeps its
+          // name, but the verbatim legacy column no longer feeds it.
+          dimensionsDisplay: formatDimensionsFullCm(piece),
+          available: piece.status === "in_stock",
+          priceDisplay: "POA",
+          images,
+          presentation,
+          tile,
+          slug: {
+            _type: "slug",
+            current: `${piece.stock_number.toLowerCase()}-${slugify(piece.title ?? "untitled", 60)}`,
+          },
         },
-      },
-    });
+      });
+      for (const a of assets) published.add(a);
+      // A tile left for later: the work goes back on the queue, and the next
+      // invocation starts with a full render budget.
+      outcomes.set(key, { kind: "pushed", requeue: tileDeferred, ...incomplete(key) });
+    } catch (e) {
+      hold(key, `work ${piece.stock_number}`, e);
+    }
   }
 
   /* ---- lists ------------------------------------------------------------ */
@@ -547,6 +766,7 @@ async function processBatch(
   // web-visible works, so an event can show a whole list. Membership is
   // resolved here (live rules included) by the same resolver the studio uses.
   for (const listId of listIds) {
+    const key = entityKey("list", listId);
     const { data: list, error: listErr } = await supabase
       .from("piece_lists")
       .select("id, name, description, is_dynamic, filter_rules, updated_at, web_visible")
@@ -555,97 +775,137 @@ async function processBatch(
     if (listErr) return { ok: false, detail: listErr.message };
     // Deleted, or not marked for the website: the document goes.
     if (!list || !list.web_visible) {
-      deletes.push({ delete: { id: listDocId(listId) } });
+      deletes.push({ key, id: listDocId(listId) });
       continue;
     }
-    // Resolved web-visible-only, so the live-list cap applies after the
-    // visibility filter; static members are then checked the same way.
-    const memberIds = await resolveListPieceIds(supabase, list as ListLike, { webVisibleOnly: true });
-    const visible = await selectInChunks<{ id: string }>(memberIds, (chunk) =>
-      supabase.from("vw_pieces_list").select("id").in("id", chunk).eq("web_visible", true),
-    );
-    const visibleSet = new Set(visible.map((r) => r.id));
-    const ordered = memberIds.filter((id) => visibleSet.has(id));
-    mutations.push({
-      createOrReplace: {
-        _id: listDocId(listId),
-        _type: "workList",
-        supabaseId: listId,
-        name: list.name,
-        description: list.description,
-        isDynamic: Boolean(list.is_dynamic),
-        workCount: ordered.length,
-        works: ordered.map((pid) => ({
-          _type: "reference",
-          _key: pid.replace(/-/g, "").slice(0, 12),
-          _ref: workDocId(pid),
-          // Weak: a work may be withdrawn from the site before the list is re-pushed.
-          _weak: true,
-        })),
-        updatedAt: list.updated_at,
-      },
-    });
+    try {
+      // Resolved web-visible-only, so the live-list cap applies after the
+      // visibility filter; static members are then checked the same way.
+      // Either read throws when it fails: the list then waits for a later
+      // run instead of going out empty.
+      const memberIds = await resolveListPieceIds(supabase, list as ListLike, { webVisibleOnly: true });
+      const visible = await selectInChunks<{ id: string }>(memberIds, (chunk) =>
+        supabase.from("vw_pieces_list").select("id").in("id", chunk).eq("web_visible", true),
+      );
+      const visibleSet = new Set(visible.map((r) => r.id));
+      const ordered = memberIds.filter((id) => visibleSet.has(id));
+      mutations.push({
+        createOrReplace: {
+          _id: listDocId(listId),
+          _type: "workList",
+          supabaseId: listId,
+          name: list.name,
+          description: list.description,
+          isDynamic: Boolean(list.is_dynamic),
+          workCount: ordered.length,
+          works: ordered.map((pid) => ({
+            _type: "reference",
+            _key: pid.replace(/-/g, "").slice(0, 12),
+            _ref: workDocId(pid),
+            // Weak: a work may be withdrawn from the site before the list is re-pushed.
+            _weak: true,
+          })),
+          updatedAt: list.updated_at,
+        },
+      });
+      outcomes.set(key, { kind: "pushed" });
+    } catch (e) {
+      hold(key, `list ${listId}`, e);
+    }
   }
 
-  const result = await sanityMutate(env, mutations);
-  const stateRows = [
-    ...pieceIds.map((id) => ({ entity_type: "piece", entity_id: id, sanity_doc_id: workDocId(id) })),
-    ...makerIds.map((id) => ({ entity_type: "maker", entity_id: id, sanity_doc_id: artistDocId(id) })),
-    ...listIds.map((id) => ({ entity_type: "list", entity_id: id, sanity_doc_id: listDocId(id) })),
-  ];
+  const docIdOf = (e: SyncEntity) => (e.type === "piece" ? workDocId(e.id) : e.type === "maker" ? artistDocId(e.id) : listDocId(e.id));
 
+  const stateRow = (s: StateUpdate) => ({
+    entity_type: s.type,
+    entity_id: s.id,
+    sanity_doc_id: docIdOf(s),
+    status: s.status,
+    error: s.error,
+  });
+
+  const result = await sanityMutate(env, mutations);
   if (!result.ok) {
     // A remembered asset that is gone from Sanity fails every retry the same
     // way; forget any such, so the retry uploads them again.
     await forgetMissingAssets(supabase, env, [...published]).catch((e) => console.error("[sync] could not check assets:", e));
     // Record the failure; the claim lapses and the next run retries the rows.
-    await supabase.from("sanity_sync_state").upsert(
-      stateRows.map((r) => ({ ...r, status: "error", error: result.detail })),
-      { onConflict: "entity_type,entity_id" },
-    );
+    // An entity being held keeps when its hold began.
+    const state = failedWriteState(rows, outcomes, { since: await holdStarts(), now: Date.now() }, result.detail);
+    if (state.length > 0) await supabase.from("sanity_sync_state").upsert(state.map(stateRow), { onConflict: "entity_type,entity_id" });
     return { ok: false, detail: result.detail };
   }
 
   // Deletes one by one: a document still strongly referenced from an event
-  // (references saved before the schema made them weak) fails on its own,
-  // is recorded as an error against that entity, and does not hold up the rest.
-  const deleteErrors = new Map<string, string>();
+  // (references saved before the schema made them weak) is refused on its
+  // own, recorded against that entity, and does not hold up the rest. Any
+  // other failure (a 429, a 5xx, the network) leaves the row for a retry, so
+  // a withdrawn work cannot stay public on a passing error.
   for (const d of deletes) {
-    const r = await sanityMutate(env, [d]);
-    if (!r.ok) deleteErrors.set(d.delete.id, r.detail);
+    const r = await sanityMutate(env, [{ delete: { id: d.id } }]).catch((e: unknown) => ({
+      ok: false as const,
+      status: 0,
+      detail: message(e),
+      referenced: false,
+    }));
+    if (r.ok) outcomes.set(d.key, { kind: "pushed" });
+    else if (r.referenced) outcomes.set(d.key, { kind: "refused", reason: `Could not remove from the website (still referenced by an event?): ${r.detail}` });
+    else hold(d.key, `removal of ${d.id}`, new Error(`Could not remove from the website (${r.status || "no answer"}): ${r.detail}`));
+  }
+
+  // Held back too long (earlier runs recorded a hold that began more than
+  // HOLD_LIMIT_MS ago): recorded and finished, so it stops coming back. Its
+  // next edit, or Admin → Resync, tries again. A first failure is always held.
+  for (const [key, o] of outcomes) {
+    if (o.kind === "held" && (await waitedTooLong(key))) {
+      outcomes.set(key, { kind: "gave_up", reason: `Gave up after ${HOLD_LIMIT_MS / 3_600_000} h of failures: ${o.reason}` });
+    }
+  }
+
+  let plan = settleBatch(rows, outcomes, await holdClock());
+  // Work left for later goes back on the queue first: the insert wakes a fresh
+  // invocation, and a work not started must not be lost if it fails.
+  if (plan.requeue.length > 0) {
+    const { error: queueErr } = await supabase
+      .from("sync_outbox")
+      .insert(plan.requeue.map((e) => ({ entity_type: e.type, entity_id: e.id, op: "upsert" })));
+    if (queueErr) {
+      console.error(`[sync] could not queue deferred work again: ${queueErr.message}`);
+      for (const e of plan.requeue) {
+        const key = entityKey(e.type, e.id);
+        if (outcomes.get(key)?.kind === "deferred") outcomes.set(key, { kind: "held", reason: `could not be queued again: ${queueErr.message}` });
+      }
+      plan = settleBatch(rows, outcomes, await holdClock());
+    }
   }
 
   const now = new Date().toISOString();
-  await supabase
-    .from("sync_outbox")
-    .update({ processed_at: now })
-    .in("id", rows.map((o) => o.id));
-  await supabase.from("sanity_sync_state").upsert(
-    stateRows.map((r) =>
-      deleteErrors.has(r.sanity_doc_id)
-        ? { ...r, status: "error", error: `Could not remove from the website (still referenced by an event?): ${deleteErrors.get(r.sanity_doc_id)}` }
-        : { ...r, status: "ok", error: null, last_pushed_at: now },
-    ),
-    { onConflict: "entity_type,entity_id" },
-  );
-
-  // A piece whose tile had to wait goes back on the queue; the insert wakes the
-  // sync again, and that invocation starts with a full render budget.
-  if (deferredPieceIds.length > 0) {
-    await supabase.from("sync_outbox").insert(deferredPieceIds.map((id) => ({ entity_type: "piece", entity_id: id, op: "upsert" })));
+  if (plan.done.length > 0) {
+    await supabase.from("sync_outbox").update({ processed_at: now }).in("id", plan.done);
   }
+  // Two writes so each is uniform: an upsert sets a column missing from some
+  // of its rows to null, and only a push moves last_pushed_at.
+  const pushedState = plan.state.filter((s) => s.pushed).map((s) => ({ ...stateRow(s), last_pushed_at: now }));
+  const otherState = plan.state.filter((s) => !s.pushed).map(stateRow);
+  for (const batch of [pushedState, otherState]) {
+    if (batch.length > 0) await supabase.from("sanity_sync_state").upsert(batch, { onConflict: "entity_type,entity_id" });
+  }
+
+  // Another run may have written a newer snapshot before this one landed.
+  await requeueOverlapped(supabase, rows, plan.written);
 
   // The documents are written: the images the sync uploaded for these works
   // and artists that no document uses any more (a photo deleted, rotated,
   // re-rendered or not for the website, a work withdrawn, an artist switched
-  // off) are deleted from Sanity, so they stop being public. Best effort: the
-  // documents are already right, and the hourly cleanup cron catches anything
-  // left (api/cron/sanity-assets).
+  // off) are deleted from Sanity, so they stop being public. Only for the
+  // works and artists this run wrote: one held back or left for later still
+  // has its old document, and new uploads no document uses yet. Best effort:
+  // the documents are already right, and the hourly cleanup cron catches
+  // anything left (api/cron/sanity-assets).
   let assetsDeleted = 0;
-  const prefixes = [
-    ...pieceIds.filter(isUuid).map((id) => `piece-derivatives/${id}/`),
-    ...makerIds.filter(isUuid).map((id) => `maker-portraits/${id}/`),
-  ];
+  const prefixes = plan.sweep
+    .filter((e) => e.type !== "list" && isUuid(e.id))
+    .map((e) => `${e.type === "piece" ? "piece-derivatives" : "maker-portraits"}/${e.id}/`);
   try {
     assetsDeleted = (await deleteUnusedAssets(supabase, env, prefixes, published)).deleted;
   } catch (e) {
@@ -653,11 +913,13 @@ async function processBatch(
   }
   return {
     ok: true,
-    processed: rows.length,
+    claimed: rows.length,
+    processed: plan.done.length,
+    held: rows.length - plan.done.length,
     pieces: pieceIds.length,
     makers: makerIds.length,
     lists: listIds.length,
-    deferred: deferredPieceIds.length,
+    deferred: plan.requeue.length,
     assetsDeleted,
   };
 }
