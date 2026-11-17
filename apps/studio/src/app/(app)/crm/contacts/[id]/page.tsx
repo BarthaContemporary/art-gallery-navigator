@@ -14,6 +14,8 @@ import { consignmentSplit } from "@/lib/consignment";
 import { londonToday, requestDates } from "@/lib/dp-requests";
 import { loadPieceRows } from "@/lib/piece-store";
 import { selectInChunks } from "@/lib/chunk";
+import { searchConfig } from "@/lib/opensearch/config";
+import { deleteContactFromIndex } from "@/lib/opensearch/indexer";
 // London dates: this page renders on the server, where the zone is UTC.
 import { EMPTY, formatDate } from "@/lib/format";
 import {
@@ -262,6 +264,15 @@ export default async function ContactProfile({
       .is("completed_at", null);
     const { data, error } = await db.rpc("erase_contact", { _contact: id });
     if (error) throw new Error(error.message);
+    // Out of the search index at once (refresh=true), before the request is
+    // marked done. Never blocks or fails the erasure: on any failure the
+    // outbox row stays and the drain or the nightly reconcile removes it.
+    try {
+      const removed = await deleteContactFromIndex(searchConfig(process.env), id);
+      if (removed.status === "failed") console.error(`[search] erasure: index delete failed (${removed.error ?? "unknown"})`);
+    } catch {
+      console.error("[search] erasure: index delete failed");
+    }
     const requestIds = (open ?? []).map((r) => r.id as string);
     if (requestIds.length > 0) {
       await db.from("dp_requests").update({ completed_at: new Date().toISOString(), outcome: "Erased" }).in("id", requestIds);

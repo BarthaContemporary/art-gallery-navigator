@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
@@ -25,8 +26,14 @@ import { GALLERY_TIME_ZONE, formatCount, formatDate, formatTime } from "@/lib/fo
 import { resolvePieces } from "@/lib/piece-store";
 import { ACTIVITY_ACTION_LABELS, ACTIVITY_ENTITY_LABELS, labelOf } from "@/lib/labels";
 import { EmptyState } from "@/components/ui/empty-state";
+import { searchConfig } from "@/lib/opensearch/config";
+import { reconcile, type ReconcileResult } from "@/lib/opensearch/indexer";
+import { SearchSection, SearchSectionLoading } from "./search-section";
+import { RECONCILE_THREW, reconcileNotice } from "./search-words";
 
 export const metadata = { title: "Admin" };
+/** "Reconcile now" rebuilds all three search indices in the action (a minute or two). */
+export const maxDuration = 300;
 
 const NOTICE_COOKIE = "admin_notice";
 
@@ -371,6 +378,26 @@ export default async function AdminPage({
         ? `Queued ${rows.length} works; pushing stopped on an error (${failure}). The cron will retry.`
         : `Queued ${rows.length} entries (works, makers, lists) for the website; ${pushed} pushed now${remaining ? `, ${remaining} follow via the cron within the hour` : ""}.`,
     );
+    revalidatePath("/admin");
+    redirect("/admin");
+  }
+
+  /**
+   * Admin → Search → Reconcile now: the nightly reconcile at once
+   * (lib/opensearch/indexer.ts). Without OPENSEARCH_URL or migration 0100 it
+   * changes nothing and says so.
+   */
+  async function reconcileSearch() {
+    "use server";
+    await assertAdmin();
+    const admin = createServiceClient();
+    let result: ReconcileResult | null = null;
+    try {
+      result = await reconcile(admin, searchConfig(process.env));
+    } catch {
+      result = null;
+    }
+    await flashNotice(result ? reconcileNotice(result) : RECONCILE_THREW);
     revalidatePath("/admin");
     redirect("/admin");
   }
@@ -786,6 +813,11 @@ export default async function AdminPage({
               </Button>
             </form>
           </Section>
+
+          {/* Streams in so a slow or unreachable search server never holds up the page. */}
+          <Suspense fallback={<SearchSectionLoading />}>
+            <SearchSection reconcileAction={reconcileSearch} />
+          </Suspense>
 
           <Section title="Recent activity" meta="The last 15 changes, newest first, in London time.">
             {activity.length === 0 ? (
