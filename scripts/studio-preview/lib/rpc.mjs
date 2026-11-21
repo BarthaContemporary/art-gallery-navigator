@@ -175,4 +175,13 @@ export const RPC = {
   claim_sync_outbox() {
     return { rows: [], table: "sync_outbox" };
   },
+
+  /** Migration 0100: the search outbox. The preview has no triggers, so nothing is ever queued. */
+  claim_search_outbox() {
+    return { rows: [], table: "search_outbox" };
+  },
+  /** Migration 0100: the database clock the search reconcile versions its writes with, in ms. */
+  search_clock_ms() {
+    return { value: Date.now() };
+  },
 };

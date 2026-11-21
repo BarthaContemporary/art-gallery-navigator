@@ -14,6 +14,7 @@ person to decide. The Privacy Notice quotes these periods: change both together.
 | Appointment bookings | 2 years after the appointment | purge | Contract |
 | Newsletter sign-ups never confirmed (with their change-log entries and their address in delivery records); one the gallery has since worked with (a private offer, a list, a send, a data-subject request, its own tags, contact details, notes, organisation, interests or due diligence) is kept as a client record instead | 30 days | purge | Consent never completed |
 | Studio change history | 6 years | purge | Accounting and provenance |
+| Search index change queue (`search_outbox`: which record changed, as a type and an id, never what it says; normally deleted within seconds, once the studio has updated the search index) | 14 days | purge | Keeping the studio's search current; the nightly reconcile covers anything older |
 | Inventory records in the trash | 30 days | purge (existing) | Undo window |
 | Contacts with no activity, no consent, no hold | 5 years | review | Data minimisation; never deleted automatically |
 | AML due-diligence records | 5 years after the relationship ends | review | MLR 2017 reg. 40 — delete when the hold ends |
