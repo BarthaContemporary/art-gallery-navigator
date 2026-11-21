@@ -239,7 +239,7 @@ class NotSetUp {
 /**
  * The parts of supabase-js that load.ts, indexer.ts and search.ts use:
  * from().select(cols, { count, head }).in/.is/.eq/.gt/.or/.order/.range/.limit,
- * from().delete().in(), from().upsert(), rpc(name, args).select(cols).
+ * from().delete().in(), from().upsert(), rpc(name, args).select(cols).limit(n).
  *
  * Answers as postgrest-js 2.110 does, including its quirk: a HEAD on a table
  * that does not exist gets PostgREST's body-less 404, which postgrest-js turns
@@ -353,15 +353,23 @@ class Rpc extends Thenable {
     this.name = name;
     this.args = args;
     this.selectCols = null;
+    this.limitN = null;
   }
   select(cols) {
     this.selectCols = cols;
     return this;
   }
+  limit(n) {
+    this.limitN = n;
+    return this;
+  }
   run() {
     const r = this.db.callRpc(this.name, this.args);
+    const last = this.db.calls[this.db.calls.length - 1];
+    if (last && last.rpc === this.name) last.limit = this.limitN;
     if (r.error || !this.selectCols) return { data: r.data, error: r.error, status: r.status };
-    const p = project(r.data, this.selectCols, this.db.columnsOf(r.table));
+    const rows = this.limitN === null || !Array.isArray(r.data) ? r.data : r.data.slice(0, this.limitN);
+    const p = project(rows, this.selectCols, this.db.columnsOf(r.table));
     return p.error ? { data: null, error: p.error, status: 400 } : { data: p.rows, error: null, status: 200 };
   }
 }
