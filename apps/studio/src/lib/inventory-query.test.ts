@@ -15,7 +15,7 @@ import { allowStudioImports } from "./opensearch/test-support.mjs";
 allowStudioImports();
 // @ts-ignore TS5097
 const iq = await import("./inventory-query.ts");
-const { PIECE_STATUS_ORDER, loadInventoryExportRows, resolveInventory, selectInventoryPage, sortInventoryRows } = iq;
+const { PIECE_STATUS_ORDER, liveListGaps, loadInventoryExportRows, resolveInventory, selectInventoryPage, sortInventoryRows } = iq;
 // @ts-ignore TS5097
 const search = await import("./opensearch/search.ts");
 // @ts-ignore TS5097
@@ -362,4 +362,24 @@ test("OpenSearch down: Postgres's answer stands; a Postgres error is an error", 
     os.restore();
     globalThis.fetch = realFetch;
   }
+});
+
+test("the save form names what a live list will not hold, a similar result among them", () => {
+  assert.deepEqual(liveListGaps({}), []);
+  assert.deepEqual(liveListGaps({}, { similar: false }), []);
+  assert.deepEqual(liveListGaps({ needs: "1", flagged: "1", list: "l1", web: "off" }), [
+    "Needs completion",
+    "Flagged only",
+    "List filter",
+    "Website filter",
+  ]);
+  // A live list re-runs rules.q through pieces_search alone, which found
+  // nothing exact, so the similar works on screen are not what it holds.
+  assert.deepEqual(liveListGaps({ web: "any" }, { similar: true }), [
+    "Similar matches (a live list re-runs the exact search)",
+  ]);
+  assert.deepEqual(liveListGaps({ loan: "1" }, { similar: true }), [
+    "On temporary export",
+    "Similar matches (a live list re-runs the exact search)",
+  ]);
 });

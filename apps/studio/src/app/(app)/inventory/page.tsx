@@ -20,6 +20,7 @@ import {
   FLAG_FILTERS,
   SCREEN_ORDER,
   inventoryOrder,
+  liveListGaps,
   resolveInventory,
   selectInventoryPage,
   selectInventoryRows,
@@ -231,13 +232,9 @@ export default async function InventoryPage({
     }
   }
 
-  // Filters on screen that a live list's rules cannot hold (see saveAsList).
-  const notSaved = [
-    ...FLAG_FILTERS.filter(([param]) => sp[param]).map(([, , label]) => label),
-    ...(sp.flagged ? ["Flagged only"] : []),
-    ...(sp.list ? ["List filter"] : []),
-    ...(sp.web === "on" || sp.web === "off" ? ["Website filter"] : []),
-  ];
+  // Filters on screen that a live list's rules cannot hold (see saveAsList),
+  // and a similar result, which a live list's exact re-run will not find.
+  const notSaved = liveListGaps(sp, { similar });
 
   // "1–100 of 869". A page past the end (an old link) shows the total alone.
   const first = (page - 1) * PAGE_SIZE + 1;

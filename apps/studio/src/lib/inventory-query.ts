@@ -55,6 +55,29 @@ export function activeFlags(sp: Partial<Record<FlagParam, string | null | undefi
   return FLAG_FILTERS.filter(([param]) => Boolean(sp[param]));
 }
 
+/**
+ * What the screen shows that a live list saved from it would not: a live
+ * list keeps the search, register and facets only (filter_rules), and
+ * re-runs the search through lib/list-members, which is pieces_search alone
+ * (it feeds the website). So the flag pills, the flagged-only, list and
+ * website filters are dropped, and a typo-tolerant ("similar") result is
+ * not what the list will hold: it re-runs the exact search, which found
+ * nothing. The save form names each, so the list is not quietly wider or
+ * emptier than the works on screen.
+ */
+export function liveListGaps(
+  sp: Partial<Record<FlagParam | "flagged" | "list" | "web", string | null | undefined>>,
+  { similar = false }: { similar?: boolean } = {},
+): string[] {
+  return [
+    ...activeFlags(sp).map(([, , label]) => label),
+    ...(sp.flagged ? ["Flagged only"] : []),
+    ...(sp.list ? ["List filter"] : []),
+    ...(sp.web === "on" || sp.web === "off" ? ["Website filter"] : []),
+    ...(similar ? ["Similar matches (a live list re-runs the exact search)"] : []),
+  ];
+}
+
 // The constraint deliberately doesn't name T as eq's return type: a
 // self-referential bound sends TypeScript into Supabase's builder generics
 // ("type instantiation is excessively deep") at some call sites.
