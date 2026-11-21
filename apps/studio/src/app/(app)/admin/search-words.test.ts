@@ -38,14 +38,18 @@ test("not configured says, in these words, that search uses Postgres only", () =
 test("every engine state has a plain sentence; the problem states say what to do", () => {
   const states = ["misconfigured", "unreachable", "disk-full", "read-only"] as const;
   for (const engine of states) {
-    const e = w.engineWords({ engine, health: null, problem: engine === "misconfigured" ? "OPENSEARCH_URL must use https" : null });
+    const e = w.engineWords({ engine, health: null, problem: engine === "misconfigured" ? "OPENSEARCH_URL must use https" : null, setUp: true });
     assert.equal(e.tone, "warn", engine);
     assert.ok(e.label && e.label !== "OK", engine);
     assert.ok(e.summary.length > 20 && e.summary.endsWith("."), engine);
     assert.match(e.detail ?? "", /runbook/, engine);
   }
   assert.match(w.engineWords({ engine: "misconfigured", health: null, problem: "OPENSEARCH_URL must use https" }).detail ?? "", /^OPENSEARCH_URL must use https\. Check/);
-  assert.match(w.engineWords({ engine: "unreachable", health: null, problem: "health check failed (0 timeout)" }).detail ?? "", /^health check failed \(0 timeout\)\. Changes wait/);
+  assert.match(w.engineWords({ engine: "unreachable", health: null, problem: "health check failed (0 timeout)", setUp: true }).detail ?? "", /^health check failed \(0 timeout\)\. Changes wait/);
+  // Without migration 0100 nothing is queued: the detail must not say otherwise.
+  const unset = w.engineWords({ engine: "unreachable", health: null, problem: "health check failed (0 timeout)", setUp: false }).detail ?? "";
+  assert.doesNotMatch(unset, /queue/);
+  assert.match(unset, /^health check failed \(0 timeout\)\. If it stays down, see .*runbook/);
   assert.match(w.engineWords({ engine: "read-only", health: null, problem: null }).summary, /read-only/);
   assert.match(w.engineWords({ engine: "disk-full", health: null, problem: null }).summary, /disk is nearly full/);
 

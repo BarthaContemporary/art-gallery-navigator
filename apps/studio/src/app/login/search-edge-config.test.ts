@@ -339,7 +339,7 @@ test("every shape is anchored, bound to one method and behind a login", () => {
   }
 });
 
-test("what the studio sends gets through, to the right login only", () => {
+test("what the studio and verify-search-edge.sh send gets through, to the right login only", () => {
   for (const kind of KINDS) {
     for (const v of ["1", "2", "12"]) {
       const index = `/jvb-${kind}-v${v}`;
@@ -352,7 +352,7 @@ test("what the studio sends gets through, to the right login only", () => {
         ["DELETE", index],
         ["POST", `${index}/_refresh`],
         ["POST", `${index}/_forcemerge?only_expunge_deletes=true`],
-        ["GET", `${index}/_count`],
+        ["GET", `${index}/_count`], // verify-search-edge.sh only; the studio reads _cat/indices
         ["GET", `${index}/_mapping`],
         ["GET", `${index}/_settings`],
       ] as const) {

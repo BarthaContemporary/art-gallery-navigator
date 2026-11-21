@@ -206,7 +206,9 @@ async function contacts(db: Db, q: string, roles: Roles): Promise<{ rows: Palett
     await (db
       .from("crm_contacts")
       .select("id, first_name, last_name, email")
-      .in("id", found.ids) as unknown as Rows<ContactRow>),
+      .in("id", found.ids)
+      // An erased contact is never offered (lib/contact-search.ts).
+      .is("erased_at", null) as unknown as Rows<ContactRow>),
   );
   const rows = inOrder(found.ids, loaded)
     .slice(0, PALETTE.contacts)

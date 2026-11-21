@@ -365,9 +365,10 @@ search.example.com {
 	}
 
 	# 3. Reconcile and Admin → Search: make and delete an index by its exact
-	#    name, refresh it, squeeze erased contacts out of it, read its count,
-	#    mapping and settings, and three exact status reads (health, the
-	#    disk guard's blocks, the list of jvb- indices).
+	#    name, refresh it, squeeze erased contacts out of it, read its mapping
+	#    and settings, and three exact status reads (health, the disk guard's
+	#    blocks, the list of jvb- indices). The studio never reads _count: it
+	#    is here for infra/scripts/verify-search-edge.sh, the operator's check.
 	@index_admin expression `
 		(method('PUT') && {http.request.orig_uri}.matches("^/jvb-(works|makers|contacts)-v[0-9]+$")) ||
 		(method('DELETE') && {http.request.orig_uri}.matches("^/jvb-(works|makers|contacts)-v[0-9]+$")) ||

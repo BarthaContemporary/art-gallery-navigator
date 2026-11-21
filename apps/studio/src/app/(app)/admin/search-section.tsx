@@ -91,12 +91,17 @@ export async function SearchSection({ reconcileAction }: { reconcileAction: () =
         </Notice>
       ) : null}
 
-      {configured ? (
+      {configured && status.setUp ? (
         <p className="mb-3 max-w-[65ch] text-[13px] leading-[1.45] text-body">
           Every search in the studio asks Postgres; for admin and staff OpenSearch adds matches across fields and
           close spellings, merged in. Changes reach the index within seconds of a save, anything missed within 10
           minutes, and every night the index is checked against the database. Reconcile now runs that check at once,
           for example after the search server was rebuilt. It is safe to repeat.
+        </p>
+      ) : configured ? (
+        <p className="mb-3 max-w-[65ch] text-[13px] leading-[1.45] text-body">
+          Every search in the studio asks Postgres; for admin and staff OpenSearch adds matches across fields and
+          close spellings, merged in, from what the index already holds.
         </p>
       ) : status.engine === "not configured" ? (
         <p className="max-w-[65ch] text-[13px] leading-[1.45] text-body">

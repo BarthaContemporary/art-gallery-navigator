@@ -36,7 +36,7 @@ export function InvoiceCapture({
   const [selectedWorks, setSelectedWorks] = useState<string[]>(batchId ? candidateWorks.map((w) => w.id) : []);
   const [selectedPieces, setSelectedPieces] = useState<PieceHit[]>([]);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState<{ attached: number } | null>(null);
+  const [saved, setSaved] = useState<{ attached: number; forAdmin: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [headerError, setHeaderError] = useState<string | null>(null);
 
@@ -189,7 +189,7 @@ export function InvoiceCapture({
     try {
       const id = await ensureInvoice();
       if (!(await saveHeader(header))) return;
-      const res = await requestJson<{ attached?: number; notAttached?: string[] }>(
+      const res = await requestJson<{ attached?: number; notAttached?: string[]; forAdmin?: number }>(
         `/api/capture/invoice/${id}/link`,
         jsonBody("POST", { workIds: selectedWorks, pieceIds: selectedPieces.map((p) => p.id) }),
       );
@@ -201,7 +201,7 @@ export function InvoiceCapture({
         );
         return;
       }
-      setSaved({ attached: res.attached ?? 0 });
+      setSaved({ attached: res.attached ?? 0, forAdmin: res.forAdmin ?? 0 });
     } catch (e) {
       setError(messageOf(e, "The invoice could not be saved. Try again."));
     } finally {
@@ -224,9 +224,15 @@ export function InvoiceCapture({
         <p className="mt-1 text-[13px] text-ink-muted">
           Linked to {selectedWorks.length} captured work(s) and {selectedPieces.length} inventory item(s).
         </p>
-        {selectedPieces.length ? (
+        {selectedPieces.length && !saved.forAdmin ? (
           <p className="mt-1 text-[12.5px] text-ink-muted">
             {saved.attached} inventory item(s) now carry it as their purchase invoice.
+          </p>
+        ) : null}
+        {saved.forAdmin ? (
+          <p className="mt-1 text-[12.5px] text-ink-muted">
+            Only an admin can put a purchase invoice and its figures on an existing inventory item: ask one to add it
+            to {saved.forAdmin === 1 ? "that item" : `those ${saved.forAdmin} items`} in the studio.
           </p>
         ) : null}
         <div className="mt-6 flex flex-col gap-2">

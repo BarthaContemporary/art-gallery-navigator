@@ -21,8 +21,8 @@
  *     bespoke codes of two pages:
  *       "campaign"  the newsletter page: sent, skipped, failed, left, reason,
  *                   draft=1 (nothing went out, back in draft), test, and
- *                   err=nokey|nolist|nosubject|testfail|already|sending|
- *                   noeligible|sendfail.
+ *                   err=nokey|nolist|nosubject|notest|missing|testfail|
+ *                   already|sending|noeligible|sendfail.
  *       "offer"     the offer page: sent=<n>|nokey|noitems, skipped, failed,
  *                   reason, left (stopped near the time limit), unmarked
  *                   (mailed, but the sent mark failed).
@@ -128,6 +128,10 @@ function campaignFlash(sp: SearchParams): Flash | null {
       return { tone: "danger", text: "Choose an audience list before sending." };
     case "nosubject":
       return { tone: "danger", text: "Add a subject line before sending." };
+    case "notest":
+      return { tone: "danger", text: "Enter an address to send the test to." };
+    case "missing":
+      return { tone: "danger", text: "This newsletter could not be read. Reload the page and try again." };
     case "testfail":
       return {
         tone: "danger",

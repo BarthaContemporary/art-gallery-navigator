@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabase, createServiceClient, requireCapture } from "@/lib/supabase";
+import { getSupabase, createServiceClient, hasRole, requireCapture } from "@/lib/supabase";
 import { pushBatch } from "@/lib/push";
 
 export const runtime = "nodejs";
@@ -13,7 +13,8 @@ export const maxDuration = 300;
  * Promote a capture batch's draft works into real inventory pieces, each
  * flagged `needs_completion`. Photos are routed through the normal image
  * pipeline; a linked invoice is attached as a purchase-invoice document and
- * prefills the purchase date / cost. Safe to repeat: see lib/push.ts.
+ * prefills the purchase date / cost (a staff push only on the record it
+ * creates). Safe to repeat: see lib/push.ts.
  */
 export async function POST(req: Request) {
   const gate = await requireCapture();
@@ -27,7 +28,14 @@ export async function POST(req: Request) {
   const db = createServiceClient();
 
   try {
-    const out = await pushBatch({ rls: rls as unknown as typeof db, db, batchId, userId: gate.session.user.id });
+    const out = await pushBatch({
+      rls: rls as unknown as typeof db,
+      db,
+      batchId,
+      userId: gate.session.user.id,
+      // Staff pushes write purchase figures only on records they insert.
+      callerIsAdmin: hasRole(gate.session.roles, "admin"),
+    });
     if (!out.found) return NextResponse.json({ error: "Batch not found" }, { status: 404 });
     return NextResponse.json({ results: out.results, closed: out.closed });
   } catch (e) {

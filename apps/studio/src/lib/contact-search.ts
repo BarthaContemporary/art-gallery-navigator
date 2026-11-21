@@ -9,9 +9,13 @@
  * when nothing matched exactly), takes out the ids the caller excludes, and
  * loads the rows from crm_contacts through the caller's own client, so row
  * level security decides what is shown and every string comes from those
- * rows. Ids that do not load (erased or deleted since they were indexed) are
- * dropped. With the index unconfigured, down or behind, the result is
- * crm_contacts_search's, as before the engine existed.
+ * rows. Erased contacts are never offered: erase_contact keeps the row,
+ * renamed "Erased contact …", and crm_contacts_search does not leave it out,
+ * so the load does (as lib/picker-search.ts does). Ids that do not load
+ * (erased or deleted since they were indexed) are dropped. The contacts
+ * page's browsing list (selectContactsPage) still shows erased rows, marked
+ * on their own page. With the index unconfigured, down or behind, the
+ * result is crm_contacts_search's, as before the engine existed.
  *
  * Errors are returned, never thrown, so each caller keeps its own handling
  * (selectContactsPage, the browsing query, throws as selectInventoryPage
@@ -88,7 +92,7 @@ export async function findContacts<Row extends { id: string }>(
     loaded = await selectInChunks<Row>(
       ids,
       (chunk) =>
-        db.from("crm_contacts").select(opts.columns).in("id", chunk) as unknown as PromiseLike<{
+        db.from("crm_contacts").select(opts.columns).in("id", chunk).is("erased_at", null) as unknown as PromiseLike<{
           data: Row[] | null;
           error: DbError | null;
         }>,

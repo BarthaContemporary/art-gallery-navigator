@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { UUID_PATTERN } from "@jvb/db/storage-path";
-import { createServiceClient, getSupabase, requireCapture } from "@/lib/supabase";
+import { createServiceClient, getSupabase, hasRole, requireCapture } from "@/lib/supabase";
 import { attachInvoiceToPiece, invoiceItemCount } from "@/lib/push";
 
 export const runtime = "nodejs";
@@ -15,9 +15,14 @@ const ids = (v: unknown): string[] =>
 /**
  * Set the works / inventory pieces this invoice covers. Only the links that
  * changed are removed or added, so a failed save never loses the others. A
- * captured work receives the invoice when it is pushed; an existing stock
- * record receives it now: the first page as its purchase-invoice document,
- * and the purchase date and cost only where the record has none.
+ * captured work receives the invoice when it is pushed. An existing stock
+ * record receives it now when an admin saves: the first page as its
+ * purchase-invoice document, and the purchase date and cost only where the
+ * record has none. A staff save only links: staff may not add purchase
+ * invoices or figures to a stock record (no policy on piece_financials or
+ * invoice documents), and the ids come from the request, so the service
+ * role must not do it for them. The answer's `forAdmin` counts those.
+ * Removing a link leaves a document or figures already attached in place.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const gate = await requireCapture();
@@ -73,10 +78,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   // Existing stock records get the invoice now (pushed works got theirs, or
-  // will, through the push). Service role: staff have no policy on
-  // piece_financials or purchase-invoice documents, as in the push.
+  // will, through the push), for an admin only. Service role: the admin's
+  // own client would do, but this keeps one code path with the push.
   let attached = 0;
   const notAttached: string[] = [];
+  const admin = hasRole(gate.session.roles, "admin");
+  if (pieceIds.length && !admin) {
+    return NextResponse.json({ ok: true, links: workIds.length + pieceIds.length, attached, notAttached, forAdmin: pieceIds.length });
+  }
   if (pieceIds.length) {
     const db = createServiceClient();
     const items = await invoiceItemCount(db, invoiceId);
@@ -91,5 +100,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
-  return NextResponse.json({ ok: true, links: workIds.length + pieceIds.length, attached, notAttached });
+  return NextResponse.json({ ok: true, links: workIds.length + pieceIds.length, attached, notAttached, forAdmin: 0 });
 }

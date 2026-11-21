@@ -29,9 +29,14 @@ export type EngineWords = {
   detail: string | null;
 };
 
-/** The engine's state in plain words. */
-export function engineWords(s: Pick<SearchStatus, "engine" | "health" | "problem">): EngineWords {
+/**
+ * The engine's state in plain words. `setUp` (migration 0100 applied) decides
+ * whether changes are queued at all: without it the setup warning says so,
+ * and nothing here may promise that they follow.
+ */
+export function engineWords(s: Pick<SearchStatus, "engine" | "health" | "problem" | "setUp">): EngineWords {
   const problem = s.problem ? `${s.problem.replace(/\.$/, "")}. ` : "";
+  const queued = s.setUp ? "Changes wait in the queue and follow once it is back. " : "";
   switch (s.engine) {
     case "not configured":
       return { tone: "info", label: "Not configured", summary: NOT_CONFIGURED, detail: null };
@@ -47,7 +52,7 @@ export function engineWords(s: Pick<SearchStatus, "engine" | "health" | "problem
         tone: "warn",
         label: "Unreachable",
         summary: "OpenSearch cannot be reached, so search uses Postgres only until it answers again.",
-        detail: `${problem}Changes wait in the queue and follow once it is back. If it stays down, see ${RUNBOOK}.`,
+        detail: `${problem}${queued}If it stays down, see ${RUNBOOK}.`,
       };
     case "disk-full":
       return {

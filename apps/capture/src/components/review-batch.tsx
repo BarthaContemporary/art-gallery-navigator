@@ -36,6 +36,7 @@ type PushResult = {
   incomplete?: boolean;
   busy?: boolean;
   skipped?: boolean;
+  adminToFinish?: boolean;
   error?: string;
 };
 
@@ -44,6 +45,7 @@ type Done = {
   unfinished: { label: string; why: string }[];
   busy: number;
   skipped: number;
+  forAdmin: string[];
 };
 
 const isEmpty = (w: ReviewWork) => w.photos.length === 0 && Object.values(w.fields).every((v) => !v.trim());
@@ -119,6 +121,7 @@ export function ReviewBatch({ batchId, initialWorks }: { batchId: string; initia
           })),
         busy: list.filter((r) => r.busy).length,
         skipped: list.filter((r) => r.skipped).length,
+        forAdmin: list.filter((r) => r.adminToFinish && r.stockNumber).map((r) => r.stockNumber!),
       });
     } catch (e) {
       // The push may have done part of its work: show the batch as it now is.
@@ -168,6 +171,11 @@ export function ReviewBatch({ batchId, initialWorks }: { batchId: string; initia
         ) : null}
         {done.skipped ? (
           <p className="mt-2 text-[12px] text-ink-muted">{done.skipped} empty work(s) left out.</p>
+        ) : null}
+        {done.forAdmin.length ? (
+          <p className="mt-2 text-[12px] text-ink-muted">
+            The purchase invoice and figures for {done.forAdmin.join(", ")} are for an admin to add in the studio.
+          </p>
         ) : null}
         <div className="mt-6 flex flex-col gap-2">
           {again ? (

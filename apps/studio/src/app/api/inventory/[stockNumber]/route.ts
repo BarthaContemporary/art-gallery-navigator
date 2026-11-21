@@ -61,13 +61,14 @@ async function autoAddInterestForPurchase(
 
   const { data: contact, error: contactErr } = await supabase
     .from("crm_contacts")
-    .select("custom_fields")
+    .select("custom_fields, erased_at")
     .eq("id", contactId)
     .maybeSingle();
   // custom_fields also holds the second address, the AML confirmation and
   // the notes: written back whole below, so a failed or empty read must not
-  // turn into {interests: [...]} over all of them.
-  if (contactErr || !contact) return;
+  // turn into {interests: [...]} over all of them. An erased contact gets
+  // nothing back that erasure cleared.
+  if (contactErr || !contact || contact.erased_at) return;
   const cf = ((contact.custom_fields as Record<string, unknown> | null) ?? {}) as Record<
     string,
     unknown
@@ -78,7 +79,8 @@ async function autoAddInterestForPurchase(
     await supabase
       .from("crm_contacts")
       .update({ custom_fields: { ...cf, interests: merged } })
-      .eq("id", contactId);
+      .eq("id", contactId)
+      .is("erased_at", null);
   }
 
   // No list write: the interest lists derive membership from

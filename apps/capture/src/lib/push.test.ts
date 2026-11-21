@@ -276,10 +276,11 @@ function seed(
   return { batchId, workIds: ids };
 }
 
-function run(db: FakeDb, batchId: string, now?: Date) {
+function run(db: FakeDb, batchId: string, now?: Date, callerIsAdmin = true) {
   // @ts-ignore - the stand-in has only the methods push.ts calls
-  return pushBatch({ rls: db, db, batchId, userId: "u1", now });
+  return pushBatch({ rls: db, db, batchId, userId: "u1", callerIsAdmin, now });
 }
+const runAsStaff = (db: FakeDb, batchId: string, now?: Date) => run(db, batchId, now, false);
 
 test("helpers", () => {
   // 23:30 UTC on 14 July is 00:30 on 15 July in London.
@@ -706,4 +707,142 @@ test("the batch stays open when the remaining count cannot be read", async () =>
   const out = await run(db, batchId);
   assert.ok(out.found && out.closed === false);
   assert.equal(db.rows("capture_batches")[0]!.status, "draft");
+});
+
+// ---------------------------------------------------------------------------
+// Staff pushes write figures only on the record they insert (push.ts point 5)
+// ---------------------------------------------------------------------------
+
+/** An existing stock record with nothing entered yet: a target for a forged capture work. */
+function seedExisting(db: FakeDb): string {
+  const piece = db.onInsert("pieces", { title: "Sold long ago" });
+  db.rows("pieces").push(piece);
+  return piece.id as string;
+}
+
+test("a staff push fills the figures of the record it creates, as an admin's does", async () => {
+  const db = new FakeDb();
+  const { batchId, workIds } = seed(db, [{ fields: { title: "Box" }, photos: [{}] }]);
+  const inv = seedInvoice(db, {});
+  db.rows("capture_invoice_links").push({ invoice_id: inv.id, work_id: workIds[0], piece_id: null });
+  const out = await runAsStaff(db, batchId);
+  assert.ok(out.found && !out.results[0]!.incomplete && !out.results[0]!.adminToFinish);
+  const fin = db.rows("piece_financials")[0]!;
+  assert.equal(fin.purchase_cost, 1250);
+  assert.equal(fin.purchase_date, "2026-07-10");
+  assert.ok(fin.purchase_invoice_document_id);
+});
+
+for (const forged of ["work id", "pushed_piece_id"] as const) {
+  test(`a staff push never writes figures or invoices on an existing record named by the ${forged}`, async () => {
+    const db = new FakeDb();
+    const target = seedExisting(db);
+    const { batchId, workIds } = seed(db, [{ fields: { title: "Box" }, photos: [{}] }]);
+    const work = db.rows("capture_works")[0]!;
+    if (forged === "work id") {
+      // A capture work inserted with an existing record's id.
+      work.id = target;
+      for (const p of db.rows("capture_photos")) p.work_id = target;
+      for (const p of db.rows("capture_photos")) {
+        const old = p.storage_path as string;
+        const moved = old.replace(workIds[0]!, target);
+        db.objects.set(`captures/${moved}`, db.objects.get(`captures/${old}`)!);
+        p.storage_path = moved;
+      }
+    } else {
+      work.pushed_piece_id = target;
+    }
+    const inv = seedInvoice(db, { total: 50, currency: "GBP" });
+    db.rows("capture_invoice_links").push({ invoice_id: inv.id, work_id: work.id, piece_id: null });
+
+    const out = await runAsStaff(db, batchId);
+    assert.ok(out.found);
+    if (!out.found) return;
+    const r = out.results[0]!;
+    assert.ok(!r.error && !r.incomplete, "the work is finished, not left to push for ever");
+    assert.equal(r.adminToFinish, true);
+    const fin = db.rows("piece_financials").find((f) => f.piece_id === target)!;
+    assert.deepEqual(
+      [fin.purchase_cost, fin.purchase_date, fin.purchase_invoice_document_id],
+      [null, null, null],
+      "nothing written with the service role",
+    );
+    assert.equal(db.rows("piece_documents").length, 0);
+    assert.equal(db.rows("pieces").length, 1, "no second record");
+    assert.equal(db.rows("piece_images").length, 1, "the photos still go on (staff may add images)");
+    assert.equal(db.rows("capture_works")[0]!.status, "pushed");
+  });
+
+  test(`an admin's push on a record named by the ${forged} fills the empty figures`, async () => {
+    const db = new FakeDb();
+    const target = seedExisting(db);
+    const { batchId } = seed(db, [{ fields: { title: "Box" } }]);
+    const work = db.rows("capture_works")[0]!;
+    if (forged === "work id") work.id = target;
+    else work.pushed_piece_id = target;
+    const inv = seedInvoice(db, { total: 50, currency: "GBP" });
+    db.rows("capture_invoice_links").push({ invoice_id: inv.id, work_id: work.id, piece_id: null });
+    const out = await run(db, batchId);
+    assert.ok(out.found && !out.results[0]!.adminToFinish);
+    const fin = db.rows("piece_financials").find((f) => f.piece_id === target)!;
+    assert.equal(fin.purchase_cost, 50);
+  });
+}
+
+test("a staff push that ran into an existing record's id on insert writes no figures there", async () => {
+  const db = new FakeDb();
+  const { batchId, workIds } = seed(db, [{ fields: { title: "Kogo" } }]);
+  const inv = seedInvoice(db, {});
+  db.rows("capture_invoice_links").push({ invoice_id: inv.id, work_id: workIds[0], piece_id: null });
+  let once = true;
+  db.intercept = (t, op, payload) => {
+    if (t !== "pieces" || op !== "insert" || !once) return;
+    once = false;
+    db.rows("pieces").push(db.onInsert("pieces", { ...(payload as Row) }));
+  };
+  const out = await runAsStaff(db, batchId);
+  assert.ok(out.found && out.results[0]!.adminToFinish && !out.results[0]!.incomplete);
+  assert.equal(db.rows("piece_financials")[0]!.purchase_cost, null);
+  assert.equal(db.rows("piece_documents").length, 0);
+});
+
+test("a staff retry after a failed photo finishes the work; what the first run attached stays", async () => {
+  const db = new FakeDb();
+  const { batchId, workIds } = seed(db, [{ fields: { title: "Box" }, photos: [{}] }]);
+  const inv = seedInvoice(db, {});
+  db.rows("capture_invoice_links").push({ invoice_id: inv.id, work_id: workIds[0], piece_id: null });
+  db.failDownloadOnce.add(`captures/${db.rows("capture_photos")[0]!.storage_path}`);
+
+  const first = await runAsStaff(db, batchId);
+  assert.ok(first.found && first.results[0]!.incomplete && first.results[0]!.photosFailed === 1);
+  const fin = db.rows("piece_financials")[0]!;
+  assert.equal(fin.purchase_cost, 1250, "the fresh record's figures went on in the first run");
+
+  const retry = await runAsStaff(db, batchId);
+  assert.ok(retry.found && !retry.results[0]!.incomplete && !retry.results[0]!.adminToFinish);
+  assert.equal(db.rows("piece_images").length, 1);
+  assert.equal(db.rows("piece_documents").length, 1);
+});
+
+test("a staff push writes the batch day on its fresh record even when a photo failed", async () => {
+  const db = new FakeDb();
+  const { batchId } = seed(db, [{ fields: { title: "Box" }, photos: [{}] }]);
+  db.failDownloadOnce.add(`captures/${db.rows("capture_photos")[0]!.storage_path}`);
+  await runAsStaff(db, batchId);
+  assert.equal(db.rows("piece_financials")[0]!.purchase_date, "2026-07-15");
+});
+
+test("a staff retry after the invoice failed leaves the invoice for an admin", async () => {
+  const db = new FakeDb();
+  const { batchId, workIds } = seed(db, [{ fields: { title: "Box" }, photos: [{}] }]);
+  const inv = seedInvoice(db, {});
+  db.rows("capture_invoice_links").push({ invoice_id: inv.id, work_id: workIds[0], piece_id: null });
+  db.failDownloadOnce.add(`captures/${db.rows("capture_invoice_pages")[0]!.squared_path}`);
+
+  const first = await runAsStaff(db, batchId);
+  assert.ok(first.found && first.results[0]!.invoiceFailed);
+  const retry = await runAsStaff(db, batchId);
+  assert.ok(retry.found && !retry.results[0]!.incomplete && retry.results[0]!.adminToFinish);
+  assert.equal(db.rows("piece_documents").length, 0);
+  assert.equal(db.rows("capture_works")[0]!.status, "pushed");
 });

@@ -29,6 +29,16 @@ import type { createServiceClient } from "@jvb/db/server";
  *    attaches on a later push still gives its own date. Otherwise the work
  *    stays a draft, with its stock record, and the lease is released so
  *    pushing again finishes it.
+ * 5. The purchase figures are written with the service role, because staff
+ *    have no policy on piece_financials or purchase-invoice documents. A
+ *    staff push therefore writes them only on a record this same run
+ *    inserted. Every other way of arriving at a record (pushed_piece_id, a
+ *    record found under the work's id, an insert refused by the primary key)
+ *    rests on capture rows staff can write, and could name any record in
+ *    either register. On such a record a staff push still adds the photos
+ *    (staff may add images anyway) and finishes the work, and leaves the
+ *    invoice and figures for an admin (`adminToFinish`). An admin's push
+ *    attaches and prefills on every run, as before.
  *
  * Needs no database object beyond those of migration 0030 and 0056.
  */
@@ -102,6 +112,12 @@ export type WorkResult = {
   incomplete?: boolean;
   /** Another push is adding this work right now. */
   busy?: boolean;
+  /**
+   * Finished by a staff push on a record an earlier run created: a linked
+   * invoice that is not on the record yet, and the purchase figures, are
+   * left for an admin to add in the studio.
+   */
+  adminToFinish?: boolean;
   /** No photos and no text: nothing was added (status 'skipped'). */
   skipped?: boolean;
   error?: string;
@@ -383,6 +399,37 @@ async function attachWorkInvoices(db: Db, workId: string, pieceId: string): Prom
   return ok;
 }
 
+/**
+ * Whether a linked invoice of this work is not yet on the record: its first
+ * page has no document at `<piece>/<page id>.*`. Read only. True when it
+ * cannot be told, so the push says what may be missing rather than nothing.
+ */
+async function invoicesLeft(db: Db, workId: string, pieceId: string): Promise<boolean> {
+  const { data: links, error } = await db.from("capture_invoice_links").select("invoice_id").eq("work_id", workId);
+  if (error) return true;
+  const ids = [...new Set(((links ?? []) as { invoice_id: string }[]).map((l) => l.invoice_id))];
+  for (const invoiceId of ids) {
+    const { data: pages, error: pErr } = await db
+      .from("capture_invoice_pages")
+      .select("id, page_no")
+      .eq("invoice_id", invoiceId)
+      .order("page_no")
+      .limit(1);
+    if (pErr) return true;
+    const first = ((pages ?? []) as { id: string }[])[0];
+    if (!first) continue;
+    if (!new RegExp(`^${UUID_PATTERN}$`).test(first.id)) return true;
+    const { data: docs, error: dErr } = await db
+      .from("piece_documents")
+      .select("id")
+      .eq("piece_id", pieceId)
+      .like("storage_path", `${pieceId}/${first.id}.%`)
+      .limit(1);
+    if (dErr || !(docs ?? []).length) return true;
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Capture work → stock record
 // ---------------------------------------------------------------------------
@@ -441,15 +488,23 @@ async function findPiece(db: Db, id: string): Promise<Piece | null> {
   return null;
 }
 
-type Ctx = { db: Db; userId: string; batch: Batch; purchaseDate: string; now: Date };
+type Ctx = {
+  db: Db;
+  userId: string;
+  /** An admin's push may write figures on any record it arrives at (point 5 above). */
+  callerIsAdmin: boolean;
+  batch: Batch;
+  purchaseDate: string;
+  now: Date;
+};
 
 /**
  * Create the work's stock record under the work's own id. When a record with
  * that id is already there (a run cut off after its insert, or whose insert
  * reached the database although the reply was lost), the primary key refuses
- * this one and that record is returned instead.
+ * this one and that record is returned instead, with `fresh` false.
  */
-async function createPiece(ctx: Ctx, work: Work): Promise<Piece> {
+async function createPiece(ctx: Ctx, work: Work): Promise<{ piece: Piece; fresh: boolean }> {
   const clean = (v: string | null | undefined) => v?.trim() || null;
   const makerText = clean(work.maker);
   const makerId = makerText ? await findMaker(ctx.db, makerText) : null;
@@ -493,10 +548,10 @@ async function createPiece(ctx: Ctx, work: Work): Promise<Piece> {
     .single();
   if (error && (error as { code?: string }).code === "23505") {
     const there = await findPiece(ctx.db, work.id);
-    if (there) return there;
+    if (there) return { piece: there, fresh: false };
   }
   if (error || !data) throw new Error(error?.message ?? "Could not create the stock record");
-  return data as Piece;
+  return { piece: data as Piece, fresh: true };
 }
 
 /** Copy the work's photos onto the record; returns how many failed. */
@@ -550,6 +605,8 @@ async function pushWork(ctx: Ctx, work: Work): Promise<WorkResult> {
 
   let pieceId = lease.pushed_piece_id;
   let stockNumber: string | undefined;
+  // Whether this run inserted the record itself (point 5 above).
+  let fresh = false;
   try {
     const { data: photoRows, error: phErr } = await db
       .from("capture_photos")
@@ -582,10 +639,12 @@ async function pushWork(ctx: Ctx, work: Work): Promise<WorkResult> {
     }
 
     if (!pieceId) {
-      const piece = await createPiece(ctx, work);
-      pieceId = piece.id;
-      stockNumber = piece.stock_number ?? undefined;
+      const made = await createPiece(ctx, work);
+      pieceId = made.piece.id;
+      stockNumber = made.piece.stock_number ?? undefined;
+      fresh = made.fresh;
     }
+    const mayFill = ctx.callerIsAdmin || fresh;
     if (pieceId !== lease.pushed_piece_id) {
       const { error } = await db.from("capture_works").update({ pushed_piece_id: pieceId }).eq("id", work.id);
       // Safe to let go: the next push finds the record by the work's id.
@@ -593,13 +652,16 @@ async function pushWork(ctx: Ctx, work: Work): Promise<WorkResult> {
     }
 
     const photosFailed = await copyPhotos(db, work.id, pieceId, photos);
-    const invoiceOk = await attachWorkInvoices(db, work.id, pieceId);
+    const invoiceOk = mayFill ? await attachWorkInvoices(db, work.id, pieceId) : true;
+    const adminToFinish = !mayFill && (await invoicesLeft(db, work.id, pieceId));
 
     // A purchase date even without an invoice: the batch's day. Written last,
     // only when nothing else is left: an invoice that failed this time (or
     // is linked before the next push) fills its own date then, which it
-    // could not do over this fallback.
-    if (photosFailed === 0 && invoiceOk) {
+    // could not do over this fallback. A staff push writes it on its fresh
+    // record even when a photo failed, since the push that finishes the
+    // photos may not write figures.
+    if (mayFill && invoiceOk && (photosFailed === 0 || !ctx.callerIsAdmin)) {
       const { error: dErr } = await db
         .from("piece_financials")
         .update({ purchase_date: ctx.purchaseDate })
@@ -624,7 +686,7 @@ async function pushWork(ctx: Ctx, work: Work): Promise<WorkResult> {
       .update({ status: "pushed", pushed_piece_id: pieceId, pushed_at: ctx.now.toISOString() })
       .eq("id", work.id);
     if (mErr) throw new Error(`Could not mark the work as added: ${mErr.message}`);
-    return { workId: work.id, stockNumber };
+    return { workId: work.id, stockNumber, ...(adminToFinish ? { adminToFinish } : {}) };
   } catch (e) {
     await release(db, work.id).catch(() => undefined);
     return {
@@ -639,16 +701,19 @@ async function pushWork(ctx: Ctx, work: Work): Promise<WorkResult> {
  * Promote a capture batch's draft works into stock records, each flagged
  * `needs_completion`. Reads go through `rls` (the signed-in admin or staff
  * user); writes through `db` (the service role), because staff have no
- * policy on piece_financials and the copies cross buckets.
+ * policy on piece_financials and the copies cross buckets. `callerIsAdmin`
+ * says whether the figures may go on a record this run did not insert
+ * (point 5 at the top).
  */
 export async function pushBatch(opts: {
   rls: Db;
   db: Db;
   batchId: string;
   userId: string;
+  callerIsAdmin: boolean;
   now?: Date;
 }): Promise<PushOutcome> {
-  const { rls, db, batchId, userId } = opts;
+  const { rls, db, batchId, userId, callerIsAdmin } = opts;
   const now = opts.now ?? new Date();
 
   const { data: batch } = await rls
@@ -669,6 +734,7 @@ export async function pushBatch(opts: {
   const ctx: Ctx = {
     db,
     userId,
+    callerIsAdmin,
     batch: batch as Batch,
     purchaseDate: londonDay((batch as Batch).captured_at),
     now,

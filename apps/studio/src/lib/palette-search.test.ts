@@ -443,3 +443,21 @@ test("nothing matched exactly: the typo-tolerant pass's rows, marked similar per
   assert.deepEqual(gone.pieces, []);
   assert.equal(gone.similar.pieces, false);
 });
+
+test("contacts: an erased contact is never offered", async () => {
+  search.setSearchConfigForTests(null);
+  const d = fakeSupabase({
+    tables: {
+      vw_pieces_list: [],
+      vw_pieces_all: [],
+      makers: [],
+      crm_contacts: [
+        { ...contact(1), first_name: "Erased contact", last_name: "1a2b3c4d", erased_at: "2026-11-01T00:00:00Z" },
+        { ...contact(2), erased_at: null },
+      ],
+    },
+    rpc: { pieces_search: () => [], crm_contacts_search: () => [contact(1), contact(2)] },
+  });
+  const out = await palette.paletteSearch(d.client as never, "contact", ["staff"]);
+  assert.deepEqual(out.contacts.map((c) => c.id), [contact(2).id]);
+});

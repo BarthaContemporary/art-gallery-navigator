@@ -199,9 +199,12 @@ export default async function CampaignDetail({
   // ---- send a test to one address -----------------------------------------
   async function sendTest(formData: FormData) {
     "use server";
-    const db = await getSupabase();
+    // Checked here as in sendCampaign: a server action can be called on its
+    // own, and this one sends from the gallery's address.
     const session = await getSession();
-    const to = String(formData.get("test_email") ?? "").trim() || session?.user.email || "";
+    if (!session || !hasRole(session.roles, "admin", "staff")) throw new Error("Forbidden");
+    const db = await getSupabase();
+    const to = String(formData.get("test_email") ?? "").trim() || session.user.email || "";
     if (!to) redirect(`/crm/campaigns/${id}?err=notest`);
 
     const { data: c } = await db
@@ -210,6 +213,8 @@ export default async function CampaignDetail({
       .eq("id", id)
       .maybeSingle();
     const cc = c as Pick<Campaign, "subject" | "from_address" | "design" | "preview_text"> | null;
+    // Never a test of an empty design: the campaign is gone or not readable.
+    if (!cc) redirect(`/crm/campaigns/${id}?err=missing`);
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) redirect(`/crm/campaigns/${id}?err=nokey`);
 

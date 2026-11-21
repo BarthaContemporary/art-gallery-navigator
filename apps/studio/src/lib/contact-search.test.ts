@@ -314,3 +314,19 @@ test("the pickers' route asks the index for a margin over the ten it shows, with
   assert.deepEqual(ids(body.results), [cid(3), cid(1), cid(2)]);
   assert.equal(osRequests[0]!.body.size, cs.PICKER_ASK);
 });
+
+test("an erased contact is never offered, though crm_contacts_search still ranks it", async () => {
+  search.setSearchConfigForTests(null);
+  const d = fakeSupabase({
+    tables: {
+      crm_contacts: [
+        { ...contact(1), first_name: "Erased contact", last_name: "1a2b3c4d", email: null, erased_at: "2026-11-01T00:00:00Z" },
+        { ...contact(2), erased_at: null },
+      ],
+    },
+    rpc: { crm_contacts_search: () => [contact(1), contact(2)] },
+  });
+  const out = await cs.findContacts(d.client as never, "contact", { roles: ["staff"], columns: COLS, limit: cs.PICKER_ASK, show: cs.PICKER_SHOW });
+  assert.equal(out.error, null);
+  assert.deepEqual(ids(out.rows), [cid(2)]);
+});
