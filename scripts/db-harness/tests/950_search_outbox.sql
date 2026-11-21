@@ -184,11 +184,32 @@ do $$ begin
   if exists (select 1 from public.vw_function_exposure where anon_can_execute or public_can_execute) then
     raise exception 'vw_function_exposure reports a function open to anon or PUBLIC';
   end if;
-  if exists (select 1 from public.vw_anon_exposure where table_name in ('search_outbox', 'search_state')) then
-    raise exception 'vw_anon_exposure lists a search table';
-  end if;
 end $$;
 reset role;
+
+-- vw_anon_exposure reads information_schema.table_privileges, which shows a
+-- grant only to a role holding its grantor or grantee: read as the service
+-- role it would miss a grant from postgres to anon. So it is read here as
+-- the superuser, after showing that it would list such a grant.
+savepoint anon_exposure_control;
+grant select on public.search_outbox to anon;
+do $$ begin
+  if not exists (select 1 from public.vw_anon_exposure where table_name = 'search_outbox') then
+    raise exception 'setup: vw_anon_exposure, read as the superuser, misses a grant to anon';
+  end if;
+end $$;
+rollback to savepoint anon_exposure_control;
+do $$ begin
+  if exists (select 1 from public.vw_anon_exposure where table_name in ('search_outbox', 'search_state')) then
+    raise exception 'vw_anon_exposure lists a search table: %',
+      (select string_agg(table_name || ' (' || anon_privileges || ')', ', ') from public.vw_anon_exposure
+        where table_name in ('search_outbox', 'search_state'));
+  end if;
+  if exists (select 1 from public.vw_anon_exposure) then
+    raise exception 'vw_anon_exposure should be empty: %',
+      (select string_agg(table_name || ' (' || anon_privileges || ')', ', ') from public.vw_anon_exposure);
+  end if;
+end $$;
 
 -- The trigger set, exactly (insert, update, delete per table; categories and
 -- organisations have no works or contacts when new).
@@ -634,15 +655,55 @@ end $$;
 reset role;
 
 -- A claim whose drain died lapses after two minutes; one younger does not.
-update public.search_outbox set claimed_at = now() - interval '3 minutes' where id in (select id from first_claim);
-update public.search_outbox set claimed_at = now() - interval '90 seconds' where id in (select id from second_claim);
+-- (Set from clock_timestamp(), which the claim compares with: this
+-- transaction's now() is as old as the test.)
+update public.search_outbox set claimed_at = clock_timestamp() - interval '3 minutes' where id in (select id from first_claim);
+update public.search_outbox set claimed_at = clock_timestamp() - interval '90 seconds' where id in (select id from second_claim);
 set local role service_role;
 do $$ begin
   if (select count(*) from public.claim_search_outbox(10)) <> 3 then raise exception 'lapsed claims were not handed out again (or young ones were)'; end if;
-  -- The batch is at least one row and at most 1,000.
-  if (select count(*) from public.claim_search_outbox(0)) > 1 then raise exception 'a batch of 0 claimed more than one row'; end if;
 end $$;
+reset role;
+
+-- The batch: at least one row, 200 when none is given, at most 1,000. Every
+-- row above is now held by a live claim, so these calls see only 1,500 fresh
+-- rows, more than any call may take.
+select max(id) as batch_floor from public.search_outbox \gset
+select set_config('t.batch_floor', :'batch_floor', true);
+insert into public.search_outbox (entity_type, entity_id)
+  select 'maker', gen_random_uuid() from generate_series(1, 1500);
+set local role service_role;
+do $$
+declare _n bigint;
+begin
+  _n := (select count(*) from public.claim_search_outbox(0));
+  if _n <> 1 then raise exception 'a batch of 0 should claim exactly one row, claimed %', _n; end if;
+  _n := (select count(*) from public.claim_search_outbox(-5));
+  if _n <> 1 then raise exception 'a negative batch should claim exactly one row, claimed %', _n; end if;
+  _n := (select count(*) from public.claim_search_outbox(null));
+  if _n <> 200 then raise exception 'a null batch should claim 200 rows, claimed %', _n; end if;
+  _n := (select count(*) from public.claim_search_outbox());
+  if _n <> 200 then raise exception 'the default batch should be 200 rows, claimed %', _n; end if;
+  _n := (select count(*) from public.claim_search_outbox(5000));
+  if _n <> 1000 then raise exception 'a batch should claim at most 1,000 rows, claimed %', _n; end if;
+  _n := (select count(*) from public.claim_search_outbox(5000));
+  if _n <> 98 then raise exception 'the last batch should claim the 98 rows left, claimed %', _n; end if;
+end $$;
+reset role;
+do $$ begin
+  if exists (select 1 from public.search_outbox where id > current_setting('t.batch_floor')::bigint and claimed_at is null) then
+    raise exception 'the batch calls left fresh rows unclaimed';
+  end if;
+  if (select count(*) from public.search_outbox where id <= current_setting('t.batch_floor')::bigint) <> 6
+     or exists (select 1 from public.search_outbox o join second_claim s using (id)
+                 where o.claimed_at > clock_timestamp() - interval '80 seconds') then
+    raise exception 'the batch calls took a row held by a live claim';
+  end if;
+end $$;
+delete from public.search_outbox where id > current_setting('t.batch_floor')::bigint;
+
 -- The drain deletes what it finished; it cannot queue rows of its own.
+set local role service_role;
 delete from public.search_outbox where id in (select id from first_claim);
 do $$ begin
   begin insert into public.search_outbox (entity_type, entity_id) values ('work', gen_random_uuid());
