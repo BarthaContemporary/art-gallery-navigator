@@ -9,6 +9,10 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { PRIMARY_KEYS, SERIAL_ID_TABLES, STAFF_HIDDEN, OWN_ROWS } from "./schema.mjs";
+// The studio's own VAT and settlement rules (pure, import-free), which mirror
+// the stock-book views: the sixth in whole pence half up, the share split in
+// pence. Node strips the types, as it does for `pnpm test:unit`.
+import { consignmentSplit, saleVat } from "../../../apps/studio/src/lib/consignment.ts";
 
 const DAY = 86_400_000;
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -73,6 +77,9 @@ export class Db {
       const rows = JSON.parse(fs.readFileSync(path.join(this.dataDir, file), "utf8"));
       this.tables.set(name, shiftDates(rows, this.shiftDays));
     }
+    // Generated columns always hold their expression in Postgres, whatever a
+    // fixture file says.
+    for (const f of this.tables.get("piece_financials") ?? []) computeFinancials(f);
     this.serial = new Map();
   }
 
@@ -269,15 +276,16 @@ export class Db {
     }
   }
 
-  /** The five stock-book views (migration 0045), computed in one place. */
+  /**
+   * The five stock-book views as migration 0098 defines them: the same
+   * columns in the same order (only vw_stock_book_all has vat_treatment and
+   * total_cost_gbp, only vw_stock_book has margin_pct, and select("*") reads
+   * just those), VAT due and J.v.d.B.'s share by the studio's rules in
+   * lib/consignment.ts, and no share before there is a sale £.
+   */
   stockBook(name) {
-    const scheme = {
-      vw_stock_book: "margin_scheme",
-      vw_stock_book_standard: "standard",
-      vw_stock_book_zero_rated: "zero_rated",
-      vw_stock_book_outside_scope: "outside_scope",
-      vw_stock_book_all: null,
-    }[name];
+    const scheme = STOCK_BOOK_SCHEME[name];
+    const columns = STOCK_BOOK_COLUMNS[name];
     const contacts = new Map(this.table("crm_contacts").map((c) => [c.id, c]));
     const shipments = new Map(this.table("shipments").map((s) => [s.id, s]));
     const links = this.table("piece_shipments");
@@ -288,44 +296,36 @@ export class Db {
       if (!f) continue;
       if (scheme && f.vat_treatment !== scheme) continue;
       const seller = contacts.get(f.seller_contact_id);
-      const ship = (kind) => {
-        const l = links.find((x) => x.piece_id === p.id && x.kind === kind && (kind !== "temporary_export" || (x.returned_at == null && x.closed_reason == null)));
-        return l ? shipments.get(l.shipment_id) : null;
+      const shipment = (kind) => {
+        const found = links
+          .filter((x) => x.piece_id === p.id && x.kind === kind && (kind !== "temporary_export" || (x.returned_at == null && x.closed_reason == null)))
+          .map((x) => shipments.get(x.shipment_id))
+          .filter(Boolean);
+        // The temporary export is the latest one still out (ORDER BY shipment_date DESC NULLS LAST).
+        if (kind === "temporary_export") found.sort((a, b) => (b.shipment_date ?? "").localeCompare(a.shipment_date ?? ""));
+        return found[0] ?? null;
       };
-      const imp = ship("import");
-      const exp = ship("export");
-      const tmp = ship("temporary_export");
-      const importVatCost = f.import_type === "import_vat_paid" ? Number(f.import_vat_gbp ?? 0) : 0;
-      const vat = (() => {
-        const t = f.vat_treatment;
-        if (p.sale_handled_by_jvb === false) return 0;
-        if (t === "margin_scheme") return round2(Math.max(Number(f.margin_gbp ?? 0) - importVatCost, 0) / 6);
-        if (t === "standard") return round2(Number(f.sold_price_gbp ?? 0) / 6);
-        return 0;
-      })();
-      const extras = Math.max(Number(f.total_cost_gbp ?? 0) - Number(f.purchase_cost_gbp ?? 0), 0);
-      const share =
-        p.consignment_share_pct == null
-          ? null
-          : round2((p.consignment_share_pct / 100) * Math.max(Number(f.sold_price_gbp ?? 0) - vat - (extras + (f.vat_treatment === "margin_scheme" ? importVatCost : 0)), 0) + extras + (f.vat_treatment === "margin_scheme" ? importVatCost : 0));
-      const row = {
+      const imp = shipment("import");
+      const exp = shipment("export");
+      const tmp = shipment("temporary_export");
+      const money = stockBookMoney(p, f);
+      const full = {
         piece_id: p.id,
         stock_number: p.stock_number,
-        ...(scheme ? {} : { vat_treatment: f.vat_treatment }),
+        vat_treatment: f.vat_treatment,
         purchase_date: f.purchase_date,
         purchase_invoice_document_id: f.purchase_invoice_document_id,
-        seller_name: seller ? [seller.first_name, seller.last_name].filter(Boolean).join(" ") : "",
-        description: p.title + (p.medium ? ` — ${p.medium}` : ""),
+        // TRIM(concat_ws(' ', first_name, last_name)), '' with no seller.
+        seller_name: [seller?.first_name, seller?.last_name].filter((s) => s != null).join(" ").trim(),
+        // title || COALESCE(' — ' || medium, ''): no title, no description.
+        description: p.title == null ? null : p.title + (p.medium != null ? ` — ${p.medium}` : ""),
         purchase_cost_gbp: f.purchase_cost_gbp,
         sold_date: f.sold_date,
         sale_invoice_document_id: f.sale_invoice_document_id,
         sold_price_gbp: f.sold_price_gbp,
         margin_gbp: f.margin_gbp,
-        vat_due_gbp: vat,
-        margin_pct:
-          Number(f.total_cost_gbp ?? 0) !== 0 && f.sold_price_gbp != null
-            ? Math.round((Number(f.margin_gbp) / Number(f.total_cost_gbp)) * 1000) / 10
-            : null,
+        vat_due_gbp: money.vatDue,
+        margin_pct: money.marginPct,
         import_date: imp?.shipment_date ?? null,
         import_reference: imp?.reference ?? null,
         export_date: exp?.shipment_date ?? null,
@@ -336,18 +336,15 @@ export class Db {
         consignment_notes: p.consignment_details,
         consignment_share_pct: p.consignment_share_pct,
         sale_handled_by_jvb: p.sale_handled_by_jvb,
-        jvb_share_gbp: share,
+        jvb_share_gbp: money.jvbShare,
         import_type: f.import_type,
         import_vat_gbp: f.import_vat_gbp,
-        reclaimable_import_vat_gbp:
-          f.vat_treatment === "margin_scheme" ? null : f.import_type === "import_vat_paid" ? Number(f.import_vat_gbp ?? 0) : 0,
+        reclaimable_import_vat_gbp: reclaimableImportVat(name, f),
+        total_cost_gbp: f.total_cost_gbp,
         export_destination: exp?.destination_country ?? null,
         temp_export_destination: tmp?.destination_country ?? null,
-        total_cost_gbp: f.total_cost_gbp,
-        restoration_cost_gbp: f.restoration_cost_gbp,
-        other_costs_gbp: f.other_costs_gbp,
       };
-      out.push(row);
+      out.push(Object.fromEntries(columns.map((c) => [c, full[c] ?? null])));
     }
     return out;
   }
@@ -474,27 +471,116 @@ export class Db {
   }
 }
 
-function round2(n) {
-  return Math.round(n * 100) / 100;
+// ------------------------------------------------------------- stock book
+
+const STOCK_BOOK_SCHEME = {
+  vw_stock_book: "margin_scheme",
+  vw_stock_book_standard: "standard",
+  vw_stock_book_zero_rated: "zero_rated",
+  vw_stock_book_outside_scope: "outside_scope",
+  vw_stock_book_all: null,
+};
+
+/** Each view's columns, in order, as Postgres lists them after migration 0098. */
+const SCHEME_COLUMNS = [
+  "piece_id", "stock_number", "purchase_date", "purchase_invoice_document_id", "seller_name", "description",
+  "purchase_cost_gbp", "sold_date", "sale_invoice_document_id", "sold_price_gbp", "vat_due_gbp", "margin_gbp",
+  "import_date", "import_reference", "export_date", "export_reference", "temp_export_date", "temp_export_reference",
+  "consignment_co_owner", "consignment_notes", "consignment_share_pct", "sale_handled_by_jvb", "jvb_share_gbp",
+  "import_type", "import_vat_gbp", "reclaimable_import_vat_gbp", "export_destination", "temp_export_destination",
+];
+const MARGIN_COLUMNS = (() => {
+  // vw_stock_book: margin before VAT due, then margin_pct.
+  const c = SCHEME_COLUMNS.filter((x) => x !== "vat_due_gbp");
+  c.splice(c.indexOf("margin_gbp") + 1, 0, "vat_due_gbp", "margin_pct");
+  return c;
+})();
+const ALL_COLUMNS = (() => {
+  const c = [...SCHEME_COLUMNS];
+  c.splice(2, 0, "vat_treatment");
+  c.splice(c.indexOf("reclaimable_import_vat_gbp") + 1, 0, "total_cost_gbp");
+  return c;
+})();
+export const STOCK_BOOK_COLUMNS = {
+  vw_stock_book: MARGIN_COLUMNS,
+  vw_stock_book_standard: SCHEME_COLUMNS,
+  vw_stock_book_zero_rated: SCHEME_COLUMNS,
+  vw_stock_book_outside_scope: SCHEME_COLUMNS,
+  vw_stock_book_all: ALL_COLUMNS,
+};
+
+const num = (v) => (v == null || v === "" ? null : Number(v));
+
+/** Import VAT paid, whatever the treatment (lib/consignment counts it as a cost on the margin scheme only). */
+const importVatPaid = (f) => (f.import_type === "import_vat_paid" ? num(f.import_vat_gbp) ?? 0 : 0);
+
+/**
+ * VAT due, J.v.d.B.'s share and margin % of one stock-book row, as the views
+ * work them out (migration 0098) and the studio does (lib/consignment.ts):
+ *  - VAT: none when a third party handled the sale; margin scheme a sixth of
+ *    (sale − total cost − import VAT paid), at least 0; standard a sixth of the
+ *    sale; zero-rated and outside scope none. Each sixth to the penny, half
+ *    up. No sale reads as a sale of 0, so VAT due is 0, not null.
+ *  - Share: null without a share % or before there is a sale £; otherwise the
+ *    share % of (sale − VAT − restoration and other costs − import VAT paid on
+ *    the margin scheme), in whole pence, plus those costs back.
+ */
+export function stockBookMoney(p, f) {
+  const sold = num(f.sold_price_gbp);
+  const purchase = num(f.purchase_cost_gbp) ?? 0;
+  const total = num(f.total_cost_gbp) ?? 0;
+  const ivc = f.vat_treatment === "margin_scheme" ? importVatPaid(f) : 0;
+  const vatDue = saleVat({
+    amount: sold ?? 0,
+    vatTreatment: f.vat_treatment,
+    saleHandledByJvb: p.sale_handled_by_jvb ?? null,
+    costBaseGbp: total + ivc,
+  });
+  const pct = num(p.consignment_share_pct);
+  const jvbShare =
+    pct == null || sold == null
+      ? null
+      : consignmentSplit({
+          amount: sold,
+          vatTreatment: f.vat_treatment,
+          saleHandledByJvb: p.sale_handled_by_jvb ?? null,
+          purchaseCostGbp: purchase,
+          // greatest(total_cost_gbp - purchase_cost_gbp, 0): restoration and other costs.
+          extraCostsGbp: Math.max(total - purchase, 0),
+          importVatPaidGbp: importVatPaid(f),
+          sharePct: pct,
+        }).jvbReceived;
+  // round(margin / total * 100, 1), half away from zero, where there is a cost and a sale.
+  const margin = num(f.margin_gbp);
+  const marginPct = total !== 0 && sold != null && margin != null ? roundHalfAway((margin / total) * 100, 1) : null;
+  return { vatDue, jvbShare, marginPct };
+}
+
+/** reclaimable_import_vat_gbp: NULL in the margin-scheme view, 0 for the margin scheme in the combined view. */
+function reclaimableImportVat(view, f) {
+  if (view === "vw_stock_book") return null;
+  if (view === "vw_stock_book_all" && f.vat_treatment === "margin_scheme") return 0;
+  return importVatPaid(f);
+}
+
+function roundHalfAway(n, places) {
+  const k = 10 ** places;
+  return (Math.sign(n) * Math.round(Math.abs(n) * k + 1e-9)) / k;
 }
 
 /**
- * piece_financials' generated columns: total cost, margin and net profit
- * (sale less VAT due less total cost), the way the stock book reads them.
+ * piece_financials' generated columns (migration 0005): total cost is the sum
+ * of the three costs, each missing one counted as 0, so it is never null;
+ * margin is the sale less those costs, null only without a sale £. Summed in
+ * pence, as numeric adds. net_profit_gbp is not generated: it holds
+ * FileMaker's figure, which the database never recomputes, so it is left as
+ * the fixtures have it.
  */
 export function computeFinancials(f) {
-  const n = (v) => (v == null || v === "" ? null : Number(v));
-  const purchase = n(f.purchase_cost_gbp);
-  const restoration = n(f.restoration_cost_gbp) ?? 0;
-  const other = n(f.other_costs_gbp) ?? 0;
-  f.total_cost_gbp = purchase == null && !restoration && !other ? null : round2((purchase ?? 0) + restoration + other);
-  const sold = n(f.sold_price_gbp);
-  f.margin_gbp = sold != null && f.total_cost_gbp != null ? round2(sold - f.total_cost_gbp) : null;
-  if (sold == null) f.net_profit_gbp = null;
-  else {
-    const vat =
-      f.vat_treatment === "standard" ? sold / 6 : f.vat_treatment === "margin_scheme" ? Math.max(f.margin_gbp ?? 0, 0) / 6 : 0;
-    f.net_profit_gbp = f.total_cost_gbp != null ? round2(sold - vat - f.total_cost_gbp) : null;
-  }
+  const pence = (v) => Math.round((num(v) ?? 0) * 100);
+  const costs = pence(f.purchase_cost_gbp) + pence(f.restoration_cost_gbp) + pence(f.other_costs_gbp);
+  f.total_cost_gbp = costs / 100;
+  const sold = num(f.sold_price_gbp);
+  f.margin_gbp = sold == null ? null : (Math.round(sold * 100) - costs) / 100;
   return f;
 }

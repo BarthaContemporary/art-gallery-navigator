@@ -102,7 +102,9 @@ async function waitFor(name, url, timeoutMs) {
 }
 
 const mock = await ensure("mock", `${MOCK_URL}/__preview/health`, () =>
-  launch("mock", process.execPath, [path.join(HERE, "mock-supabase.mjs"), "--port", String(MOCK_PORT)], {
+  // lib/db.mjs imports the studio's lib/consignment.ts; the studio's
+  // package.json names no module type, so Node would warn on every start.
+  launch("mock", process.execPath, ["--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", path.join(HERE, "mock-supabase.mjs"), "--port", String(MOCK_PORT)], {
     cwd: HERE,
     env: { ...baseEnv(), PREVIEW_STUDIO_ORIGIN: STUDIO_URL, PREVIEW_RUN_DIR: RUN_DIR },
     check: "mock-supabase.mjs",

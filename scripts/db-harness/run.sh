@@ -7,12 +7,16 @@
 #   scripts/db-harness/run.sh tests/x.sql     # migrations + one test
 #   KEEP=1 scripts/db-harness/run.sh          # leave the server running (port 55432)
 #
-# Needs a local Postgres 16 (initdb/pg_ctl under /usr/lib/postgresql/16/bin).
-# Runs the server as the "postgres" system user when started as root.
+# Needs a local Postgres 16 (initdb/pg_ctl under /usr/lib/postgresql/16/bin,
+# or the folder named by PG_BIN). Runs the server as the "postgres" system
+# user when started as root, otherwise as the calling user (CI's runner).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 BIN="${PG_BIN:-/usr/lib/postgresql/16/bin}"
+[ -x "$BIN/initdb" ] && [ -x "$BIN/pg_ctl" ] || { echo "No PostgreSQL 16 server programs in $BIN (set PG_BIN to their folder)." >&2; exit 2; }
+# psql from the same installation when it is there (CI), else the one on PATH.
+PSQL_BIN="$BIN/psql"; [ -x "$PSQL_BIN" ] || PSQL_BIN=psql
 PORT="${PORT:-55432}"
 DATA="$(mktemp -d "${TMPDIR:-/tmp}/jvb-db-harness.XXXXXX")"
 LOG="$DATA.log"
@@ -22,7 +26,7 @@ as_pg "$BIN/initdb" -D "$DATA" -U postgres -A trust >/dev/null
 as_pg "$BIN/pg_ctl" -D "$DATA" -o "-p $PORT -k $DATA -c listen_addresses=''" -l "$LOG" -w start >/dev/null
 stop() { [ -n "${KEEP:-}" ] && { echo "server left running: psql -h $DATA -p $PORT -U postgres jvb"; return; }; as_pg "$BIN/pg_ctl" -D "$DATA" -m fast stop >/dev/null; rm -rf "$DATA" "$LOG"; }
 trap stop EXIT
-PSQL=(psql -X -q -v ON_ERROR_STOP=1 -h "$DATA" -p "$PORT" -U postgres)
+PSQL=("$PSQL_BIN" -X -q -v ON_ERROR_STOP=1 -h "$DATA" -p "$PORT" -U postgres)
 "${PSQL[@]}" -d postgres -c "create database jvb" >/dev/null
 "${PSQL[@]}" -d jvb -f "$HERE/supabase-stubs.sql" >/dev/null
 

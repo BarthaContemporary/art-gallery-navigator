@@ -106,8 +106,8 @@ export default async function PrivacyPage() {
       <LegalSection heading="Who we share it with">
         <p>
           Service providers who process data on our instructions under written contracts: Vercel
-          (hosting of this website and our internal system, USA); Vultr (our database and image storage,
-          London, UK); Resend (email delivery, USA); Sanity (website content, EU and USA); Cloudflare
+          (hosting of this website and our internal system, USA); Vultr (our database, search index and
+          image storage, London, UK); Resend (email delivery, USA); Sanity (website content, EU and USA); Cloudflare
           (protection of our forms against automated abuse, global); Anthropic (an AI service that
           reads photographs for our staff, such as a business card you hand us, which is deleted once
           read, or a purchase invoice, USA); Google Maps Platform (completing a postal address as our
