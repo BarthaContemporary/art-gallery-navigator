@@ -30,6 +30,13 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   in the newest past-exhibition catalogue (`artistTileFields` in
   `apps/web/src/lib/sanity.ts`), also black and white; works everywhere
   else stay in colour.
+- **Studio search**: the header of `apps/studio/src/lib/opensearch/search.ts` is the
+  contract. Postgres always runs through the caller's client and OpenSearch only adds
+  ids, for admin/staff only; every path must work without `OPENSEARCH_*` or migration
+  0100. Nothing staff cannot read goes into an index. A new indexed field changes
+  `documents.ts` and `mappings.ts` together and bumps `INDEX_VERSION` in `config.ts`.
+  A new engine request changes `infra/scripts/verify-search-edge.sh`, the Caddyfile
+  search site and `apps/studio/src/app/login/search-edge-config.test.ts` together.
 - **Work squares**: the website draws a work's tile from `work.presentation`
   and `work.tile`, both written by the sync. `pieces.presentation` (auto /
   flat / object / photo, the "Website square" select on the piece form) is
@@ -69,15 +76,23 @@ a Next.js 15 studio app + public website on a self-hosted Supabase backend.
   and the notice's "Who we share it with". No new tag outside the consent gate.
 - Autosave forms PATCH `new FormData(formRef)` to an API route on input/change;
   a new hidden field must be parsed by the route the form PATCHes (inventory:
-  `apps/studio/src/app/api/inventory/[stockNumber]/route.ts`, which also maps
-  it in `lib/record-changes.ts`) and the form-key baseline updated in the same
-  change (`pnpm ui:guard:update`). A 400/403/404/409/410/413/422 answer is a
-  final refusal: the form shows the route's `{error}` and does not retry.
+  `apps/studio/src/app/api/inventory/[stockNumber]/route.ts`, with its name
+  added to `apps/studio/src/lib/record-changes.ts`: `SINGLE_KEYS`,
+  `DIMENSION_KEYS` or `FINANCIAL_KEYS`. A financial field missing from
+  `FINANCIAL_KEYS` is never written when it is the only change, and a stock
+  field missing from the maps is written by every save, stale tabs included)
+  and the form-key baseline updated in the same change (`pnpm ui:guard:update`).
+  A 400/403/404/409/410/413/422 answer is a final refusal: the form shows the
+  route's `{error}` and does not retry.
 
 ## Security rules (from the October 2026 security review)
 
 - Every API route and server action checks the session AND the role it needs
   before it touches the service client; a page having checked is not enough.
+- Capture writes purchase figures and purchase-invoice documents with the
+  service role only for an admin caller or on a record the same push
+  inserted (`apps/capture/src/lib/push.ts`, point 5): ids read from capture
+  rows or a request are staff-writable and never name the record to fill.
 - A storage path read from a database row is never handed to a service-role
   storage call unchecked: use `safeStoragePath` (`@jvb/db/storage-path`) or the
   per-column helpers in `apps/studio/src/lib/storage-paths.ts`. Migration 0090's

@@ -21,8 +21,9 @@ results are added to its results, never put in their place.
   never backed up, and its data can be deleted without losing anything.
 - If OpenSearch is stopped, full or unreachable, the studio searches
   Postgres alone, exactly as today. Nothing else depends on it.
-- Only admin and staff searches use it. The accountant, the capture app and
-  the website keep searching Postgres only.
+- Only admin and staff searches use it. The accountant and the capture app
+  keep searching Postgres only; the website's own search reads its
+  published content in Sanity and never reaches the index.
 - OpenSearch has no password of its own and listens only inside the server.
   The edge server (Caddy) is its one door from the internet, at
   `search.<server name>`, with two logins: `jvb-search`, which can only
@@ -75,9 +76,11 @@ You need:
   address set, it searches Postgres as before and empties the change queue
   without sending anything.
 - The database changes before 0100 already applied on the live database
-  (the review fixes' 0097 to 0099 included). Database changes go on in
-  number order; if you are not sure, ask whoever looks after the code before
-  step 8.
+  (the review fixes' 0097 to 0099 included). 0100 may already be in too:
+  the November review applies 0097 to 0100 together
+  (`docs/studio/review-2026-11.md` Part 4 step 2), and step 8 then only
+  checks it. Database changes go on in number order; if you are not sure,
+  ask whoever looks after the code before step 8.
 - A choice of address. `search.104-238-184-145.sslip.io` needs no DNS
   record, like the API's address. sslip.io's certificates come from a limit
   that all its users share, so the first certificate can be refused for a
@@ -226,9 +229,11 @@ Look at the value step 1 printed:
    only in the live one.
 
    - If the `>` lines are just the `opensearch:` block with its comments, the
-     changed comment at the top about the exposure model, the line
-     `  opensearch-data:` and the three lines `  search:`, its comment and
-     `    driver: bridge`, and the only `<` lines are that old top comment,
+     line `  opensearch-data:`, the three lines `  search:`, its comment and
+     `    driver: bridge`, and comment lines elsewhere (starting with `#`: the
+     changed comment at the top about the exposure model, the note on the
+     row cap in the `rest` block, the note above the image worker's
+     `stop_grace_period`), and the only `<` lines are that old top comment,
      use the new file:
 
      ```sh
@@ -320,10 +325,12 @@ Expect, in order:
 - `opensearch: healthy` (it takes about 20 seconds);
 - `{"status":"green","number_of_nodes":1}`;
 - no add-ons listed above the line in brackets;
-- these nine settings, exactly (the edge server relies on the first five:
-  no request may name another index inside its body, no jvb- index is made
-  by accident, no deleting by wildcard, no scripts, nothing larger than
-  20 MB):
+- these nine settings, exactly (the edge server relies on five of them:
+  `rest.action.multi.allow_explicit_index`, so no request may name another
+  index inside its body; `action.auto_create_index`, so no jvb- index is
+  made by accident; `action.destructive_requires_name`, so nothing is
+  deleted by wildcard; `script.allowed_types`, so no scripts run; and
+  `http.max_content_length`, so nothing larger than 20 MB is read):
 
   ```
   "action.auto_create_index":"-jvb-*,+*"
@@ -530,7 +537,16 @@ password).
 The change adds the queue that tells the studio which records changed, so
 the index follows edits within seconds, and the small table where the
 studio notes its last reconcile. It stores record numbers only, never what
-the records say. Apply it through the SSH tunnel exactly as
+the records say.
+
+**If 0100 may already be in** (the November review applies it with 0097 to
+0099, `docs/studio/review-2026-11.md` Part 4 step 2), run only the check
+below first. If it passes, skip the rest of this step and go on to step 9.
+Applying 0100 twice is harmless today, but not once a later database change
+has rewritten `apply_retention()`: 0100 would put back its own version of
+it.
+
+Otherwise apply it through the SSH tunnel exactly as
 `docs/ops/security-runbook.md` step 5.4 describes. On your computer, first
 window (prints nothing and looks frozen; leave it open):
 
@@ -704,9 +720,12 @@ every container here it waits for the shared drive's encrypted mount
 ## Changing a search password
 
 Do this once a year, when someone who knew a password leaves, or at once if
-a password may have leaked (then change both, and see
-`docs/compliance/BREACH_PROCEDURE.md`: with the search password someone
-could look names up in the contacts index one guess at a time). Search
+a password may have leaked. If one may have leaked, change both and follow
+`docs/compliance/BREACH_PROCEDURE.md`: with either password one crafted
+search reads back every contact's indexed name, organisation, email, phone
+and WhatsApp digits, city and country, and the works' catalogue text with
+provenance, which can name private owners. Treat it as disclosure of all of
+it. With `jvb-index` someone could also change or delete the index. Search
 keeps working throughout: between steps 2 and 3 the studio searches
 Postgres alone, and changes wait in the queue.
 

@@ -142,10 +142,18 @@ Appendix A shows the exact lines and what each does.
    Lines starting with `>` are only in the new file, lines starting with `<`
    only in the live one.
 
+   The repository's file now also holds the OpenSearch service (the
+   `opensearch:` block, the line `  opensearch-data:` and the `search:`
+   network). That comes later, with `docs/ops/opensearch-runbook.md` step 4,
+   which first puts its build folder on the server. While the `>` lines
+   include any of it, do not take the whole file here: add the sign-in
+   block by hand as below.
+
    - If the `>` lines are just the new block (Appendix A), perhaps with
      some comment lines (starting with `#`) and the image worker's
      `stop_grace_period: 2m` (step 10 adds it otherwise; harmless before
-     then), and there are no `<` lines, use the new file:
+     then), and there are no `<` lines and none of the OpenSearch lines,
+     use the new file:
 
      ```sh
      mv docker-compose.yml.new docker-compose.yml

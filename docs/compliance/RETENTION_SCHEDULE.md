@@ -16,6 +16,7 @@ person to decide. The Privacy Notice quotes these periods: change both together.
 | Studio change history | 6 years | purge | Accounting and provenance |
 | Search index change queue (`search_outbox`: which record changed, as a type and an id, never what it says; normally deleted within seconds, once the studio has updated the search index) | 14 days | purge | Keeping the studio's search current; the nightly reconcile covers anything older |
 | Inventory records in the trash | 30 days | purge (existing) | Undo window |
+| Files of deleted photographs (original, display copy, squares), of works purged from the trash, of deleted shipments' papers and of deleted makers' portraits, and files no record points at | 90 days after the record goes or the file is found (never less than 35); a document or portrait removed on its own goes at once | purge, daily `/api/cron/storage-sweep` (04:17 UTC, from migration 0097; before that such files were never removed); fixed in code, not in Admin | Outlasts the 30 daily backups, so a restored record never points at a missing file |
 | Contacts with no activity, no consent, no hold | 5 years | review | Data minimisation; never deleted automatically |
 | AML due-diligence records | 5 years after the relationship ends | review | MLR 2017 reg. 40 — delete when the hold ends |
 | Purchase, sale, consignment and order records | 6 years after the tax year | never purged by the system | Companies Act / VAT law |
