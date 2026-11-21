@@ -6,11 +6,12 @@
  *
  * Four groups, searched side by side. A group that fails comes back empty
  * and is named in `failed`; it never empties another group.
- *   pieces    searchWorkIds (12 ids, 600 ms, the typo-tolerant pass when
- *             nothing matched exactly), rows from vw_pieces_list (never
- *             vw_pieces_all, which includes the trash), the first 6 that
- *             load, each with the label of the field that matched when the
- *             match was not in what the row shows ("provenance").
+ *   pieces    searchWorkIds (12 ids from each of Postgres and the engine,
+ *             600 ms, the typo-tolerant pass when nothing matched exactly),
+ *             rows from vw_pieces_list (never vw_pieces_all, which includes
+ *             the trash), the first 6 that load, each with the label of the
+ *             field that matched when the match was not in what the row
+ *             shows ("provenance").
  *   makers    searchMakerIds (4), rows from makers.
  *   contacts  admin and staff only: the accountant has no policy on any CRM
  *             table, and nothing is asked of Postgres or OpenSearch for
@@ -47,7 +48,11 @@ type Rows<Row> = PromiseLike<{ data: Row[] | null; error: DbError | null }>;
 
 /** How much each group asks for and shows. */
 export const PALETTE = {
-  /** The engine's answer is bounded, not Postgres's: ids that do not load are skipped. */
+  /**
+   * Work ids asked of each side, the engine and Postgres (pieces_search's own
+   * order, so its exact and contained stock numbers stay first): ids that do
+   * not load are skipped.
+   */
   workIds: 12,
   works: 6,
   makers: 4,
@@ -133,7 +138,15 @@ const WORK_COLUMNS = "id, stock_number, title, maker_name, status";
 type WorkRow = Omit<PalettePiece, "matched">;
 
 async function works(db: Db, q: string, roles: Roles): Promise<{ rows: PalettePiece[]; similar: boolean }> {
-  const found = await searchWorkIds(db, q, { roles, size: PALETTE.workIds, timeoutMs: PALETTE.timeoutMs, fuzzy: true });
+  // postgresLimit: twelve rows from pieces_search, not one for every matching
+  // work (thousands for a two-letter query), as the palette asked before the engine.
+  const found = await searchWorkIds(db, q, {
+    roles,
+    size: PALETTE.workIds,
+    postgresLimit: PALETTE.workIds,
+    timeoutMs: PALETTE.timeoutMs,
+    fuzzy: true,
+  });
   if (found.error) throw new GroupError(found.error);
   const ids = found.ids.slice(0, PALETTE.workIds);
   if (ids.length === 0) return { rows: [], similar: false };

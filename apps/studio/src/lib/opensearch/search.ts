@@ -111,19 +111,31 @@ export const MATCHED_MAX_SIZE = 50;
  * page: the inventory counts and exports them. `size` bounds OpenSearch's
  * share only (the palette asks for 12; the default is the engine's window,
  * 10,000). `matched` comes only with a size of MATCHED_MAX_SIZE or less.
+ *
+ * `postgresLimit` caps Postgres's share as well, for a caller that shows a
+ * handful (the palette: 12). Without it pieces_search returns, and Node
+ * parses, a row for every matching work, thousands for a two-letter query.
+ * pieces_search orders exact and then contained stock numbers first, so the
+ * identifier rule of mergeWorkIds leads with the same works inside the cap
+ * (its exact match is case-sensitive: a number equal to the query only with
+ * case folded can rank behind the cap's worth that contain it). Unconfigured,
+ * the result is the first `postgresLimit` of the uncapped one. The inventory
+ * leaves it unset: it counts and exports every match.
  */
 export async function searchWorkIds(
   supabase: Db,
   q: string,
-  opts: { roles: Roles; size?: number; timeoutMs?: number; fuzzy?: boolean },
+  opts: { roles: Roles; size?: number; timeoutMs?: number; fuzzy?: boolean; postgresLimit?: number },
 ): Promise<SearchResult> {
   const query = q.trim();
   if (!query) return { ...EMPTY };
   const size = opts.size ?? MAX_HITS;
   const highlight = size <= MATCHED_MAX_SIZE;
   const pass = mayUseIndex(opts.roles) ? passFor("works", query, size, highlight) : null;
+  const rpc = supabase.rpc("pieces_search", { q: query }).select("id, stock_number, legacy_stock_number");
+  const cap = opts.postgresLimit === undefined ? null : Math.max(1, Math.trunc(opts.postgresLimit));
   const out = await run<StockRow>(
-    supabase.rpc("pieces_search", { q: query }).select("id, stock_number, legacy_stock_number") as unknown as PromiseLike<{
+    (cap === null ? rpc : rpc.limit(cap)) as unknown as PromiseLike<{
       data: StockRow[] | null;
       error: { message: string } | null;
     }>,

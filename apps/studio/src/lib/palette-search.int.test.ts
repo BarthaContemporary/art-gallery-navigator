@@ -104,6 +104,8 @@ test("staff: a match only the index knows (provenance) is found and labelled; th
   assert.ok(staff.pieces.length > 0 && staff.pieces.length <= 6);
   assert.ok(staff.pieces.some((p) => p.matched === "provenance"), JSON.stringify(staff.pieces.map((p) => p.matched)));
   assert.ok(engineRequests > 0);
+  // Postgres beside the engine is asked for the palette's twelve, not every match.
+  assert.equal(db.calls.filter((c: Row) => c.rpc === "pieces_search").at(-1)?.limit, 12);
   const accountant = await run("acquired artist", ["accountant"]);
   assert.equal(engineRequests, 0, "the engine is never asked for the accountant");
   assert.deepEqual(accountant.contacts, []);

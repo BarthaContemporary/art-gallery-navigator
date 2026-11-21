@@ -180,6 +180,50 @@ test("works: the first six of twelve ids that load; a trashed or hidden work is 
   assert.deepEqual((load?.filters[0]?.value as string[]).length, 12, "twelve ids asked for");
 });
 
+test("works: pieces_search is asked for twelve rows, not one for every match; the inventory's call stays uncapped", async () => {
+  // Unconfigured: Postgres's twelve, the first six shown, as before the engine.
+  search.setSearchConfigForTests(null);
+  const d = db({ works: range(1, 40) });
+  const out = await palette.paletteSearch(d.client as never, "ha", ["admin"]);
+  const rpc = d.calls.filter((c: Req) => c.rpc === "pieces_search");
+  assert.equal(rpc.length, 1);
+  assert.equal(rpc[0]!.limit, 12, "the palette caps pieces_search at its twelve ids");
+  assert.deepEqual(
+    out.pieces.map((p) => p.id),
+    range(1, 6).map(wid),
+  );
+  // Configured: the same cap on Postgres beside the engine's twelve.
+  search.setSearchConfigForTests(cfg);
+  osAnswer = (kind) => (kind === "works" ? { strict: [wid(30)] } : {});
+  const withEngine = db({ works: range(1, 40) });
+  await palette.paletteSearch(withEngine.client as never, "hare", ["staff"]);
+  assert.equal(withEngine.calls.find((c: Req) => c.rpc === "pieces_search")?.limit, 12);
+  assert.equal(osRequests.find((r) => r.url.includes("-works-"))?.body.size, 12);
+  // searchWorkIds without postgresLimit (the inventory): every match, no limit.
+  const inventory = db({ works: range(1, 40) });
+  const all = await search.searchWorkIds(inventory.client as never, "hare", { roles: ["admin"] });
+  assert.equal(inventory.calls.find((c: Req) => c.rpc === "pieces_search")?.limit, null);
+  assert.ok(all.ids.length >= 40);
+});
+
+test("works: within the cap, the work whose stock number is the query still leads the engine's hits", async () => {
+  // pieces_search's ORDER BY puts the exact stock number first, then contained ones.
+  const d = fakeSupabase({
+    tables: { vw_pieces_list: range(1, 40).map(work), makers: [], crm_contacts: [] },
+    rpc: {
+      pieces_search: () => [work(25), ...range(1, 40).filter((n) => n !== 25).map(work)],
+      crm_contacts_search: () => [],
+    },
+  });
+  osAnswer = (kind) => (kind === "works" ? { strict: [wid(33), wid(34)] } : {});
+  const out = await palette.paletteSearch(d.client as never, "2026-0025", ["admin"]);
+  assert.equal(d.calls.find((c: Req) => c.rpc === "pieces_search")?.limit, 12);
+  assert.deepEqual(
+    out.pieces.slice(0, 3).map((p) => p.id),
+    [wid(25), wid(33), wid(34)],
+  );
+});
+
 test("makers: up to four, with native name, dates and region as the detail", async () => {
   search.setSearchConfigForTests(null);
   const d = db({ makers: range(1, 6) });
