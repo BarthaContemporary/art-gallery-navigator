@@ -10,6 +10,7 @@ import {
   currencyCode,
   currencyOptions,
   londonToday,
+  openingPurchaseGbp,
   samePence,
   shouldConvertSale,
   type StoredSale,
@@ -121,10 +122,16 @@ export function FinancialsFields({
     !samePence(parseAmount(d("purchase_cost")), parseAmount(d("purchase_cost_gbp")));
   const [mirror, setMirror] = useState(isGbp(loadedPurchaseCur) && !loadedGbpDiffers);
   // A GBP purchase with no £ yet (a GBP invoice pushed from the capture app)
-  // shows its cost as the £, which the next save stores.
-  const [costGbp, setCostGbp] = useState(() =>
-    isGbp(loadedPurchaseCur) && d("purchase_cost_gbp") === "" ? d("purchase_cost") : d("purchase_cost_gbp"),
+  // shows its cost as the £, which the next save stores: the field carries
+  // the stored value (none) as data-saved, so the autosave lists it as
+  // changed with the first edit of any field (lib/form-snapshot.ts).
+  const openingGbp = useMemo(
+    () => openingPurchaseGbp({ cost: d("purchase_cost"), currency: loadedPurchaseCur, gbp: d("purchase_cost_gbp") }),
+    // The loaded figures never change while the form is open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
+  const [costGbp, setCostGbp] = useState(openingGbp.shown);
   const purchaseIsGbp = isGbp(purchaseCur);
   const [restorationGbp, setRestorationGbp] = useState(d("restoration_cost_gbp") || "0");
   const [otherGbp, setOtherGbp] = useState(d("other_costs_gbp") || "0");
@@ -313,6 +320,7 @@ export function FinancialsFields({
             id="fin-cost-gbp"
             name="purchase_cost_gbp"
             value={costGbp}
+            data-saved={openingGbp.derived ? "" : undefined}
             readOnly={mirror}
             onChange={mirror ? undefined : (e) => setCostGbp(e.target.value)}
             aria-describedby="fin-cost-gbp-hint"

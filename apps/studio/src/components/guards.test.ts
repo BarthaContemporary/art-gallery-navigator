@@ -36,6 +36,16 @@ test("AutosaveForm: the first snapshot is the form as rendered, and every send s
   assert.match(src, /if \(outcome\.ok\) \{[\s\S]*?lastSaved\.current = sent;/);
 });
 
+test("FinancialsFields: a Cost £ worked out on load carries its stored value (none), so the first save stores it", () => {
+  const src = component("financials-fields.tsx");
+  assert.match(src, /const openingGbp = useMemo\(\n\s+\(\) => openingPurchaseGbp\(\{ cost: d\("purchase_cost"\), currency: loadedPurchaseCur, gbp: d\("purchase_cost_gbp"\) \}\),/);
+  assert.match(src, /const \[costGbp, setCostGbp\] = useState\(openingGbp\.shown\);/);
+  const costField = src.match(/<AmountInput\n\s+id="fin-cost-gbp"[\s\S]*?\/>/)?.[0] ?? "";
+  assert.match(costField, /name="purchase_cost_gbp"\n\s+value=\{costGbp\}\n\s+data-saved=\{openingGbp\.derived \? "" : undefined\}/);
+  // AmountInput hands the attribute on to its <input>.
+  assert.match(component("amount-input.tsx"), /<input\n\s+\{\.\.\.rest\}/);
+});
+
 test("amount-input keeps format to itself, and nothing imports it", () => {
   assert.doesNotMatch(component("amount-input.tsx"), /export function format\b/);
   const studio = path.join(here, "..");

@@ -27,9 +27,10 @@ function serialise(form: HTMLFormElement): string {
 }
 
 /**
- * The same string for the form as the server rendered it (each control's
- * default value), whatever the browser has put back into the fields since.
- * See lib/form-snapshot.ts.
+ * The same string for the form as the server holds it: each control's
+ * default value (a client-built select as selected, a value worked out on
+ * load as its `data-saved`), whatever the browser has put back into the
+ * fields since. See lib/form-snapshot.ts.
  */
 function serialiseAsRendered(form: HTMLFormElement): string {
   return snapshot(renderedEntries(Array.from(form.elements, (el) => el as unknown as ControlLike)));

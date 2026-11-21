@@ -1,5 +1,5 @@
 import { signedThumbnail, PREVIEW_WIDTH } from "@/lib/thumbnails";
-import { notFound, redirect } from "next/navigation";
+import { notFound, redirect, RedirectType } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { canEditRecords, getSession, getSupabase } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
@@ -31,6 +31,16 @@ const ROLE_WORDS: Record<string, string> = {
 
 export const metadata = { title: "Manage images" };
 
+/**
+ * The images page with a message on it. At module level on purpose: an
+ * inline server action sends every value it closes over through the page
+ * (encrypted bound arguments), and a function cannot be sent, so a helper
+ * defined inside the page would fail it.
+ */
+function withError(imagesPath: string, message: string): string {
+  return `${imagesPath}?error=${encodeURIComponent(message)}`;
+}
+
 export default async function ManageImagesPage({
   params,
   searchParams,
@@ -53,10 +63,15 @@ export default async function ManageImagesPage({
     .eq("id", ref.id)
     .maybeSingle();
   if (!piece) notFound();
-  // Plain values for the server actions below to close over.
+  // Plain values for the server actions below to close over (strings and
+  // booleans only: they travel with the page, see withError above).
   const pieceId: string = ref.id;
   const imagesPath = `/inventory/${encodeURIComponent(stockNumber)}/images`;
-  const withError = (message: string) => `${imagesPath}?error=${encodeURIComponent(message)}`;
+  // Whether this page shows an earlier message (?error= / ?notice=). A write
+  // that then succeeds goes back to the plain address, so the old message
+  // does not stand over the retry that worked; without one the page stays
+  // put (no navigation, no jump to the top while captioning down the page).
+  const showsMessage = Boolean(sp.error || sp.notice);
 
   // The work either side of this one, so an image session can run straight
   // down the inventory without going back to the list between works. Ordered
@@ -114,7 +129,7 @@ export default async function ManageImagesPage({
   async function deleteImage(formData: FormData) {
     "use server";
     const s = await getSession();
-    if (!s || !canEditRecords(s.roles)) redirect(withError("Your role can see these photographs but not delete them."));
+    if (!s || !canEditRecords(s.roles)) redirect(withError(imagesPath, "Your role can see these photographs but not delete them."));
     const id = String(formData.get("id") ?? "");
     const supabase = await getSupabase();
     // Row security filters a refused delete to no rows and no error, so
@@ -126,10 +141,11 @@ export default async function ManageImagesPage({
       .eq("piece_id", pieceId)
       .select("id");
     revalidatePath(imagesPath);
-    if (error) redirect(withError(`Could not delete the photograph: ${error.message}`));
+    if (error) redirect(withError(imagesPath, `Could not delete the photograph: ${error.message}`));
     if (!data || data.length === 0) {
-      redirect(withError("The photograph could not be deleted. It may have gone already: reload the page and try again."));
+      redirect(withError(imagesPath, "The photograph could not be deleted. It may have gone already: reload the page and try again."));
     }
+    if (showsMessage) redirect(imagesPath, RedirectType.replace);
   }
 
   /**
@@ -155,7 +171,7 @@ export default async function ManageImagesPage({
   async function saveCaption(formData: FormData) {
     "use server";
     const s = await getSession();
-    if (!s || !canEditRecords(s.roles)) redirect(withError("Your role can see these photographs but not change their captions."));
+    if (!s || !canEditRecords(s.roles)) redirect(withError(imagesPath, "Your role can see these photographs but not change their captions."));
     const id = String(formData.get("id") ?? "");
     const caption = String(formData.get("caption") ?? "");
     const supabase = await getSupabase();
@@ -168,10 +184,11 @@ export default async function ManageImagesPage({
       .eq("piece_id", pieceId)
       .select("id");
     revalidatePath(imagesPath);
-    if (error) redirect(withError(`Could not save the caption: ${error.message}`));
+    if (error) redirect(withError(imagesPath, `Could not save the caption: ${error.message}`));
     if (!data || data.length === 0) {
-      redirect(withError("The caption could not be saved. The photograph may have gone: reload the page and try again."));
+      redirect(withError(imagesPath, "The caption could not be saved. The photograph may have gone: reload the page and try again."));
     }
+    if (showsMessage) redirect(imagesPath, RedirectType.replace);
   }
 
   return (

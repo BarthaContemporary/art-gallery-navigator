@@ -107,6 +107,22 @@ export function samePence(a: number | null | undefined, b: number | null | undef
   return Math.round(a * 100) === Math.round(b * 100);
 }
 
+/**
+ * The Cost £ the editor shows when a record opens, from the stored figures
+ * as the form holds them ("" for none). A GBP purchase with no £ on record
+ * (a GBP invoice pushed from the capture app stores the cost only) shows its
+ * cost as the £, and `derived` says so: the editor then marks the field with
+ * the stored value (none, `data-saved=""`), so its first save lists the £
+ * as changed and stores it (lib/form-snapshot.ts). Otherwise the stored £.
+ */
+export function openingPurchaseGbp(stored: { cost: string; currency: string; gbp: string }): {
+  shown: string;
+  derived: boolean;
+} {
+  const derived = currencyCode(stored.currency) === "GBP" && stored.gbp === "" && stored.cost !== "";
+  return { shown: derived ? stored.cost : stored.gbp, derived };
+}
+
 export type SaleInputs = { price: number | null; currency: string | null; date: string | null };
 export type StoredSale = SaleInputs & { gbp: number | null };
 

@@ -25,6 +25,25 @@
  * writes it with its current value; after the first successful save the
  * snapshot is the live form as sent.
  *
+ * Two kinds of control are read otherwise, because their defaults are not
+ * what the server holds:
+ *
+ *  - A select none of whose options is marked defaultSelected is read as it
+ *    is selected now. React builds a controlled `<select value=…>` on the
+ *    client (the editor reached by a client navigation, the usual way in)
+ *    by setting `selected` only, never `defaultSelected`; its selection when
+ *    the form mounts is the stored value, and the browser never restores
+ *    into it. A select the server rendered carries React's `selected`
+ *    attribute on the stored option, so its default is read as for any
+ *    other control.
+ *  - A control whose shown value is worked out when the editor opens, not
+ *    stored (a GBP purchase with no £ yet shows its cost as the £), carries
+ *    the stored value in `data-saved` ("" for none), and that is read
+ *    instead of its default. Its shown value then differs from the snapshot
+ *    and goes with the first save, which stores it, as every save did
+ *    before `_changed`. Read on inputs that hold a value (not boxes, radios
+ *    or files) and on textareas.
+ *
  * Pure (structural types, no imports), so `node --test` runs it directly.
  */
 
@@ -58,8 +77,8 @@ export function snapshot(entries: Entry[]): string {
   return JSON.stringify(entries);
 }
 
-/** An <option> as the rendered reading needs it. */
-export type OptionLike = { value: string; defaultSelected: boolean; disabled: boolean };
+/** An <option> as the rendered reading needs it (`selected`: chosen now). */
+export type OptionLike = { value: string; defaultSelected: boolean; disabled: boolean; selected?: boolean };
 
 /**
  * A listed form control (an element of form.elements), structurally: real
@@ -74,8 +93,9 @@ export type ControlLike = {
   defaultValue?: string;
   defaultChecked?: boolean;
   multiple?: boolean;
-  size?: number;
   options?: ArrayLike<OptionLike>;
+  /** el.dataset: `saved` is the stored value of a control whose shown value is worked out on load. */
+  dataset?: { readonly saved?: string };
   /** el.matches: disabled through a fieldset, or inside a <datalist>, posts nothing. */
   matches?: (selector: string) => boolean;
 };
@@ -114,24 +134,27 @@ export function renderedEntries(controls: Iterable<ControlLike>): Entry[] {
     if (name === "") continue;
     if (el.matches?.(":disabled") || el.matches?.("datalist *")) continue;
 
+    // The stored value of a control whose shown value was worked out on load.
+    const saved = el.dataset?.saved;
+
     if (tag === "TEXTAREA") {
-      out.push([name, (el.defaultValue ?? "").replace(/\r\n?/g, "\n")]);
+      out.push([name, (saved ?? el.defaultValue ?? "").replace(/\r\n?/g, "\n")]);
       continue;
     }
 
     if (tag === "SELECT") {
       const options = Array.from(el.options ?? []);
-      let selected = options.map((o) => o.defaultSelected);
-      const listbox = el.multiple || (el.size ?? 0) > 1;
-      if (!el.multiple) {
-        // One choice: the last option marked selected wins; with none
-        // marked, a drop-down shows its first option that is not disabled.
-        const last = selected.lastIndexOf(true);
+      let selected: boolean[];
+      if (!options.some((o) => o.defaultSelected)) {
+        // No default marked: a controlled select React built on the client,
+        // whose selection now is the stored value (see the header).
+        selected = options.map((o) => Boolean(o.selected));
+      } else if (el.multiple) {
+        selected = options.map((o) => o.defaultSelected);
+      } else {
+        // One choice: the last option marked selected wins.
+        const last = options.map((o) => o.defaultSelected).lastIndexOf(true);
         selected = options.map((_, i) => i === last);
-        if (last < 0 && !listbox) {
-          const first = options.findIndex((o) => !o.disabled);
-          if (first >= 0) selected[first] = true;
-        }
       }
       options.forEach((o, i) => {
         if (selected[i] && !o.disabled) out.push([name, o.value]);
@@ -149,7 +172,7 @@ export function renderedEntries(controls: Iterable<ControlLike>): Entry[] {
       out.push([name, "file:"]); // nothing chosen yet
       continue;
     }
-    out.push([name, cleanInputValue(type, el.defaultValue ?? "")]);
+    out.push([name, cleanInputValue(type, saved ?? el.defaultValue ?? "")]);
   }
   return out;
 }

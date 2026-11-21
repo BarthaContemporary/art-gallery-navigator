@@ -29,10 +29,25 @@ test("images page: delete and caption check the role, report errors and refused 
     assert.ok(body, name);
     assert.match(body, /const s = await getSession\(\);\n\s+if \(!s \|\| !canEditRecords\(s\.roles\)\) redirect\(withError\(/, name);
     assert.match(body, /\.eq\("piece_id", pieceId\)\n\s+\.select\("id"\);/, name);
-    assert.match(body, /if \(error\) redirect\(withError\(/, name);
-    assert.match(body, /if \(!data \|\| data\.length === 0\) \{\n\s+redirect\(withError\(/, name);
+    assert.match(body, /if \(error\) redirect\(withError\(imagesPath, /, name);
+    assert.match(body, /if \(!data \|\| data\.length === 0\) \{\n\s+redirect\(withError\(imagesPath, /, name);
+    // A success clears an earlier message (only when one shows, so a
+    // caption save without one does not navigate), without a history entry.
+    assert.match(body, /\n    if \(showsMessage\) redirect\(imagesPath, RedirectType\.replace\);\n  \}\n$/, name);
   }
+  assert.match(src, /const showsMessage = Boolean\(sp\.error \|\| sp\.notice\);/);
   assert.match(src, /<FlashNotice searchParams=\{sp\}/);
+  // An inline action sends what it closes over with the page, and a function
+  // cannot be sent: the message helper lives at module level, not in the page.
+  assert.match(src, /^function withError\(imagesPath: string, message: string\): string \{$/m);
+  const pageBody = src.slice(src.indexOf("export default async function ManageImagesPage"));
+  const pageHelpers = [...pageBody.matchAll(/const (\w+) = (?:async )?\([^)]*\)(?:: [^=]+)? =>/g)].map((m) => m[1]);
+  assert.ok(pageHelpers.includes("imagesHref")); // the reading works
+  for (const name of ["deleteImage", "saveCaption", "reorderImages"]) {
+    const body = action(src, name);
+    assert.ok(body, name);
+    for (const helper of pageHelpers) assert.doesNotMatch(body, new RegExp(`\\b${helper}\\(`), `${name} uses ${helper}`);
+  }
 });
 
 test("record page: the history read names the work's tables, so the log's index serves it", () => {
