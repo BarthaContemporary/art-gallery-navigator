@@ -1,16 +1,21 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { applyFacet, facetMatches } from "@/lib/facet";
+import { applyFacet } from "@/lib/facet";
 import { selectInChunks } from "@/lib/chunk";
+import { selectAllRows } from "@/lib/paged-read";
 import { ledgerFilterOf, resolveListPieceIds, type ListLike } from "@/lib/list-members";
+import { inOrder, searchWorkIds, type Roles } from "@/lib/opensearch/search";
 /*
  * The inventory list's filters, applied identically wherever they are honoured.
  *
  * The exports used to diverge — CSV and XLSX read only `status` while the DOCX
  * read status, category and location — which meant "export what I'm looking at"
  * quietly wasn't. One function now owns it, and the register filter came along
- * for free. The search, list and flagged filters (resolveInventoryIds) and the
+ * for free. The search, list and flagged filters (resolveInventory) and the
  * sort (inventoryOrder) live here too, for the same reason: the exports read
  * only the facets, so a maker search exported the whole stock.
+ *
+ * Server only: the text search goes through lib/opensearch/search, which
+ * holds the search engine's credentials.
  */
 
 /** Columns every export shares, in the order they read best. */
@@ -48,6 +53,29 @@ export type FlagParam = (typeof FLAG_FILTERS)[number][0];
 
 export function activeFlags(sp: Partial<Record<FlagParam, string | null | undefined>>) {
   return FLAG_FILTERS.filter(([param]) => Boolean(sp[param]));
+}
+
+/**
+ * What the screen shows that a live list saved from it would not: a live
+ * list keeps the search, register and facets only (filter_rules), and
+ * re-runs the search through lib/list-members, which is pieces_search alone
+ * (it feeds the website). So the flag pills, the flagged-only, list and
+ * website filters are dropped, and a typo-tolerant ("similar") result is
+ * not what the list will hold: it re-runs the exact search, which found
+ * nothing. The save form names each, so the list is not quietly wider or
+ * emptier than the works on screen.
+ */
+export function liveListGaps(
+  sp: Partial<Record<FlagParam | "flagged" | "list" | "web", string | null | undefined>>,
+  { similar = false }: { similar?: boolean } = {},
+): string[] {
+  return [
+    ...activeFlags(sp).map(([, , label]) => label),
+    ...(sp.flagged ? ["Flagged only"] : []),
+    ...(sp.list ? ["List filter"] : []),
+    ...(sp.web === "on" || sp.web === "off" ? ["Website filter"] : []),
+    ...(similar ? ["Similar matches (a live list re-runs the exact search)"] : []),
+  ];
 }
 
 // The constraint deliberately doesn't name T as eq's return type: a
@@ -249,48 +277,63 @@ export function applyInventoryOrder<T extends OrderQuery<T>>(query: T, by: Inven
 
 // ------------------------------------------------------------- membership
 
-function flagParams(params: URLSearchParams): Record<FlagParam, string | null> {
-  return { loan: params.get("loan"), needs: params.get("needs"), nopurchase: params.get("nopurchase") };
-}
-
 /** An id plus whichever view columns a query picked (the sort column). */
 type ViewRow = { id: string } & Record<string, unknown>;
 // A computed select string defeats supabase-js's column parser, so the rows
 // are typed by hand, the way lib/piece-store.ts does it.
 type ViewResult = { data: ViewRow[] | null; error: { message: string } | null };
 
-type SearchHit = {
-  id: string;
-  status: string;
-  category_id: string | null;
-  location_id: string | null;
-  ledger: string;
+/**
+ * How long a page's search waits for OpenSearch (lib/opensearch/search: 1,500
+ * ms on pages). Postgres's own search is not bounded by it.
+ */
+const INVENTORY_SEARCH_TIMEOUT_MS = 1500;
+
+/** The works an inventory URL selects, in the screen's order. */
+export type InventorySelection = {
+  ids: string[];
+  /**
+   * Nothing matched the search exactly, and these are the typo-tolerant
+   * pass's works ("Yosia" finding Yōsai). Only with a search and at least
+   * one work left after the filters; the page says so above the table.
+   */
+  similar: boolean;
 };
-/** The pieces_search columns SearchHit reads. */
-const HIT_COLUMNS = "id, status, category_id, location_id, ledger";
 
 /**
  * The works an inventory URL selects, in the screen's order, when a plain
- * filtered query cannot express them: a text search (the ranked
- * pieces_search RPC), a list (static or live, through the one list resolver)
- * or the current user's flags. Every other filter on the URL (register,
- * facets, the three flag pills, the website facet) is applied on top.
+ * filtered query cannot express them: a text search, a list (static or live,
+ * through the one list resolver) or the current user's flags. Every other
+ * filter on the URL (register, facets, the three flag pills, the website
+ * facet) is applied on top, in SQL, on vw_pieces_list.
+ *
+ * The search is lib/opensearch/search's searchWorkIds: Postgres's ranked
+ * pieces_search always runs, through this client, and for admin and staff
+ * OpenSearch's ids are merged in (and when nothing matches exactly, its
+ * typo-tolerant pass answers: `similar`). Those ids are not yet checked
+ * against row security or the trash, so every one goes through the view, a
+ * chunk at a time with the filters applied, and an id the user may not read
+ * or that is in the trash is dropped there. Without OpenSearch (not
+ * configured, down, slow, or a role that may not use it) the ids are
+ * pieces_search's alone, in its order, as before. Without a chosen column the
+ * search's order stands and no tie-break is added; with one, the rows are
+ * sorted as SQL sorts them (sortInventoryRows).
  *
  * Returns null when the URL has none of the three, so the caller can count,
  * sort and page in SQL (selectInventoryPage). The inventory page and all
  * three exports call this, which is what makes an export the screen's rows in
- * the screen's order.
+ * the screen's order: both pass the session's `roles`.
  *
  * `flaggedIds` saves a query when the caller already holds the user's flags.
  * Throws on a failed query rather than returning a partial set.
  */
-export async function resolveInventoryIds(
+export async function resolveInventory(
   // Request-scoped client; RLS scopes piece_flags to the current user.
   supabase: SupabaseClient,
   params: URLSearchParams,
   order: InventoryOrder | null,
-  opts: { flaggedIds?: ReadonlySet<string> } = {},
-): Promise<string[] | null> {
+  opts: { roles: Roles; flaggedIds?: ReadonlySet<string> },
+): Promise<InventorySelection | null> {
   const q = (params.get("q") ?? "").trim();
   const listId = params.get("list");
 
@@ -322,47 +365,30 @@ export async function resolveInventoryIds(
   }
   if (!q && !members) return null;
 
-  const flags = flagParams(params);
-
   if (q) {
-    // The RPC has no facet parameters, so the register and facets are applied
-    // to the ranked hits here, which keeps the relevance order. Only the
-    // columns read here: the RPC returns whole stock rows otherwise.
-    const { data: hits, error } = await supabase.rpc("pieces_search", { q }).select(HIT_COLUMNS);
-    if (error) throw new Error(error.message);
-    const wantLedger = ledgerFilterOf(params.get("ledger"));
-    let filtered = (hits ?? []) as unknown as SearchHit[];
-    if (wantLedger) filtered = filtered.filter((h) => h.ledger === wantLedger);
-    for (const [param, key] of [
-      ["status", "status"],
-      ["category", "category_id"],
-      ["location", "location_id"],
-    ] as const) {
-      const raw = params.get(param);
-      if (raw) filtered = filtered.filter((h) => facetMatches(raw, h[key]));
-    }
-    if (members) {
-      const inList = members;
-      filtered = filtered.filter((h) => inList.has(h.id));
-    }
-    const ids = filtered.map((h) => h.id);
-    const web = params.get("web");
-    if (ids.length === 0 || (!order && activeFlags(flags).length === 0 && webFilterOf(web) === null)) return ids;
+    const found = await searchWorkIds(supabase, q, {
+      roles: opts.roles,
+      timeoutMs: INVENTORY_SEARCH_TIMEOUT_MS,
+      fuzzy: true,
+    });
+    if (found.error) throw new Error(found.error.message);
+    const inList = members;
+    const ids = inList ? found.ids.filter((id) => inList.has(id)) : found.ids;
+    if (ids.length === 0) return { ids: [], similar: false };
 
-    // The flag and website columns, and most sort columns, live on the view
-    // rather than on the hits, so resolve them through the view for the
-    // matching ids only. Without a chosen column the relevance order stands
-    // and no tie-break is added.
+    // The register, the facets, the flag pills, the website facet and the
+    // sort column all live on the view, not on the search's ids: resolve the
+    // ids through it with every filter applied. Only the columns the order
+    // needs come back (the id alone when the search ranks).
     const columns: string = order ? sortColumns(order) : "id";
     const rows = await selectInChunks<ViewRow>(ids, (chunk) =>
-      applyWebFilter(
-        applyFlagFilters(supabase.from("vw_pieces_list").select(columns).in("id", chunk), flags),
-        web,
+      applyInventoryFilters(
+        supabase.from("vw_pieces_list").select(columns).in("id", chunk),
+        params,
       ) as unknown as PromiseLike<ViewResult>,
     );
-    if (order) return sortInventoryRows(rows, order).map((r) => r.id);
-    const keep = new Set(rows.map((r) => r.id));
-    return ids.filter((id) => keep.has(id));
+    const kept = order ? sortInventoryRows(rows, order) : inOrder(ids, rows);
+    return { ids: kept.map((r) => r.id), similar: found.similar && kept.length > 0 };
   }
 
   // A list or the flags. A single .in() with the whole membership would 414
@@ -376,7 +402,7 @@ export async function resolveInventoryIds(
       params,
     ) as unknown as PromiseLike<ViewResult>,
   );
-  return sortInventoryRows(rows, by).map((r) => r.id);
+  return { ids: sortInventoryRows(rows, by).map((r) => r.id), similar: false };
 }
 
 /** The view columns sortInventoryRows reads for an order: the id, the stock number and the chosen column. */
@@ -405,21 +431,30 @@ export async function selectInventoryRows<Row extends { id: string }>(
  * Every row an export of this inventory URL contains: the screen's rows
  * (search, list, flagged, register, facets, flag pills and website all
  * honoured) in the screen's order when a sort is chosen or a search ranks
- * them, oldest stock number first otherwise. Throws on a failed query.
+ * them, oldest stock number first otherwise. `roles` are the session's, as
+ * the page passes them, so the search merges the same engines the screen
+ * did. Every matching row, however many: a search, list or flagged view is
+ * read in id chunks, the plain view a page at a time on its total order
+ * (column, stock number, id), so a PostgREST row cap cannot cut the file
+ * short. Throws on a failed query.
  */
 export async function loadInventoryExportRows(
   supabase: SupabaseClient,
   params: URLSearchParams,
+  opts: { roles: Roles },
 ): Promise<Record<string, unknown>[]> {
   const order = inventoryOrder(params, EXPORT_ORDER);
-  const ids = await resolveInventoryIds(supabase, params, order);
-  if (ids) return selectInventoryRows<{ id: string } & Record<string, unknown>>(supabase, ids);
+  const picked = await resolveInventory(supabase, params, order, { roles: opts.roles });
+  if (picked) return selectInventoryRows<{ id: string } & Record<string, unknown>>(supabase, picked.ids);
 
   const by = order ?? EXPORT_ORDER;
-  const base = supabase.from("vw_pieces_list").select("*") as unknown as ViewQuery;
-  const { data, error } = await applyInventoryOrder(applyInventoryFilters(base, params), by);
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  // A fresh builder for every page: a supabase-js builder runs once.
+  return selectAllRows<Record<string, unknown>>((from, to) =>
+    applyInventoryOrder(
+      applyInventoryFilters(supabase.from("vw_pieces_list").select("*") as unknown as ViewQuery, params),
+      by,
+    ).range(from, to),
+  );
 }
 
 /**

@@ -1,7 +1,7 @@
 import { IMAGE_VERSION_COLUMNS, imageVersion, signedThumbnail, THUMB_WIDTH } from "@/lib/thumbnails";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
+import { canEditRecords, getSession, getSupabase } from "@/lib/supabase";
 import { InventoryTable, type InventoryRow } from "@/components/inventory-table";
 import { NewRecordButton } from "@/components/new-record-button";
 import { FiltersToggle, InventoryFilters, InventorySearch } from "@/components/inventory-filters";
@@ -20,7 +20,8 @@ import {
   FLAG_FILTERS,
   SCREEN_ORDER,
   inventoryOrder,
-  resolveInventoryIds,
+  liveListGaps,
+  resolveInventory,
   selectInventoryPage,
   selectInventoryRows,
 } from "@/lib/inventory-query";
@@ -62,6 +63,11 @@ export default async function InventoryPage({
   const params = new URLSearchParams(strip(sp));
   const order = inventoryOrder(params, SCREEN_ORDER);
   const supabase = await getSupabase();
+  // The roles decide whether the search may ask OpenSearch (admin and staff)
+  // or Postgres alone; the exports read them the same way. getSession is
+  // cached per request, and the layout has already read it.
+  const session = await getSession();
+  const roles = session?.roles ?? [];
 
   const [{ data: categories }, { data: locations }, { data: pieceLists }, { data: flagRows }] = await Promise.all([
     supabase.from("categories").select("id, name").eq("is_active", true).order("sort_order").order("name"),
@@ -81,14 +87,21 @@ export default async function InventoryPage({
   const q = sp.q?.trim();
   const searching = Boolean(q);
 
+  // This view, for a save that fails to come back to with its message.
+  const here = `/inventory${qs({ ...sp, error: undefined })}`;
+
   // Save the current search + facets as a dynamic (saved-view) list. The rules
   // are stored on piece_lists.filter_rules; the list detail page re-runs them
-  // live, so the membership always reflects the current inventory.
+  // live, so the membership always reflects the current inventory. A refused
+  // or failed insert comes back here with the reason, rather than landing on
+  // the lists page as if the list had been made.
   async function saveAsList(formData: FormData) {
     "use server";
+    const s = await getSession();
+    if (!s || !canEditRecords(s.roles)) backWithError(here, "Your role can read lists but not make them. Nothing was saved.");
     const db = await getSupabase();
     const name = String(formData.get("name") ?? "").trim();
-    if (!name) return;
+    if (!name) backWithError(here, "Give the live list a name. Nothing was saved.");
     const rules = {
       q: String(formData.get("q") ?? "").trim() || null,
       status: String(formData.get("status") ?? "").trim() || null,
@@ -96,13 +109,20 @@ export default async function InventoryPage({
       location: String(formData.get("location") ?? "").trim() || null,
       ledger: String(formData.get("ledger") ?? "").trim() || null,
     };
-    const { data: created } = await db
+    const { data: created, error: insertError } = await db
       .from("piece_lists")
       .insert({ name, is_dynamic: true, filter_rules: rules })
       .select("id")
       .single();
-    if (created) redirect(`/inventory/lists/${created.id}`);
-    redirect("/inventory/lists");
+    if (insertError || !created) {
+      backWithError(
+        here,
+        insertError?.code === "42501"
+          ? "Your role may not make lists. Nothing was saved."
+          : `Could not save the list: ${insertError?.message ?? "no list came back"}. Nothing was saved.`,
+      );
+    }
+    redirect(`/inventory/lists/${created.id}`);
   }
 
   type ListRow = {
@@ -132,9 +152,14 @@ export default async function InventoryPage({
   // shared with the three exports, so an export is exactly these rows in this
   // order. A search ranks by relevance unless a column is chosen; a list sorts
   // by the chosen column. Only the current page's rows are hydrated.
+  // `similar`: nothing matched the search exactly, so these are the
+  // typo-tolerant matches, and the notice above the table says so.
   let ids: string[] | null = null;
+  let similar = false;
   try {
-    ids = await resolveInventoryIds(supabase, params, order, { flaggedIds });
+    const picked = await resolveInventory(supabase, params, order, { roles, flaggedIds });
+    ids = picked?.ids ?? null;
+    similar = picked?.similar ?? false;
     if (ids) {
       total = ids.length;
       rows = await selectInventoryRows<ListRow>(
@@ -207,13 +232,9 @@ export default async function InventoryPage({
     }
   }
 
-  // Filters on screen that a live list's rules cannot hold (see saveAsList).
-  const notSaved = [
-    ...FLAG_FILTERS.filter(([param]) => sp[param]).map(([, , label]) => label),
-    ...(sp.flagged ? ["Flagged only"] : []),
-    ...(sp.list ? ["List filter"] : []),
-    ...(sp.web === "on" || sp.web === "off" ? ["Website filter"] : []),
-  ];
+  // Filters on screen that a live list's rules cannot hold (see saveAsList),
+  // and a similar result, which a live list's exact re-run will not find.
+  const notSaved = liveListGaps(sp, { similar });
 
   // "1–100 of 869". A page past the end (an old link) shows the total alone.
   const first = (page - 1) * PAGE_SIZE + 1;
@@ -385,6 +406,10 @@ export default async function InventoryPage({
 
       <ActiveFilters chips={chips} clearHref="/inventory" save={saveForm} />
 
+      {similar && !error ? (
+        <Notice className="mb-3">No exact matches for “{q}”. Showing similar works.</Notice>
+      ) : null}
+
       {error ? (
         <>
           {summary}
@@ -432,6 +457,11 @@ export default async function InventoryPage({
       />
     </InventoryView>
   );
+}
+
+/** Back to `href` (a path, with or without a query) with a message for FlashNotice. */
+function backWithError(href: string, why: string): never {
+  redirect(`${href}${href.includes("?") ? "&" : "?"}error=${encodeURIComponent(why)}`);
 }
 
 /**

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { foldText } from "@/lib/fold-text";
 import { nativeFieldLang } from "@/lib/script-lang";
 import { Button } from "@/components/ui/button";
 import { CloseIcon, PlusIcon } from "@/components/ui/icons";
@@ -56,11 +57,14 @@ export function MakerSelect({
     hiddenRef.current?.dispatchEvent(new Event("input", { bubbles: true }));
   }, [id]);
 
+  // Both sides folded (lib/fold-text): "yosai" finds "Yōsai", "shomin" finds
+  // "Shōmin". The labels are folded once per list, not on every keystroke.
+  const foldedLabels = useMemo(() => opts.map((o) => foldText(o.label)), [opts]);
   const results = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    const base = s ? opts.filter((o) => o.label.toLowerCase().includes(s)) : opts;
+    const s = foldText(q.trim());
+    const base = s ? opts.filter((_, i) => (foldedLabels[i] ?? "").includes(s)) : opts;
     return base.slice(0, 50);
-  }, [q, opts]);
+  }, [q, opts, foldedLabels]);
 
   const pick = (o: Option) => {
     setId(o.id);

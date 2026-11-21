@@ -1,6 +1,6 @@
 import { listDocx, type ListWork } from "@jvb/documents";
 import { exportResponse } from "@/lib/shared-drive";
-import { getSupabase } from "@/lib/supabase";
+import { getSession, getSupabase } from "@/lib/supabase";
 import { GALLERY_NAME } from "@/lib/document-data";
 import { fetchExportThumbnails, IMAGE_CAP } from "@/lib/export-images";
 import { loadInventoryExportRows } from "@/lib/inventory-query";
@@ -16,18 +16,18 @@ export const dynamic = "force-dynamic";
  * inventory is what you get in the file.
  */
 export async function GET(request: Request) {
+  // The verified user and their roles: the roles decide, as on the page,
+  // whether the search may ask OpenSearch.
+  const session = await getSession();
+  if (!session) return new Response("Unauthorized", { status: 401 });
   const supabase = await getSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return new Response("Unauthorized", { status: 401 });
 
   // The screen's rows in the screen's order: search, list, flagged, register,
   // facets, flag pills and sort, resolved exactly as the inventory page does.
   const url = new URL(request.url);
   let rows: Record<string, unknown>[];
   try {
-    rows = await loadInventoryExportRows(supabase, url.searchParams);
+    rows = await loadInventoryExportRows(supabase, url.searchParams, { roles: session.roles });
   } catch (e) {
     return new Response(e instanceof Error ? e.message : "Export failed", { status: 500 });
   }

@@ -124,7 +124,15 @@ export default async function LibraryPage() {
                   </Link>
                   <span className="flex shrink-0 items-center gap-2">
                     {l.isDynamic ? <Badge tone="info" size="xs">Live</Badge> : null}
-                    <span className={countCls}>{l.count}</span>
+                    {/* null: the list could not be counted just now (logged
+                        by countListMembers); a dash, not a blank or a 0. */}
+                    {l.count === null ? (
+                      <span className={countCls} title="Could not count this list just now">
+                        —
+                      </span>
+                    ) : (
+                      <span className={countCls}>{l.count}</span>
+                    )}
                   </span>
                 </div>
               ))}
