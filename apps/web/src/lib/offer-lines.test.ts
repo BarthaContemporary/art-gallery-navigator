@@ -1,6 +1,7 @@
 // node --test apps/web/src/lib/offer-lines.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { OFFER_IMAGE_ROLES, orderOfferLines, primaryImage } from "./offer-lines.ts";
 import { WEBSITE_IMAGE_ROLES } from "../../../studio/src/lib/website-images.ts";
 import { chunkIds, ChunkReadError, selectInChunks } from "./chunk.ts";
@@ -11,6 +12,13 @@ const img = (role: string | null, sort_order: number, extra: Partial<{ storage_p
   storage_path_display: `p/${role}-${sort_order}.jpg`,
   processing_status: "done",
   ...extra,
+});
+
+test("a work in the Trash drops off the private offer page: its read skips deleted rows", () => {
+  const page = readFileSync(new URL("../app/o/[token]/page.tsx", import.meta.url), "utf8");
+  const read = page.match(/\.from\("vw_pieces_all"\)[\s\S]*?\),\n\s+\),/)?.[0] ?? "";
+  assert.match(read, /\.in\("id", chunk\)/);
+  assert.match(read, /\.is\("deleted_at", null\)/);
 });
 
 test("the offer page shows the same image roles as the website", () => {

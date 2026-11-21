@@ -73,7 +73,7 @@ export function AmountInput({
 }
 
 /** "1200.5" → "1,200.50"; "" or nonsense → "" (the field is simply empty). */
-export function format(raw: string | undefined, decimals: number): string {
+function format(raw: string | undefined, decimals: number): string {
   if (raw === undefined || raw.trim() === "") return "";
   const n = parseAmount(raw);
   if (n === null) return raw;

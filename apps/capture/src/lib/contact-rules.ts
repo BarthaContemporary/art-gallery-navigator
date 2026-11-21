@@ -50,3 +50,20 @@ export function holdRefusal(holds: unknown, failed: boolean): Refusal | null {
     holds: reasons,
   };
 }
+
+/**
+ * The answer when the delete itself is refused. 23503 is a conflict, not a
+ * fault: either a hold appeared between the check above and the delete
+ * (migration 0097's guard raises it, its message naming the holds), or a
+ * record still points at the contact. Anything else is a server error.
+ */
+export function deleteFailure(error: { code?: string | null; message?: string | null }): Refusal {
+  const message = String(error.message ?? "").trim();
+  if (error.code === "23503") {
+    const reason = /^This contact cannot be deleted/.test(message)
+      ? message.replace(/[.\s]*$/, ".")
+      : "Other records still point at this contact.";
+    return { status: 409, error: `${reason} ${STUDIO_ERASE}` };
+  }
+  return { status: 500, error: message || "Could not delete the contact" };
+}

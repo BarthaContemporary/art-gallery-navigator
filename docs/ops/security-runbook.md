@@ -990,8 +990,15 @@ It does not depend on the other steps.
       as RGB and uploaded again, as in 5).
 
 **Undo:** put back the worker folder saved in 2, take out the one line 4
-added, then run the two commands of 5 again. 0099 can stay: the old worker
-ignores it. Do not copy the whole saved `docker-compose.yml` back: step 2,
+added, run the two commands of 5 again, then hand back the photographs the
+new worker left in hand (the last command below). 0099 can stay in the
+database, but the old worker does not use it: it only ever takes
+photographs marked `pending`. The new worker leaves some at `processing`
+on purpose, to come back to them itself: one whose storage or network call
+failed for a moment waits a few minutes for its retry, and one it was
+working on when it stopped waits out its 15 minutes. Under the old worker
+those would show "Processing…" for good and stay off the website. Do not
+copy the whole saved `docker-compose.yml` back: step 2,
 or any other change made since, may have changed the live file, and
 copying it would undo that (for step 2, the sign-in server's limits). In a
 new SSH session set `S` again first, as in 2; the commands below change
@@ -1006,6 +1013,22 @@ else
   echo "STOP: set S to the step 10 backup folder first (point 2)"
 fi
 ```
+
+Then the two commands of 5 (the old worker is built and started), and
+once its log shows `listening on channel`, hand back what the new worker
+left at `processing`:
+
+```sh
+docker compose exec -T db psql -U postgres -d postgres -c \
+  "update piece_images set processing_status = 'pending' where processing_status = 'processing';"
+```
+
+It prints `UPDATE` and a count (0 is fine). Setting a photograph back to
+`pending` wakes the old worker, which makes it as usual. A photograph the
+old worker had already started in the meantime is simply made twice; the
+result is the same. Check that none is left:
+`docker compose exec -T db psql -U postgres -d postgres -At -c "select count(*) from piece_images where processing_status = 'processing';"`
+falls to 0 within a few minutes (two at a time, a few seconds each).
 
 The line taken out is harmless to keep if you would rather leave the
 compose file alone (the old worker stops at once either way); taking it

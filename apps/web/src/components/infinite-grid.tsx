@@ -1,6 +1,7 @@
 "use client";
 
 import { Children, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { gridPlaceKey, gridPlaceSaver, readGridPlace } from "@/lib/grid-place";
 
 /*
  * Coming Back to the grid: how many tiles were revealed and how far down
@@ -33,24 +34,12 @@ function cameBack(): boolean {
   }
 }
 
-type Saved = { visible: number; y: number };
-const storageKey = () => `infinite-grid:${window.location.pathname}`;
-
-function readSaved(): Saved | null {
+/** sessionStorage, or null where reading it throws (blocked site data). */
+function session(): Storage | null {
   try {
-    const raw = window.sessionStorage.getItem(storageKey());
-    const v = raw ? (JSON.parse(raw) as Partial<Saved>) : null;
-    return v && typeof v.visible === "number" && typeof v.y === "number" ? { visible: v.visible, y: v.y } : null;
+    return window.sessionStorage;
   } catch {
-    return null; // private mode, blocked storage
-  }
-}
-
-function writeSaved(saved: Saved): void {
-  try {
-    window.sessionStorage.setItem(storageKey(), JSON.stringify(saved));
-  } catch {
-    // storage unavailable: the grid simply starts afresh next time
+    return null;
   }
 }
 
@@ -77,6 +66,11 @@ export function InfiniteGrid({
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
 
+  // The page this grid belongs to, fixed at mount (see lib/grid-place.ts):
+  // the address bar already shows the next page when the unmount cleanup
+  // below runs, so the key is never read from it at save time.
+  const placeKey = useRef<string | null>(null);
+
   // Back or Forward: reveal as many tiles as before, without the tile-in
   // stagger, before the first paint (the server markup is unchanged, so
   // hydration is too), then put the reader back where they were.
@@ -84,8 +78,9 @@ export function InfiniteGrid({
   useLayoutEffect(() => {
     if (arrived.current) return; // once, on arrival
     arrived.current = true;
+    placeKey.current ??= gridPlaceKey(window.location.pathname);
     if (!cameBack()) return;
-    const saved = readSaved();
+    const saved = readGridPlace(session(), placeKey.current);
     if (!saved) return;
     const count = Math.min(total, Math.max(pageSize, saved.visible));
     if (count > visibleRef.current) setVisible(count);
@@ -95,9 +90,11 @@ export function InfiniteGrid({
   }, [total, pageSize]);
 
   // Remember the place on leaving: a layout-effect cleanup runs before the
-  // next page resets the scroll; pagehide covers leaving the site.
+  // next page resets the scroll; pagehide covers leaving the site. Both
+  // write under the key taken at mount.
   useLayoutEffect(() => {
-    const save = () => writeSaved({ visible: visibleRef.current, y: window.scrollY });
+    placeKey.current ??= gridPlaceKey(window.location.pathname);
+    const save = gridPlaceSaver(placeKey.current, () => ({ visible: visibleRef.current, y: window.scrollY }), session);
     window.addEventListener("pagehide", save);
     return () => {
       window.removeEventListener("pagehide", save);

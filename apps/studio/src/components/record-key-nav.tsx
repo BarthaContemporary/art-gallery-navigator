@@ -17,6 +17,9 @@ export function RecordKeyNav({
   const router = useRouter();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // A control that handled the key itself (a drag grip moving a photo,
+      // a menu) has the last word; so does a modified key.
+      if (e.defaultPrevented) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const el = e.target as HTMLElement | null;
       const tag = el?.tagName;

@@ -1,7 +1,7 @@
 import { signedThumbnail, PREVIEW_WIDTH } from "@/lib/thumbnails";
-import { notFound, redirect } from "next/navigation";
+import { notFound, redirect, RedirectType } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getSupabase } from "@/lib/supabase";
+import { canEditRecords, getSession, getSupabase } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
 import { ImageUploader } from "@/components/image-uploader";
 import { RotateImageButton } from "@/components/rotate-image-button";
@@ -13,6 +13,7 @@ import { titleWithYear } from "@jvb/db";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FlashNotice } from "@/components/ui/notice";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 
 // The image roles (the image_role enum) as words; the stored value is unchanged.
@@ -30,12 +31,25 @@ const ROLE_WORDS: Record<string, string> = {
 
 export const metadata = { title: "Manage images" };
 
+/**
+ * The images page with a message on it. At module level on purpose: an
+ * inline server action sends every value it closes over through the page
+ * (encrypted bound arguments), and a function cannot be sent, so a helper
+ * defined inside the page would fail it.
+ */
+function withError(imagesPath: string, message: string): string {
+  return `${imagesPath}?error=${encodeURIComponent(message)}`;
+}
+
 export default async function ManageImagesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ stockNumber: string }>;
+  searchParams: Promise<{ error?: string; notice?: string }>;
 }) {
   const { stockNumber: raw } = await params;
+  const sp = await searchParams;
   const stockNumber = decodeURIComponent(raw);
   const supabase = await getSupabase();
 
@@ -49,8 +63,15 @@ export default async function ManageImagesPage({
     .eq("id", ref.id)
     .maybeSingle();
   if (!piece) notFound();
-  // Plain value for the server actions below to close over.
+  // Plain values for the server actions below to close over (strings and
+  // booleans only: they travel with the page, see withError above).
   const pieceId: string = ref.id;
+  const imagesPath = `/inventory/${encodeURIComponent(stockNumber)}/images`;
+  // Whether this page shows an earlier message (?error= / ?notice=). A write
+  // that then succeeds goes back to the plain address, so the old message
+  // does not stand over the retry that worked; without one the page stays
+  // put (no navigation, no jump to the top while captioning down the page).
+  const showsMessage = Boolean(sp.error || sp.notice);
 
   // The work either side of this one, so an image session can run straight
   // down the inventory without going back to the list between works. Ordered
@@ -107,10 +128,24 @@ export default async function ManageImagesPage({
    */
   async function deleteImage(formData: FormData) {
     "use server";
-    const id = String(formData.get("id"));
+    const s = await getSession();
+    if (!s || !canEditRecords(s.roles)) redirect(withError(imagesPath, "Your role can see these photographs but not delete them."));
+    const id = String(formData.get("id") ?? "");
     const supabase = await getSupabase();
-    await supabase.from("piece_images").delete().eq("id", id).eq("piece_id", pieceId);
-    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/images`);
+    // Row security filters a refused delete to no rows and no error, so
+    // count what went rather than show the photograph as gone.
+    const { data, error } = await supabase
+      .from("piece_images")
+      .delete()
+      .eq("id", id)
+      .eq("piece_id", pieceId)
+      .select("id");
+    revalidatePath(imagesPath);
+    if (error) redirect(withError(imagesPath, `Could not delete the photograph: ${error.message}`));
+    if (!data || data.length === 0) {
+      redirect(withError(imagesPath, "The photograph could not be deleted. It may have gone already: reload the page and try again."));
+    }
+    if (showsMessage) redirect(imagesPath, RedirectType.replace);
   }
 
   /**
@@ -135,11 +170,25 @@ export default async function ManageImagesPage({
 
   async function saveCaption(formData: FormData) {
     "use server";
-    const id = String(formData.get("id"));
+    const s = await getSession();
+    if (!s || !canEditRecords(s.roles)) redirect(withError(imagesPath, "Your role can see these photographs but not change their captions."));
+    const id = String(formData.get("id") ?? "");
     const caption = String(formData.get("caption") ?? "");
     const supabase = await getSupabase();
-    await supabase.from("piece_images").update({ caption: caption || null }).eq("id", id);
-    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/images`);
+    // Only this work's photograph (an id posted for another work's image
+    // changes nothing), and a refused or missed write is said, not hidden.
+    const { data, error } = await supabase
+      .from("piece_images")
+      .update({ caption: caption || null })
+      .eq("id", id)
+      .eq("piece_id", pieceId)
+      .select("id");
+    revalidatePath(imagesPath);
+    if (error) redirect(withError(imagesPath, `Could not save the caption: ${error.message}`));
+    if (!data || data.length === 0) {
+      redirect(withError(imagesPath, "The caption could not be saved. The photograph may have gone: reload the page and try again."));
+    }
+    if (showsMessage) redirect(imagesPath, RedirectType.replace);
   }
 
   return (
@@ -186,6 +235,7 @@ export default async function ManageImagesPage({
         }
       />
 
+      <FlashNotice searchParams={sp} className="mb-4" />
       <ImageUploader pieceId={piece.id} nextSortOrder={(images ?? []).length} />
       {/*
         Tiles are rendered here, on the server, and handed to the grid keyed by

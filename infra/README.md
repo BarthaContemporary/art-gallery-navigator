@@ -241,8 +241,15 @@ works on at once (two), so a crash leaves at most those at `processing`.
 Should a row still sit there (the server lost power, say), the worker takes
 it again 15 minutes later once 0099 is applied (a try counts only once the
 worker starts on a photograph, and one tried before is made on its own, so
-a photograph that crashes the worker uses up only its own three tries);
-before 0099, set it back to `pending` as below.
+a photograph that crashes the worker uses up only its own three tries).
+Before 0099, or after going back to an older worker (which takes only
+`pending` rows), set such rows back to `pending` by hand; the job is
+idempotent, so a row a worker is working on right then is only made twice:
+
+```
+docker compose exec -T db psql -U postgres -d postgres -c \
+  "update piece_images set processing_status='pending' where processing_status='processing';"
+```
 
 Then re-queue any rows that failed on the old worker (the derivative job is
 idempotent — it overwrites the display master):

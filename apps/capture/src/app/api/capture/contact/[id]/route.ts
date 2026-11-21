@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireCapture, createServiceClient } from "@/lib/supabase";
-import { contactDeleteRefusal, holdRefusal } from "@/lib/contact-rules";
+import { contactDeleteRefusal, deleteFailure, holdRefusal } from "@/lib/contact-rules";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +34,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (held) return NextResponse.json({ error: held.error, holds: held.holds }, { status: held.status });
 
   const { error } = await db.from("crm_contacts").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // A hold that appeared since the check (0097 raises 23503) is a 409
+    // with its reason, as the check's own refusal is.
+    const failed = deleteFailure(error);
+    return NextResponse.json({ error: failed.error }, { status: failed.status });
+  }
   return NextResponse.json({ ok: true });
 }

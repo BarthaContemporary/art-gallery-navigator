@@ -5,6 +5,7 @@ import {
   daysWithin,
   deleteCalendarEvent,
   formEndDay,
+  isSingleEvent,
   londonDay,
   londonLocalToUtc,
   londonTime,
@@ -309,4 +310,121 @@ test("a datetime-local value is read as London time", () => {
   for (const bad of ["", "2026-07-10", "2026-07-10 14:30", "2026-13-10T14:30", "2026-07-10T25:00", null]) {
     assert.equal(londonLocalToUtc(bad), null, String(bad));
   }
+});
+
+// --- timezone blocks are not recurrence ------------------------------------------
+
+/** A timed event as Apple Calendar stores it: a VTIMEZONE beside the event, with its own RRULEs. */
+const APPLE_TIMED = [
+  "BEGIN:VCALENDAR",
+  "VERSION:2.0",
+  "PRODID:-//Apple Inc.//macOS 15.1//EN",
+  "CALSCALE:GREGORIAN",
+  "BEGIN:VTIMEZONE",
+  "TZID:Europe/London",
+  "BEGIN:DAYLIGHT",
+  "TZOFFSETFROM:+0000",
+  "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU",
+  "DTSTART:19810329T010000",
+  "TZNAME:BST",
+  "TZOFFSETTO:+0100",
+  "END:DAYLIGHT",
+  "BEGIN:STANDARD",
+  "TZOFFSETFROM:+0100",
+  "RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU",
+  "DTSTART:19961027T020000",
+  "RDATE:19961027T020000",
+  "TZNAME:GMT",
+  "TZOFFSETTO:+0000",
+  "END:STANDARD",
+  "END:VTIMEZONE",
+  "BEGIN:VEVENT",
+  "CREATED:20261101T090000Z",
+  "UID:apple-visit-7",
+  "DTEND;TZID=Europe/London:20261120T110000",
+  "TRANSP:OPAQUE",
+  "SUMMARY:Viewing: Satsuma vase",
+  "DTSTART;TZID=Europe/London:20261120T100000",
+  "DTSTAMP:20261101T090000Z",
+  "SEQUENCE:2",
+  "BEGIN:VALARM",
+  "ACTION:DISPLAY",
+  "DESCRIPTION:Reminder",
+  "TRIGGER:-PT30M",
+  "END:VALARM",
+  "END:VEVENT",
+  "END:VCALENDAR",
+  "",
+].join("\r\n");
+
+const lines = (text: string) => text.replace(/\r?\n[ \t]/g, "").split(/\r?\n/).filter((l) => l !== "");
+
+test("an Apple timed event is a single event: its time zone's RRULE and RDATE are not the event's", () => {
+  assert.equal(isSingleEvent(lines(APPLE_TIMED)), true);
+  // The feed agrees: shown as editable, not as part of a series.
+  assert.equal(one(APPLE_TIMED).recurring, false);
+});
+
+test("a series, an override or two events in one resource still count as recurring", () => {
+  const withRule = APPLE_TIMED.replace("SEQUENCE:2", "SEQUENCE:2\r\nRRULE:FREQ=WEEKLY;COUNT=4");
+  assert.equal(isSingleEvent(lines(withRule)), false);
+  const withDates = APPLE_TIMED.replace("SEQUENCE:2", "SEQUENCE:2\r\nRDATE;TZID=Europe/London:20261127T100000");
+  assert.equal(isSingleEvent(lines(withDates)), false);
+  const override = APPLE_TIMED.replace("SEQUENCE:2", "SEQUENCE:2\r\nRECURRENCE-ID;TZID=Europe/London:20261120T100000");
+  assert.equal(isSingleEvent(lines(override)), false);
+  const two = APPLE_TIMED.replace("END:VCALENDAR", "BEGIN:VEVENT\r\nUID:x\r\nDTSTART:20261121T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR");
+  assert.equal(isSingleEvent(lines(two)), false);
+  assert.equal(isSingleEvent(lines("BEGIN:VCALENDAR\r\nEND:VCALENDAR")), false);
+});
+
+test("saving an Apple timed event rewrites its time and keeps the time zone block and the alarm", async () => {
+  await withServer(
+    (call) => (call.method === "GET" ? new Response(APPLE_TIMED, { status: 200 }) : new Response(null, { status: 204 })),
+    async (calls) => {
+      const res = await updateCalendarEvent("/gallery/cal1/ev.ics", '"7"', {
+        title: "Viewing: Satsuma vase",
+        location: "Gallery",
+        description: null,
+        allDay: false,
+        startDay: "2026-11-20",
+        endDay: "2026-11-20",
+        startTime: "11:00",
+        endTime: "12:00",
+      });
+      assert.deepEqual(res, { ok: true });
+      const put = calls.find((c) => c.method === "PUT");
+      assert.ok(put?.body);
+      const out = put.body.split("\r\n");
+      // 11:00 London in November is 11:00 UTC.
+      assert.ok(out.includes("DTSTART:20261120T110000Z"));
+      assert.ok(out.includes("DTEND:20261120T120000Z"));
+      assert.ok(!out.some((l) => l.startsWith("DTSTART;TZID")), "the event's old start is gone");
+      assert.ok(out.includes("SEQUENCE:3"));
+      // The time zone block is left exactly as it was, its own DTSTARTs included.
+      const tz = out.slice(out.indexOf("BEGIN:VTIMEZONE"), out.indexOf("END:VTIMEZONE") + 1);
+      assert.deepEqual(tz, lines(APPLE_TIMED).slice(lines(APPLE_TIMED).indexOf("BEGIN:VTIMEZONE"), lines(APPLE_TIMED).indexOf("END:VTIMEZONE") + 1));
+      assert.ok(out.includes("DESCRIPTION:Reminder"));
+    },
+  );
+});
+
+test("a real series is still refused, and nothing is written", async () => {
+  const series = APPLE_TIMED.replace("SEQUENCE:2", "SEQUENCE:2\r\nRRULE:FREQ=WEEKLY;COUNT=4");
+  await withServer(
+    (call) => (call.method === "GET" ? new Response(series, { status: 200 }) : new Response(null, { status: 204 })),
+    async (calls) => {
+      const res = await updateCalendarEvent("/gallery/cal1/ev.ics", null, {
+        title: "x",
+        location: null,
+        description: null,
+        allDay: false,
+        startDay: "2026-11-20",
+        endDay: "2026-11-20",
+        startTime: "11:00",
+        endTime: "12:00",
+      });
+      assert.deepEqual(res, { ok: false, message: "recurring events are edited in Apple Calendar" });
+      assert.equal(calls.filter((c) => c.method === "PUT").length, 0);
+    },
+  );
 });

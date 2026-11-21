@@ -3,6 +3,7 @@ import { createServiceClient } from "@jvb/db/server";
 import { safeEqual } from "@/lib/secret";
 import { sendEmail } from "@/lib/email";
 import { designationNames, nameMatches, screeningTarget, type ScreeningTarget } from "@/lib/sanctions-match";
+import { selectAllRows } from "@/lib/paged-read";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,22 +41,28 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient();
 
-  const { data: contactsRaw, error: contactsErr } = await supabase
-    .from("crm_contacts")
-    .select("id, first_name, last_name")
-    .eq("kyc_status", "verified");
-  // A failed read is not "no confirmed contacts": say so, and screen nobody.
-  if (contactsErr) {
-    console.error("[sanctions-screen] could not read the contacts to screen:", contactsErr.message);
-    return NextResponse.json({ error: `Could not read the contacts to screen: ${contactsErr.message}` }, { status: 500 });
+  // Paged, ordered by id: a row cap on the API must not leave confirmed
+  // contacts unscreened without a word (lib/paged-read.ts).
+  type ContactName = { id: string; first_name: string | null; last_name: string | null };
+  let contactsRaw: ContactName[];
+  try {
+    contactsRaw = await selectAllRows<ContactName>((from, to) =>
+      supabase
+        .from("crm_contacts")
+        .select("id, first_name, last_name")
+        .eq("kyc_status", "verified")
+        .order("id")
+        .range(from, to),
+    );
+  } catch (e) {
+    // A failed read is not "no confirmed contacts": say so, and screen nobody.
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("[sanctions-screen] could not read the contacts to screen:", message);
+    return NextResponse.json({ error: `Could not read the contacts to screen: ${message}` }, { status: 500 });
   }
 
   // Need a first + last of reasonable length to avoid noise.
-  const targets: ScreeningTarget[] = ((contactsRaw ?? []) as {
-    id: string;
-    first_name: string | null;
-    last_name: string | null;
-  }[])
+  const targets: ScreeningTarget[] = contactsRaw
     .map(screeningTarget)
     .filter((t): t is ScreeningTarget => t !== null);
 

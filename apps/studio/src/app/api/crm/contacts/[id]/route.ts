@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { bounceResetFor } from "@/lib/email-bounce";
-import { getSupabase } from "@/lib/supabase";
+import { getSession, getSupabase, hasRole } from "@/lib/supabase";
 import { changedFlags, consentStamp, mergeInterests, parseNames } from "@/lib/contact-save";
 
 export const runtime = "nodejs";
@@ -9,12 +9,14 @@ export const dynamic = "force-dynamic";
 /**
  * Autosave endpoint for a contact — accepts the full editor form (FormData).
  *
- * Runs on the caller's own connection, so the row policies decide who may
- * write (admin and staff; the accountant has no contact policy at all). The
- * answers the editor acts on (lib/save-outcome.ts): 500 when the current row
- * could not be read (tried again), 404 when there is no row to write or the
- * write changed none (final), 410 for an erased contact (final: nothing is
- * ever written back into an anonymised row).
+ * Admin and staff only, checked before anything is read; it then runs on the
+ * caller's own connection, so the row policies decide as well (the
+ * accountant has no contact policy at all). The answers the editor acts on
+ * (lib/save-outcome.ts): 401 signed out (tried again after signing in), 403
+ * for another role (final), 500 when the current row could not be read
+ * (tried again), 404 when there is no row to write or the write changed none
+ * (final), 410 for an erased contact (final: nothing is ever written back
+ * into an anonymised row, and the write itself skips one erased since).
  *
  * The consent, do-not-mail and AML fields, and the interests, have other
  * writers (opt-in confirmation, unsubscribe, bounces, sales), so they are
@@ -25,11 +27,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // The role first, before anything is read or written: contacts are kept
+  // by admin and staff (the row policies say the same; this answers the
+  // accountant with a reason instead of a "not found").
+  if (!hasRole(session.roles, "admin", "staff"))
+    return NextResponse.json({ error: "Your role can't change contacts." }, { status: 403 });
+  const { user } = session;
   const supabase = await getSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const fd = await req.formData();
   const s = (k: string) => {
@@ -119,6 +125,8 @@ export async function PATCH(
       },
     })
     .eq("id", id)
+    // Never into a row erased since the read above.
+    .is("erased_at", null)
     // An update the row policies filter out changes nothing and raises no
     // error; ask for the row back so that is not answered as a save.
     .select("id");

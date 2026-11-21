@@ -20,6 +20,7 @@ import { StatusPill } from "@/components/status-pill";
 import { RegisterBadge } from "@/components/register-badge";
 import { RegisterMove } from "@/components/register-move";
 import { ChangeHistory, type HistoryEntry } from "@/components/change-history";
+import { reinstatePatch } from "@/lib/revert-change";
 import { FilePreviewLink } from "@/components/file-preview";
 import { cmToInchesFraction } from "@/lib/measure";
 import { titleWithYear } from "@jvb/db";
@@ -177,6 +178,11 @@ export default async function PieceDetail({
           ? "id, action, created_at, actor_id, entity_type, changes"
           : "id, action, created_at, actor_id",
       )
+      // The three tables whose log rows carry a work's id (the triggers
+      // write the table name; a register move logs under the new table).
+      // Naming them lets the (entity_type, entity_id, created_at) index
+      // serve this read instead of a scan of the whole log.
+      .in("entity_type", ["pieces", "external_pieces", "piece_financials"])
       .eq("entity_id", piece.id)
       .order("created_at", { ascending: false })
       .limit(isAdmin ? 200 : 6),
@@ -671,20 +677,10 @@ export default async function PieceDetail({
 
     const back = `/inventory/${encodeURIComponent(stockNumber)}`;
     const fail = (why: string) => redirect(`${back}?error=${encodeURIComponent(why)}`);
-    // Generated, bookkeeping and identity columns, and the register (a check
-    // constraint pins each stock table to its own; a register move is undone
-    // with Move register, which also restores the old stock number).
-    const IMMUTABLE = new Set([
-      "id", "piece_id", "created_at", "updated_at", "created_by", "updated_by",
-      "search_vector", "total_cost_gbp", "margin_gbp", "margin_pct",
-      "stock_number", "deleted_at", "ledger",
-    ]);
-    const changes = entry.changes as Record<string, { old?: unknown; new?: unknown }>;
-    const patch: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(changes)) {
-      if (k === "old" || k === "new" || IMMUTABLE.has(k)) continue;
-      if (v && typeof v === "object" && "old" in v) patch[k] = v.old ?? null;
-    }
+    // The prior values, less generated, bookkeeping and identity columns and
+    // the register (lib/revert-change.ts; ChangeHistory offers the button
+    // only when this leaves something to write).
+    const patch = reinstatePatch(entry.changes as Record<string, unknown>);
     if (Object.keys(patch).length === 0) {
       fail(
         "Nothing in this change can be reinstated here. A move between registers is undone with Move register.",

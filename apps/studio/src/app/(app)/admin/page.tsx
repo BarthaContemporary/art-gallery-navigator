@@ -449,7 +449,10 @@ export default async function AdminPage({
       supabase
         .from("activity_log")
         .select("id, actor_id, entity_type, entity_id, action, created_at")
-        .order("created_at", { ascending: false })
+        // Newest first by the identity key, which the primary key serves
+        // (the created_at index arrives only with 0097); ids rise in the
+        // order rows were written.
+        .order("id", { ascending: false })
         .limit(15),
       // Both apps' passkeys, so none can sit on an account unseen.
       admin.from("webauthn_credentials").select(passkeyCols),

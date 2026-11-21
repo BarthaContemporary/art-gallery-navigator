@@ -12,14 +12,15 @@ import { Panel } from "@/components/ui/section";
 import { WebsiteSwitch } from "@/components/ui/website-switch";
 import { ImageIcon } from "@/components/ui/icons";
 
+/** The analyse route's answer; any list may be missing from an odd one. */
 type Suggestions = {
-  hashtags: string[];
+  hashtags?: string[];
   suggested_category: string;
   suggested_medium: string;
   suggested_period: string;
-  materials: string[];
-  techniques: string[];
-  motifs: string[];
+  materials?: string[];
+  techniques?: string[];
+  motifs?: string[];
   description_draft: string;
 };
 
@@ -364,7 +365,9 @@ export function EditHeader({
         <Panel title="AI suggestions" className="mt-4">
           <p className="label">Hashtags: press to include or leave out</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {suggestions.hashtags.map((tag) => (
+            {/* The lists may be missing from an answer (the route normalises
+                today's; an older or odd one must not crash the editor). */}
+            {(suggestions.hashtags ?? []).map((tag) => (
               <ToggleChip
                 key={tag}
                 pressed={selected.has(tag)}
@@ -398,7 +401,9 @@ export function EditHeader({
             {draft("Suggested period", suggestions.suggested_period, "period")}
             {draft(
               "Materials, techniques and motifs",
-              [...suggestions.materials, ...suggestions.techniques, ...suggestions.motifs].join(" · "),
+              [...(suggestions.materials ?? []), ...(suggestions.techniques ?? []), ...(suggestions.motifs ?? [])].join(
+                " · ",
+              ),
             )}
             {draft("Draft description", suggestions.description_draft, "description")}
           </div>

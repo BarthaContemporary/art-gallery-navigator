@@ -5,6 +5,7 @@ import { StockBookTable, type StockBookRow } from "@/components/stock-book-table
 import { londonDay } from "@/lib/caldav";
 import { formatCount, formatDate } from "@/lib/format";
 import { selectInChunks } from "@/lib/chunk";
+import { selectAllRows } from "@/lib/paged-read";
 import { PageHeader } from "@/components/ui/page-header";
 import { buttonClass } from "@/components/ui/button";
 import { SegmentedLinks, chipClass } from "@/components/ui/chips";
@@ -131,10 +132,24 @@ export default async function StockBookPage({
   const attentionOnly = sp.attention === "1";
 
   const supabase = await getSupabase();
-  let query = supabase.from(view).select("*").order("stock_number");
-  if (sp.from) query = query.gte("sold_date", sp.from);
-  if (sp.to) query = query.lte("sold_date", sp.to);
-  const { data: rows, error } = await query;
+  // Paged and in the exports' order (stock number, then piece_id to break
+  // ties), so the screen lists exactly the rows the CSV and XLSX hold and
+  // never stops at an API row cap without saying so (lib/paged-read.ts).
+  let rows: Record<string, unknown>[] | null = null;
+  let error: { message: string } | null = null;
+  try {
+    rows = await selectAllRows<Record<string, unknown>>((start, end) => {
+      let query = supabase.from(view).select("*").order("stock_number").order("piece_id");
+      if (sp.from) query = query.gte("sold_date", sp.from);
+      if (sp.to) query = query.lte("sold_date", sp.to);
+      return query.range(start, end) as unknown as PromiseLike<{
+        data: Record<string, unknown>[] | null;
+        error: { message: string } | null;
+      }>;
+    });
+  } catch (e) {
+    error = { message: e instanceof Error ? e.message : String(e) };
+  }
 
   // Status and the missing-purchase flag live on the work, not in the views,
   // so they are read for the works on this page only, in chunks of ids (a
