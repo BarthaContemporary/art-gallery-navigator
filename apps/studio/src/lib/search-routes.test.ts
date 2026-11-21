@@ -113,14 +113,15 @@ test("the pg_net POST: no secret or a wrong one is 401; SYNC_SHARED_SECRET or sy
   assert.equal(db.calls.filter((c: Row) => c.rpc === "claim_search_outbox").length, 0, "nothing claimed while refused");
 
   // The env secret answers without reading sync_config; the database one reads it.
+  const before = db.syncConfigReads;
   let { deps: d } = deps(db, null);
   let res = await routes.drainFromDatabase(post(ENV.SYNC_SHARED_SECRET), d);
   assert.equal(res.status, 200);
-  const reads = db.syncConfigReads;
+  assert.equal(db.syncConfigReads, before, "SYNC_SHARED_SECRET matched without reading sync_config");
   ({ deps: d } = deps(db, null, {}));
   res = await routes.drainFromDatabase(post(DB_SECRET), d);
   assert.equal(res.status, 200);
-  assert.equal(db.syncConfigReads, reads + 1);
+  assert.equal(db.syncConfigReads, before + 1);
 
   // No secret in sync_config and none in the environment: nothing opens it.
   const empty = makeDb({ dbSecret: null });

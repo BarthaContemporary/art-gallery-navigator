@@ -73,16 +73,39 @@ test("stored run results read in words", () => {
   assert.equal(w.resultWords(null), "No result recorded");
 });
 
+type Listed = Parameters<Words["indexWords"]>[1];
+const listed: Listed = { engine: "ok", indicesKnown: true };
+
 test("index counts against the database", () => {
-  assert.deepEqual(w.indexWords(index()), { counts: "1,234 indexed · 1,234 in the database", note: null, warn: false });
-  assert.match(w.indexWords(index({ documents: 1230 })).note ?? "", /^4 records not in the index yet/);
-  assert.match(w.indexWords(index({ documents: 1235 })).note ?? "", /^1 document more than the database/);
-  const missing = w.indexWords(index({ exists: false, documents: null }));
+  assert.deepEqual(w.indexWords(index(), listed), { counts: "1,234 indexed · 1,234 in the database", note: null, warn: false });
+  assert.match(w.indexWords(index({ documents: 1230 }), listed).note ?? "", /^4 records not in the index yet/);
+  assert.match(w.indexWords(index({ documents: 1235 }), listed).note ?? "", /^1 document more than the database/);
+  const missing = w.indexWords(index({ exists: false, documents: null }), listed);
   assert.equal(missing.counts, "Not created · 1,234 in the database");
+  assert.equal(missing.note, "The next reconcile creates it.");
   assert.equal(missing.warn, true);
-  assert.deepEqual(w.indexWords(index({ readOnly: true })).warn, true);
-  assert.equal(w.indexWords(index({ documents: null, database: null })).counts, "not known indexed · not known in the database");
-  assert.equal(w.indexWords(index({ documents: null, database: null })).note, null);
+  assert.deepEqual(w.indexWords(index({ readOnly: true }), listed).warn, true);
+  assert.equal(w.indexWords(index({ documents: null, database: null }), listed).counts, "not known indexed · not known in the database");
+  assert.equal(w.indexWords(index({ documents: null, database: null }), listed).note, null);
+  // The disk states still list the indices: a missing one is missing.
+  assert.equal(w.indexWords(index({ exists: false, documents: null }), { engine: "disk-full", indicesKnown: true }).counts, "Not created · 1,234 in the database");
+});
+
+test("search server unreachable, or its index list did not come back: the indices are not known, never 'not created'", () => {
+  // What searchStatus() hands back for an unreachable server: every index exists: false, documents: null.
+  const unread = index({ exists: false, health: null, documents: null, deletedDocuments: null, size: null });
+  const down = w.indexWords(unread, { engine: "unreachable", indicesKnown: false });
+  assert.deepEqual(down, { counts: "Not known (search server unreachable) · 1,234 in the database", note: null, warn: false });
+  // Healthy, but _cat/indices failed or timed out.
+  const unlisted = w.indexWords(unread, { engine: "ok", indicesKnown: false });
+  assert.deepEqual(unlisted, { counts: "Not known (the search server did not list its indices) · 1,234 in the database", note: null, warn: false });
+  for (const s of [{ engine: "unreachable", indicesKnown: false }, { engine: "ok", indicesKnown: false }, { engine: "read-only", indicesKnown: false }] as Listed[]) {
+    const words = w.indexWords(unread, s);
+    assert.doesNotMatch(`${words.counts} ${words.note ?? ""}`, /Not created|reconcile/, s.engine);
+  }
+  assert.equal(w.indexWords(index({ database: null }), { engine: "unreachable", indicesKnown: false }).counts, "Not known (search server unreachable) · not known in the database");
+  assert.equal(w.indexListUnknown(listed), null);
+  assert.equal(w.indexListUnknown({ engine: "not configured", indicesKnown: false }), "OpenSearch not configured");
 });
 
 type Kind = Parameters<Words["reconcileNotice"]>[0]["kinds"][number];

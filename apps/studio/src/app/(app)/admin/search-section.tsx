@@ -109,7 +109,7 @@ export async function SearchSection({ reconcileAction }: { reconcileAction: () =
         <>
           <ul className="divide-y divide-rule border-y border-rule">
             {status.indices.map((i) => {
-              const words = indexWords(i);
+              const words = indexWords(i, status);
               const last = status.state[i.kind];
               return (
                 <li key={i.kind} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 py-2.5">

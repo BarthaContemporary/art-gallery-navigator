@@ -111,9 +111,34 @@ export function resultWords(result: string | null): string {
   return label ? (m[2] ? `${label}: ${m[2]}` : label) : result;
 }
 
-/** An index's documents against the database's records, and anything to note. */
-export function indexWords(i: IndexStatus): { counts: string; note: string | null; warn: boolean } {
+/**
+ * Why the search server's index list is not known, or null when it is. Then
+ * an index reading exists: false means nothing: it may be perfectly fine.
+ */
+export function indexListUnknown(s: Pick<SearchStatus, "engine" | "indicesKnown">): string | null {
+  switch (s.engine) {
+    case "not configured":
+    case "misconfigured":
+      return "OpenSearch not configured";
+    case "unreachable":
+      return "search server unreachable";
+    default:
+      return s.indicesKnown ? null : "the search server did not list its indices";
+  }
+}
+
+/**
+ * An index's documents against the database's records, and anything to note.
+ * `s` is the status the index came with: only a node that listed its indices
+ * can say one is missing.
+ */
+export function indexWords(
+  i: IndexStatus,
+  s: Pick<SearchStatus, "engine" | "indicesKnown">,
+): { counts: string; note: string | null; warn: boolean } {
   const database = i.database === null ? "not known" : formatCount(i.database);
+  const unknown = indexListUnknown(s);
+  if (unknown) return { counts: `Not known (${unknown}) · ${database} in the database`, note: null, warn: false };
   if (!i.exists) {
     return { counts: `Not created · ${database} in the database`, note: "The next reconcile creates it.", warn: true };
   }

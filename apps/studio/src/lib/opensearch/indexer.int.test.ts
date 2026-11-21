@@ -378,6 +378,7 @@ test("status: engine, documents against the database, pending rows, last runs", 
   const s = await ix.searchStatus(db, cfg);
   assert.equal(s.engine, "ok");
   assert.ok(s.health === "green" || s.health === "yellow");
+  assert.equal(s.indicesKnown, true);
   assert.equal(s.setUp, true);
   assert.equal(s.pending, 1);
   for (const i of s.indices) {
@@ -390,5 +391,6 @@ test("status: engine, documents against the database, pending rows, last runs", 
   assert.equal(none.pending, 1);
   const down = await ix.searchStatus(db, testSearchConfig("http://127.0.0.1:1", `${prefix}-down`));
   assert.equal(down.engine, "unreachable");
+  assert.equal(down.indicesKnown, false);
   assert.ok(down.problem && !down.problem.includes("127.0.0.1"));
 });
