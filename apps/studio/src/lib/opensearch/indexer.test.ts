@@ -283,3 +283,47 @@ test("status: a count that comes back empty is unknown, not 0", async () => {
   const s = await ix.searchStatus(db, null);
   assert.equal(s.indices.find((i: Row) => i.kind === "makers")?.database, null);
 });
+
+test("status: the index list is known only when _cat/indices answered; unreachable or a failed read says nothing about the indices", async () => {
+  const db = new FakeDb();
+  let cat: () => Response | Error = () =>
+    json(200, [{ index: "oslib-unit-works-v1", health: "green", "docs.count": "3", "docs.deleted": "0", "store.size": "1kb" }]);
+  answer = (_method, url) => {
+    const path = new URL(url).pathname;
+    if (path === "/_cluster/health") return json(200, { status: "green" });
+    if (path === "/_cluster/settings") return json(200, { persistent: {}, transient: {} });
+    if (path.startsWith("/_cat/indices/")) return cat();
+    if (path.endsWith("/_settings")) return json(200, {});
+    return json(404, { error: { type: "fake_unsupported" } });
+  };
+  try {
+    let s = await ix.searchStatus(db, cfg);
+    assert.deepEqual([s.engine, s.indicesKnown], ["ok", true]);
+    assert.deepEqual(
+      s.indices.map((i: Row) => [i.kind, i.exists, i.documents]),
+      [["works", true, 3], ["makers", false, null], ["contacts", false, null]],
+    );
+
+    // No index yet: an empty list is a known answer.
+    cat = () => json(200, []);
+    s = await ix.searchStatus(db, cfg);
+    assert.deepEqual([s.engine, s.indicesKnown], ["ok", true]);
+
+    // Health answers, the index list does not: the engine is fine, the indices are not known.
+    const failures = [() => json(503, { error: { type: "cluster_block_exception" } }), () => Object.assign(new Error("timed out"), { name: "TimeoutError" })];
+    for (const failure of failures) {
+      cat = failure;
+      s = await ix.searchStatus(db, cfg);
+      assert.deepEqual([s.engine, s.indicesKnown], ["ok", false]);
+      assert.ok(s.indices.every((i: Row) => !i.exists && i.documents === null));
+    }
+
+    // Unreachable: the list is never read. Not configured: no list at all.
+    answer = () => new TypeError("fetch failed");
+    s = await ix.searchStatus(db, cfg);
+    assert.deepEqual([s.engine, s.indicesKnown], ["unreachable", false]);
+    assert.equal((await ix.searchStatus(db, null)).indicesKnown, false);
+  } finally {
+    answer = () => new Response("{}", { status: 200 });
+  }
+});

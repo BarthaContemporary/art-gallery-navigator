@@ -509,6 +509,12 @@ export type SearchStatus = {
   /** Why, in words safe to show (never a password or an engine reason). */
   problem: string | null;
   indices: IndexStatus[];
+  /**
+   * True once the node's index list came back. False when it is not known
+   * (not configured, unreachable, or the _cat/indices read failed): each
+   * index's exists/documents then say nothing, not "missing".
+   */
+  indicesKnown: boolean;
   /** Other jvb-<kind>-v<N> indices still on the node (a lower version waiting for its reconcile). */
   otherIndices: string[];
   /** False until migration 0100 is applied. */
@@ -567,7 +573,7 @@ export async function searchStatus(db: Db, cfg: SearchConfig | null): Promise<Se
     readOnly: false,
     database: database[kind],
   }));
-  const status: SearchStatus = { engine: "ok", health: null, problem: null, indices, otherIndices: [], setUp, pending: setUp ? outbox.n : null, state };
+  const status: SearchStatus = { engine: "ok", health: null, problem: null, indices, indicesKnown: false, otherIndices: [], setUp, pending: setUp ? outbox.n : null, state };
 
   if (!cfg) {
     const problem = searchConfigProblem(process.env);
@@ -587,6 +593,7 @@ export async function searchStatus(db: Db, cfg: SearchConfig | null): Promise<Se
   else if (on("cluster.blocks.create_index")) status.engine = "disk-full";
 
   const cat = await osFetch(cfg, "index", "GET", `/_cat/indices/${prefix}-*?format=json&h=index,health,docs.count,docs.deleted,store.size`, undefined, { timeoutMs: 5000 });
+  status.indicesKnown = !cat.error && Array.isArray(cat.json);
   const rows = Array.isArray(cat.json) ? (cat.json as Record<string, string | undefined>[]) : [];
   const current = new Set(indices.map((i) => i.name));
   const num = (v: string | undefined) => (v === undefined || v === "" || Number.isNaN(Number(v)) ? null : Number(v));
